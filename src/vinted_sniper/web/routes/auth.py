@@ -24,7 +24,7 @@ def _safe_next(target: str | None) -> str:
 
 
 @router.get("/login")
-async def login_form(request: Request, next: str | None = None) -> Response:  # noqa: A002
+async def login_form(request: Request, next: str | None = None) -> Response:
     if core.ctx(request).settings.web_auth_token is None:
         return RedirectResponse("/", status_code=303)
     return core.TEMPLATES.TemplateResponse(
@@ -36,7 +36,7 @@ async def login_form(request: Request, next: str | None = None) -> Response:  # 
 async def login(
     request: Request,
     password: Annotated[str, Form()] = "",
-    next: Annotated[str, Form()] = "/",  # noqa: A002
+    next: Annotated[str, Form()] = "/",
 ) -> Response:
     token = core.ctx(request).settings.web_auth_token
     if token is None:

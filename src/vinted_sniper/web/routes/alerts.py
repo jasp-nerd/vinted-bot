@@ -84,7 +84,7 @@ async def add_destination(request: Request) -> Response:
     form = await request.form()
     kind = str(form.get("kind") or "")
     try:
-        name, config = destinations.build(kind, form)  # type: ignore[arg-type]
+        name, config = destinations.build(kind, form)
         destinations.check(kind, config, context.settings, context.http)
     except InvalidInputError as exc:
         return JSONResponse({"ok": False, "field": exc.field, "error": exc.message}, 400)
@@ -108,7 +108,7 @@ async def set_options(request: Request, destination_id: int) -> Response:
     destination = await _destination(request, destination_id)
     form = await request.form()
     try:
-        config = destinations.options(destination.kind, form, destination.config)  # type: ignore[arg-type]
+        config = destinations.options(destination.kind, form, destination.config)
         destinations.check(destination.kind, config, context.settings, context.http)
     except InvalidInputError as exc:
         return JSONResponse({"ok": False, "field": exc.field, "error": exc.message}, 400)

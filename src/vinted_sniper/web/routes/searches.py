@@ -34,7 +34,7 @@ async def searches_page(request: Request) -> Response:
     context = core.ctx(request)
     snapshot = await health.snapshot(context.repo)
     rows = await data.searches(context, snapshot, await core.timezone(context))
-    counts = {key: 0 for key in ("watching", "quiet", "stuck", "paused")}
+    counts = dict.fromkeys(("watching", "quiet", "stuck", "paused"), 0)
     for row in rows:
         counts["stuck" if row["status"] == "blocked" else row["status"]] += 1
     base = context.settings.web_public_url or str(request.base_url).rstrip("/")
@@ -208,7 +208,7 @@ async def search_detail(request: Request, query_id: int) -> Response:
     today = datetime.now(tz).date()
     days = [(today - timedelta(days=offset)).isoformat() for offset in range(13, -1, -1)]
     activity = await repo.activity(tz, days=15)
-    per_day = {day: 0 for day in days}
+    per_day = dict.fromkeys(days, 0)
     for entry in activity.daily_finds:
         if entry.query_id == query_id and entry.day in per_day:
             per_day[entry.day] += entry.count
@@ -338,7 +338,8 @@ def _timeline(state: Any, query: Query, now: int, tz: Any) -> list[dict[str, str
         )
     events.sort(key=lambda pair: -pair[0])
     return [
-        {**event, "time": views.clock(moment, tz) if moment else "Daily"} for moment, event in events
+        {**event, "time": views.clock(moment, tz) if moment else "Daily"}
+        for moment, event in events
     ]
 
 
@@ -383,7 +384,7 @@ async def delete(request: Request, query_id: int) -> Response:
 async def set_routes(request: Request, query_id: int) -> Response:
     await _query(request, query_id)
     form = await request.form()
-    ids = [int(v) for v in form.getlist("dest") if str(v).isdigit()]
+    ids = [int(str(v)) for v in form.getlist("dest") if str(v).isdigit()]
     await core.ctx(request).repo.set_routes(query_id, ids)
     return core.redirect(core.url("searches"), "Saved where alerts go.")
 
@@ -393,11 +394,11 @@ async def bulk(request: Request) -> Response:
     """Pause, resume, delete or reroute several searches at once."""
     repo = core.ctx(request).repo
     form = await request.form()
-    ids = [int(v) for v in form.getlist("ids") if str(v).isdigit()]
+    ids = [int(str(v)) for v in form.getlist("ids") if str(v).isdigit()]
     known = {query.id for query in await repo.list_queries()}
     chosen = [query_id for query_id in ids if query_id in known]
     action = str(form.get("action") or "")
-    dests = [int(v) for v in form.getlist("dest") if str(v).isdigit()]
+    dests = [int(str(v)) for v in form.getlist("dest") if str(v).isdigit()]
     for query_id in chosen:
         match action:
             case "pause":
@@ -412,4 +413,3 @@ async def bulk(request: Request) -> Response:
     count = len(chosen)
     noun = "search" if count == 1 else "searches"
     return core.redirect(core.url("searches"), f"{words.get(action, 'Changed')} {count} {noun}.")
-

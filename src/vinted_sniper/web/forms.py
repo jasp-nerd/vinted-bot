@@ -73,7 +73,7 @@ def default_values(*, tld: str, interval: int, color: str) -> dict[str, Any]:
         "tld": tld,
         "link": "",
         "search_text": "",
-        **{key: "" for key in BUILDER_LISTS},
+        **dict.fromkeys(BUILDER_LISTS, ""),
         "labels": "{}",
         "extra_params": "{}",
         "include_terms": "",

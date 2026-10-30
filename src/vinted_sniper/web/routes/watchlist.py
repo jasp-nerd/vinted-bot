@@ -61,7 +61,9 @@ async def _page(request: Request, *, error: str = "", link: str = "") -> Respons
         checked = views.ago(now - watch.last_checked_at) if watch.last_checked_at else "not yet"
         if watch.kind == "item":
             stored = await context.repo.feed_item(watch.target_id)
-            status, label = _STATUS_WORDS.get(watch.last_status or "", ("ok", "Waiting for a first look"))
+            status, label = _STATUS_WORDS.get(
+                watch.last_status or "", ("ok", "Waiting for a first look")
+            )
             items.append(
                 {
                     "id": watch.id,
@@ -112,14 +114,18 @@ async def add(request: Request) -> Response:
     try:
         kind, tld, target_id, label = parse_watch_link(text)
         if context.watch_kinds and kind not in context.watch_kinds:
-            raise InvalidInputError("url", "This copy of vinted-sniper can't run that kind of watch.")
+            raise InvalidInputError(
+                "url", "This copy of vinted-sniper can't run that kind of watch."
+            )
         await context.repo.add_watch(kind=kind, tld=tld, target_id=target_id, label=label)
     except InvalidInputError as exc:
         page = await _page(request, error=exc.message, link=text)
         page.status_code = 400
         return page
     noun = "listing" if kind == "item" else "seller"
-    return core.redirect(core.url("watchlist"), f"Watching this {noun} now. First look within a minute.")
+    return core.redirect(
+        core.url("watchlist"), f"Watching this {noun} now. First look within a minute."
+    )
 
 
 async def _watch_or_404(request: Request, watch_id: int) -> Any:

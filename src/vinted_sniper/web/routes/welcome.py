@@ -9,9 +9,10 @@ person asks for a code (and reused if they ask again).
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, TypeGuard
 
 from fastapi import APIRouter, Request
+from fastapi.datastructures import FormData
 from fastapi.responses import RedirectResponse, Response
 
 from vinted_sniper.db.repo import Query
@@ -23,7 +24,7 @@ from vinted_sniper.web.routes import alerts
 router = APIRouter()
 
 
-def _submitted(form: Any) -> bool:
+def _submitted(form: Any) -> TypeGuard[FormData]:
     """Whether a step's form was sent forward, rather than reached by Back or from before."""
     return form is not None and bool(form.get("submitted")) and not form.get("back")
 

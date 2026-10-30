@@ -40,9 +40,7 @@ STATIC_DIR = HERE / "static"
 SESSION_COOKIE = "vinted_sniper_session"
 FLASH_COOKIE = "vs_toast"
 RELEASES_URL = "https://github.com/jasp-nerd/vinted-sniper/releases/latest"
-TROUBLESHOOTING_URL = (
-    "https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/troubleshooting.md"
-)
+TROUBLESHOOTING_URL = "https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/troubleshooting.md"
 SELF_HOSTING_URL = "https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/self-hosting.md"
 
 

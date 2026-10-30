@@ -84,9 +84,9 @@ async def settings_page(request: Request) -> Response:
                 }
                 for site in sites.values()
             ],
-            "main_tld": queries[0].tld if queries else views.guess_tld(
-                request.headers.get("accept-language")
-            ),
+            "main_tld": queries[0].tld
+            if queries
+            else views.guess_tld(request.headers.get("accept-language")),
             "can_diagnose": context.client is not None,
             "finds": totals.listings_found,
             "blocked": [

@@ -152,7 +152,10 @@ class Application:
                             tg.create_task(self._run_telegram_bot(repo), name="telegram-bot")
                         if settings.web_enabled:
                             taxonomy = Taxonomy(sessions, repo)
-                            tg.create_task(self._run_web(repo, taxonomy), name="web")
+                            tg.create_task(
+                                self._run_web(repo, taxonomy, client, watcher.available_kinds),
+                                name="web",
+                            )
                             if self._open_browser:
                                 tg.create_task(self._open_dashboard(), name="open-browser")
                 except* Exception as group:
@@ -279,12 +282,25 @@ class Application:
         except Exception as exc:
             log.exception("telegram_bot.failed", error=str(exc))
 
-    async def _run_web(self, repo: Repo, taxonomy: Taxonomy) -> None:
+    async def _run_web(
+        self,
+        repo: Repo,
+        taxonomy: Taxonomy,
+        client: VintedClient,
+        watch_kinds: frozenset[str],
+    ) -> None:
         # Imported here so CLI commands that never serve the dashboard skip loading FastAPI.
         from vinted_sniper.web.server import serve  # noqa: PLC0415
 
         try:
-            await serve(self._settings, repo, self._stop, taxonomy)
+            await serve(
+                self._settings,
+                repo,
+                self._stop,
+                taxonomy,
+                client=client,
+                watch_kinds=watch_kinds,
+            )
         except Exception as exc:
             log.exception("web.failed", error=str(exc))
 

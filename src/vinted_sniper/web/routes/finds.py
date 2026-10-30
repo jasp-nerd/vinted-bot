@@ -221,9 +221,8 @@ async def live(request: Request, after: int | None = None) -> StreamingResponse:
     """New finds as they are stored, as `item` events carrying the rendered card."""
     context = core.ctx(request)
     resume = request.headers.get("last-event-id", "")
-    cursor = int(resume) if resume.isdigit() else after
-    if cursor is None:
-        cursor = await context.repo.latest_seq()
+    start = int(resume) if resume.isdigit() else after
+    cursor: int = start if start is not None else await context.repo.latest_seq()
 
     async def events() -> AsyncIterator[str]:
         nonlocal cursor

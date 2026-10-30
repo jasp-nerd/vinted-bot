@@ -27,11 +27,10 @@ from urllib.parse import quote, urlparse
 
 import httpx
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
-from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from vinted_sniper.config import Settings
 from vinted_sniper.db.repo import Repo
@@ -163,7 +162,7 @@ def create_app(
         if not public and not core.signed_in(request, token):
             if request.method == "GET" and _wants_html(request):
                 target = path + (f"?{request.url.query}" if request.url.query else "")
-                return RedirectResponse(f"/login?next={quote(target, safe="/")}", status_code=303)
+                return RedirectResponse(f"/login?next={quote(target, safe='/')}", status_code=303)
             return JSONResponse({"error": "Sign in first."}, status_code=401)
         response = await call_next(request)
         if path.startswith("/static/") and "v" in request.query_params:
@@ -188,12 +187,16 @@ def create_app(
             "check the form; if it keeps happening, reload the page.",
         )
 
-    @app.exception_handler(StarletteHTTPException)
-    async def http_problem(request: Request, exc: StarletteHTTPException) -> Response:
-        if exc.status_code == 404:  # noqa: PLR2004
-            return await _problem(
-                request, 404, "Nothing here", "That page or item doesn't exist any more."
-            )
+    @app.exception_handler(404)
+    async def not_found(request: Request, exc: Exception) -> Response:
+        detail = getattr(exc, "detail", None)
+        message = detail if isinstance(detail, str) and detail != "Not Found" else None
+        return await _problem(
+            request, 404, "Nothing here", message or "That page or item doesn't exist any more."
+        )
+
+    @app.exception_handler(HTTPException)
+    async def http_problem(request: Request, exc: HTTPException) -> Response:
         return await _problem(request, exc.status_code, "That didn't work", str(exc.detail))
 
     @app.exception_handler(sqlite3.OperationalError)
@@ -251,9 +254,7 @@ async def serve(
 ) -> None:
     """Run the web UI until the app shuts down."""
     config = uvicorn.Config(
-        create_app(
-            settings, repo, taxonomy, client=client, watch_kinds=watch_kinds, stop=stop
-        ),
+        create_app(settings, repo, taxonomy, client=client, watch_kinds=watch_kinds, stop=stop),
         host=settings.web_host,
         port=settings.web_port,
         log_config=None,

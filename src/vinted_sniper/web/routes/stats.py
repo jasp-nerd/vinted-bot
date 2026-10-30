@@ -69,7 +69,7 @@ async def stats(request: Request, days: int = 30, search: str = "") -> Response:
     for median in in_range.daily_medians:
         if only is None or median.query_id == only:
             medians[(median.query_id, median.currency)].append(median.median)
-    prices = [
+    prices: list[dict[str, Any]] = [
         {
             "name": queries[qid].name if qid in queries else "Deleted search",
             "color": views.color_css(queries[qid].color if qid in queries else None),
@@ -78,7 +78,7 @@ async def stats(request: Request, days: int = 30, search: str = "") -> Response:
         }
         for (qid, currency), values in sorted(medians.items())
     ]
-    price_top = max((p["value"] for p in prices), default=1.0) or 1.0
+    price_top = max((float(p["value"]) for p in prices), default=1.0) or 1.0
 
     delivery = await repo.delivery_counts()
     sent = sum(row.sent for row in delivery)
@@ -90,9 +90,7 @@ async def stats(request: Request, days: int = 30, search: str = "") -> Response:
         for i, day in enumerate(day_keys)
     ]
     totals = await repo.totals(tz)
-    busiest = max(
-        ((d, h) for d in range(7) for h in range(24)), key=lambda dh: heat[dh[0]][dh[1]]
-    )
+    busiest = max(((d, h) for d in range(7) for h in range(24)), key=lambda dh: heat[dh[0]][dh[1]])
     page: dict[str, Any] = {
         "nav": "stats",
         "days": days,

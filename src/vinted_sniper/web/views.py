@@ -279,8 +279,10 @@ def search_status(
     """
     site = f"vinted.{query.tld}"
     if query.paused:
-        return Status("paused", "Paused", "Paused by you. No checks and no alerts until you resume.")
-    if health is None or health.last_success_at is None and not health.last_status:
+        return Status(
+            "paused", "Paused", "Paused by you. No checks and no alerts until you resume."
+        )
+    if health is None or (health.last_success_at is None and not health.last_status):
         return Status("quiet", "Starting", "Getting ready. The first check runs within a minute.")
     failing = _failing_status(health, site)
     if failing is not None:
@@ -353,24 +355,34 @@ def search_summary(query: Query) -> str:
         count = len([part for part in params.get(key, "").split(",") if part])
         if count:
             parts.append(one if count == 1 else f"{count} {many}")
+    if price := _price_words(query, currency):
+        parts.append(price)
+    parts.extend(_rule_words(query))
+    return " · ".join(parts) or "Everything new on the site"
+
+
+def _rule_words(query: Query) -> list[str]:
+    words = ["title has " + " or ".join(term.split("|")) for term in query.include_terms]
+    if query.banned_keywords:
+        words.append("no " + ", ".join(query.banned_keywords[:4]))
+    if query.deal_only_pct:
+        words.append(f"deals only, {query.deal_only_pct}% under typical")
+    if query.seller_min_rating:
+        words.append(f"seller {query.seller_min_rating:g} stars or more")
+    if query.countries:
+        words.append("seller in " + ", ".join(query.countries))
+    return words
+
+
+def _price_words(query: Query, currency: str) -> str | None:
     low, high = query.min_total_price, query.max_total_price
     if low is not None and high is not None:
-        parts.append(f"{money(low, currency)} to {money(high, currency)} incl. fees")
-    elif high is not None:
-        parts.append(f"up to {money(high, currency)} incl. fees")
-    elif low is not None:
-        parts.append(f"from {money(low, currency)} incl. fees")
-    for term in query.include_terms:
-        parts.append("title has " + " or ".join(term.split("|")))
-    if query.banned_keywords:
-        parts.append("no " + ", ".join(query.banned_keywords[:4]))
-    if query.deal_only_pct:
-        parts.append(f"deals only, {query.deal_only_pct}% under typical")
-    if query.seller_min_rating:
-        parts.append(f"seller {query.seller_min_rating:g} stars or more")
-    if query.countries:
-        parts.append("seller in " + ", ".join(query.countries))
-    return " · ".join(parts) or "Everything new on the site"
+        return f"{money(low, currency)} to {money(high, currency)} incl. fees"
+    if high is not None:
+        return f"up to {money(high, currency)} incl. fees"
+    if low is not None:
+        return f"from {money(low, currency)} incl. fees"
+    return None
 
 
 def quiet_summary(query: Query) -> str | None:

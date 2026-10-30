@@ -73,7 +73,9 @@ async def searches(
                 "routes_all": not routes,
                 "interval_human": views.every(query.poll_interval_s),
                 "finds_today": finds_today.get(query.id, 0),
-                "newest": views.ago(now - newest[query.id]) if query.id in newest else "nothing yet",
+                "newest": views.ago(now - newest[query.id])
+                if query.id in newest
+                else "nothing yet",
                 "paused": query.paused,
                 "tags": query.tags,
                 "query": query,

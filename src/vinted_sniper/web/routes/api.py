@@ -141,9 +141,7 @@ async def preview(request: Request) -> JSONResponse:
         **parsed.filters,
     )
     editing = request.query_params.get("search", "")
-    typical = (
-        await context.repo.typical_prices(int(editing)) if editing.isdigit() else {}
-    )
+    typical = await context.repo.typical_prices(int(editing)) if editing.isdigit() else {}
     outcome = judge(items, query, typical)
     now = int(time.time())
     newest = outcome.matched[0] if outcome.matched else None
@@ -155,9 +153,7 @@ async def preview(request: Request) -> JSONResponse:
             "site": f"vinted.{parsed.tld}",
             "url": parsed.url,
             "newest": (
-                views.ago(now - newest.photo_ts)
-                if newest is not None and newest.photo_ts
-                else None
+                views.ago(now - newest.photo_ts) if newest is not None and newest.photo_ts else None
             ),
             "thumbs": [
                 {
@@ -244,7 +240,9 @@ def _rss_feed(query: Query, entries: list[FeedItem]) -> str:
 
 
 @router.get("/export.{fmt}")
-async def export(request: Request, fmt: Literal["csv", "json"], search: int | None = None) -> Response:
+async def export(
+    request: Request, fmt: Literal["csv", "json"], search: int | None = None
+) -> Response:
     """Every stored find, the same columns as `vinted-sniper export`."""
     entries = await core.ctx(request).repo.all_found(query_id=search)
     stamp = time.strftime("%Y-%m-%d")
