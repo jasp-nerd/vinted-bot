@@ -407,16 +407,24 @@ async def _save(context: core.WebContext, state: dict[str, Any]) -> dict[str, st
     stored = state.get("saved")
     saved: dict[str, Any] = stored if isinstance(stored, dict) else {}
     destination_id = await _save_destination(repo, state, _int(saved.get("destination_id")))
+    # A search that was already there is never setup's to change, so its id is not one to
+    # update on the next step either.
+    own_id = None if saved.get("kept") else _int(saved.get("query_id"))
     try:
-        query_id = await _save_query(repo, parsed, _int(saved.get("query_id")))
+        query_id, kept = await _save_query(repo, parsed, own_id)
     except InvalidInputError as exc:
         return {exc.field if exc.field in parsed.filters else "link": exc.message}
-    await repo.set_routes(query_id, [destination_id] if destination_id else [])
+    if not kept:
+        await repo.set_routes(query_id, [destination_id] if destination_id else [])
+    elif destination_id and await repo.explicit_routes(query_id):
+        # Its routes are its own too. With none it already sends everywhere, setup's place
+        # included; with some, setup's place joins them, since that's where the test went.
+        await repo.route(query_id, destination_id)
     await data.remember_brand_names(repo, str((state.get("search") or {}).get("labels") or ""))
     await repo.set_onboarded(True)
     if not isinstance(stored, dict):
         await support.note_setup(repo)
-    state["saved"] = {"query_id": query_id, "destination_id": destination_id}
+    state["saved"] = {"query_id": query_id, "destination_id": destination_id, "kept": kept}
     return {}
 
 
@@ -424,11 +432,19 @@ def _int(value: Any) -> int | None:
     return value if isinstance(value, int) and value > 0 else None
 
 
-async def _save_query(repo: Repo, parsed: forms.ParsedSearch, query_id: int | None) -> int:
+async def _save_query(
+    repo: Repo, parsed: forms.ParsedSearch, query_id: int | None
+) -> tuple[int, bool]:
+    """Store setup's search. Returns its id, and True when it was one already there.
+
+    Setup run again with a link that is already watched keeps that search as it is: it
+    may have been renamed, priced and filtered since, and setup asked about none of that.
+    Overwriting it with setup's few answers lost all of it.
+    """
     existing = await repo.get_query(query_id) if query_id else None
     if existing is None:
         try:
-            return await repo.add_query(
+            new_id = await repo.add_query(
                 name=parsed.name,
                 url=parsed.url,
                 tld=parsed.tld,
@@ -437,8 +453,8 @@ async def _save_query(repo: Repo, parsed: forms.ParsedSearch, query_id: int | No
                 **parsed.filters,
             )
         except DuplicateSearchError as exc:
-            # Setup run again with a link already watched: that search, not a second copy.
-            existing = exc.existing
+            return exc.existing.id, True
+        return new_id, False
     await repo.update_query(
         replace(
             existing,
@@ -450,7 +466,7 @@ async def _save_query(repo: Repo, parsed: forms.ParsedSearch, query_id: int | No
             **parsed.filters,
         )
     )
-    return existing.id
+    return existing.id, False
 
 
 async def _save_destination(repo: Repo, state: dict[str, Any], saved_id: int | None) -> int | None:

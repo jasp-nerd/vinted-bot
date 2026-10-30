@@ -29,6 +29,7 @@ from vinted_bot.db.repo import Query, RejectedListing, RejectionRecord, Repo, Wa
 from vinted_bot.engine import self_update
 from vinted_bot.engine.validation import InvalidInputError
 from vinted_bot.vinted.client import PER_PAGE, VintedClient
+from vinted_bot.vinted.urls import normalise_search_url
 from vinted_bot.web import core, destinations, security, support, views
 from vinted_bot.web.routes import api, watchlist
 
@@ -643,6 +644,67 @@ async def test_running_setup_again_reuses_the_same_search_and_phone(
 
     counts = (len(await repo.list_queries()), len(await repo.list_destinations()))
     assert counts == (1, 1)
+
+
+async def _watched_already(repo: Repo) -> int:
+    """The search setup is about to be given, set up by hand beforehand."""
+    return await repo.add_query(
+        name="My Nike",
+        url=normalise_search_url(SEARCH_URL),
+        tld="fr",
+        params={"search_text": "nike"},
+        poll_interval_s=300,
+        max_total_price=Decimal("25"),
+        countries=["FR", "BE"],
+    )
+
+
+def _setup_once(dashboard: TestClient) -> None:
+    _through_test(dashboard)
+    dashboard.post("/welcome/test", data={"next": "ready"})
+    dashboard.post("/welcome/finish", data={})
+
+
+async def test_setup_again_with_a_watched_link_keeps_that_search_as_it_is(
+    client: TestClient, repo: Repo
+) -> None:
+    """Its name, price limit and countries were replaced by setup's few answers."""
+    query_id = await _watched_already(repo)
+
+    _setup_once(client)
+
+    kept = await repo.get_query(query_id)
+    assert kept is not None
+    assert (len(await repo.list_queries()), kept.name, kept.max_total_price, kept.countries) == (
+        1,
+        "My Nike",
+        Decimal("25"),
+        ["FR", "BE"],
+    )
+
+
+async def test_setup_again_adds_its_place_to_a_routed_search(
+    client: TestClient, repo: Repo
+) -> None:
+    query_id = await _watched_already(repo)
+    discord = await repo.add_destination(
+        kind="webhook", name="Mine", config={"url": "https://example.org/hook"}
+    )
+    await repo.set_routes(query_id, [discord])
+
+    _setup_once(client)
+
+    assert len(await repo.explicit_routes(query_id)) == 2
+
+
+async def test_setup_again_leaves_a_search_that_sends_everywhere_alone(
+    client: TestClient, repo: Repo
+) -> None:
+    query_id = await _watched_already(repo)
+
+    _setup_once(client)
+
+    assert await repo.explicit_routes(query_id) == []
 
 
 async def test_setup_again_offers_the_phone_name_already_in_use(
