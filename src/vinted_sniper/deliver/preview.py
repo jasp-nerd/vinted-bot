@@ -5,8 +5,10 @@ real sender, so "is my webhook right?" gets answered in a second instead of afte
 match. `preview_payload` returns exactly what would be sent, without sending it, so the
 page can draw "this is what your alerts will look like".
 
-The sample listing is invented and says so. Its photo is the project icon, a stable public
-URL, so the test does not depend on a Vinted photo that may have gone.
+The sample listing is invented and says so, in the language of the site the person
+shops on. Its photo is the demo jeans on the project's own site, a stable public URL, so
+the test does not depend on a Vinted photo that may have gone, and still shows what a
+real alert's photo looks like.
 """
 
 from __future__ import annotations
@@ -24,11 +26,26 @@ from vinted_sniper.db.repo import Destination, PendingNotification
 from vinted_sniper.deliver import apprise, discord, ntfy, telegram, webhook
 from vinted_sniper.deliver.base import SenderConfigError
 from vinted_sniper.deliver.dispatcher import awaiting_pairing, build_sender
-from vinted_sniper.deliver.render import ICON_URL, KINDS, view
+from vinted_sniper.deliver.labels import labels_for
+from vinted_sniper.deliver.render import KINDS, view
 from vinted_sniper.vinted.models import Item
 
-SAMPLE_PHOTO = ICON_URL
+SAMPLE_PHOTO = "https://vinted-sniper.jaspnerd.dev/assets/demo/straight-leg-jeans.jpg"
 SAMPLE_ITEM_ID = 1_000_000_001
+
+# The sample's words in each language the alert labels speak: "(test alert)", the
+# condition, and the search name. A Dutch alert that says "Very good" reads as broken.
+_SAMPLE_WORDS: dict[str, tuple[str, str, str]] = {
+    "en": ("test alert", "Very good", "Test alert"),
+    "fr": ("alerte test", "Très bon état", "Alerte test"),
+    "de": ("Testalarm", "Sehr gut", "Testalarm"),
+    "nl": ("testmelding", "Heel goed", "Testmelding"),
+    "es": ("alerta de prueba", "Muy bueno", "Alerta de prueba"),
+    "it": ("avviso di prova", "Ottime condizioni", "Avviso di prova"),
+    "pl": ("alert testowy", "Bardzo dobry", "Alert testowy"),
+    "lt": ("bandomasis pranešimas", "Labai gera", "Bandomasis pranešimas"),
+    "cs": ("testovací upozornění", "Velmi dobrý", "Testovací upozornění"),
+}
 
 _CURRENCY_BY_TLD = {"co.uk": "GBP", "pl": "PLN", "cz": "CZK", "com": "USD"}
 
@@ -53,25 +70,31 @@ class TestResult:
 
 
 def sample_notification(
-    kind: str = "listing", *, tld: str = DEFAULT_SAMPLE_TLD, index: int = 0
+    kind: str = "listing", *, tld: str = DEFAULT_SAMPLE_TLD, index: int = 0, deal: bool = False
 ) -> PendingNotification:
-    """A realistic, clearly invented listing. Priced as a steal with a resale margin so the
-    deal badge and the margin show; no listing time, like every real search result now.
-    No seller id either, so a test alert's "block seller" button cannot block anyone real."""
+    """A realistic, clearly invented listing, worded in the site's language.
+
+    An ordinary listing by default, so a test arrives at the destination's normal
+    priority and without reseller sums nobody asked for. `deal` prices it as a steal
+    with a resale margin, for previews that show what those look like. No listing time,
+    like every real search result now, and no seller id, so a test alert's "block
+    seller" button cannot block anyone real.
+    """
     if kind not in KINDS:
         raise ValueError(f"unknown alert kind {kind!r}; expected one of {', '.join(KINDS)}")
     now = int(time.time())
     item_id = SAMPLE_ITEM_ID + index
+    marker, condition, search_name = _SAMPLE_WORDS.get(labels_for(tld).locale, _SAMPLE_WORDS["en"])
     item = Item(
         item_id=item_id,
         tld=tld,
-        title="Nike Air Max 90, white and grey (test alert)",
+        title=f"Levi's 501 straight jeans ({marker})",
         url=f"https://www.vinted.{tld}/items/{item_id}",
-        brand="Nike",
-        size="42",
-        condition="Very good",
-        price=Decimal("24.00"),
-        total_price=Decimal("25.90"),
+        brand="Levi's",
+        size="W31",
+        condition=condition,
+        price=Decimal("22.00"),
+        total_price=Decimal("23.80"),
         currency=_CURRENCY_BY_TLD.get(tld, "EUR"),
         photo_url=SAMPLE_PHOTO,
         photo_urls=(SAMPLE_PHOTO,),
@@ -84,12 +107,12 @@ def sample_notification(
         outbox_id=index,
         destination_id=0,
         query_id=0,
-        query_name="Test alert",
+        query_name=search_name,
         attempts=0,
         item=item,
         detected_at=now - 60,
-        typical_price=Decimal("45.00"),
-        margin=Decimal("18.60"),
+        typical_price=Decimal("45.00") if deal else None,
+        margin=Decimal("18.60") if deal else None,
         kind=kind,
         previous_price=Decimal("32.00") if kind == "price_drop" else None,
     )
@@ -112,7 +135,8 @@ def preview_payload(
     """
     config = config or {}
     batch = [
-        sample_notification(kind, tld=tld, index=i) for i in range(max(1, min(count, MAX_PREVIEW)))
+        sample_notification(kind, tld=tld, index=i, deal=True)
+        for i in range(max(1, min(count, MAX_PREVIEW)))
     ]
     listings = [view(n, dashboard_url=dashboard_url) for n in batch]
     match destination_kind:

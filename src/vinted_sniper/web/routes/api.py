@@ -152,6 +152,8 @@ async def preview(request: Request) -> JSONResponse:
             "seen": outcome.seen,
             "site": f"vinted.{parsed.tld}",
             "url": parsed.url,
+            # Read back in words, so a price limit in a pasted link is visibly understood.
+            "understood": f"{views.search_summary(query)}, vinted.{parsed.tld}",
             "newest": (
                 views.ago(now - newest.photo_ts) if newest is not None and newest.photo_ts else None
             ),

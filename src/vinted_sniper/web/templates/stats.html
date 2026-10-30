@@ -12,7 +12,8 @@
     <div class="cols__bars">
       {% for v in values %}
       <div class="cols__col">
-        <span class="bar cols__bar" style="height: {{ (v / ymax * 100)|round(2) }}%">{% if loop.last %}<b class="cols__end">{{ v }}</b>{% endif %}</span>
+        {# The last column is today, still filling up: drawn hatched so it doesn't read as a slow day. #}
+        <span class="bar cols__bar{% if loop.last %} cols__bar--partial{% endif %}" style="height: {{ (v / ymax * 100)|round(2) }}%">{% if loop.last %}<b class="cols__end">{{ v }}</b>{% endif %}</span>
         <span class="hit" tabindex="0" data-tip="{{ tips[loop.index0] }}" aria-label="{{ tips[loop.index0]|striptags }}"></span>
       </div>
       {% endfor %}
@@ -44,10 +45,10 @@
 </div>
 
 <div class="kpis" style="margin-bottom:16px">
-  <div class="kpi"><span class="kpi__label">Finds, {{ days }} days</span><span class="kpi__value">{{ "{:,}".format(total) }}</span><span class="kpi__note">{% if change is not none %}{{ "+" if change > 0 else "" }}{{ change }}% vs the {{ days }} days before{% else %}Nothing to compare with yet{% endif %}</span></div>
+  <div class="kpi"><span class="kpi__label">Finds, {{ days }} days</span><span class="kpi__value">{{ "{:,}".format(total) }}</span><span class="kpi__note">{% if change %}{{ change.text }} vs the {{ days }} days before{% else %}Too new to compare with the {{ days }} days before{% endif %}</span></div>
   <div class="kpi"><span class="kpi__label">Finds today</span><span class="kpi__value">{{ today }}</span><span class="kpi__note">Since midnight, your time</span></div>
-  <div class="kpi"><span class="kpi__label">Alerts sent</span><span class="kpi__value">{{ "{:,}".format(sent) }}</span><span class="kpi__note">Across {{ delivery|length }} {{ "place" if delivery|length == 1 else "places" }}</span></div>
-  <div class="kpi"><span class="kpi__label">Alerts delivered</span><span class="kpi__value">{% if delivered_pct is not none %}{{ delivered_pct }}%{% else %}–{% endif %}</span><span class="kpi__note">{% if failed %}{{ failed }} failed{% else %}None failed{% endif %}</span></div>
+  <div class="kpi"><span class="kpi__label">Alerts sent</span><span class="kpi__value">{{ "{:,}".format(sent) }}</span><span class="kpi__note">{% if places_sent %}Across {{ places_sent }} {{ "place" if places_sent == 1 else "places" }}{% else %}Nothing sent yet{% endif %}</span></div>
+  <div class="kpi"><span class="kpi__label">Alerts delivered</span><span class="kpi__value">{% if delivered_pct is not none %}{{ "%g"|format(delivered_pct) }}%{% else %}–{% endif %}</span><span class="kpi__note">{% if failed %}{{ failed }} failed{% else %}None failed{% endif %}</span></div>
 </div>
 
 <div class="stat-grid">
@@ -78,7 +79,7 @@
   </section>
 
   <section class="card chart-card" aria-labelledby="c4">
-    <div class="chart-card__head"><h2 class="t-h3" id="c4">Typical price per search</h2><p>Middle price with fees, in each site's currency</p></div>
+    <div class="chart-card__head"><h2 class="t-h3" id="c4">Typical price per search</h2><p>Middle price with fees of what each search saw in the last 14 days. The same number its own page shows.</p></div>
     {% if prices %}
     <div class="hbars chart">
       {% for p in prices %}
@@ -89,18 +90,24 @@
       </div>
       {% endfor %}
     </div>
-    {% else %}<p class="t-sm">Shows up once searches have found listings with prices.</p>{% endif %}
+    {% else %}<p class="t-sm">Shows up once a search has seen about 15 listings with prices.</p>{% endif %}
   </section>
 
-  <section class="card chart-card" aria-labelledby="c5">
+  <section class="card chart-card span-2" aria-labelledby="c5">
     <div class="chart-card__head"><h2 class="t-h3" id="c5">Delivery</h2><p>Alerts that reached each place</p></div>
     {% if delivery %}
     <div class="hbars">
       {% for d in delivery %}
-      <div class="hbar">
+      <div class="hbar hbar--delivery">
         <span class="hbar__name">{{ ui.dest_icon(d.kind) }}<span>{{ d.name }}</span></span>
-        <span class="meter{% if d.pct is not none and d.pct < 90 %} meter--bad{% elif d.pct is not none and d.pct < 99.5 %} meter--warn{% endif %}"><span style="width: {{ d.pct or 0 }}%"></span></span>
-        <span class="hbar__val">{% if d.pct is not none and d.pct < 90 %}{{ ui.icon("circle-alert", "i-xs") }} {% endif %}{{ "{:,}".format(d.sent) }} of {{ "{:,}".format(d.sent + d.failed) }}</span>
+        {% if d.pct is none %}
+        <span class="t-sm">Nothing sent yet</span>
+        <span class="hbar__val"></span>
+        {% else %}
+        {# Green when nearly everything arrives, amber when some doesn't, red when much doesn't. #}
+        <span class="meter{% if d.pct < 80 %} meter--bad{% elif d.pct < 95 %} meter--warn{% endif %}"><span style="width: {{ d.pct }}%"></span></span>
+        <span class="hbar__val">{% if d.pct < 80 %}{{ ui.icon("circle-alert", "i-xs") }} {% endif %}{{ "{:,}".format(d.sent) }} of {{ "{:,}".format(d.sent + d.failed) }}</span>
+        {% endif %}
       </div>
       {% endfor %}
     </div>

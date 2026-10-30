@@ -56,6 +56,15 @@ async def test_the_ntfy_title_is_the_whole_decision_line() -> None:
     assert recorder.payload()["title"] == "£16.45 · Steal \u221259% · margin ~+£20 · Item 1"
 
 
+async def test_ntfy_names_the_search_without_markdown_underscores() -> None:
+    recorder = Recorder()
+
+    await ntfy(recorder).send([notification(1)])
+
+    last_line = recorder.payload()["message"].splitlines()[-1]
+    assert "_" not in last_line
+
+
 async def test_ntfy_shows_the_photo_and_opens_the_listing() -> None:
     recorder = Recorder()
 

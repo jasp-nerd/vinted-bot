@@ -64,13 +64,41 @@ async def alerts_page(request: Request) -> Response:
         "alerts.html",
         {
             "nav": "alerts",
-            "dests": await data.destinations(context),
+            "dests": await data.destinations(context, tz=await core.timezone(context)),
             "telegram": await telegram_setup(context),
             "apprise": destinations.apprise_installed(),
             "providers": destinations.EMAIL_PROVIDERS,
-            "ntfy_topic": destinations.new_ntfy_topic(),
+            "ntfy_topic": await ntfy_topic(context, fresh_if_used=True),
         },
     )
+
+
+# The ntfy name offered for a new place, kept until something uses it. Someone who reads
+# it, installs ntfy and comes back to a reloaded page must still see the name they typed.
+_NTFY_TOPIC_KEY = "ntfy_topic_offered"
+
+
+async def ntfy_topic(context: core.WebContext, *, fresh_if_used: bool) -> str:
+    """The ntfy name to offer, the same one on every load and after a restart.
+
+    Setup keeps offering its name even once a place uses it (going back to the step must
+    show the name the phone subscribed to). The Alerts page asks for a fresh one when a
+    place already uses it, so a second phone place doesn't share the first one's topic.
+    """
+    repo = context.repo
+    topic = await repo.get_state_value(_NTFY_TOPIC_KEY)
+    if topic and fresh_if_used:
+        used = {
+            str(d.config.get("topic") or "")
+            for d in await repo.list_destinations()
+            if d.kind == "ntfy" and not data.is_removed(d)
+        }
+        if topic in used:
+            topic = None
+    if not topic:
+        topic = destinations.new_ntfy_topic()
+        await repo.set_state_value(_NTFY_TOPIC_KEY, topic)
+    return topic
 
 
 def _wants_json(request: Request) -> bool:
@@ -129,6 +157,7 @@ async def test_destination(request: Request, destination_id: int) -> JSONRespons
     )
     if result.ok and destination.failure_count:
         await context.repo.reset_destination_failures(destination_id)
+    await data.record_test(context.repo, destination_id, ok=result.ok, message=result.message)
     return JSONResponse({"ok": result.ok, "message": result.message, "detail": result.detail})
 
 

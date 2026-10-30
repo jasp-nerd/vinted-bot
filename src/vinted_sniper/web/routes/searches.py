@@ -6,7 +6,9 @@ field, never with an error page, and nothing is written until the whole form is 
 
 from __future__ import annotations
 
+import json
 import time
+from collections import Counter
 from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import Any
@@ -34,9 +36,14 @@ async def searches_page(request: Request) -> Response:
     context = core.ctx(request)
     snapshot = await health.snapshot(context.repo)
     rows = await data.searches(context, snapshot, await core.timezone(context))
-    counts = dict.fromkeys(("watching", "quiet", "stuck", "paused"), 0)
-    for row in rows:
-        counts["stuck" if row["status"] == "blocked" else row["status"]] += 1
+    # Problems first, the way the Finds band sorts them, so the one that needs a look
+    # isn't fifth in the list.
+    rows.sort(key=lambda row: _ORDER.get(row["status"], len(_ORDER)))
+    counts = {
+        "running": len([row for row in rows if row["status"] != "paused"]),
+        "waiting": len([row for row in rows if row["status"] in WAITING]),
+        "paused": len([row for row in rows if row["status"] == "paused"]),
+    }
     base = context.settings.web_public_url or str(request.base_url).rstrip("/")
     return await core.render(
         request,
@@ -50,6 +57,12 @@ async def searches_page(request: Request) -> Response:
         },
         snapshot=snapshot,
     )
+
+
+# Statuses that mean "running, but Vinted isn't giving us what we need", and the order
+# the lists show statuses in: anything that needs a look first.
+WAITING = ("blocked", "stuck", "stale")
+_ORDER = {"blocked": 0, "stuck": 1, "stale": 2, "quiet": 3, "watching": 4, "paused": 5}
 
 
 def bookmarklet(base: str) -> str:
@@ -90,6 +103,7 @@ async def _editor(
             "presets": forms.INTERVAL_PRESETS,
             "timezone": prefs.timezone,
             "typical": [views.money(v, c) for c, v in typical.items()],
+            "link_price": _link_price(values),
             "blocked_count": len(blocked),
             "currency": views.symbol(views.currency_for(values["tld"])),
             "previews": context.previews is not None,
@@ -99,10 +113,28 @@ async def _editor(
     )
 
 
+def _link_price(values: dict[str, Any]) -> str | None:
+    """The item-price limit a pasted link carries, which the editor has no field for."""
+    try:
+        extra = json.loads(values.get("extra_params") or "{}")
+    except ValueError:
+        return None
+    if not isinstance(extra, dict):
+        return None
+    params = {str(k): str(v) for k, v in extra.items()}
+    return views.link_price(params, views.currency_for(str(values.get("tld") or "")))
+
+
 async def _new_values(request: Request) -> dict[str, Any]:
     context = core.ctx(request)
     queries = await context.repo.list_queries()
-    tld = queries[-1].tld if queries else views.guess_tld(request.headers.get("accept-language"))
+    # The site most searches use: the one the person shops on, not the last one added.
+    sites = Counter(query.tld for query in queries)
+    tld = (
+        sites.most_common(1)[0][0]
+        if sites
+        else views.guess_tld(request.headers.get("accept-language"))
+    )
     return forms.default_values(
         tld=tld,
         interval=max(context.settings.poll_default_interval_s, 60),
@@ -158,9 +190,16 @@ async def bulk(request: Request) -> Response:
     repo = core.ctx(request).repo
     form = await request.form()
     ids = [int(str(v)) for v in form.getlist("ids") if str(v).isdigit()]
-    known = {query.id for query in await repo.list_queries()}
-    chosen = [query_id for query_id in ids if query_id in known]
+    queries = await repo.list_queries()
+    known = {query.id for query in queries}
+    paused = {query.id for query in queries if query.paused}
     action = str(form.get("action") or "")
+    chosen = [query_id for query_id in ids if query_id in known]
+    # Count only what changes: "Resumed 6" after resuming two paused ones reads as a lie.
+    if action == "pause":
+        chosen = [query_id for query_id in chosen if query_id not in paused]
+    elif action == "resume":
+        chosen = [query_id for query_id in chosen if query_id in paused]
     dests = [int(str(v)) for v in form.getlist("dest") if str(v).isdigit()]
     for query_id in chosen:
         match action:
@@ -253,9 +292,13 @@ async def search_detail(request: Request, query_id: int) -> Response:
         {
             "nav": "searches",
             "s": row,
-            "q": query,
+            # Not "q": the page frame puts "q" in the header's search box.
+            "query": query,
             "finds_today": per_day[days[-1]],
             "finds_yesterday": yesterday_by_now,
+            # Nothing before today: "same as yesterday" would compare with a day it
+            # wasn't running.
+            "first_day": not any(list(per_day.values())[:-1]),
             "finds_14": sum(per_day.values()),
             "spark": list(per_day.values()),
             "typical": [views.money(v, c) for c, v in typical.items()],
@@ -298,8 +341,9 @@ async def _yesterday_by_now(context: core.WebContext, query_id: int, tz: Any) ->
     now = datetime.now(tz)
     start = (now - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
     end = now - timedelta(days=1)
+    # LIMIT -1 is SQLite for "no limit"; `since` already bounds this to two days.
     entries = await context.repo.items_feed(
-        query_id=query_id, mark="all", since=int(start.timestamp()), limit=500
+        query_id=query_id, mark="all", since=int(start.timestamp()), limit=-1
     )
     return len([e for e in entries if e.first_seen_at <= end.timestamp()])
 

@@ -17,29 +17,35 @@
     <div class="dest__head">
       <span class="dest__logo dest__logo--{{ dd.kind }}">{{ ui.dest_icon(dd.kind) }}</span>
       <div class="dest__name"><b id="dest-{{ dd.id }}">{{ dd.name }}</b><small>{{ dd.label }}</small></div>
+      {# Green only when something actually arrived through it. #}
       {% if dd.status == "failing" %}<span class="badge badge--bad">{{ ui.icon("circle-alert") }}{{ dd.status_label }}</span>
-      {% elif dd.status == "waiting" %}<span class="badge badge--warn">{{ ui.icon("hourglass") }}{{ dd.status_label }}</span>
+      {% elif dd.status in ("waiting", "warn") %}<span class="badge badge--warn">{{ ui.icon("hourglass" if dd.status == "waiting" else "triangle-alert") }}{{ dd.status_label }}</span>
+      {% elif dd.status == "untested" %}<span class="badge">{{ ui.icon("send") }}{{ dd.status_label }}</span>
       {% else %}<span class="badge badge--ok">{{ ui.icon("check") }}{{ dd.status_label }}</span>{% endif %}
     </div>
     <form class="dest__body" data-autosave="/destinations/{{ dd.id }}/options">
       {% if dd.status == "failing" %}
       <div class="notice notice--danger" style="margin-bottom:6px">{{ ui.icon("circle-alert") }}<div><p><strong>{{ dd.detail }}</strong></p><p>Send a test to see what's wrong. If it keeps failing, remove it and add it again, or use a notification on your phone instead.</p></div></div>
+      {% elif dd.status == "warn" %}
+      <div class="notice notice--sun" style="margin-bottom:6px">{{ ui.icon("triangle-alert") }}<div><p><strong>{{ dd.detail }}</strong></p><p>The line is <span class="code">VINTED_SNIPER_TELEGRAM_BOT_TOKEN=</span> followed by the code BotFather gave you. Settings, "Open on your phone", says where the settings file is.</p></div></div>
       {% else %}
       <p class="t-sm" style="padding-bottom:4px">{{ dd.detail }}</p>
       {% endif %}
+      <details class="dest__opts" data-collapse-sm open>
+      <summary>{{ ui.icon("chevron-right", "i-sm") }}<span>Options</span><small class="t-sm">What to send, sound{% if dd.kind == "discord" %}, look and pings{% elif dd.kind == "telegram" %}, look{% elif dd.kind == "ntfy" %}, priority{% endif %}</small></summary>
       <div class="rows">
-        {% set tier_names = [("steal", "Steals", "40% or more under typical"), ("deal", "Deals", "20% or more under"), ("normal", "Everything else", "")] %}
+        {% set tier_names = [("steal", "Big bargains", "40% or more under the typical price"), ("deal", "Bargains", "20% or more under"), ("normal", "Everything else", "")] %}
         <fieldset class="set set--stack" style="border:0;margin:0"><legend class="set__text"><span class="t-h3">Send these</span><span class="t-sm">Compared with the search's typical price. New searches count as "everything else" until they know it.</span></legend>
-          <div class="chips">{% for key, label, hint in tier_names %}<label class="chip chip--sm" title="{{ hint }}"><input type="checkbox" name="tiers" value="{{ key }}"{% if key in dd.opts.tiers %} checked{% endif %}>{{ label }}{% if hint %} <small class="t-sm">{{ hint }}</small>{% endif %}</label>{% endfor %}</div>
+          <div class="chips">{% for key, label, hint in tier_names %}<label class="chip chip--sm chip--check" title="{{ hint }}"><input type="checkbox" name="tiers" value="{{ key }}"{% if key in dd.opts.tiers %} checked{% endif %}>{{ ui.icon("check", "chip__tick") }}{{ label }}{% if hint %} <small class="t-sm">{{ hint }}</small>{% endif %}</label>{% endfor %}</div>
           <p class="help help--error" data-error-for="tiers" hidden></p>
         </fieldset>
         <fieldset class="set set--stack" style="border:0;margin:0"><legend class="set__text"><span class="t-h3">Without sound</span><span class="t-sm">These arrive quietly, no buzz</span></legend>
-          <div class="chips">{% for key, label, hint in tier_names %}<label class="chip chip--sm"><input type="checkbox" name="silent_tiers" value="{{ key }}"{% if key in dd.opts.silent_tiers %} checked{% endif %}>{{ label }}</label>{% endfor %}</div>
+          <div class="chips">{% for key, label, hint in tier_names %}<label class="chip chip--sm chip--check"><input type="checkbox" name="silent_tiers" value="{{ key }}"{% if key in dd.opts.silent_tiers %} checked{% endif %}>{{ ui.icon("check", "chip__tick") }}{{ label }}</label>{% endfor %}</div>
         </fieldset>
         {% if dd.kind == "discord" %}
         <div class="set"><div class="set__text"><span class="t-h3">Look</span><span class="t-sm">Big card with photos, or one line</span></div><div class="seg" role="radiogroup" aria-label="Discord look"><label><input type="radio" name="style" value="card"{% if dd.opts.style != "compact" %} checked{% endif %}>Card</label><label><input type="radio" name="style" value="compact"{% if dd.opts.style == "compact" %} checked{% endif %}>Compact</label></div></div>
         <fieldset class="set set--stack" style="border:0;margin:0"><legend class="set__text"><span class="t-h3">Ping for</span><span class="t-sm">Which listings mention the person or role below</span></legend>
-          <div class="chips">{% for key, label, hint in tier_names %}<label class="chip chip--sm"><input type="checkbox" name="ping_tiers" value="{{ key }}"{% if key in dd.opts.ping_tiers %} checked{% endif %}>{{ label }}</label>{% endfor %}</div>
+          <div class="chips">{% for key, label, hint in tier_names %}<label class="chip chip--sm chip--check"><input type="checkbox" name="ping_tiers" value="{{ key }}"{% if key in dd.opts.ping_tiers %} checked{% endif %}>{{ ui.icon("check", "chip__tick") }}{{ label }}</label>{% endfor %}</div>
         </fieldset>
         <div class="set set--stack"><div class="set__text"><span class="t-h3">Ping someone</span><span class="t-sm">Type @everyone to buzz phones even when the server is muted, or a role's ID number (Discord can't look names up for webhooks). Copy a role ID by turning on Developer Mode, then right-clicking the role.</span></div><div class="field"><input class="input" style="max-width:260px;min-height:38px" type="text" name="mention" value="{{ dd.opts.mention }}" placeholder="@everyone or 123456789012345678" aria-label="Who to ping"><p class="help help--error" data-error-for="mention" hidden></p></div></div>
         {% elif dd.kind == "telegram" %}
@@ -53,6 +59,7 @@
           </div>
         </div>
       </div>
+      </details>
     </form>
     <div class="dest__foot">
       <button class="btn btn--secondary btn--sm" type="button" data-test-dest="{{ dd.id }}">{{ ui.icon("send", "i-sm") }}Send a test</button>
@@ -107,6 +114,7 @@
         </div>
       </fieldset>
       <div class="field" style="margin-top:14px"><label class="label" for="ad-name">Name <small>so you recognise it</small></label><input class="input" id="ad-name" name="name" type="text" placeholder="My phone"></div>
+      {# Errors without a field of their own (the kind, a sender's own refusal) show here. #}
       <p class="help help--error" data-add-error hidden></p>
     </div>
     <div class="modal__foot"><button class="btn btn--secondary" type="button" data-close>Cancel</button><button class="btn btn--primary" type="submit">Save and send a test</button></div>
@@ -120,3 +128,4 @@
   </form>
 </dialog>
 {% endblock %}
+{% block scripts %}<script src="{{ static('js/qrcode.js') }}" defer></script>{% endblock %}

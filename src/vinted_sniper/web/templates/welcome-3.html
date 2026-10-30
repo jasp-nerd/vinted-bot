@@ -64,6 +64,8 @@
 </div>
 </div>
 <p class="livecount" aria-live="polite" data-livecount>{% if previews %}Paste a link or type some words to see what matches right now.{% endif %}</p>
+{# On a phone the panel with the photos sits below the Continue button; these show them above it. #}
+<div class="preview__thumbs show-sm" data-preview-thumbs aria-hidden="true"></div>
 {% endblock %}
 {% block back %}{% with back_to="/welcome/country" %}{% include "partials/ob_back.html" %}{% endwith %}{% endblock %}
 {% block hint %}You can change all of this later{% endblock %}
@@ -71,8 +73,8 @@
 {% block field %}
 <div class="preview" style="padding:0;align-content:start" data-preview>
   <div class="preview__count" aria-live="polite">
-    <b class="num" data-preview-count>–</b>
-    <span data-preview-label>{% if previews %}listings match right now{% else %}Previews work while the app runs{% endif %}</span>
+    <b class="num" data-preview-count hidden>–</b>
+    <span data-preview-label>{% if previews %}Paste a link or type words to see what it finds{% else %}Previews work while the app runs{% endif %}</span>
   </div>
   <p style="margin-top:-6px">You won't get alerts for these, only for new ones from now on.</p>
   <div class="preview__thumbs" data-preview-thumbs></div>

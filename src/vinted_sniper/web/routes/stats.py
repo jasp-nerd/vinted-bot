@@ -7,16 +7,13 @@ guess is worse than no number.
 
 from __future__ import annotations
 
-import statistics
-from collections import defaultdict
 from datetime import datetime, timedelta
-from decimal import Decimal
 from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import Response
 
-from vinted_sniper.web import core, views
+from vinted_sniper.web import core, data, views
 
 router = APIRouter()
 
@@ -32,6 +29,22 @@ def _nice_max(value: int) -> tuple[int, list[int]]:
             ceiling = -(-top // step) * step
             return ceiling, list(range(0, ceiling + 1, step))
     return top, [0, top]
+
+
+# Fewer finds than this in the period before, and a percentage says more about luck.
+_MIN_TO_COMPARE = 10
+# Past this, "+3843%" stops meaning anything; say "more than 10 times" instead.
+_MAX_SHOWN_RATIO = 10
+
+
+def _change(total: int, earlier: int) -> dict[str, Any] | None:
+    """How this period compares with the one before, or None when there's nothing to say."""
+    if earlier < _MIN_TO_COMPARE:
+        return None
+    if total > earlier * _MAX_SHOWN_RATIO:
+        return {"text": f"More than {_MAX_SHOWN_RATIO} times", "up": True}
+    pct = round((total - earlier) / earlier * 100)
+    return {"text": f"{'+' if pct > 0 else ''}{pct}%", "up": pct > 0}
 
 
 @router.get("/stats")
@@ -57,7 +70,7 @@ async def stats(request: Request, days: int = 30, search: str = "") -> Response:
         elif earlier_start <= row.day < day_keys[0]:
             earlier += row.count
     total = sum(per_day.values())
-    change = round((total - earlier) / earlier * 100) if earlier else None
+    change = _change(total, earlier)
 
     in_range = await repo.activity(tz, days=days)
     heat = [[0] * 24 for _ in range(7)]
@@ -65,22 +78,26 @@ async def stats(request: Request, days: int = 30, search: str = "") -> Response:
         heat[cell.weekday][cell.hour] = cell.count
     heat_max = max((max(row) for row in heat), default=0) or 1
 
-    medians: dict[tuple[int, str], list[Decimal]] = defaultdict(list)
-    for median in in_range.daily_medians:
-        if only is None or median.query_id == only:
-            medians[(median.query_id, median.currency)].append(median.median)
-    prices: list[dict[str, Any]] = [
-        {
-            "name": queries[qid].name if qid in queries else "Deleted search",
-            "color": views.color_css(queries[qid].color if qid in queries else None),
-            "value": float(statistics.median(values)),
-            "label": views.money(statistics.median(values), currency),
-        }
-        for (qid, currency), values in sorted(medians.items())
-    ]
+    # The same typical price the search's own page and the deal badges use, so the
+    # number never differs between pages.
+    prices: list[dict[str, Any]] = []
+    for query in queries.values():
+        if only is not None and query.id != only:
+            continue
+        for currency, typical in (await repo.typical_prices(query.id)).items():
+            prices.append(
+                {
+                    "name": query.name,
+                    "color": views.color_css(query.color),
+                    "value": float(typical),
+                    "label": views.money(typical, currency),
+                }
+            )
     price_top = max((float(p["value"]) for p in prices), default=1.0) or 1.0
 
-    delivery = await repo.delivery_counts()
+    # Places removed from the Alerts page keep their rows for history, not for this list.
+    removed = {d.id for d in await repo.list_destinations() if data.is_removed(d)}
+    delivery = [row for row in await repo.delivery_counts() if row.destination_id not in removed]
     sent = sum(row.sent for row in delivery)
     failed = sum(row.failed for row in delivery)
     ymax, ticks = _nice_max(max(per_day.values(), default=0))
@@ -105,6 +122,7 @@ async def stats(request: Request, days: int = 30, search: str = "") -> Response:
         "today": totals.found_today if only is None else per_day[day_keys[-1]],
         "sent": sent,
         "failed": failed,
+        "places_sent": len([row for row in delivery if row.sent]),
         "delivered_pct": round(sent / (sent + failed) * 100, 1) if sent + failed else None,
         "finds_per_day": list(per_day.values()),
         "day_labels": labels,

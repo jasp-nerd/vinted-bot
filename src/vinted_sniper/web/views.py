@@ -22,8 +22,9 @@ from vinted_sniper.engine.health import SearchHealth
 # with dark mode; anything else (searches made in the CLI) is drawn as stored.
 SLOT_COLORS = ("#2A78D6", "#EB6834", "#EDA100", "#E87BA4", "#008300", "#6250D6", "#1BAF7A")
 
-# Below this a "deal" badge is noise: a few percent is the spread of ordinary prices.
-DEAL_BADGE_MIN_PCT = 15
+# Below this a "deal" badge is noise: when a third of the feed carries one, it stops
+# meaning anything. The same line as the Deals tier, so badge and alert agree.
+DEAL_BADGE_MIN_PCT = 20
 
 # A search that has matched nothing for this long is called quiet rather than watching.
 QUIET_AFTER_S = 3 * 3600
@@ -108,7 +109,7 @@ REJECTION_WORDS: dict[str, tuple[str, str]] = {
     "missing_keyword": ("Missing a word you want", "search"),
     "regex": ("Title pattern did not match", "search"),
     "condition": ("Condition you didn't pick", "tag"),
-    "promoted": ("Paid bump of an old listing", "trending-down"),
+    "promoted": ("Old listing pushed to the top", "trending-down"),
     "blocked_seller": ("Seller you blocked", "user-x"),
     "seller_country": ("Seller in another country", "globe"),
     "few_reviews": ("Seller has few reviews", "user-x"),
@@ -287,21 +288,23 @@ def search_status(
     if failing is not None:
         return failing
     if health.checks_without_new_listings >= stale_after and site_is_moving:
+        # Vinted answers, so this is not "waiting on Vinted": the site is fine, this one
+        # search's results just stopped changing.
         return Status(
-            "stuck",
-            "Waiting on Vinted",
-            "Vinted keeps showing the same results. Nothing you need to do; it usually "
-            "sorts itself out within the hour.",
+            "stale",
+            "Same results lately",
+            f"{site} answers, but keeps showing this search the same listings. Nothing "
+            "you need to do; it usually sorts itself out within the hour.",
         )
     if newest_find is None or now - newest_find > QUIET_AFTER_S:
         span = f" for {duration(now - newest_find)}" if newest_find else " yet"
         return Status(
             "quiet",
             "Quiet",
-            f"No new matches{span}. That's normal for a narrow search, or at night.",
+            f"Running fine, no new matches{span}. That's normal for a narrow search, or at night.",
         )
     checked = ago(now - health.last_success_at) if health.last_success_at else "recently"
-    return Status("watching", "Watching", f"Checked {checked}. All fine.")
+    return Status("watching", "Running", f"Checked {checked}. All fine.")
 
 
 _STARTING = "Getting ready. The first check runs within a minute."
@@ -378,6 +381,8 @@ def search_summary(query: Query) -> str:
             parts.append(one if count == 1 else f"{count} {many}")
     if price := _price_words(query, currency):
         parts.append(price)
+    if item_price := link_price(params, currency):
+        parts.append(item_price)
     parts.extend(_rule_words(query))
     return " · ".join(parts) or "Everything new on the site"
 
@@ -392,7 +397,37 @@ def _rule_words(query: Query) -> list[str]:
         words.append(f"seller {query.seller_min_rating:g} stars or more")
     if query.countries:
         words.append("seller in " + ", ".join(query.countries))
+    if query.resale_price is not None:
+        currency = currency_for(query.tld)
+        resale = f"resells for {money(query.resale_price, currency)}"
+        if query.min_margin is not None:
+            resale += f", at least {money(query.min_margin, currency)} left"
+        words.append(resale)
     return words
+
+
+def _amount(raw: str | None) -> Decimal | None:
+    try:
+        value = Decimal((raw or "").replace(",", "."))
+    except ArithmeticError:
+        return None
+    return value if value.is_finite() and value >= 0 else None
+
+
+def link_price(params: dict[str, str], currency: str) -> str | None:
+    """The price limit a pasted Vinted link carries, which Vinted applies to the item price.
+
+    Kept apart from our own limits, which include the buyer protection fee, so nobody
+    reads one as the other and types the same limit in twice.
+    """
+    low, high = _amount(params.get("price_from")), _amount(params.get("price_to"))
+    if low is not None and high is not None:
+        return f"item price {money(low, currency)} to {money(high, currency)}"
+    if high is not None:
+        return f"item price up to {money(high, currency)}"
+    if low is not None:
+        return f"item price from {money(low, currency)}"
+    return None
 
 
 def _price_words(query: Query, currency: str) -> str | None:
@@ -451,24 +486,29 @@ def destination_label(destination: Destination) -> str:
 
 
 def destination_view(
-    destination: Destination, *, sent: int, failed: int, searches: list[dict[str, Any]]
+    destination: Destination,
+    *,
+    sent: int,
+    failed: int,
+    searches: list[dict[str, Any]],
+    last_test: dict[str, Any] | None = None,
+    telegram_ready: bool = True,
+    tz: ZoneInfo | None = None,
 ) -> dict[str, Any]:
+    """A destination's card. Green only when something actually arrived through it.
+
+    `last_test` is the latest "Send a test" result ({"ok", "at", "message"}), and
+    `telegram_ready` whether the bot token is set, without which Telegram cannot send.
+    """
     config = destination.config
-    status, status_label, detail = "ok", "Working", f"{sent:,} alerts sent so far."
-    if not sent:
-        detail = "Nothing sent yet. Send a test to check it works."
-    if not destination.active:
-        status, status_label = "failing", "Turned off"
-        detail = f"It stopped working and was switched off: {destination.deactivated_reason}."
-    elif destination.kind == "telegram" and not config.get("chat_id"):
-        status, status_label = "waiting", "Not connected yet"
-        detail = "Send the code to your bot in Telegram to finish connecting."
-    elif destination.failure_count:
-        status, status_label = "failing", "Not working"
-        detail = (
-            f"The last {destination.failure_count} tries failed ({failed} alerts in all). "
-            "Send a test to see why."
-        )
+    status, status_label, detail = _destination_state(
+        destination,
+        sent=sent,
+        failed=failed,
+        last_test=last_test,
+        telegram_ready=telegram_ready,
+        tz=tz,
+    )
     return {
         "id": destination.id,
         "kind": destination.kind,
@@ -490,6 +530,65 @@ def destination_view(
             "min_deal_pct": config.get("min_deal_pct") or "",
         },
     }
+
+
+def _destination_state(
+    destination: Destination,
+    *,
+    sent: int,
+    failed: int,
+    last_test: dict[str, Any] | None,
+    telegram_ready: bool,
+    tz: ZoneInfo | None,
+) -> tuple[str, str, str]:
+    """(status key, badge, sentence), most serious first: off, cannot work, failing, unproven."""
+    tested_at = ""
+    if last_test and isinstance(last_test.get("at"), int):
+        tested_at = f" at {clock(last_test['at'], tz or ZoneInfo('UTC'))}"
+    broken = _cannot_send(destination, failed=failed, telegram_ready=telegram_ready)
+    if broken is not None:
+        return broken
+    if last_test and not last_test.get("ok"):
+        reason = str(last_test.get("message") or "").strip()
+        return "failing", "Last test failed", f"The test{tested_at} didn't arrive. {reason}".strip()
+    if sent:
+        return "ok", "Working", f"{sent:,} alerts sent so far."
+    if last_test and last_test.get("ok"):
+        return "ok", "Test arrived", f"Test sent{tested_at}. Real alerts will show here."
+    return "untested", "Not tested yet", "Nothing sent yet. Send a test to check it works."
+
+
+def _cannot_send(
+    destination: Destination, *, failed: int, telegram_ready: bool
+) -> tuple[str, str, str] | None:
+    """Why a destination can't deliver right now, if it can't."""
+    if not destination.active:
+        return (
+            "failing",
+            "Turned off",
+            f"It stopped working and was switched off: {destination.deactivated_reason}.",
+        )
+    if destination.kind == "telegram" and not telegram_ready:
+        return (
+            "warn",
+            "Needs the bot token",
+            "Telegram can't send anything until the bot's token is in the settings file "
+            "and vinted-sniper is restarted.",
+        )
+    if destination.kind == "telegram" and not destination.config.get("chat_id"):
+        return (
+            "waiting",
+            "Not connected yet",
+            "Send the code to your bot in Telegram to finish connecting.",
+        )
+    if destination.failure_count:
+        return (
+            "failing",
+            "Not working",
+            f"The last {destination.failure_count} tries failed ({failed} alerts in all). "
+            "Send a test to see why.",
+        )
+    return None
 
 
 def _tiers(config: dict[str, Any], key: str, default: list[str]) -> list[str]:

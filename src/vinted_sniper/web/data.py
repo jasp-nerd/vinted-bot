@@ -6,12 +6,13 @@ testable without a database.
 
 from __future__ import annotations
 
+import json
 import time
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from vinted_sniper.db.repo import Destination, Query
+from vinted_sniper.db.repo import Destination, Query, Repo
 from vinted_sniper.engine import health
 from vinted_sniper.web import views
 from vinted_sniper.web.core import WebContext
@@ -48,7 +49,8 @@ async def searches(
     rows = []
     for query in queries:
         routes = await repo.explicit_routes(query.id)
-        targets = [destinations[i] for i in routes if i in destinations] if routes else active
+        kept = [destinations[i] for i in routes if i in destinations]
+        targets = [d for d in kept if not is_removed(d)] if routes else active
         status = views.search_status(
             query,
             by_id.get(query.id),
@@ -70,6 +72,9 @@ async def searches(
                 "summary": views.search_summary(query),
                 "dests": [d.kind for d in targets],
                 "dest_names": [d.name for d in targets],
+                # A route to a place that was switched off still shows, marked, so the
+                # search does not look like it sends somewhere it can't.
+                "dest_off": [not d.active for d in targets],
                 "routes_all": not routes,
                 "interval_human": views.every(query.poll_interval_s),
                 "finds_today": finds_today.get(query.id, 0),
@@ -86,7 +91,7 @@ async def searches(
 
 
 async def destinations(
-    context: WebContext, queries: list[Query] | None = None
+    context: WebContext, queries: list[Query] | None = None, tz: ZoneInfo | None = None
 ) -> list[dict[str, Any]]:
     """Every destination still switched on or worth explaining, worded for the cards."""
     repo = context.repo
@@ -96,7 +101,7 @@ async def destinations(
     found: list[Destination] = await repo.list_destinations()
     cards = []
     for destination in found:
-        if not destination.active and destination.deactivated_reason == REMOVED:
+        if is_removed(destination):
             continue
         used_by = [
             {"id": q.id, "name": q.name, "color": views.color_css(q.color)}
@@ -110,9 +115,40 @@ async def destinations(
                 sent=delivery.sent if delivery else 0,
                 failed=delivery.failed if delivery else 0,
                 searches=used_by,
+                last_test=await last_test(repo, destination.id),
+                telegram_ready=context.settings.telegram_bot_token is not None,
+                tz=tz,
             )
         )
     return cards
+
+
+def _test_key(destination_id: int) -> str:
+    return f"destination_test:{destination_id}"
+
+
+async def record_test(repo: Repo, destination_id: int, *, ok: bool, message: str) -> None:
+    """Remember how the latest test send went, so the card can say "Test arrived".
+
+    Kept in app_state rather than the destination's config: the config is what the
+    sender reads, and a test result is not something it should ever see.
+    """
+    value = {"ok": ok, "at": int(time.time()), "message": message}
+    await repo.set_state_value(_test_key(destination_id), json.dumps(value))
+
+
+async def last_test(repo: Repo, destination_id: int) -> dict[str, Any] | None:
+    raw = await repo.get_state_value(_test_key(destination_id))
+    try:
+        value = json.loads(raw) if raw else None
+    except ValueError:
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def is_removed(destination: Destination) -> bool:
+    """Removed from the Alerts page: kept for history, shown nowhere else."""
+    return not destination.active and destination.deactivated_reason == REMOVED
 
 
 # What a destination removed from the Alerts page is marked with. Its row stays so past

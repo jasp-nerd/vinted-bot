@@ -39,7 +39,7 @@ folder you start the app from. `vinted-sniper migrate` prints the path it used.
 
 | Variable | Default | What it does |
 |---|---|---|
-| `TIMEZONE` | `UTC` | IANA time zone such as `Europe/Paris`, used for quiet hours and the stats page. Falls back to the standard `TZ` variable when unset. The dashboard's settings page can override it. |
+| `TIMEZONE` | this computer's time zone | IANA time zone such as `Europe/Paris`, used for quiet hours and the stats page. Falls back to the standard `TZ` variable, then to the computer's own zone (UTC if it can't be told). The dashboard's settings page can override it. |
 
 ### Checking
 

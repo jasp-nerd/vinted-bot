@@ -36,7 +36,7 @@
   photos. Every optional line simply disappears, and the card still reads as complete.
 #}
 {% macro item_card(it, extra_cls="", lazy=True, show_search=True) -%}
-<article class="item {{ extra_cls }}{% if it.is_new %} is-fresh{% endif %}" data-item-id="{{ it.id }}" data-seq="{{ it.seq }}" data-search="{{ it.search.id }}" data-deal="{{ 1 if it.deal_pct else 0 }}" data-tld="{{ it.tld }}">
+<article class="item {{ extra_cls }}{% if it.is_new %} is-fresh{% endif %}" data-item-id="{{ it.id }}" data-seq="{{ it.seq }}" data-search="{{ it.search.id }}" data-deal="{{ 1 if it.deal_pct else 0 }}" data-tld="{{ it.tld }}" data-seller="{{ it.seller_id or '' }}">
   <div class="item__media" style="--dominant: {{ it.dominant or 'var(--c-fill)' }}">
     {% if it.photo %}
     <img src="{{ it.photo }}" alt=""{% if lazy %} loading="lazy"{% endif %} decoding="async" referrerpolicy="no-referrer">

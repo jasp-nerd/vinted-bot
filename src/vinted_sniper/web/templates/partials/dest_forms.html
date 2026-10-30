@@ -19,14 +19,22 @@
 </div>
 {%- endmacro %}
 
-{% call choice("ntfy", "Notification on your phone", "Free app called ntfy. Install it, tap +, paste one word. No account.", "smartphone", kind == "ntfy") %}
+{% call choice("ntfy", "Notification on your phone", "Free app called ntfy. Install it, add one name, done. No account.", "smartphone", kind == "ntfy") %}
+  {% set topic = F.ntfy_topic or ntfy_topic %}
+  {# ntfy:// links subscribe the Android app in one tap. The iPhone app has no such link,
+     so the name itself stays big enough to type, with Copy for people already on the phone. #}
+  {% set ntfy_link = "ntfy://ntfy.sh/" ~ topic ~ "?display=vinted-sniper" %}
   <ol class="steps-list" style="padding-top:6px">
-    <li><span>Install <b>ntfy</b> from the <a href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">App Store</a> or <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Google Play</a>. It's a free, open notification app and doesn't need your name, email or number.</span></li>
-    <li><span>Open ntfy, tap <b>+</b>, and paste this name: <span class="code" data-ntfy-topic>{{ F.ntfy_topic or ntfy_topic }}</span> <button class="btn btn--ghost btn--sm" type="button" data-copy="{{ F.ntfy_topic or ntfy_topic }}">{{ ui.icon("copy", "i-sm") }}Copy</button></span></li>
+    <li><span>On your phone, install <b>ntfy</b> from the <a href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">App Store</a> or <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Google Play</a>. It's free and doesn't ask for your name, email or number.</span></li>
+    <li><span>In ntfy, tap <b>+</b> and add this name: <span class="code code--lg" data-ntfy-topic>{{ topic }}</span> <button class="btn btn--ghost btn--sm" type="button" data-copy="{{ topic }}">{{ ui.icon("copy", "i-sm") }}Copy</button>
+      <a class="btn btn--secondary btn--sm show-sm ntfy-open" href="{{ ntfy_link }}">{{ ui.icon("smartphone", "i-sm") }}Open in ntfy (Android)</a></span></li>
   </ol>
-  <input type="hidden" name="ntfy_topic" value="{{ F.ntfy_topic or ntfy_topic }}">
+  <div class="ntfy-qr hide-sm">
+    <div class="qr" data-qr="{{ ntfy_link }}" aria-hidden="true"></div>
+    <p class="t-sm"><b class="t-ink">Android:</b> scan this with your phone's camera and tap the link. ntfy opens with this name already added.<br><b class="t-ink">iPhone:</b> type the name above into ntfy. It stays the same if you come back later.</p>
+  </div>
+  <input type="hidden" name="ntfy_topic" value="{{ topic }}">
   {{ ui.field_error(E, "ntfy_topic") }}
-  <p class="t-sm"><a href="ntfy://ntfy.sh/{{ F.ntfy_topic or ntfy_topic }}" class="show-sm">Open in ntfy</a></p>
 {% endcall %}
 
 {% call choice("telegram", "Telegram", "A chat message in Telegram. You make a small private bot first (about 3 minutes).", "send", kind == "telegram") %}
@@ -90,7 +98,7 @@
         <select class="select" id="em-prov" name="email_provider">{% for key, pair in providers.items() %}<option value="{{ key }}"{% if F.email_provider == key %} selected{% endif %}>{{ pair[0] }}</option>{% endfor %}</select></div>
     </div>
     <div class="field"><label class="label" for="em-pw">App password</label><input class="input" id="em-pw" name="email_password" type="password" autocomplete="off"{{ ui.invalid(E, 'email_password') }}>{{ ui.field_error(E, "email_password") }}<p class="help">Your provider makes one in its security settings (Gmail: Google Account, Security, App passwords). Your normal password usually won't work.</p></div>
-    <div class="field"><label class="label" for="em-smtp">Outgoing mail server <small>only for "Something else"</small></label><input class="input" id="em-smtp" name="email_smtp" type="text" placeholder="smtp.example.com" value="{{ F.email_smtp or '' }}"{{ ui.invalid(E, 'email_smtp') }}>{{ ui.field_error(E, "email_smtp") }}</div>
+    <div class="field" data-smtp-field{% if F.email_provider != "other" %} hidden{% endif %}><label class="label" for="em-smtp">Outgoing mail server</label><input class="input" id="em-smtp" name="email_smtp" type="text" placeholder="smtp.example.com" value="{{ F.email_smtp or '' }}"{{ ui.invalid(E, 'email_smtp') }}>{{ ui.field_error(E, "email_smtp") }}</div>
     <details class="adv"><summary>{{ ui.icon("chevron-right") }}Slack, Pushover, Matrix and more</summary><div class="field"><label class="label" for="ap-url">Apprise link</label><input class="input" id="ap-url" name="apprise_url" type="text" autocomplete="off" spellcheck="false" value="{{ F.apprise_url or '' }}"><p class="help">For people who've set these up before. <a href="https://github.com/caronc/apprise/wiki" target="_blank" rel="noopener">Every service's link format</a>.</p></div></details>
   </div>
   {% else %}

@@ -6,16 +6,17 @@
   {{ ui.mags("watch", "watchband__mags") }}
   <div class="watchband__body">
     <div class="watchband__head">
-      <h2 class="t-h2" id="wb-title">{% if waiting %}{{ app.searches_active - waiting }} {{ "search" if app.searches_active - waiting == 1 else "searches" }} running, {{ waiting }} waiting on Vinted{% elif app.searches_active %}{{ "Your search is" if app.searches_active == 1 else "All " ~ app.searches_active ~ " searches are" }} running{% else %}Nothing is running{% endif %}</h2>
+      {# "Running" means checking: the header, this band and the Searches chips count the same thing. #}
+      <h2 class="t-h2" id="wb-title">{% if waiting %}{{ app.searches_active }} running, {{ waiting }} waiting on Vinted{% elif app.searches_active %}{{ "Your search is" if app.searches_active == 1 else "All " ~ app.searches_active ~ " searches are" }} running{% else %}Nothing is running{% endif %}</h2>
       <p>{% if last_check_s is not none %}Last check <time data-ago="{{ last_check_s }}">{{ "just now" if last_check_s < 45 else (last_check_s // 60) ~ " min ago" }}</time>. {% endif %}Vinted shows new listings in search a few minutes late, so we see them then too.</p>
     </div>
     <button class="watchband__summary btn btn--ghost btn--sm" type="button" data-band-toggle aria-expanded="false">
-      {{ app.searches_active - waiting }} running{% if waiting %} · {{ waiting }} waiting{% endif %}{% if paused %} · {{ paused }} paused{% endif %}{{ ui.icon("chevron-down", "i-sm") }}
+      {{ app.searches_active }} running{% if waiting %} · {{ waiting }} waiting{% endif %}{% if paused %} · {{ paused }} paused{% endif %}{{ ui.icon("chevron-down", "i-sm") }}
     </button>
     <ul class="healthlist" aria-label="Your searches">
-      {% for key in ["blocked", "stuck", "quiet", "watching", "paused"] %}
+      {% for key in ["blocked", "stuck", "stale", "quiet", "watching", "paused"] %}
       {% for s in searches if s.status == key %}
-      <li><a class="health{% if s.status == 'stuck' %} health--warn{% elif s.status == 'blocked' %} health--bad{% endif %}" href="{{ url('search_detail', id=s.id) }}" style="--sc: {{ s.color }}" title="{{ s.why }}">
+      <li><a class="health{% if s.status in ('stuck', 'stale') %} health--warn{% elif s.status == 'blocked' %} health--bad{% endif %}" href="{{ url('search_detail', id=s.id) }}" style="--sc: {{ s.color }}" title="{{ s.why }}">
         <i class="sdot"></i>
         <span class="health__name">{{ s.name }}</span>
         {% if s.status == "watching" %}<span class="health__n num">{{ s.finds_today }} today</span>
@@ -42,8 +43,8 @@
 <section class="field-panel field-panel--sun empty" aria-labelledby="empty-title">
   <div class="empty__text">
     <h1 class="t-h1" id="empty-title">No finds yet</h1>
-    <p class="t-lead">Your {{ "search is" if searches|length == 1 else "searches are" }} running. The first check skips everything that was already on Vinted, so you only hear about new listings.</p>
-    <p>New listings show up here on their own, usually a few minutes after the seller posts them.</p>
+    <p class="t-lead">The first check skips everything that was already on Vinted, so you only hear about new listings.</p>
+    <p>They show up here on their own, usually a few minutes after the seller posts them.</p>
     <div class="btn-row" style="margin-top:6px">
       <a class="btn btn--primary" href="{{ url('search_new') }}">{{ ui.icon("plus") }}Add another search</a>
       <a class="btn btn--secondary" href="{{ url('alerts') }}">Send a test alert</a>
@@ -66,13 +67,14 @@
         {% for s in searches %}<option value="{{ s.id }}"{% if search_filter == s.id|string %} selected{% endif %}>{{ s.name }}</option>{% endfor %}
       </select>
       <details class="chip-pop">
-        <summary class="chip{% if min or max %} is-on{% endif %}">Price{{ ui.icon("chevron-down") }}</summary>
+        <summary class="chip{% if price_on %} is-on{% endif %}{% if price_errors %} is-invalid{% endif %}">Price{{ ui.icon("chevron-down") }}</summary>
         <div class="chip-pop__panel card">
-          <div class="grid-2" style="gap:8px">
-            <div class="field"><label class="label" for="f-min">From</label><input class="input" id="f-min" name="min" inputmode="decimal" value="{{ min }}"></div>
-            <div class="field"><label class="label" for="f-max">To</label><input class="input" id="f-max" name="max" inputmode="decimal" value="{{ max }}"></div>
+          <p class="chip-pop__title t-h3">Price with fees</p>
+          <div class="grid-2 chip-pop__fields" style="gap:8px">
+            <div class="field"><label class="label" for="f-min">From</label><input class="input" id="f-min" name="min" inputmode="decimal" value="{{ min }}"{{ ui.invalid(price_errors, 'min') }}>{{ ui.field_error(price_errors, "min") }}</div>
+            <div class="field"><label class="label" for="f-max">To</label><input class="input" id="f-max" name="max" inputmode="decimal" value="{{ max }}"{{ ui.invalid(price_errors, 'max') }}>{{ ui.field_error(price_errors, "max") }}</div>
           </div>
-          <p class="help">Total with fees.</p>
+          <p class="help">Including Vinted's buyer protection fee.</p>
           <button class="btn btn--primary btn--sm" type="submit" name="show" value="{{ show }}">Show</button>
         </div>
       </details>
@@ -96,9 +98,9 @@
 
 <div class="resultline">
   {% if filtered %}
-  <span><b class="t-ink num" data-count>{{ items|length }}</b> {{ "find matches" if items|length == 1 else "finds match" }}{% if more %} so far{% endif %}</span>
+  <span>{% if more %}Showing the newest <b class="t-ink num" data-count>{{ items|length }}</b> that match, more below{% else %}<b class="t-ink num" data-count>{{ items|length }}</b> {{ "find matches" if items|length == 1 else "finds match" }}{% endif %}</span>
   {% else %}
-  <span><b class="t-ink num">{{ "{:,}".format(found_total) }}</b> {{ "find" if found_total == 1 else "finds" }} kept · <b class="t-ink num" data-today>{{ found_today }}</b> today</span>
+  <span><b class="t-ink num">{{ "{:,}".format(found_total) }}</b> {{ "find" if found_total == 1 else "finds" }} so far · <b class="t-ink num" data-today>{{ found_today }}</b> today</span>
   {% endif %}
   <span class="row t-sm"><i class="pulse" aria-hidden="true"></i>New finds appear here on their own</span>
 </div>
@@ -121,14 +123,11 @@
 {% block modals %}
 <dialog class="modal modal--wide" id="quickview" aria-labelledby="qv-title">
   <div class="quick">
-    <div class="quick__media"><img alt="" data-qv="img" referrerpolicy="no-referrer"></div>
+    <div class="quick__media"><img alt="" data-qv="img" referrerpolicy="no-referrer"><button class="btn btn--icon quick__close" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button></div>
     <div class="quick__info">
-      <div class="row row--between" style="align-items:flex-start;flex-wrap:nowrap">
-        <div class="stack" style="gap:6px">
-          <span data-qv="search"></span>
-          <h2 class="t-h2" id="qv-title" data-qv="title"></h2>
-        </div>
-        <button class="btn btn--icon" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button>
+      <div class="stack" style="gap:6px">
+        <span data-qv="search"></span>
+        <h2 class="t-h2" id="qv-title" data-qv="title"></h2>
       </div>
       <div class="stack" style="gap:2px">
         <span class="t-sm" data-qv="price"></span>
@@ -138,17 +137,17 @@
       <div data-qv="deal"></div>
       <dl class="dl" data-qv="dl"></dl>
       <div class="stack" style="gap:8px;margin-top:6px">
-        <a class="btn btn--primary btn--block btn--lg" href="#" data-qv="buy" target="_blank" rel="noopener">{{ ui.icon("shopping-bag") }}Buy on Vinted</a>
+        <div class="quick__buy"><a class="btn btn--primary btn--block btn--lg" href="#" data-qv="buy" target="_blank" rel="noopener">{{ ui.icon("shopping-bag") }}Buy on Vinted</a></div>
         <div class="grid-2" style="gap:8px">
           <a class="btn btn--secondary" href="#" data-qv="message" target="_blank" rel="noopener">{{ ui.icon("message-circle") }}Message seller</a>
           <a class="btn btn--secondary" href="#" data-qv="url" target="_blank" rel="noopener">{{ ui.icon("external-link") }}Open listing</a>
         </div>
         <p class="t-sm">These open Vinted in your browser, where you're signed in. vinted-sniper never buys or messages for you.</p>
-        <div class="row" style="justify-content:center;gap:4px">
-          <button class="btn btn--ghost btn--sm" type="button" data-toggle-save aria-pressed="false">{{ ui.icon("heart", "i-sm") }}Save</button>
-          <button class="btn btn--ghost btn--sm" type="button" data-act="watch">{{ ui.icon("eye", "i-sm") }}Watch price</button>
-          <button class="btn btn--ghost btn--sm" type="button" data-act="hide">{{ ui.icon("eye-off", "i-sm") }}Hide</button>
-          <button class="btn btn--ghost btn--sm" type="button" data-act="block">{{ ui.icon("ban", "i-sm") }}Block seller</button>
+        <div class="quick__acts">
+          <button class="btn btn--ghost btn--sm" type="button" data-toggle-save aria-pressed="false" aria-keyshortcuts="s">{{ ui.icon("heart", "i-sm") }}Save</button>
+          <button class="btn btn--ghost btn--sm" type="button" data-act="watch" aria-keyshortcuts="w">{{ ui.icon("eye", "i-sm") }}Watch price</button>
+          <button class="btn btn--ghost btn--sm" type="button" data-act="hide" aria-keyshortcuts="h">{{ ui.icon("eye-off", "i-sm") }}Hide</button>
+          <button class="btn btn--ghost btn--sm" type="button" data-act="block" aria-keyshortcuts="b">{{ ui.icon("ban", "i-sm") }}Block seller</button>
         </div>
       </div>
     </div>
@@ -157,7 +156,7 @@
 
 <dialog class="modal" id="block-confirm" aria-labelledby="bc-title">
   <div class="modal__head"><h2 class="t-h2" id="bc-title">Block this seller?</h2><button class="btn btn--icon" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button></div>
-  <div class="modal__body"><p>You won't get alerts for anything they list, in any of your searches. You can unblock them in Settings.</p></div>
+  <div class="modal__body"><p>Their listings disappear from your finds, and you won't get alerts for anything they list, in any of your searches. You can unblock them in Settings.</p></div>
   <div class="modal__foot"><button class="btn btn--secondary" type="button" data-close>Keep</button><button class="btn btn--danger" type="button" data-block-confirm>Block seller</button></div>
 </dialog>
 
@@ -175,6 +174,7 @@
       <dt><kbd>/</kbd></dt><dd>Search your finds</dd>
       <dt><kbd>?</kbd></dt><dd>This list</dd>
     </dl>
+    <p class="t-sm">s, h, b, w and o also work while a find's details are open.</p>
   </div>
   <div class="modal__foot"></div>
 </dialog>
