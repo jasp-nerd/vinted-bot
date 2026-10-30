@@ -1040,3 +1040,4 @@ select.chip, .chip--select { appearance: none; padding-right: 32px; background-i
 .savebar__count { flex: 1; min-width: 0; }
 
 select.chip { width: auto; max-width: 220px; }
+.ob__nav [aria-label="Back"] { order: -1; }

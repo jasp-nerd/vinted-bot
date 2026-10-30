@@ -36,8 +36,9 @@
     </form>
     <div class="ob__nav">
       {% block nav %}
-      {% block back %}{% endblock %}
+      {# Back comes after the main button in the page, so pressing Enter goes forward. #}
       <button class="btn btn--primary btn--lg" type="submit" form="ob-form">{% block cta %}Continue{% endblock %}{{ ui.icon("arrow-right") }}</button>
+      {% block back %}{% endblock %}
       <span class="hint">{% block hint %}{% endblock %}</span>
       {% endblock %}
     </div>
