@@ -496,3 +496,24 @@ async def test_a_too_old_listing_a_rule_skips_anyway_is_not_logged_as_too_old(
     await poll.tick()
 
     assert await repo.rejections_for(poll.query.id) == []
+
+
+async def test_a_limit_converts_a_listing_from_a_site_with_another_currency(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    poll = await poller(
+        transport, repo, settings, db, extra_tlds=["co.uk"], max_total_price=Decimal("20")
+    )
+    await repo.set_state_value("exchange_rates", '{"fetched_at": 1, "rates": {"GBP": "0.8"}}')
+    now = int(time.time())
+    transport.queue_catalog([make_item(100, photo_ts=now - 60)])
+    transport.queue_catalog([])
+    await poll.tick()
+    pounds = {"amount": "18.00", "currency_code": "GBP"}
+    in_pounds = make_item(200, photo_ts=now) | {"price": pounds, "total_item_price": pounds}
+    transport.queue_catalog([])
+    transport.queue_catalog([in_pounds])
+
+    await poll.tick()
+
+    assert [r.reason for r in await repo.rejections_for(poll.query.id)] == ["over_budget"]

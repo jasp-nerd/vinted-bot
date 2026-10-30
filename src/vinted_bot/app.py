@@ -26,7 +26,7 @@ from vinted_bot.config import MAX_BACKOFF_S, Settings
 from vinted_bot.db import Database, apply_pending
 from vinted_bot.db.repo import Query, Repo
 from vinted_bot.deliver.dispatcher import Dispatcher
-from vinted_bot.engine import self_update, updates
+from vinted_bot.engine import rates, self_update, updates
 from vinted_bot.engine.health import Heartbeat
 from vinted_bot.engine.poller import Poller
 from vinted_bot.engine.watchdog import Watchdog
@@ -45,6 +45,10 @@ SUPERVISE_INTERVAL_S = 15.0
 
 # Housekeeping: prune old listings and the rejections log, check for a newer release.
 HOUSEKEEPING_INTERVAL_S = 3600.0
+
+# How often to look whether a search needs exchange rates. Looking costs one read of the
+# database; the request itself is made at most once a day (engine/rates.py).
+RATES_INTERVAL_S = 300.0
 
 # Searches started in the same pass — all of them, after a restart — begin this far apart
 # (plus jitter), so they do not hit the site in the same second.
@@ -154,6 +158,8 @@ class Application:
                         tg.create_task(heartbeat.run(), name="heartbeat")
                         tg.create_task(watcher.run(), name="watcher")
                         tg.create_task(self._housekeeping(repo, http), name="housekeeping")
+                        if settings.fetch_mode == "live":
+                            tg.create_task(self._exchange_rates(repo, http), name="rates")
                         tg.create_task(updater.run_automatically(), name="auto-update")
                         tg.create_task(self._report_update(repo, dispatcher), name="update-report")
                         tg.create_task(
@@ -313,6 +319,17 @@ class Application:
                 log.warning("housekeeping.db_unavailable", error=str(exc))
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(self._stop.wait(), timeout=HOUSEKEEPING_INTERVAL_S)
+
+    async def _exchange_rates(self, repo: Repo, http: httpx.AsyncClient) -> None:
+        """Keep euro exchange rates for searches that span currencies; see engine/rates.py."""
+        while not self._stop.is_set():
+            try:
+                await rates.refresh(repo, http, await repo.list_queries(include_paused=False))
+            except sqlite3.OperationalError as exc:
+                # A locked database; the next pass catches up.
+                log.warning("rates.db_unavailable", error=str(exc))
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(self._stop.wait(), timeout=RATES_INTERVAL_S)
 
     async def _report_update(self, repo: Repo, dispatcher: Dispatcher) -> None:
         """Say how the update that restarted the app went (self_update.finish_pending)."""

@@ -20,11 +20,12 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from vinted_bot.config import MAX_BACKOFF_S, Settings
 from vinted_bot.db.repo import Query, QueryState, RejectedListing, Repo
-from vinted_bot.engine import dedup, filters, quiet
+from vinted_bot.engine import dedup, filters, quiet, rates
 from vinted_bot.log import get_logger
 from vinted_bot.vinted.client import PER_PAGE, VintedClient
 from vinted_bot.vinted.errors import (
@@ -120,6 +121,9 @@ class Poller:
         # The site being fetched when an error escapes, so the right session is replaced.
         self._site = query.tld
         self._warned_no_lookup = False
+        # Euro exchange rates, read each check, for a search whose sites price in more
+        # than one currency; see engine/rates.py.
+        self._rates: dict[str, Decimal] = {}
         self._log = log.bind(query_id=query.id, query=query.name, tld=query.tld)
 
     async def run(self) -> None:
@@ -213,6 +217,8 @@ class Poller:
 
     async def _check(self) -> None:
         items, page_is_full = await self._fetch()
+        if rates.spans_currencies(self.query):
+            self._rates = await rates.load(self._repo)
         state = await self._repo.get_state(self.query.id)
         ids = [item.item_id for item in items]
         seen = await self._repo.seen_by_query(self.query.id, ids)
@@ -292,7 +298,11 @@ class Poller:
         except perhaps one, and a first page of ninety-six would be ninety-six requests.
         """
         blocked = frozenset(await self._repo.blocked_seller_ids())
-        keep = [item for item in unseen if self._rules.check(item, blocked_sellers=blocked) is None]
+        keep = [
+            item
+            for item in unseen
+            if self._rules.check(item, blocked_sellers=blocked, rates=self._rates) is None
+        ]
         pick = dedup.first_run_pick(keep, self._settings.first_run_mode) if announce else []
         if not keep:
             return 0
@@ -315,7 +325,7 @@ class Poller:
         anyway: "Not sent" should show what the search would have wanted."""
         rejected = []
         for item, listed in entries:
-            if self._rules.check(item) is not None:
+            if self._rules.check(item, rates=self._rates) is not None:
                 continue
             detail = (
                 f"already on Vinted {round((now - listed) / 60)} min ago; this search "
@@ -331,7 +341,7 @@ class Poller:
         verdicts = _Verdicts(rejected=list(too_old))
         blocked = frozenset(await self._repo.blocked_seller_ids())
         for item in new:
-            rejection = self._rules.check(item, blocked_sellers=blocked)
+            rejection = self._rules.check(item, blocked_sellers=blocked, rates=self._rates)
             if rejection is None:
                 rejection, final = await self._judge_seller(item, verdicts)
             else:

@@ -19,11 +19,13 @@ be able to say why.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 
 from vinted_bot.db.repo import Query
-from vinted_bot.deals import deal_percent
+from vinted_bot.deals import deal_percent, site_currency
+from vinted_bot.engine.rates import convert
 from vinted_bot.engine.validation import TITLE_REGEX_FLAGS, fold
 from vinted_bot.vinted.models import Item, SellerProfile
 
@@ -86,13 +88,21 @@ class Rules:
         self._conditions = {fold(condition) for condition in query.conditions or []}
 
     def check(
-        self, item: Item, *, blocked_sellers: frozenset[int] = frozenset()
+        self,
+        item: Item,
+        *,
+        blocked_sellers: frozenset[int] = frozenset(),
+        rates: Mapping[str, Decimal] | None = None,
     ) -> Rejection | None:
-        """Return why this listing should be skipped, or None if it passes the cheap rules."""
+        """Return why this listing should be skipped, or None if it passes the cheap rules.
+
+        `rates` are euro exchange rates (see engine/rates.py), needed only by searches
+        whose sites price in more than one currency.
+        """
         return (
             _check_origin(item, blocked_sellers)
             or self._check_text(item)
-            or _check_price(item, self.query)
+            or _check_price(item, self.query, rates or {})
             or _check_margin(item, self.query)
             or self._check_condition(item)
         )
@@ -132,19 +142,38 @@ def _check_origin(item: Item, blocked_sellers: frozenset[int]) -> Rejection | No
     return None
 
 
-def _check_price(item: Item, query: Query) -> Rejection | None:
+def _check_price(item: Item, query: Query, rates: Mapping[str, Decimal]) -> Rejection | None:
+    """The price limits, which are in the search's own site's currency.
+
+    A search on several sites sees other currencies too, and comparing the bare numbers
+    let a 39 € listing under an 80 zł limit. Those are converted at the daily reference
+    rate; without one the limit cannot be judged, and the listing is skipped saying so
+    rather than let through on a comparison that means nothing.
+    """
     if query.max_total_price is None and query.min_total_price is None:
         return None
     payable = item.total_price if item.total_price is not None else item.price
     if payable is None:
         return Rejection("no_price", "listing has no price to compare")
+    own = site_currency(query.tld)
+    currency = (item.currency or own).upper()
+    shown = f"{payable} {currency}"
+    if currency != own:
+        converted = convert(payable, currency, own, rates)
+        if converted is None:
+            return Rejection(
+                "no_exchange_rate",
+                f"priced {shown}, and there is no {currency} to {own} exchange rate yet "
+                f"to compare with this search's limits in {own}",
+            )
+        payable, shown = converted, f"{shown} (about {converted} {own})"
     if query.max_total_price is not None and payable > query.max_total_price:
         return Rejection(
             "over_budget",
-            f"{payable} above limit {query.max_total_price} (buyer protection included)",
+            f"{shown} above limit {query.max_total_price} {own} (buyer protection included)",
         )
     if query.min_total_price is not None and payable < query.min_total_price:
-        return Rejection("under_minimum", f"{payable} below minimum {query.min_total_price}")
+        return Rejection("under_minimum", f"{shown} below minimum {query.min_total_price} {own}")
     return None
 
 
@@ -254,7 +283,10 @@ def check_deal(item: Item, query: Query, typical: Decimal | None) -> Rejection |
     if pct is None:
         return Rejection("not_a_deal", "not enough history yet to know a typical price")
     if pct < query.deal_only_pct:
+        distance = f"{pct}% under" if pct >= 0 else f"{-pct}% above"
         return Rejection(
-            "not_a_deal", f"{pct}% under the typical {typical}, want {query.deal_only_pct}%"
+            "not_a_deal",
+            f"{distance} the typical {typical} {item.currency or ''}".rstrip()
+            + f", want at least {query.deal_only_pct}% under",
         )
     return None
