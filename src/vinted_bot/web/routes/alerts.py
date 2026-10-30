@@ -66,8 +66,8 @@ async def alerts_page(request: Request) -> Response:
             "nav": "alerts",
             "dests": await data.destinations(context, tz=await core.timezone(context)),
             "telegram": await telegram_setup(context),
-            "apprise": destinations.apprise_installed(),
             "providers": destinations.EMAIL_PROVIDERS,
+            "security_modes": destinations.EMAIL_SECURITY,
             "ntfy_topic": await ntfy_topic(context, fresh_if_used=True),
         },
     )

@@ -155,8 +155,8 @@ async def _alerts_page(
         or await alerts.ntfy_topic(context, fresh_if_used=False),
         errors=errors or {},
         telegram=await alerts.telegram_setup(context),
-        apprise=destinations.apprise_installed(),
         providers=destinations.EMAIL_PROVIDERS,
+        security_modes=destinations.EMAIL_SECURITY,
     )
 
 

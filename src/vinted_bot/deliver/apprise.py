@@ -7,32 +7,22 @@ how each one wants its formatting: we hand it markdown and it converts to HTML o
 text per service. The native Discord, Telegram and ntfy senders stay, because they can do
 far more than a title and a body.
 
-Optional, because it brings `requests` and a handful of other packages along: install with
-`pip install 'vinted-bot[apprise]'`. The import happens only when such a destination
-exists, so nobody else pays for it.
+Email is the reason it is a core dependency rather than an extra: it is the one channel
+everybody already has, and "install an extra first" is where a dashboard setup stops.
 """
 
 from __future__ import annotations
 
-import importlib.util
-from typing import TYPE_CHECKING, Any
+from typing import Any
+
+import apprise
 
 from vinted_bot.db.repo import PendingNotification
 from vinted_bot.deliver.base import SenderConfigError, SendResult
 from vinted_bot.deliver.render import BOT_NAME, ListingView, escape_markdown, view
 
-if TYPE_CHECKING:
-    import apprise as apprise_lib
-
 # Apprise calls services one after another, so this caps each service, not the whole send.
 TIMEOUT_S = 20.0
-
-MISSING_EXTRA = "Apprise destinations need the optional extra: pip install 'vinted-bot[apprise]'"
-
-
-def is_available() -> bool:
-    """Whether the extra is installed, so the dashboard can say so before anyone tries."""
-    return importlib.util.find_spec("apprise") is not None
 
 
 def message(listing: ListingView) -> tuple[str, str]:
@@ -85,13 +75,7 @@ class AppriseSender:
 
     def __init__(self, config: dict[str, Any], *, dashboard_url: str | None = None) -> None:
         urls = _urls(config)
-        try:
-            import apprise  # noqa: PLC0415 - optional extra, imported only when used
-        except ImportError as exc:
-            raise SenderConfigError(MISSING_EXTRA) from exc
-
-        self._lib = apprise
-        self._apprise: apprise_lib.Apprise = apprise.Apprise()
+        self._apprise = apprise.Apprise()
         for position, url in enumerate(urls, start=1):
             # The URL itself stays out of the message: it usually holds a password or token.
             if not self._apprise.add(url):
@@ -110,7 +94,7 @@ class AppriseSender:
             outcome = await self._apprise.async_notify(
                 body=body,
                 title=title,
-                body_format=self._lib.NotifyFormat.MARKDOWN,
+                body_format=apprise.NotifyFormat.MARKDOWN,
                 attach=listing.photos[0] if listing.photos else None,
                 timeout=TIMEOUT_S,
             )
@@ -128,7 +112,7 @@ class AppriseSender:
         await self._apprise.async_notify(
             body=message_text,
             title=BOT_NAME,
-            notify_type=self._lib.NotifyType.WARNING,
+            notify_type=apprise.NotifyType.WARNING,
             timeout=TIMEOUT_S,
         )
 

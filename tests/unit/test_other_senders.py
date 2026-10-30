@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import sys
 from decimal import Decimal
 from typing import Any
 
@@ -402,14 +401,6 @@ def test_an_unrecognised_apprise_url_is_reported_without_echoing_it() -> None:
         AppriseSender({"urls": ["vstest://", "nonsense://hunter2@host"]})
 
     assert "URL number 2" in str(raised.value) and "hunter2" not in str(raised.value)
-
-
-def test_a_missing_apprise_extra_says_how_to_install_it(monkeypatch: pytest.MonkeyPatch) -> None:
-    # None in sys.modules is how Python spells "this import fails".
-    monkeypatch.setitem(sys.modules, "apprise", None)
-
-    with pytest.raises(SenderConfigError, match=r"vinted-bot\[apprise\]"):
-        AppriseSender({"urls": ["vstest://"]})
 
 
 async def test_ntfy_markdown_cannot_be_hijacked_by_a_seller_login() -> None:

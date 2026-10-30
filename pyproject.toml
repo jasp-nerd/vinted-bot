@@ -46,15 +46,15 @@ dependencies = [
     "uvicorn[standard]>=0.34",
     "jinja2>=3.1",
     "python-multipart>=0.0.20",
+    # Email, and the long tail of services (Slack, Pushover, Gotify, Matrix, Signal, Home
+    # Assistant...) through one URL each. A core dependency so email works out of the box.
+    "apprise>=2.1",
 ]
 
 [project.optional-dependencies]
 # TLS impersonation, only needed if plain httpx starts getting blocked.
 # Kept optional because curl_cffi ships compiled wheels that complicate ARM installs.
 impersonate = ["curl_cffi>=0.7"]
-# Apprise reaches the long tail of services (email, Slack, Pushover, Gotify, Matrix, Signal,
-# Home Assistant...) through one URL each. Optional: it pulls in requests and friends.
-apprise = ["apprise>=2.1"]
 
 [project.scripts]
 vinted-bot = "vinted_bot.cli:main"
@@ -162,9 +162,9 @@ exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedE
 known_first_party = ["vinted_bot"]
 
 [tool.deptry.per_rule_ignores]
-# curl_cffi and apprise are imported lazily behind config flags; python-multipart and jinja2 are loaded
+# curl_cffi is imported lazily behind a config flag; python-multipart and jinja2 are loaded
 # by FastAPI and Starlette, and tzdata by zoneinfo, never imported by name.
-DEP002 = ["tzdata", "curl_cffi", "apprise", "python-multipart", "jinja2"]
+DEP002 = ["tzdata", "curl_cffi", "python-multipart", "jinja2"]
 
 [tool.vulture]
 min_confidence = 80

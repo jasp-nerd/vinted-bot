@@ -955,10 +955,10 @@
   }
   // Long option lists start folded on a phone; a computer has room to show them.
   if (matchMedia("(max-width: 760px)").matches) $$("details[data-collapse-sm]").forEach((d) => { d.open = false; });
-  // The mail server only matters for "Something else".
+  // The mail server's details only matter for a provider not in the list.
   $$("[data-smtp-field]").forEach((f) => {
-    const sel = $("select[name=email_provider]", f.closest(".stack") || document);
-    if (sel) sel.addEventListener("change", () => { f.hidden = sel.value !== "other"; });
+    const sel = $("select[name=email_provider]", f.parentElement || document);
+    if (sel) sel.addEventListener("change", () => { f.hidden = sel.value !== "custom"; });
   });
   // Show what was typed in a password field, for long made-up passwords.
   $$("[data-show-password]").forEach((b) => b.addEventListener("click", () => {

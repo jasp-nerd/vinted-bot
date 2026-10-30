@@ -2,7 +2,7 @@
 {#
   The "where alerts go" choices, shared by setup step 3 and the Alerts page's add flow.
   Context: errors, form (previous answers), ntfy_topic, telegram {configured, bot},
-  apprise (installed), providers. Phone notification comes first: it is the one a
+  providers, security_modes. Phone notification comes first: it is the one a
   person can set up from a phone in a minute.
 #}
 {% set E = errors or {} %}
@@ -90,20 +90,27 @@
 {% endcall %}
 
 {% call choice("apprise", "Email", "Alerts in your inbox. Needs an app password from your email provider.", "mail", kind == "apprise") %}
-  {% if apprise %}
   <div class="stack" style="padding-top:6px">
     <div class="grid-2">
       <div class="field"><label class="label" for="em-addr">Email address</label><input class="input" id="em-addr" name="email_address" type="email" autocomplete="email" value="{{ F.email_address or '' }}"{{ ui.invalid(E, 'email_address') }}>{{ ui.field_error(E, "email_address") }}</div>
       <div class="field"><label class="label" for="em-prov">Email provider</label>
-        <select class="select" id="em-prov" name="email_provider">{% for key, pair in providers.items() %}<option value="{{ key }}"{% if F.email_provider == key %} selected{% endif %}>{{ pair[0] }}</option>{% endfor %}</select></div>
+        <select class="select" id="em-prov" name="email_provider"{{ ui.invalid(E, 'email_provider') }}>{% for key, pair in providers.items() %}<option value="{{ key }}"{% if F.email_provider == key %} selected{% endif %}>{{ pair[0] }}</option>{% endfor %}</select>{{ ui.field_error(E, "email_provider") }}</div>
+    </div>
+    <div class="stack" data-smtp-field{% if F.email_provider != "custom" %} hidden{% endif %}>
+      <div class="grid-2">
+        <div class="field"><label class="label" for="em-smtp">Outgoing mail server</label><input class="input" id="em-smtp" name="email_smtp" type="text" autocomplete="off" spellcheck="false" placeholder="smtp.example.com" value="{{ F.email_smtp or '' }}"{{ ui.invalid(E, 'email_smtp') }}>{{ ui.field_error(E, "email_smtp") }}</div>
+        <div class="field"><label class="label" for="em-port">Port <small>optional</small></label><input class="input" id="em-port" name="email_port" type="text" inputmode="numeric" autocomplete="off" placeholder="587" value="{{ F.email_port or '' }}"{{ ui.invalid(E, 'email_port') }}>{{ ui.field_error(E, "email_port") }}</div>
+      </div>
+      <div class="grid-2">
+        <div class="field"><label class="label" for="em-sec">Encryption</label>
+          <select class="select" id="em-sec" name="email_security"{{ ui.invalid(E, 'email_security') }}>{% for key, mode in security_modes.items() %}<option value="{{ key }}"{% if F.email_security == key %} selected{% endif %}>{{ mode[0] }}</option>{% endfor %}</select>{{ ui.field_error(E, "email_security") }}</div>
+        <div class="field"><label class="label" for="em-user">User name <small>optional</small></label><input class="input" id="em-user" name="email_user" type="text" autocomplete="off" spellcheck="false" value="{{ F.email_user or '' }}"><p class="help">Leave it empty to sign in with the email address.</p></div>
+      </div>
+      <p class="t-sm">Your provider's help pages list these, often under "SMTP" or "outgoing mail". A server on your own network that doesn't ask you to sign in needs no password.</p>
     </div>
     <div class="field"><label class="label" for="em-pw">App password</label><input class="input" id="em-pw" name="email_password" type="password" autocomplete="off"{{ ui.invalid(E, 'email_password') }}>{{ ui.field_error(E, "email_password") }}<p class="help">Your provider makes one in its security settings (Gmail: Google Account, Security, App passwords). Your normal password usually won't work.</p></div>
-    <div class="field" data-smtp-field{% if F.email_provider != "other" %} hidden{% endif %}><label class="label" for="em-smtp">Outgoing mail server</label><input class="input" id="em-smtp" name="email_smtp" type="text" placeholder="smtp.example.com" value="{{ F.email_smtp or '' }}"{{ ui.invalid(E, 'email_smtp') }}>{{ ui.field_error(E, "email_smtp") }}</div>
     <details class="adv"><summary>{{ ui.icon("chevron-right") }}Slack, Pushover, Matrix and more</summary><div class="field"><label class="label" for="ap-url">Apprise link</label><input class="input" id="ap-url" name="apprise_url" type="text" autocomplete="off" spellcheck="false" value="{{ F.apprise_url or '' }}"><p class="help">For people who've set these up before. <a href="https://github.com/caronc/apprise/wiki" target="_blank" rel="noopener">Every service's link format</a>.</p></div></details>
   </div>
-  {% else %}
-  <p class="t-sm" style="padding-top:6px">Email needs an optional part that isn't installed. On the computer running vinted-bot, install <span class="code">vinted-bot[apprise]</span> and restart. Until then, a notification on your phone works the same way: a buzz with the photo.</p>
-  {% endif %}
   {{ ui.field_error(E, "kind") }}
   {{ ui.field_error(E, "config") }}
 {% endcall %}

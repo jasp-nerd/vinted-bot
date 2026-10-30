@@ -196,7 +196,7 @@ for you:
 | `telegram` | `chat_id`, optionally `thread_id` for a forum topic (1.x's `message_thread_id` still works), `style` (`photo` or `gallery`), `silent` |
 | `ntfy` | `topic` (or a full topic `url`), optionally `server`, `token` and `priority` (1 to 5) |
 | `webhook` | `url`, optionally `secret` (signs every request, see below) and `headers` |
-| `apprise` | `urls`: a list of [Apprise](https://github.com/caronc/apprise/wiki) addresses, for email, Slack, Pushover, Gotify, Matrix and the rest. Needs the `apprise` extra. |
+| `apprise` | `urls`: a list of [Apprise](https://github.com/caronc/apprise/wiki) addresses, for email, Slack, Pushover, Gotify, Matrix and the rest. The dashboard builds the email one from an address, a provider and an app password, or from a mail server you name. |
 
 Every kind also takes `tiers`, the kinds of listing it wants (`steal`, `deal`, `normal`; all
 three by default), and `silent_tiers`, the ones to deliver without a sound. A listing a
