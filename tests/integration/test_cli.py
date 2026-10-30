@@ -11,11 +11,13 @@ from pathlib import Path
 
 import pytest
 
+from tests.conftest import ScriptedTransport
 from vinted_bot import cli
 from vinted_bot.config import Settings
 from vinted_bot.db import Database, apply_pending
 from vinted_bot.db.repo import Query, Repo
 from vinted_bot.vinted.models import Item
+from vinted_bot.vinted.transport import TransportSession
 
 URL = "https://www.vinted.fr/catalog?search_text=barbour"
 
@@ -135,3 +137,93 @@ def test_watching_a_link_twice_names_the_search_that_has_it(
     code = run("watch", URL)
 
     assert (code, "“Barbour”" in capsys.readouterr().err) == (1, True)
+
+
+def run_command(*argv: str) -> int:
+    args = cli.build_parser().parse_args(argv)
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+    match args.command:
+        case "destination":
+            return asyncio.run(cli._cmd_destination(settings, args))
+        case "backup":
+            return asyncio.run(cli._cmd_backup(settings, args.file))
+        case _:
+            return asyncio.run(cli._cmd_check(settings, args.url))
+
+
+def stored_destinations(path: Path) -> list[dict[str, object]]:
+    async def read() -> list[dict[str, object]]:
+        async with Database(path) as db:
+            await apply_pending(db)
+            return [d.config for d in await Repo(db).list_destinations()]
+
+    return asyncio.run(read())
+
+
+def test_a_discord_destination_that_is_not_a_webhook_link_is_refused(db_path: Path) -> None:
+    """It used to be stored, exit 0, and switched off in the background later."""
+    assert run_command("destination", "discord", "notaurl") == 2
+    assert stored_destinations(db_path) == []
+
+
+def test_a_full_ntfy_topic_address_is_kept_as_an_address(db_path: Path) -> None:
+    """Stored as a topic, it went to ntfy.sh/https://... instead of the person's server."""
+    run_command("destination", "ntfy", "https://ntfy.example.org/deals")
+
+    assert stored_destinations(db_path) == [{"url": "https://ntfy.example.org/deals"}]
+
+
+def test_an_apprise_destination_can_be_added_from_the_command_line(db_path: Path) -> None:
+    run_command("destination", "apprise", "json://localhost/hook")
+
+    assert stored_destinations(db_path) == [{"urls": ["json://localhost/hook"]}]
+
+
+def test_a_telegram_chat_id_must_be_a_number(db_path: Path) -> None:
+    assert run_command("destination", "telegram", "@mychannel") == 2
+
+
+def test_a_backup_holds_what_is_still_in_the_write_ahead_log(db_path: Path, tmp_path: Path) -> None:
+    """Copying app.db by hand while the app ran gave an empty database."""
+    copy = tmp_path / "backup.db"
+
+    async def while_the_app_runs() -> int:
+        async with Database(db_path) as running:
+            await apply_pending(running)
+            await Repo(running).add_query(
+                name="b", url=URL, tld="fr", params={"search_text": "b"}, poll_interval_s=60
+            )
+            settings = Settings(_env_file=None)  # type: ignore[call-arg]
+            return await cli._cmd_backup(settings, str(copy))
+
+    asyncio.run(while_the_app_runs())
+
+    assert [query.url for query in stored_queries(copy)] == [URL]
+
+
+def test_a_backup_never_overwrites_a_file(db_path: Path, tmp_path: Path) -> None:
+    run("watch", URL)
+    existing = tmp_path / "keep.db"
+    existing.write_bytes(b"precious")
+
+    assert run_command("backup", str(existing)) == 2
+    assert existing.read_bytes() == b"precious"
+
+
+def test_check_goes_through_the_proxy_file_like_a_search(
+    db_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    proxies = tmp_path / "proxies.txt"
+    proxies.write_text("http://proxy.example:8080\n", encoding="utf-8")
+    monkeypatch.setenv("VINTED_BOT_PROXY_FILE", str(proxies))
+    used: list[str | None] = []
+
+    def build(**kwargs: object) -> TransportSession:
+        used.append(kwargs.get("proxy"))  # type: ignore[arg-type]
+        return TransportSession(ScriptedTransport())
+
+    monkeypatch.setattr(TransportSession, "build", build)
+
+    run_command("check", "--url", URL)
+
+    assert used == ["http://proxy.example:8080"]
