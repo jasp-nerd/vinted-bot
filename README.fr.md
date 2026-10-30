@@ -32,7 +32,7 @@ sur votre ordinateur, sans compte Vinted ni abonnement, là où les bots Vinted 
 ## Comment ça marche
 
 1. **Cherchez sur Vinted** comme d'habitude et copiez le lien. Ou construisez la recherche dans le tableau de bord.
-2. **Collez-le dans vinted-bot** et choisissez où vont les alertes : Discord, Telegram, votre téléphone, un e-mail.
+2. **Collez-le dans vinted-bot** et choisissez où vont les alertes : Telegram, Discord, un e-mail et d'autres encore.
 3. **Recevez un message** pour chaque nouvelle annonce, avec les photos, le prix total protection acheteurs comprise, la taille, l'état et la note du vendeur.
 
 L'outil vérifie chaque minute. Le premier passage est silencieux exprès : vous n'entendez parler que des annonces publiées après l'ajout de la recherche.
@@ -48,6 +48,7 @@ L'outil vérifie chaque minute. Le premier passage est silencieux exprès : vous
 | Un Mac | [macOS](#macos) | Tant qu'il est allumé et éveillé |
 | Un Raspberry Pi ou une machine Linux | [Linux et Raspberry Pi](#linux-et-raspberry-pi) | Oui |
 | Docker déjà installé | [Docker](#docker) | Oui, si la machine reste allumée |
+| Python déjà installé | `uvx vinted-bot run` ou `pipx install vinted-bot` | Tant qu'il est allumé et éveillé |
 | Unraid, Synology, Umbrel ou CasaOS | [NAS](#nas) | Oui |
 | Rien qui reste allumé | [Cloud](#cloud), quelques euros par mois | Oui |
 
@@ -155,7 +156,7 @@ Ou ouvrez-le directement : **[Ouvrir dans Claude](https://claude.ai/new?q=Aide-m
 - Une mise en route au premier lancement : collez un lien ou construisez la recherche, puis envoyez une alerte de test.
 - « Non envoyées » : chaque annonce écartée, avec la raison.
 - Une liste de suivi pour les baisses de prix et les articles vendus, et pour les nouveautés d'un vendeur.
-- Des statistiques : trouvailles par jour, heures les plus actives, délai des alertes.
+- Des statistiques : trouvailles par jour, heures les plus actives, prix habituel par recherche, part des alertes arrivées.
 
 </td>
 <td valign="top">
@@ -189,7 +190,7 @@ Ou ouvrez-le directement : **[Ouvrir dans Claude](https://claude.ai/new?q=Aide-m
 <img src="https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docs/media/setup.png" width="820" alt="La mise en route : une première recherche construite avec des mots, une catégorie, une marque, des tailles, un état et un prix maximum, à côté du nombre d'annonces correspondantes et de ce que chaque filtre a retiré">
 <br><sub>Une première recherche, avec en direct le nombre d'annonces qu'elle trouverait</sub>
 <br><br>
-<img src="https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docs/media/stats.png" width="820" alt="La page de statistiques : trouvailles, alertes envoyées, délai médian entre l'annonce et l'alerte, taux de livraison, trouvailles par jour, une carte des jours et des heures et la rapidité des alertes">
+<img src="https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docs/media/stats.png" width="820" alt="La page de statistiques : trouvailles, alertes envoyées, part livrée, trouvailles par jour, une carte des jours et des heures, le prix habituel par recherche et la livraison par destination">
 <br><sub>Les statistiques</sub>
 </details>
 
@@ -197,9 +198,31 @@ Ou ouvrez-le directement : **[Ouvrir dans Claude](https://claude.ai/new?q=Aide-m
 
 - **Installateur :** cliquez sur **Update now** quand le tableau de bord annonce une nouvelle version, ou relancez la commande d'installation. Dans Settings, Updates, il peut aussi installer les nouvelles versions tout seul, la nuit.
 - **Docker :** `docker compose pull && docker compose up -d`
-- **Magasins d'applications des NAS :** le bouton de mise à jour du magasin.
+- **NAS :** récupérez la nouvelle image avec la mise à jour de conteneur du NAS (Unraid : Docker, Check for Updates).
 
 Vos recherches sont conservées, et les changements de base de données s'appliquent tout seuls au démarrage. Le détail est dans le [journal des modifications](https://github.com/jasp-nerd/vinted-bot/blob/main/CHANGELOG.md).
+
+## Arrêter et désinstaller
+
+Avec l'installateur, la façon de l'arrêter dépend de votre réponse à « démarrer à l'ouverture de session » :
+
+| | Démarre à l'ouverture de session | Ne démarre pas tout seul |
+|---|---|---|
+| Windows (PowerShell) | `Get-Process vinted-bot \| Stop-Process` (il redémarre à la prochaine connexion) | pareil |
+| macOS | `launchctl bootout gui/$(id -u)/io.github.jasp-nerd.vinted-bot` (il redémarre à la prochaine connexion) | `pkill -f 'vinted-bot run'` |
+| Linux | `systemctl --user stop vinted-bot` (il redémarre à la prochaine connexion) | `pkill -f 'vinted-bot run'` |
+
+Relancer la commande d'installation le redémarre. Pour l'enlever, lancez le désinstallateur de votre système. Il arrête vinted-bot, le supprime avec son lancement automatique, et garde vos recherches au cas où vous reviendriez : elles restent dans `%LOCALAPPDATA%\vinted-bot` sous Windows, `~/Library/Application Support/vinted-bot` sous macOS et `~/.local/share/vinted-bot` sous Linux, jusqu'à ce que vous supprimiez ce dossier.
+
+```powershell
+powershell -ExecutionPolicy ByPass -c '$env:VINTED_BOT_UNINSTALL=1; irm https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.ps1 | iex'
+```
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.sh | sh -s -- --uninstall
+```
+
+Avec Docker : `docker compose down` l'arrête ; `docker compose down -v` efface aussi ses données. Avant d'effacer quoi que ce soit, `vinted-bot backup` garde une copie de vos recherches : voir [Backups](https://github.com/jasp-nerd/vinted-bot/blob/main/docs/self-hosting.md#backups) (en anglais).
 
 ## Questions fréquentes
 
