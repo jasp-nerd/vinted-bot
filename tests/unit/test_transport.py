@@ -17,12 +17,12 @@ Handler = Callable[[httpx.Request], httpx.Response]
 def httpx_transport(handler: Handler) -> HttpxTransport:
     """The real transport, with only the network swapped for an in-process handler."""
     transport = HttpxTransport()
-    transport._client._transport = httpx.MockTransport(handler)  # noqa: SLF001
+    transport._client._transport = httpx.MockTransport(handler)
     return transport
 
 
 def cookie_header(request: httpx.Request) -> str:
-    return request.headers.get("cookie", "")
+    return str(request.headers.get("cookie", ""))
 
 
 async def test_cookies_set_on_one_request_never_ride_along_on_the_next() -> None:
