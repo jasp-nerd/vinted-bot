@@ -58,6 +58,7 @@ DIST = SITE / "dist"
 sys.path.insert(0, str(SITE))
 from siteconfig import (
     BASE_URL,
+    GOOGLE_SITE_VERIFICATION,
     HOST,
     NAME,
     PYPI,
@@ -295,6 +296,7 @@ class Site:
             host=HOST,
             umami_script=UMAMI_SCRIPT,
             umami_website_id=UMAMI_WEBSITE_ID,
+            google_site_verification=GOOGLE_SITE_VERIFICATION,
         )
 
     # ── content discovery ──
