@@ -258,6 +258,7 @@
     "releases": "Versioni",
     "changelog": "Novità",
     "report": "Segnala un problema",
+    "coffee": "Offrimi un caffè",
     "llms": "Guida per assistenti IA",
     "about": "Informazioni",
     "help": "Aiuto",
@@ -292,6 +293,7 @@
     "sections": [
       {"h": "Chi lo sviluppa", "body": "<p>vinted-bot è sviluppato e mantenuto da <a href=\"https://github.com/jasp-nerd\">jasp-nerd</a>, uno sviluppatore che vive nei Paesi Bassi. È nato ad agosto 2026 come piccolo strumento da riga di comando ed è cresciuto fino a diventare l'app di oggi, con dashboard, badge per gli affari, controlli di stato e installer da una riga.</p>"},
       {"h": "Perché è gratis", "body": "<p>Le notifiche per le tue ricerche non dovrebbero costare un abbonamento mensile. Visto che vinted-bot gira sul tuo computer, non c'è nessun server da pagare, quindi non c'è niente da farti pagare. Niente piani a pagamento, niente prova, niente account e niente pubblicità, e non ci saranno mai. Il codice ha licenza MIT: puoi leggerlo, modificarlo e usarlo come vuoi.</p>"},
+      {"h": "Come si finanzia", "body": "<p>Non si finanzia. Niente pubblicità, niente versione a pagamento, e nessun dato su di te viene raccolto o venduto. Se ti ha fatto trovare un buon affare, puoi <a href=\"{kofi}\">offrirmi un caffè</a> o <a href=\"{sponsors}\">sponsorizzarlo su GitHub</a>. Anche una stella su GitHub aiuta altre persone a trovarlo.</p>"},
       {"h": "Cosa non farà mai", "body": "<p>Non ti chiederà mai il login Vinted e non comprerà, pubblicherà, metterà like o scriverà messaggi al posto tuo. Per queste cose serve il tuo account, ed è da lì che arrivano le limitazioni. Legge gli annunci pubblici in forma anonima, con calma, e rallenta da solo quando Vinted glielo chiede. Maggiori dettagli in <a href=\"/docs/legal/\">regole e rischi</a> (in inglese).</p>"},
       {"h": "Non affiliato a Vinted", "body": "<p>vinted-bot è un progetto indipendente. Non è affiliato, approvato o collegato in alcun modo a Vinted UAB. Vinted è un marchio del suo proprietario. Il nome dice cosa fa, un bot per Vinted. Non significa che venga da Vinted.</p>"},
       {"h": "Contatti", "body": "<p>Hai trovato un bug o hai un'idea? <a href=\"https://github.com/jasp-nerd/vinted-bot/issues\">Apri una segnalazione su GitHub</a>. I problemi di sicurezza passano dalla <a href=\"https://github.com/jasp-nerd/vinted-bot/blob/main/SECURITY.md\">policy di sicurezza</a> (in inglese). Tutte le modifiche sono nel <a href=\"/changelog/\">changelog</a> (in inglese).</p>"}

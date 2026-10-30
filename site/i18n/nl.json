@@ -258,6 +258,7 @@
     "releases": "Releases",
     "changelog": "Wat is er nieuw",
     "report": "Probleem melden",
+    "coffee": "Trakteer me op koffie",
     "llms": "Gids voor AI-assistenten",
     "about": "Over",
     "help": "Hulp",
@@ -292,6 +293,7 @@
     "sections": [
       {"h": "Wie het maakt", "body": "<p>vinted-bot wordt gebouwd en onderhouden door <a href=\"https://github.com/jasp-nerd\">jasp-nerd</a>, een ontwikkelaar in Nederland. Het begon in augustus 2026 als een klein command-line-programma en groeide uit tot de app die het nu is, met een dashboard, deal-labels, statuschecks en installers van één regel.</p>"},
       {"h": "Waarom het gratis is", "body": "<p>Meldingen voor je eigen zoekopdrachten horen geen maandbedrag te kosten. Omdat vinted-bot op je eigen computer draait, is er geen server om te betalen, en dus ook niets om geld voor te vragen. Er is geen betaalde versie, geen proefperiode, geen account en geen advertenties, en dat komt er ook niet. De code valt onder de MIT-licentie: je mag hem lezen, aanpassen en gebruiken zoals je wilt.</p>"},
+      {"h": "Hoe het betaald wordt", "body": "<p>Niet. Er zijn geen advertenties, geen betaalde versie, en er wordt niets over jou verzameld of verkocht. Heb je er een mooie vondst mee gedaan? Dan kun je <a href=\"{kofi}\">me op een koffie trakteren</a> of <a href=\"{sponsors}\">het sponsoren op GitHub</a>. Een ster op GitHub helpt ook anderen het te vinden.</p>"},
       {"h": "Wat hij nooit zal doen", "body": "<p>Hij vraagt nooit om je Vinted-login, en hij zal nooit voor je kopen, iets plaatsen, liken of berichten sturen. Daarvoor is je account nodig, en daar komen beperkingen vandaan. Hij leest openbare artikelen anoniem, in een rustig tempo, en gaat vanzelf langzamer als Vinted daarom vraagt. Meer in <a href=\"/docs/legal/\">regels en risico's</a> (in het Engels).</p>"},
       {"h": "Niet verbonden aan Vinted", "body": "<p>vinted-bot is een onafhankelijk project. Het is niet verbonden aan, goedgekeurd door of gelieerd aan Vinted UAB. Vinted is een handelsmerk van de eigenaar. De naam zegt wat het is: een bot voor Vinted. Het komt niet van Vinted zelf.</p>"},
       {"h": "Contact", "body": "<p>Een bug gevonden, of een idee? <a href=\"https://github.com/jasp-nerd/vinted-bot/issues\">Open een issue op GitHub</a>. Beveiligingsproblemen gaan via het <a href=\"https://github.com/jasp-nerd/vinted-bot/blob/main/SECURITY.md\">beveiligingsbeleid</a> (in het Engels). Alles wat verandert, staat in de <a href=\"/changelog/\">changelog</a> (in het Engels).</p>"}
