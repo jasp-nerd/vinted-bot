@@ -316,7 +316,8 @@ def digest_call(listings: list[ListingView], options: TelegramOptions) -> ApiCal
 
 
 def status_call(message: str, options: TelegramOptions) -> ApiCall:
-    return "sendMessage", _base(options, silent=True) | {
+    # Not silenced: a warning that a search is blocked is worth hearing.
+    return "sendMessage", _base(options, silent=False) | {
         "text": f"<b>{BOT_NAME}</b>\n{_e(message)}"[:MAX_MESSAGE_CHARS],
         "parse_mode": "HTML",
         "link_preview_options": {"is_disabled": True},

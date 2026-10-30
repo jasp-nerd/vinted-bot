@@ -331,13 +331,20 @@ async def test_the_digest_fits_one_message() -> None:
 # --- Status and errors -------------------------------------------------------------------
 
 
-async def test_a_status_notice_is_escaped_and_silent() -> None:
+async def test_a_status_notice_is_escaped() -> None:
     recorder = Recorder()
 
     await sender(recorder).send_status("search <nike> is failing")
 
-    payload = recorder.payload()
-    assert "&lt;nike&gt;" in payload["text"] and payload["disable_notification"] is True
+    assert "&lt;nike&gt;" in recorder.payload()["text"]
+
+
+async def test_a_status_notice_is_heard() -> None:
+    recorder = Recorder()
+
+    await sender(recorder).send_status("vinted.fr is blocking requests")
+
+    assert "disable_notification" not in recorder.payload()
 
 
 async def test_a_blocked_bot_stops_being_retried() -> None:
