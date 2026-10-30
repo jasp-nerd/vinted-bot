@@ -134,13 +134,16 @@ class AppriseSender:
             delivered.append(notification.outbox_id)
         return SendResult.ok(delivered)
 
-    async def send_status(self, message_text: str) -> None:
-        await self._apprise.async_notify(
+    async def send_status(self, message_text: str) -> str | None:
+        outcome = await self._apprise.async_notify(
             body=message_text,
             title=BOT_NAME,
             notify_type=apprise.NotifyType.WARNING,
             timeout=TIMEOUT_S,
         )
+        if not outcome:
+            return f"Apprise could not deliver to {outcome.failed_count} service(s)"
+        return None
 
     async def aclose(self) -> None:
         """Nothing to close: Apprise opens and closes a connection per notification."""

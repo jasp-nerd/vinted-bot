@@ -43,8 +43,10 @@ Most "it finds nothing" reports come down to one question: does Vinted answer th
 vinted-bot runs on? In the dashboard, a search showing **Slowed down by Vinted** or
 **Can't reach Vinted** is the "no"; **Running** or **Quiet** is the "yes". When every
 search on a site has failed for 15 minutes, destinations with status notices on also get a
-message saying so, and another when it works again. To test it by hand, try one search
-once:
+message saying so (whether Vinted is refusing this address, or this computer can't reach
+the internet at all), and another when it works again. A notice that can't be sent right
+away, because the network is down, waits and is sent once it is back (for up to a day).
+To test it by hand, try one search once:
 
 ```bash
 vinted-bot check --url "https://www.vinted.fr/catalog?search_text=nike"

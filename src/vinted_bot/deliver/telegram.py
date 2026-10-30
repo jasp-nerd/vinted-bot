@@ -479,9 +479,9 @@ class TelegramSender:
             result, _ = await self._call(method, params, ids)
         return result
 
-    async def send_status(self, message: str) -> None:
+    async def send_status(self, message: str) -> str | None:
         method, params = status_call(message, self._options)
-        await self._post(method, params, [])
+        return (await self._post(method, params, [])).failure
 
     async def _post(self, method: str, params: dict[str, Any], outbox_ids: list[int]) -> SendResult:
         result, _ = await self._call(method, params, outbox_ids)

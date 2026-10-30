@@ -247,7 +247,9 @@ Where to get each kind of target:
 
 `--status` also sends status notices there: the watchdog's warnings, a whole site failing
 and recovering, and "updated itself". The first destination you create gets them on by
-default, from the dashboard, setup, Telegram pairing or the command line.
+default, from the dashboard, setup, Telegram pairing or the command line. A notice that
+can't be delivered (no network, the service down) is tried again, in order, for up to a
+day.
 
 Each search can go to its own set of destinations, so a Discord channel for one thing and
 your phone for another is normal. A search you have not routed anywhere goes to every

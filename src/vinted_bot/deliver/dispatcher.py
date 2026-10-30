@@ -24,7 +24,7 @@ import httpx
 
 from vinted_bot import managed
 from vinted_bot.config import Settings
-from vinted_bot.db.repo import Destination, PendingNotification, Repo
+from vinted_bot.db.repo import Destination, PendingNotification, Repo, StatusNotice
 from vinted_bot.deals import DEAL_PCT, STEAL_PCT, TIERS, Tier, deal_percent, tier_for
 from vinted_bot.deliver.apprise import AppriseSender
 from vinted_bot.deliver.base import Sender, SenderConfigError, parse_tiers
@@ -44,6 +44,13 @@ MAX_ATTEMPTS = 6
 # Retries stay short on purpose. Notifications for one destination go out in order, so a
 # long sleep at the front of the queue holds up every fresher listing behind it.
 MAX_RETRY_DELAY_S = 5.0
+
+# A status notice is tried again on this ladder (seconds, doubling, capped) until it is a
+# day old: the notices that matter most, "every search is failing", are sent while the
+# network is down, and the ladder has to outlast that without spamming once it is back.
+STATUS_RETRY_FIRST_S = 30
+STATUS_RETRY_MAX_S = 300
+STATUS_NOTICE_EXPIRY_S = 86_400
 
 # Telegram counts messages across the whole bot, not per chat, so every Telegram
 # destination shares this.
@@ -231,6 +238,7 @@ class Dispatcher:
         expired = await self._repo.expire_stale_notifications(self._settings.outbox_expiry_minutes)
         if expired:
             log.info("outbox.expired", count=expired, reason="older than the delivery window")
+        await self._send_status_notices()
 
         destination_ids = await self._repo.destinations_with_work()
         if not destination_ids:
@@ -346,14 +354,68 @@ class Dispatcher:
         return len(result.delivered)
 
     async def notify_status(self, message: str) -> None:
-        """Send an operational notice to whichever destinations asked for them."""
-        for destination_id in await self._repo.status_destination_ids():
-            destination = await self._repo.get_destination(destination_id)
-            if destination is None:
+        """Queue an operational notice for whichever destinations asked for them.
+
+        Queued in the database rather than sent here, so a notice written while the
+        network is down still arrives once it is back (see _send_status_notices).
+        """
+        if await self._repo.queue_status_notice(message):
+            self._work.set()
+
+    async def _send_status_notices(self) -> None:
+        """Try each due status notice, keeping each destination's in order."""
+        now = int(time.time())
+        held: set[int] = set()
+        for notice in await self._repo.due_status_notices(now):
+            if notice.destination_id in held:
                 continue
-            with contextlib.suppress(Exception):
-                sender = await self._sender_for(destination)
-                await sender.send_status(message)
+            if now - notice.created_at > STATUS_NOTICE_EXPIRY_S:
+                log.warning(
+                    "status_notice.expired",
+                    destination_id=notice.destination_id,
+                    attempts=notice.attempts,
+                )
+                await self._repo.status_notice_done(notice.id)
+                continue
+            if not await self._send_status_notice(notice):
+                held.add(notice.destination_id)
+
+    async def _send_status_notice(self, notice: StatusNotice) -> bool:
+        """One try. True when the notice is settled: sent, or nowhere left to send it."""
+        destination = await self._repo.get_destination(notice.destination_id)
+        if destination is None or not destination.active:
+            await self._repo.status_notice_done(notice.id)
+            return True
+        if destination.is_paused(int(time.time())) or awaiting_pairing(destination):
+            # It waits like any listing does; the expiry still applies.
+            return False
+        try:
+            sender = await self._sender_for(destination)
+        except SenderConfigError as exc:
+            # The listing path switches the destination off for this, and says why.
+            log.warning("status_notice.unsendable", destination_id=destination.id, error=str(exc))
+            await self._repo.status_notice_done(notice.id)
+            return True
+        try:
+            failure = await sender.send_status(notice.message)
+        except Exception as exc:
+            # A sender raising instead of answering (Apprise's plugins can) is a failed try
+            # like any other; the notice waits on the ladder for the next one.
+            log.exception("status_notice.sender_crashed", destination_id=destination.id)
+            failure = f"{type(exc).__name__}: {exc}"
+        if failure is None:
+            await self._repo.status_notice_done(notice.id)
+            log.info("status_notice.sent", destination_id=destination.id)
+            return True
+        retry_in = min(STATUS_RETRY_FIRST_S * 2**notice.attempts, STATUS_RETRY_MAX_S)
+        await self._repo.status_notice_failed(notice.id, failure, retry_in)
+        log.warning(
+            "status_notice.retrying",
+            destination_id=destination.id,
+            error=failure,
+            retry_in_s=retry_in,
+        )
+        return False
 
     async def _sender_for(self, destination: Destination) -> Sender:
         # Keyed on the settings too: pairing a Telegram chat rewrites them, and a sender

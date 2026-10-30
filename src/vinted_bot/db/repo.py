@@ -45,6 +45,8 @@ TYPICAL_PRICE_WINDOW_S = 14 * 86_400
 # "Why wasn't this sent?" only needs recent history.
 REJECTIONS_KEEP = 2_000
 REJECTIONS_MAX_AGE_S = 7 * 86_400
+# Status notices kept waiting per destination; older ones make way for newer.
+STATUS_NOTICES_KEEP = 10
 
 _CENT = Decimal("0.01")
 
@@ -233,6 +235,17 @@ class PendingNotification:
     def deal_pct(self) -> int | None:
         """Percent under the typical price, for a "deal" badge. None without history."""
         return deal_percent(self.item.total_price, self.typical_price)
+
+
+@dataclass(frozen=True, slots=True)
+class StatusNotice:
+    """A status notice waiting for one destination to accept it."""
+
+    id: int
+    destination_id: int
+    message: str
+    attempts: int
+    created_at: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -1225,6 +1238,59 @@ class Repo:
             "SELECT id FROM destinations WHERE active = 1 AND notify_status = 1"
         )
         return [row["id"] for row in rows]
+
+    # --- Status notices --------------------------------------------------------------
+
+    async def queue_status_notice(self, message: str) -> int:
+        """Queue a status notice for every destination that asked for them.
+
+        Returns how many were queued. At most STATUS_NOTICES_KEEP wait per destination:
+        an hours-long outage must not leave a backlog of notices for when it ends.
+        """
+        now = int(time.time())
+        async with self._db.transaction() as conn:
+            queued = await conn.execute(
+                "INSERT INTO status_notices (destination_id, message, next_attempt_at, "
+                "created_at) SELECT id, ?, ?, ? FROM destinations "
+                "WHERE active = 1 AND notify_status = 1",
+                (message, now, now),
+            )
+            await conn.execute(
+                "DELETE FROM status_notices WHERE id IN (SELECT id FROM (SELECT id, "
+                "ROW_NUMBER() OVER (PARTITION BY destination_id ORDER BY id DESC) AS newest "
+                "FROM status_notices) WHERE newest > ?)",
+                (STATUS_NOTICES_KEEP,),
+            )
+            return max(queued.rowcount, 0)
+
+    async def due_status_notices(self, now: int | None = None) -> list[StatusNotice]:
+        """Notices whose next try is due, oldest first."""
+        rows = await self._db.fetch_all(
+            "SELECT id, destination_id, message, attempts, created_at FROM status_notices "
+            "WHERE next_attempt_at <= ? ORDER BY id",
+            (int(time.time()) if now is None else now,),
+        )
+        return [
+            StatusNotice(
+                id=row["id"],
+                destination_id=row["destination_id"],
+                message=row["message"],
+                attempts=row["attempts"],
+                created_at=row["created_at"],
+            )
+            for row in rows
+        ]
+
+    async def status_notice_done(self, notice_id: int) -> None:
+        """Forget a notice: delivered, or not deliverable any more."""
+        await self._db.execute("DELETE FROM status_notices WHERE id = ?", (notice_id,))
+
+    async def status_notice_failed(self, notice_id: int, error: str, retry_in_s: int) -> None:
+        await self._db.execute(
+            "UPDATE status_notices SET attempts = attempts + 1, last_error = ?, "
+            "next_attempt_at = ? WHERE id = ?",
+            (error, int(time.time()) + retry_in_s, notice_id),
+        )
 
     # --- Items and the outbox ------------------------------------------------------
 

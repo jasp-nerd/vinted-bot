@@ -275,10 +275,10 @@ class NtfySender:
             error="ntfy asked to slow down",
         )
 
-    async def send_status(self, message: str) -> None:
+    async def send_status(self, message: str) -> str | None:
         await self._bucket.acquire()
         try:
-            await self._client.post(
+            response = await self._client.post(
                 self._server,
                 json={
                     "topic": self._topic,
@@ -289,9 +289,11 @@ class NtfySender:
                 },
                 headers=self._headers(),
             )
-        except httpx.HTTPError:
-            # A status notice is best effort; the same warning is already in the log.
-            return
+        except httpx.HTTPError as exc:
+            return f"could not reach ntfy: {exc}"
+        if not response.is_success:
+            return f"ntfy answered {response.status_code}"
+        return None
 
     async def aclose(self) -> None:
         if self._owns_client:

@@ -163,8 +163,8 @@ class WebhookSender:
             )
         return SendResult.ok(delivered)
 
-    async def send_status(self, message: str) -> None:
-        await self._post({"version": PAYLOAD_VERSION, "status": message}, [])
+    async def send_status(self, message: str) -> str | None:
+        return (await self._post({"version": PAYLOAD_VERSION, "status": message}, [])).failure
 
     async def _post(self, body: dict[str, Any], outbox_ids: list[int]) -> SendResult:
         raw = json.dumps(body, ensure_ascii=False).encode()

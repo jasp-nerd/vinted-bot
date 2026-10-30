@@ -142,6 +142,17 @@ async def test_ntfy_refusing_the_topic_switches_it_off() -> None:
     assert (result.permanent_error is not None, result.retry) == (True, [])
 
 
+async def test_ntfy_says_when_a_status_notice_did_not_arrive() -> None:
+    """It used to drop the answer, so a notice the server refused was counted as sent."""
+    recorder = Recorder(httpx.Response(500))
+
+    assert await ntfy(recorder).send_status("vinted.fr is down") == "ntfy answered 500"
+
+
+async def test_ntfy_says_nothing_went_wrong_when_a_status_notice_arrived() -> None:
+    assert await ntfy(Recorder()).send_status("vinted.fr is down") is None
+
+
 async def test_ntfy_asking_to_slow_down_waits_a_minute() -> None:
     recorder = Recorder(httpx.Response(429))
 
