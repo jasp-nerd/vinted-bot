@@ -50,6 +50,11 @@ pings the URL you give it, every 30 seconds. Their answers are not shown back, o
 whether it worked or the status code. That is the intended feature for a self-hosted app,
 and it is why the dashboard needs a password before it is reachable by anyone you would not
 hand your server to.
+
+On its own the app makes two kinds of request besides Vinted's, both anonymous: once a day
+it asks GitHub for the latest release (unless switched off in the settings), and once a
+day, only while a search runs on sites with different currencies, it fetches the European
+Central Bank's exchange rates.
 - The Docker image runs the app as a non-root user and works with a read-only filesystem.
 - Release images carry signed build provenance: `gh attestation verify
   oci://ghcr.io/jasp-nerd/vinted-bot:latest --owner jasp-nerd`. Python packages on PyPI

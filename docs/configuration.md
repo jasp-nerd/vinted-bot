@@ -16,8 +16,9 @@ Every variable is prefixed `VINTED_BOT_`. All of them are optional except where 
 Docker, set them in the `environment:` block of `docker-compose.yml` and run
 `docker compose up -d` afterwards.
 
-A `VINTED_BOT_` name the app doesn't know, such as a typo or a setting an older version
-had, is ignored, and the log lists it at startup. A value it can't use stops it with a
+A `VINTED_` name the app doesn't know, such as a typo or a `VINTED_SNIPER_` line from an
+older version, is ignored, and the log lists it at startup. Other programs' variables in a
+shared `.env` (`PUID` and the like) are ignored without a word. A value it can't use stops it with a
 one-paragraph message naming the setting and what is wrong with it.
 
 Besides the environment, the app reads a file called `.env` **in the folder you start it
@@ -253,8 +254,10 @@ for you:
 Every kind also takes `tiers`, the kinds of listing it wants (`steal`, `deal`, `normal`; all
 three by default), and `silent_tiers`, the ones to deliver without a sound. A listing a
 destination did not want is set aside as skipped, with the reason, and not counted as a
-failed delivery. 1.x's `deals_only` (the same as `tiers: [steal, deal]`) and `min_deal_pct`
-still work.
+failed delivery. 1.x's `deals_only` (the same as `tiers: [steal, deal]`) still works, and
+so does `min_deal_pct`, a custom bar for how far under the typical price a listing must be,
+except on a destination whose `tiers` include `normal`: that one takes everything, so the
+bar has nothing to filter.
 
 Those apply to **search listings only**. Watch alerts (a price drop, a sale, a reservation,
 a removal, a followed seller's new upload) were asked for one by one, so tiers never filter
@@ -334,7 +337,7 @@ Version 2 keeps every version 1 field with the same name and meaning, and adds t
 | `search_id` | The search's id, or `null` for watch alerts. Also at the top level. |
 | `detected_at` | When this search found the listing, as Unix seconds. |
 | `photos` | Every photo, largest size. |
-| `previous_price` | For `price_drop`: the total price before the drop, buyer protection included, like `total_price`. |
+| `previous_price` | For `price_drop`: the price before the drop, as the listing's own page shows it. That page carries no buyer-protection figure, so this is the asking price, and `total_price` is `null` on watch alerts. |
 | `typical_price` | This search's median total price for what it finds, when the listing was found. `null` until it has 15 finds in two weeks. |
 | `deal_pct` | How far under `typical_price` the total is, in percent (negative when over). |
 | `deal_tier` | `steal`, `deal` or `normal`: the tiers a destination's `tiers` setting names. |

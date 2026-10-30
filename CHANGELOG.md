@@ -6,6 +6,59 @@ becomes the text of its GitHub release, so write it for the people running the a
 
 ## [Unreleased]
 
+### Added
+
+- `vinted-bot backup <file>` writes a consistent copy of the database, safe while the app
+  runs. Copying `app.db` by hand while it runs can give an empty or outdated copy, because
+  recent changes still sit in `app.db-wal` beside it; this includes the copy step 2.1.0's
+  rename notes describe, so stop the old copy first if you are still moving over.
+- An alert to your status destinations when every search on a site has been failing for 15
+  minutes (usually Vinted blocking your address), and another when it recovers.
+- Alerts show the seller's rating, review count and country when a seller filter looked
+  them up.
+- Watches can be sent to chosen destinations, and a destination can turn watch alerts off
+  (`watch_alerts: false`). Tier settings never filter price drops, sales or a followed
+  seller's uploads.
+- `vinted-bot destination apprise <address>`.
+
+### Changed
+
+- Must-include words match the start of words: "jean" finds "Jeans". Put a word in double
+  quotes for that exact word.
+- Price limits on a search that runs on sites with another currency convert those listings
+  at the European Central Bank's daily rate (fetched once a day, only while such a search
+  exists). Without a rate the listing is skipped and "Not sent" says why.
+- On busy searches with a seller filter, listings whose seller could not be looked up yet
+  wait for later checks instead of being dropped when they leave the first page, and more
+  sellers are looked up per check while Vinted allows it.
+- The first destination you add gets status notices, which used to reach nobody unless set
+  from the command line.
+- Adding a link that is already watched is refused everywhere, naming the search that has
+  it. Use Duplicate to watch the same link with different filters.
+- ntfy: several listings arriving together come as one push, pushes are plain text (the iOS
+  app showed markdown as raw characters), and when ntfy.sh's daily limit is used up the
+  destination pauses until midnight UTC with the reason on the Alerts page.
+- The dashboard answers to `.local` names and one-word host names such as `nas`.
+- Unknown `VINTED_` keys and a time zone the app can't read are warnings now, not a refusal
+  to start; a bad setting is explained in a sentence instead of a traceback.
+- Log timestamps use your time zone. Exports open cleanly in Excel, leave out blocked
+  sellers and drop the always-empty `listed_at` column.
+
+### Fixed
+
+- Saving a search without changing what it looks for no longer starts it over, which
+  recorded its next finds silently and reset its typical price.
+- Automatic updates work with the daily release check switched off.
+- Quiet hours' silent mode reaches Apprise (where the service has a silent option) and the
+  webhook (`silent` on each item).
+- Listings too old to announce are listed in "Not sent".
+- A price-drop alert no longer shows the total from before the drop.
+- Watches added from a bare link are named after the listing instead of "Listing 123".
+- An old `min_deal_pct` no longer filters a destination set to take every tier.
+- The command line refuses destinations the dashboard would refuse, keeps an ntfy topic
+  address as an address, and `check` uses the proxy file.
+- A test webhook says `"search_id": null` instead of `0`.
+
 ## [2.1.0] - 2026-10-30
 
 ### Changed
