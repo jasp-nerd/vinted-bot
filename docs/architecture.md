@@ -84,9 +84,9 @@ searches, destinations, routes, watches, the seller blocklist, and the settings 
 dashboard changes (`timezone`, `healthcheck_url`, `update_check`, `theme`, whether setup
 has run), which sit as keys in `app_state`. Three process settings are in both places:
 the Telegram bot's token, the dashboard password and whether other devices may connect.
-The dashboard sets them in `app_state` and the running app follows at once (`managed.py`
-restarts the bot on a new token; `web/server.py` listens again on the new address,
-inside the process). An environment variable for any of them wins, and the dashboard
+The dashboard sets them in `app_state` (`managed.py`, and `web/security.py` for the
+password) and the running app follows at once: `botctl/telegram_bot.py` restarts the bot
+on a new token, and `web/server.py` listens again on the new address inside the process. An environment variable for any of them wins, and the dashboard
 says so instead of offering a control, so there is still never a question of which copy
 wins.
 
