@@ -402,3 +402,10 @@ def test_other_previews_render(kind: str) -> None:
 def test_an_unknown_kind_has_no_preview() -> None:
     with pytest.raises(ValueError, match="carrier pigeon"):
         preview_payload("carrier pigeon")
+
+
+def test_a_test_webhook_says_no_search_sent_it() -> None:
+    """It used to say search 0, which the documented payload never uses."""
+    payload = preview_payload("webhook")
+
+    assert (payload["search_id"], payload["items"][0]["search_id"]) == (None, None)
