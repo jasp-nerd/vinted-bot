@@ -229,7 +229,7 @@ def _unknown_host(request: Request, host: str) -> Response:
         "pages that point their own name at your computer (DNS rebinding). If that is "
         "really how you reach it, add the name to VINTED_BOT_WEB_ALLOWED_HOSTS "
         "(comma-separated), or set VINTED_BOT_WEB_PUBLIC_URL to the full address, then "
-        "start vinted-bot again. In Docker that means `docker compose up -d` (a plain "
+        "start vinted-bot again. In Docker that means running docker compose up -d (a plain "
         "restart keeps the old settings), or saving the app's settings in a NAS app store. "
         "Opening it by IP address, such as http://192.168.1.20:8000, always works."
     )

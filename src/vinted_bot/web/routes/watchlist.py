@@ -131,8 +131,8 @@ def watch_price(watch: Watch, found: Item | None) -> tuple[str, str]:
     """The price to show and what it is, so a watch reads like a find: with fees.
 
     A listing's own page has no buyer protection fee on it, so a watch's checked price is
-    the item price. Where the find is stored and its price hasn't moved, its total
-    (which has the fee) is shown instead; otherwise the item price, said to be one.
+    the asking price. Where the find is stored and its price hasn't moved, its total
+    (which has the fee) is shown instead; otherwise the asking price, said to be one.
     """
     if watch.last_price is None:
         if found is not None and found.total_price is not None:
@@ -140,7 +140,7 @@ def watch_price(watch: Watch, found: Item | None) -> tuple[str, str]:
         return "Not checked yet", ""
     if found is not None and found.total_price is not None and found.price == watch.last_price:
         return views.money(found.total_price, found.currency), "incl. fees"
-    return views.money(watch.last_price, watch.currency), "item price, before fees"
+    return views.money(watch.last_price, watch.currency), "asking price, before fees"
 
 
 @router.post("/watchlist")

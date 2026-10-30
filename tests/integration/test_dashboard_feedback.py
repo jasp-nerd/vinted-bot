@@ -558,7 +558,7 @@ def test_a_watch_whose_price_has_not_moved_shows_the_total_with_fees() -> None:
 def test_a_watch_whose_price_moved_says_it_is_the_item_price() -> None:
     found = _item(1, total="19.60")
 
-    assert watchlist.watch_price(_watch("15.00"), found) == ("€15.00", "item price, before fees")
+    assert watchlist.watch_price(_watch("15.00"), found) == ("€15.00", "asking price, before fees")
 
 
 # --- Setup -------------------------------------------------------------------------------

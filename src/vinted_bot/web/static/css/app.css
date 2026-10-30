@@ -1287,3 +1287,5 @@ select.chip { width: auto; max-width: 220px; }
   .wrow--seller { grid-template-columns: 48px minmax(0, 1fr) auto auto; grid-template-areas: none; }
   .wrow--seller > * { grid-area: auto; }
 }
+.rej__why { flex-wrap: nowrap; align-items: flex-start; }
+.rej__why .i { flex: none; margin-top: 2px; }
