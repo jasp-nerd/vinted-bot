@@ -209,7 +209,7 @@
     "nas_umbrel": "<strong>Umbrel:</strong> Füg den Community-App-Store hinzu, der in der <a href=\"https://github.com/jasp-nerd/vinted-bot/blob/main/deploy/README.md\">Deploy-Anleitung</a> (auf Englisch) steht.",
     "nas_casa": "<strong>CasaOS oder ZimaOS:</strong> App Store, Custom Install, und diese Datei importieren:",
     "nas_synology": "<strong>Synology (DSM 7.2 oder neuer):</strong> Container Manager, Projekt, Erstellen, und die <a href=\"https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docker-compose.yml\">docker-compose.yml</a> einfügen.",
-    "nas_fine": "Auf einem NAS ist das Dashboard aus deinem ganzen Heimnetz erreichbar. Leg deshalb in den App-Einstellungen auf dem NAS ein Dashboard-Passwort fest (<code>VINTED_BOT_WEB_AUTH_TOKEN</code>).",
+    "nas_fine": "Auf einem NAS ist das Dashboard aus deinem ganzen Heimnetz erreichbar. Leg deshalb als Erstes im Dashboard unter Settings, Password ein Passwort fest.",
     "aside_title": "Es schickt Benachrichtigungen, solange dieser Computer an ist",
     "aside_text": "Ein Laptop im Ruhezustand schickt nichts, solange er schläft. Dein Handy empfängt die Benachrichtigungen nur. Für Benachrichtigungen rund um die Uhr nimm einen Raspberry Pi, ein NAS oder einen alten Laptop, der am Strom bleibt.",
     "aside_fine": "Du liest ein Skript lieber, bevor du es ausführst? Hier sind <a href=\"/install.sh\">install.sh</a> und <a href=\"/install.ps1\">install.ps1</a>, oder der <a href=\"https://github.com/jasp-nerd/vinted-bot\">Quellcode auf GitHub</a>.",

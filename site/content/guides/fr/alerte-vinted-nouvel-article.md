@@ -19,7 +19,7 @@ faq:
   - q: "Comment activer les notifications Vinted ?"
     a: "Dans l'appli Vinted, allez dans Profil, Paramètres, Notifications et activez les notifications push. Sur le téléphone, autorisez les notifications de Vinted et retirez l'appli de l'optimisation de batterie et des résumés de notifications."
   - q: "Existe-t-il une application d'alerte Vinted gratuite ?"
-    a: "Les applis d'alerte dédiées sont en général payantes, quelques euros par mois. Une alternative gratuite : faire tourner vinted-bot sur un ordinateur et recevoir ses alertes dans l'appli gratuite ntfy sur votre téléphone, sans créer de compte."
+    a: "Les applis d'alerte dédiées sont en général payantes, quelques euros par mois. Une alternative gratuite : faire tourner vinted-bot sur un ordinateur et recevoir ses alertes sur Telegram ou Discord, sur votre téléphone."
   - q: "Comment avoir les notifications Vinted sur PC ?"
     a: "Vinted n'envoie pas de notifications sur ordinateur pour les recherches. Avec vinted-bot, les alertes peuvent arriver dans Discord ou Telegram sur PC, et le tableau de bord affiche les trouvailles en direct dans votre navigateur."
 ---
@@ -55,8 +55,8 @@ Les services payants le font depuis leurs serveurs pour environ 5 à 30 € par 
 1. Installez-le avec la commande d'une ligne de la page d'accueil. Le tableau de bord s'ouvre dans votre navigateur.
 2. Collez le lien de votre recherche Vinted, ou construisez la recherche dans le tableau de bord avec les catégories, marques et tailles de Vinted.
 3. Fixez la limite de prix comme le total que vous paierez (protection acheteurs comprise), et ajoutez les mots qu'un titre doit contenir ou ne doit pas contenir.
-4. Choisissez où arrivent les alertes. ntfy sur le téléphone se règle en une minute, sans compte. Discord et Telegram ont leur guide : [Discord](/guides/alerte-vinted-discord/), [Telegram](/guides/bot-vinted-telegram-gratuit/).
-5. Appuyez sur « Send test » (envoyer un test), vérifiez que le message arrive, c'est prêt.
+4. Choisissez où arrivent les alertes. L'application propose d'abord Telegram et Discord, et chacun a son guide : [Telegram](/guides/bot-vinted-telegram-gratuit/), [Discord](/guides/alerte-vinted-discord/). L'appli ntfy, l'e-mail et les webhooks se trouvent sous « More options » (plus d'options).
+5. Appuyez sur « Send a test » (envoyer un test), vérifiez que le message arrive, c'est prêt.
 
 Chaque alerte affiche les photos, le prix total, la taille, l'état, la marque, la note du vendeur et des boutons pour acheter, contacter le vendeur ou ouvrir l'annonce. Le premier passage d'une nouvelle recherche reste silencieux : vous n'êtes prévenu que des annonces publiées après l'ajout.
 

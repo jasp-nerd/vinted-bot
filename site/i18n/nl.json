@@ -209,7 +209,7 @@
     "nas_umbrel": "<strong>Umbrel:</strong> voeg de community-appstore toe die in de <a href=\"https://github.com/jasp-nerd/vinted-bot/blob/main/deploy/README.md\">installatiegids</a> (in het Engels) staat.",
     "nas_casa": "<strong>CasaOS of ZimaOS:</strong> App Store, Custom Install, en importeer dit bestand:",
     "nas_synology": "<strong>Synology (DSM 7.2 of nieuwer):</strong> Container Manager, Project, Maken, en plak de <a href=\"https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docker-compose.yml\">docker-compose.yml</a>.",
-    "nas_fine": "Op een NAS is het dashboard vanaf je hele thuisnetwerk te bereiken, dus stel een wachtwoord voor het dashboard in (<code>VINTED_BOT_WEB_AUTH_TOKEN</code>) in de instellingen van de app op de NAS.",
+    "nas_fine": "Op een NAS is het dashboard vanaf je hele thuisnetwerk te bereiken, dus stel eerst een wachtwoord in via het dashboard, onder Settings, Password.",
     "aside_title": "Hij stuurt meldingen zolang die computer aan staat",
     "aside_text": "Een laptop in slaapstand stuurt niets zolang hij slaapt. Je telefoon ontvangt alleen de meldingen. Wil je de klok rond meldingen, gebruik dan een Raspberry Pi, een NAS of een oude laptop die aan de stroom blijft.",
     "aside_fine": "Lees je een script liever eerst voordat je het uitvoert? Hier staan <a href=\"/install.sh\">install.sh</a> en <a href=\"/install.ps1\">install.ps1</a>, en de <a href=\"https://github.com/jasp-nerd/vinted-bot\">broncode op GitHub</a>.",

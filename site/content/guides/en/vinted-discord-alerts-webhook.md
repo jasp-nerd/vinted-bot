@@ -69,9 +69,9 @@ A small trap: Discord refuses webhook names that contain the word "discord". If 
 
 vinted-bot is a free, open-source app that watches your Vinted searches and sends new listings to places like Discord. After installing it, the dashboard opens at `http://localhost:8000`.
 
-1. Open the Alerts page and add a new place for alerts.
+1. Open the Alerts page and press Add a place. (During first setup, the "Where should we tell you?" step asks the same thing.)
 2. Choose Discord and paste the webhook URL.
-3. Press Send test. A test message should appear in your channel within a few seconds.
+3. Press Send a test. A test message should appear in your channel within a few seconds.
 
 Then add a search: paste a Vinted search link or build one in the dashboard, set your price limit and words to skip, and choose which places that search sends to. A search you haven't pointed anywhere goes to every place you've added.
 
@@ -115,4 +115,4 @@ Check the price limit. It includes buyer protection, so a limit of €20 rejects
 
 ## Prefer Telegram?
 
-Discord is the default for many people in France, the UK and the Netherlands, but Telegram is just as good and is the first choice in Italy and much of Germany. If you don't use Discord at all, see [Vinted alerts on Telegram](/guides/vinted-telegram-alerts/), or skip both and use a phone notification through the free ntfy app, which needs no account. The [free Vinted bot guide](/guides/free-vinted-bot/) covers the full setup.
+Discord is the default for many people in France, the UK and the Netherlands, but Telegram is just as good and is the first choice in Italy and much of Germany. If you don't use Discord at all, see [Vinted alerts on Telegram](/guides/vinted-telegram-alerts/). The ntfy phone app, email and webhooks are also there, under More options. The [free Vinted bot guide](/guides/free-vinted-bot/) covers the full setup.

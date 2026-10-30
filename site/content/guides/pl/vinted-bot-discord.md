@@ -69,9 +69,9 @@ Mała pułapka: Discord nie przyjmuje nazw webhooków zawierających słowo "dis
 
 vinted-bot to darmowa aplikacja open source, która obserwuje Twoje wyszukiwania na Vinted i wysyła nowe ogłoszenia na przykład na Discorda. Nie wymaga abonamentu ani logowania do Vinted. Po instalacji panel otwiera się pod adresem `http://localhost:8000`.
 
-1. Otwórz stronę "Alerts" (miejsca, do których trafiają powiadomienia) i dodaj nowe miejsce.
+1. Otwórz stronę "Alerts" (miejsca, do których trafiają powiadomienia) i kliknij "Add a place" (dodaj miejsce).
 2. Wybierz Discorda i wklej URL webhooka.
-3. Kliknij "Send test" (wyślij test). Po kilku sekundach na kanale powinna pojawić się wiadomość testowa.
+3. Kliknij "Send a test" (wyślij test). Po kilku sekundach na kanale powinna pojawić się wiadomość testowa.
 
 Potem dodaj wyszukiwanie: wklej link z Vinted albo zbuduj je w panelu, ustaw limit ceny i słowa do pominięcia, i wybierz, na które miejsca ma wysyłać. Wyszukiwanie, którego nigdzie nie skierujesz, trafia do wszystkich dodanych miejsc.
 

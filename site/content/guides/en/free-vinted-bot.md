@@ -76,7 +76,7 @@ What you get for free:
 1. Install it. On Windows, open PowerShell and paste the one-line command from the homepage; on a Mac or Linux, open Terminal and paste the other one. No admin rights and no Docker needed. When it finishes, your browser opens the dashboard at `http://localhost:8000`.
 2. Search on Vinted the way you normally do (words, category, size, brand, condition) and copy the address from the browser bar, or share the search from the app and copy the link. You can also build the search inside the dashboard, using Vinted's own categories and brand list.
 3. Paste it into the dashboard. You'll see a live count of how many current listings match and how many each filter removes. Set the maximum price as the total you're willing to pay.
-4. Choose where alerts go. The quickest is a notification on your phone with the free ntfy app: install it, add the topic name the dashboard shows you, done. For Discord or Telegram, follow the [Discord webhook guide](/guides/vinted-discord-alerts-webhook/) or the [Telegram bot guide](/guides/vinted-telegram-alerts/). Send a test alert before moving on.
+4. Choose where alerts go. Telegram and Discord are the two choices the app puts first: follow the [Telegram bot guide](/guides/vinted-telegram-alerts/) or the [Discord webhook guide](/guides/vinted-discord-alerts-webhook/). Under More options you can also pick the ntfy phone app, email or a webhook. Send a test alert before moving on.
 5. Leave it running. The first check is silent on purpose, so you don't get a flood of listings that were already there. From then on, each new match arrives as a message with photos, the total price, size, condition, seller rating and Buy, Message and Open buttons.
 
 {{install}}

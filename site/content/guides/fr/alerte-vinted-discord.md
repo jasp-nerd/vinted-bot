@@ -71,9 +71,9 @@ Petit piège : Discord refuse les noms de webhook qui contiennent le mot « disc
 
 vinted-bot est une application gratuite et open source qui surveille vos recherches Vinted et envoie les nouvelles annonces vers Discord, entre autres. Après l'installation, le tableau de bord s'ouvre sur `http://localhost:8000`.
 
-1. Ouvrez la page « Alerts » (où arrivent les alertes) et ajoutez une destination.
+1. Ouvrez la page « Alerts » (où arrivent les alertes) et appuyez sur « Add a place » (ajouter une destination).
 2. Choisissez Discord et collez l'URL du webhook.
-3. Appuyez sur « Send test » (envoyer un test). Un message de test doit apparaître dans votre salon en quelques secondes.
+3. Appuyez sur « Send a test » (envoyer un test). Un message de test doit apparaître dans votre salon en quelques secondes.
 
 Ajoutez ensuite une recherche : collez un lien de recherche Vinted ou construisez-la dans le tableau de bord, fixez votre prix maximum et les mots à exclure, et choisissez vers quelles destinations elle envoie. Une recherche sans destination choisie envoie vers toutes celles que vous avez ajoutées.
 
@@ -117,4 +117,4 @@ Vérifiez le prix maximum. Il inclut la protection acheteurs (en général 0,70 
 
 ## Un bot Vinted gratuit sans Discord ?
 
-Discord est le choix par défaut de beaucoup d'utilisateurs en France, mais Telegram marche tout aussi bien. Si vous n'utilisez pas Discord, voyez [bot Vinted gratuit sur Telegram](/guides/bot-vinted-telegram-gratuit/), ou passez-vous des deux avec une simple notification sur le téléphone via l'appli gratuite ntfy, sans compte. Le [guide du bot Vinted gratuit](/guides/bot-vinted-gratuit/) couvre toute l'installation.
+Discord est le choix par défaut de beaucoup d'utilisateurs en France, mais Telegram marche tout aussi bien. Si vous n'utilisez pas Discord, voyez [bot Vinted gratuit sur Telegram](/guides/bot-vinted-telegram-gratuit/). L'appli de notifications ntfy, l'e-mail et les webhooks sont aussi disponibles, sous « More options » (plus d'options). Le [guide du bot Vinted gratuit](/guides/bot-vinted-gratuit/) couvre toute l'installation.

@@ -16,14 +16,14 @@ faq:
   - q: "Existe-t-il un bot Vinted gratuit sur Telegram ?"
     a: "Oui. Avec vinted-bot, vous créez votre propre bot Telegram privé en trois minutes environ, et il vous envoie les nouvelles annonces de vos recherches Vinted. C'est gratuit et open source, sans limite de recherches."
   - q: "Comment obtenir le token d'un bot Telegram ?"
-    a: "Dans Telegram, cherchez BotFather (le compte officiel a un badge bleu), envoyez /newbot, choisissez un nom puis un nom d'utilisateur qui se termine par bot. BotFather répond avec un token : des chiffres, deux-points, puis une longue suite de caractères."
+    a: "Dans Telegram, cherchez BotFather (le compte officiel a un badge bleu), envoyez /newbot, choisissez un nom puis un nom d'utilisateur qui se termine par bot. BotFather répond avec un token : des chiffres, deux-points, puis une longue suite de caractères. Touchez-le pour le copier, puis collez-le dans le tableau de bord de vinted-bot."
   - q: "Faut-il connaître son chat ID Telegram ?"
     a: "Pas avec vinted-bot. Le tableau de bord vous donne un code à usage unique, vous l'envoyez à votre bot et l'application trouve la conversation toute seule. Ça marche aussi pour les groupes et les sujets de forum."
   - q: "Pourquoi mon bot Telegram ne m'envoie rien ?"
-    a: "Un bot Telegram ne peut pas vous écrire en premier : c'est à vous d'ouvrir la conversation. Vérifiez que vous avez appuyé sur Démarrer, que le token est bien renseigné et l'application redémarrée, et pour un groupe, que le bot y a été ajouté."
+    a: "Un bot Telegram ne peut pas vous écrire en premier : c'est à vous d'ouvrir la conversation. Vérifiez que le tableau de bord a bien affiché le nom de votre bot après Check and save, que vous avez appuyé sur Démarrer, et pour un groupe, que le bot y a été ajouté."
 ---
 
-Vous pouvez recevoir vos alertes Vinted sur Telegram gratuitement, sans Discord. Créez votre propre bot privé avec BotFather, l'outil officiel de Telegram (trois minutes environ), donnez son token à vinted-bot et reliez votre conversation avec un code à usage unique. Ensuite, chaque nouvelle annonce de vos recherches Vinted arrive dans Telegram avec une photo, le prix total, la taille, l'état et des boutons Acheter et Ouvrir.
+Vous pouvez recevoir vos alertes Vinted sur Telegram gratuitement, sans Discord. Créez votre propre bot privé avec BotFather, l'outil officiel de Telegram (trois minutes environ), collez son token dans le tableau de bord de vinted-bot et reliez votre conversation avec un code à usage unique. Ensuite, chaque nouvelle annonce de vos recherches Vinted arrive dans Telegram avec une photo, le prix total, la taille, l'état et des boutons Acheter et Ouvrir.
 
 Beaucoup de gens ne veulent pas de Discord, ou ne l'utilisent pas du tout. En France, « bot Vinted gratuit sans Discord » fait d'ailleurs partie des recherches courantes. Voici l'installation complète.
 
@@ -35,44 +35,33 @@ Le « bot » n'est ici qu'un compte Telegram depuis lequel une application peut 
 
 ## Étape 1 : créer un bot avec BotFather
 
-1. Ouvrez Telegram sur votre téléphone ou votre ordinateur et cherchez BotFather. Prenez celui qui a le badge bleu vérifié : il existe des imitations.
+Le tableau de bord affiche ces mêmes étapes quand vous y choisissez Telegram : vous pouvez aussi les suivre directement là.
+
+1. Ouvrez Telegram sur votre téléphone ou votre ordinateur et cherchez @BotFather. Prenez celui qui a le badge bleu vérifié : il existe des imitations.
 2. Appuyez sur Démarrer, puis envoyez `/newbot`.
-3. BotFather demande un nom. C'est celui qui s'affichera en haut de la conversation, par exemple « Mes alertes Vinted ».
-4. Il demande ensuite un nom d'utilisateur, unique, qui doit se terminer par « bot », par exemple `julie_alertes_vinted_bot`. S'il est pris, essayez-en un autre.
-5. BotFather répond avec un message qui contient votre token. Il ressemble à `7123456789:AAH...` (des chiffres, deux-points, puis une longue suite de lettres et de chiffres).
+3. BotFather demande un nom. N'importe lequel convient. C'est celui qui s'affichera en haut de la conversation, par exemple « Mes alertes Vinted ».
+4. Il demande ensuite un nom d'utilisateur, unique, qui doit se terminer par « bot », par exemple `julie_alertes_vinted_bot`. S'il est pris, ajoutez quelques chiffres.
+5. BotFather répond « Done! Congratulations ». Votre token se trouve sous « Use this token to access the HTTP API ». Il ressemble à `7123456789:AAH...` (des chiffres, deux-points, puis une longue suite de lettres et de chiffres). Touchez-le une fois pour le copier.
 
 Gardez ce token pour vous. Quiconque l'a peut envoyer des messages au nom de votre bot. Ne le collez ni dans une discussion, ni dans une capture d'écran, ni dans un assistant IA. S'il fuite, envoyez `/revoke` à BotFather pour en obtenir un nouveau.
 
-## Étape 2 : donner le token à vinted-bot
-
-Pour l'instant, le token se met dans un petit fichier de réglages sur l'ordinateur qui fait tourner vinted-bot, pas dans le tableau de bord.
-
-1. Trouvez le dossier de données de vinted-bot :
-   - Windows : `%LOCALAPPDATA%\vinted-bot` (collez-le dans la barre d'adresse de l'Explorateur de fichiers)
-   - Mac : `~/Library/Application Support/vinted-bot` (dans le Finder, menu Aller, Aller au dossier)
-   - Linux ou Raspberry Pi : `~/.local/share/vinted-bot`
-   - Docker : le dossier qui contient votre `docker-compose.yml`
-2. Créez-y un fichier texte nommé `.env` (ou ouvrez-le s'il existe).
-3. Ajoutez cette ligne, avec votre propre token après le signe égal :
-
-```
-VINTED_BOT_TELEGRAM_BOT_TOKEN=7123456789:AAH-votre-token
-```
-
-4. Enregistrez et redémarrez vinted-bot : relancez la commande d'installation, ou `docker compose up -d` avec Docker.
-
-Si le tableau de bord indique toujours que le token manque, vérifiez que le fichier s'appelle exactement `.env` (Windows ajoute parfois `.txt`) et qu'il n'y a pas d'espace autour du signe égal.
-
 {{install}}
+
+## Étape 2 : coller le token dans le tableau de bord
+
+1. Dans le tableau de bord, choisissez Telegram. Lors de la première configuration, c'est à l'étape « Where should we tell you? » (où vous prévenir) ; plus tard, ouvrez la page « Alerts » et appuyez sur « Add a place » (ajouter une destination).
+2. Collez le token dans le champ « Bot token » et appuyez sur « Check and save » (vérifier et enregistrer).
+3. vinted-bot vérifie aussitôt le token auprès de Telegram et affiche le @nom de votre bot. Si le token est faux ou copié à moitié, vous voyez un message d'erreur clair à la place. Recopiez-le depuis BotFather et collez-le de nouveau.
+
+Aucun fichier de réglages à modifier, rien à redémarrer. (Sur un serveur ou avec Docker, vous pouvez toujours définir `VINTED_BOT_TELEGRAM_BOT_TOKEN` dans l'environnement ; cette valeur est alors prioritaire.)
 
 ## Étape 3 : relier votre conversation
 
-Un bot Telegram ne peut pas vous écrire en premier. C'est une règle de Telegram contre le spam, et c'est pour ça que la plupart des tutoriels vous font chercher un « chat ID ». vinted-bot s'en passe :
+Un bot Telegram ne peut pas vous écrire en premier. C'est une règle de Telegram contre le spam, et c'est pour ça que la plupart des tutoriels vous font chercher un « chat ID ». vinted-bot s'en passe. Une fois le token enregistré, la suite se fait sur le même écran :
 
-1. Dans le tableau de bord, ouvrez la page « Alerts » (où arrivent les alertes) et ajoutez une destination. Choisissez Telegram.
-2. Appuyez sur « Connect my chat » (relier ma conversation). L'application génère un code à usage unique.
-3. Appuyez sur « Open Telegram ». La conversation avec votre bot s'ouvre avec le code prêt : appuyez sur Démarrer.
-4. Le tableau de bord affiche « Connected ». Appuyez sur « Send test » (envoyer un test) : un message de test arrive dans Telegram.
+1. Appuyez sur « Connect my chat » (relier ma conversation). L'application génère un code à usage unique.
+2. Appuyez sur « Open Telegram ». La conversation avec votre bot s'ouvre avec le code prêt : appuyez sur Démarrer.
+3. Le tableau de bord affiche « Connected ». Appuyez sur « Send a test » (envoyer un test) : un message de test arrive dans Telegram.
 
 Le lien expire au bout de trente minutes. Si vous avez été interrompu, appuyez simplement à nouveau sur « Connect my chat ».
 
@@ -120,6 +109,6 @@ En général, c'est le prix maximum : il inclut la protection acheteurs (en gén
 
 Resserrez la recherche, ajoutez des mots à exclure, ou activez le filtre bonnes affaires pour ne laisser passer que les annonces nettement sous le prix habituel.
 
-## Telegram, Discord ou notification sur le téléphone ?
+## Telegram ou Discord ?
 
-Telegram est idéal si vous l'utilisez déjà et voulez des alertes à transférer ou à partager dans un groupe. Si vous préférez Discord, le [guide de l'alerte Vinted sur Discord](/guides/alerte-vinted-discord/) est encore plus rapide puisqu'il n'y a pas de token. Si vous ne voulez ni l'un ni l'autre, l'appli gratuite ntfy vous donne une simple notification sur le téléphone, sans aucun compte. Le [guide du bot Vinted gratuit](/guides/bot-vinted-gratuit/) couvre les trois.
+Telegram est idéal si vous l'utilisez déjà et voulez des alertes à transférer ou à partager dans un groupe. Si vous préférez Discord, le [guide de l'alerte Vinted sur Discord](/guides/alerte-vinted-discord/) est encore plus rapide puisqu'il n'y a pas de token. Ce sont les deux choix que l'application propose en premier. Sous « More options » (plus d'options), vous trouverez aussi l'appli de notifications ntfy, l'e-mail et les webhooks. Le [guide du bot Vinted gratuit](/guides/bot-vinted-gratuit/) couvre toute l'installation.

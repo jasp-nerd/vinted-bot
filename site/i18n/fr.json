@@ -209,7 +209,7 @@
     "nas_umbrel": "<strong>Umbrel :</strong> ajoutez le store communautaire indiqué dans le <a href=\"https://github.com/jasp-nerd/vinted-bot/blob/main/deploy/README.md\">guide de déploiement</a> (en anglais).",
     "nas_casa": "<strong>CasaOS ou ZimaOS :</strong> App Store, Custom Install, et importez ce fichier :",
     "nas_synology": "<strong>Synology (DSM 7.2 ou plus récent) :</strong> Container Manager, Projet, Créer, et collez le <a href=\"https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docker-compose.yml\">docker-compose.yml</a>.",
-    "nas_fine": "Sur un NAS, le tableau de bord est accessible depuis tout votre réseau domestique : définissez un mot de passe (<code>VINTED_BOT_WEB_AUTH_TOKEN</code>) dans les réglages de l'appli sur le NAS.",
+    "nas_fine": "Sur un NAS, le tableau de bord est accessible depuis tout votre réseau domestique : commencez par définir un mot de passe dans le tableau de bord, sous Settings, Password.",
     "aside_title": "Il envoie des alertes tant que cet ordinateur est allumé",
     "aside_text": "Un portable en veille n'envoie rien pendant sa veille. Votre téléphone ne fait que recevoir les alertes. Pour des alertes jour et nuit, utilisez un Raspberry Pi, un NAS, ou un vieux portable laissé branché.",
     "aside_fine": "Vous préférez lire un script avant de le lancer ? Voici <a href=\"/install.sh\">install.sh</a> et <a href=\"/install.ps1\">install.ps1</a>, ou le <a href=\"https://github.com/jasp-nerd/vinted-bot\">code source sur GitHub</a>.",

@@ -18,7 +18,7 @@ faq:
   - q: "Czy bot Vinted potrzebuje mojego konta na Vinted?"
     a: "Bot do powiadomień nie. Wyniki wyszukiwania można czytać bez logowania. Konta potrzebują tylko narzędzia, które kupują, piszą wiadomości albo ponownie wystawiają za Ciebie, i to one narażają konto na blokadę."
   - q: "Czy mogę dostawać powiadomienia z bota Vinted na telefon?"
-    a: "Tak. Najprościej przez darmową aplikację ntfy, bez zakładania konta. Możesz też odbierać powiadomienia w aplikacji Discord albo Telegram na telefonie."
+    a: "Tak. Najprościej przez aplikację Telegram albo Discord na telefonie: każde nowe ogłoszenie przychodzi jako wiadomość ze zdjęciem. Można też użyć darmowej aplikacji ntfy z powiadomieniami na telefon."
   - q: "Czy darmowy bot Vinted może kupować za mnie?"
     a: "Ten nie. Automatyczne kupowanie wymaga zalogowanego konta, a stąd biorą się blokady kont. vinted-bot dodaje do każdego powiadomienia przycisk kupna, więc zakup robisz Ty."
 ---
@@ -76,7 +76,7 @@ Co dostajesz za darmo:
 1. Zainstaluj. Na Windowsie otwórz PowerShell i wklej jednolinijkowe polecenie ze strony głównej; na Macu lub Linuksie otwórz Terminal i wklej drugie. Nie potrzebujesz uprawnień administratora ani Dockera. Na końcu przeglądarka otworzy panel pod adresem `http://localhost:8000`.
 2. Wyszukaj na Vinted tak jak zawsze (słowa, kategoria, rozmiar, marka, stan) i skopiuj adres z paska przeglądarki albo udostępnij wyszukiwanie z aplikacji i skopiuj link. Wyszukiwanie możesz też zbudować w panelu, korzystając z kategorii i marek Vinted.
 3. Wklej je do panelu. Zobaczysz na żywo, ile aktualnych ogłoszeń pasuje i ile odrzuca każdy filtr. Ustaw cenę maksymalną jako kwotę, którą chcesz zapłacić łącznie.
-4. Wybierz, gdzie mają trafiać powiadomienia. Najszybciej jest na telefon przez darmową aplikację ntfy: instalujesz ją, dodajesz nazwę z panelu i gotowe. Dla Discorda jest osobny poradnik: [bot Vinted na Discordzie](/guides/vinted-bot-discord/). Telegram działa przez własnego bota założonego w BotFather. Zanim pójdziesz dalej, kliknij "Send test" (wyślij test).
+4. Wybierz, gdzie mają trafiać powiadomienia. Aplikacja proponuje na początek Telegrama i Discorda. Telegram działa przez własnego bota założonego w BotFather, a jego token wklejasz w panelu. Dla Discorda jest osobny poradnik: [bot Vinted na Discordzie](/guides/vinted-bot-discord/). W "More options" (więcej opcji) znajdziesz też aplikację ntfy z powiadomieniami na telefon, e-mail i webhooki. Zanim pójdziesz dalej, kliknij "Send a test" (wyślij test).
 5. Zostaw go włączonego. Pierwsze sprawdzenie jest celowo ciche, żeby nie zasypało Cię ogłoszeniami, które już były. Od tej chwili każde nowe ogłoszenie przychodzi ze zdjęciami, pełną ceną, rozmiarem, stanem, oceną sprzedającego i przyciskami do kupna, wiadomości do sprzedającego i otwarcia ogłoszenia.
 
 {{install}}

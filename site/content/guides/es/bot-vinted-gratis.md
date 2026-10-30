@@ -76,7 +76,7 @@ Lo que tienes gratis:
 1. Instálalo. En Windows abre PowerShell y pega el comando de una línea de la página principal; en Mac o Linux abre Terminal y pega el otro. No hacen falta permisos de administrador ni Docker. Al terminar, el navegador abre el panel en `http://localhost:8000`.
 2. Busca en Vinted como siempre (palabras, categoría, talla, marca, estado) y copia la dirección de la barra del navegador, o comparte la búsqueda desde la app y copia el enlace. También puedes crear la búsqueda en el panel, con las categorías y marcas de Vinted.
 3. Pégala en el panel. Verás en directo cuántos anuncios actuales encajan y cuántos quita cada filtro. Pon como precio máximo el total que estás dispuesto a pagar.
-4. Elige dónde llegan las alertas. Lo más rápido es una notificación en el móvil con la app gratuita ntfy: la instalas, añades el nombre que te muestra el panel y listo. Para Telegram creas tu bot con BotFather; para Discord copias un webhook desde los ajustes del canal. Pulsa "Send test" (enviar una prueba) antes de seguir.
+4. Elige dónde llegan las alertas. La app te propone primero Telegram y Discord. Para Telegram creas tu bot con BotFather y pegas su token en el panel; para Discord copias un webhook desde los ajustes del canal. En "More options" (más opciones) también tienes la app de notificaciones ntfy, el correo y los webhooks. Pulsa "Send a test" (enviar una prueba) antes de seguir.
 5. Déjalo funcionando. La primera comprobación es silenciosa a propósito, para que no te llegue una avalancha de anuncios que ya estaban. A partir de ahí, cada artículo nuevo llega con fotos, precio total, talla, estado, valoración del vendedor y botones para comprar, escribir al vendedor o abrir el anuncio.
 
 {{install}}
