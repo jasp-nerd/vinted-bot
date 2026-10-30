@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from pydantic import SecretStr, ValidationError
 
+from vinted_sniper import config
 from vinted_sniper.config import MIN_POLL_INTERVAL_S, Settings
 
 
@@ -60,3 +63,47 @@ def test_poll_interval_below_floor_is_rejected() -> None:
 def test_unknown_environment_keys_are_rejected() -> None:
     with pytest.raises(ValidationError):
         Settings(_env_file=None, wat_is_this=True)  # type: ignore[call-arg]
+
+
+def test_an_existing_data_folder_keeps_being_used(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Upgrading must not strand someone's searches in a file the app stopped reading."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(config, "_in_container", lambda: False)
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "app.db").write_bytes(b"")
+
+    assert config.default_db_path() == config.LEGACY_DB_PATH
+
+
+def test_a_fresh_install_uses_the_user_data_folder(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(config, "_in_container", lambda: False)
+
+    path = config.default_db_path()
+
+    assert path.name == "app.db"
+    assert path.parent.name == "vinted-sniper"
+
+
+def test_a_container_keeps_the_relative_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(config, "_in_container", lambda: True)
+
+    assert config.default_db_path() == config.LEGACY_DB_PATH
+
+
+def test_the_time_zone_falls_back_to_tz(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TZ", "Europe/Paris")
+
+    assert Settings(_env_file=None).timezone == "Europe/Paris"  # type: ignore[call-arg]
+
+
+def test_an_unknown_time_zone_is_refused() -> None:
+    with pytest.raises(ValidationError, match="time zone"):
+        Settings(_env_file=None, timezone="Mars/Olympus")  # type: ignore[call-arg]

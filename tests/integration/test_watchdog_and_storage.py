@@ -235,3 +235,32 @@ async def test_old_listings_are_pruned(repo: Repo, db: Database) -> None:
 
     assert await repo.prune_items(older_than_days=30) == 1
     assert await repo.known_item_ids([1]) == set()
+
+
+async def test_a_search_failing_since_it_was_added_reads_as_failing(
+    repo: Repo, db: Database
+) -> None:
+    """It used to read "starting" forever, hiding the error under a grey pill."""
+    query_id = await add_search(repo, "broken")
+    await set_state(db, query_id, last_status="network", last_error="404")
+
+    snapshot = await health.snapshot(repo)
+
+    assert [search.state for search in snapshot.searches] == ["failing"]
+
+
+async def test_the_warn_only_watchdog_does_not_claim_to_rotate(
+    repo: Repo, db: Database, transport: ScriptedTransport, settings: Settings
+) -> None:
+    stuck = await add_search(repo, "stuck")
+    healthy = await add_search(repo, "healthy")
+    now = int(time.time())
+    await set_state(db, stuck, last_success_at=now, stale_cycles=15, newest_raw_ts=now - 9000)
+    await set_state(db, healthy, last_success_at=now, stale_cycles=0, newest_raw_ts=now - 30)
+
+    watchdog, announcements = make_watchdog(
+        repo, db, transport, settings.model_copy(update={"watchdog_action": "warn"})
+    )
+    await watchdog.check()
+
+    assert "fresh session" not in announcements[0]

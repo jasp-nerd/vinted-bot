@@ -4,6 +4,11 @@ Each search gets its own task. What matters here is what happens when a check fa
 error types from the Vinted layer each mean something different, and treating them the same
 is how a tool talks itself into a longer block. A rejected token is cheap to fix. A refused
 connection is not, and hammering it makes it worse.
+
+A search may run on several country sites. One poller fetches each in turn and judges the
+combined results, so there is one set of decisions and one floor rather than several that
+disagree. If any site fails, the whole check counts as failed and backs off: the listings
+the other sites returned are still there next time.
 """
 
 from __future__ import annotations
@@ -12,26 +17,56 @@ import asyncio
 import contextlib
 import random
 import time
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from vinted_sniper.config import MAX_BACKOFF_S, Settings
-from vinted_sniper.db.repo import Query, Repo
-from vinted_sniper.engine import dedup, filters
+from vinted_sniper.db.repo import Query, QueryState, RejectedListing, Repo
+from vinted_sniper.engine import dedup, filters, quiet
 from vinted_sniper.log import get_logger
-from vinted_sniper.vinted.client import VintedClient
+from vinted_sniper.vinted.client import PER_PAGE, VintedClient
 from vinted_sniper.vinted.errors import (
     AuthExpiredError,
     BlockedError,
     MalformedResponseError,
     NetworkError,
     RateLimitedError,
+    VintedError,
 )
-from vinted_sniper.vinted.models import Item
+from vinted_sniper.vinted.models import Item, SellerProfile
 from vinted_sniper.vinted.session import SessionManager
 
 log = get_logger(__name__)
 
+SellerLookup = Callable[[str, int], Awaitable[SellerProfile | None]]
+
 # Spread checks out so a dozen searches do not all fire on the same second.
 _JITTER_FRACTION = 0.15
+
+# A network error retries sooner than a block, but no sooner than this ceiling allows.
+_NETWORK_BACKOFF_CAP_S = 120.0
+
+# Member pages change slowly; a week-old country is still the right country.
+SELLER_CACHE_S = 7 * 86_400
+
+# Seller lookups per check. A normal check has a handful of new listings; this only bites
+# when a burst arrives, and the rest wait for the next check rather than hammering the site.
+_MAX_LOOKUPS_PER_CHECK = 10
+
+
+@dataclass(slots=True)
+class _Verdicts:
+    """What one check decided about the listings that were new to it."""
+
+    matched: list[Item] = field(default_factory=list)
+    announce: list[Item] = field(default_factory=list)
+    rejected: list[RejectedListing] = field(default_factory=list)
+    seller_countries: dict[int, str] = field(default_factory=dict)
+    # Seller profiles fetched or read from the cache during this check, by seller id.
+    profiles: dict[int, SellerProfile | None] = field(default_factory=dict)
+    lookups_made: int = 0
 
 
 class Poller:
@@ -47,6 +82,8 @@ class Poller:
         settings: Settings,
         stop: asyncio.Event,
         work_available: asyncio.Event | None = None,
+        seller_lookup: SellerLookup | None = None,
+        start_delay_s: float = 0.0,
         rng: random.Random | None = None,
     ) -> None:
         self.query = query
@@ -56,12 +93,19 @@ class Poller:
         self._settings = settings
         self._stop = stop
         self._work_available = work_available
+        self._seller_lookup = seller_lookup
+        self._start_delay_s = start_delay_s
         self._rng = rng or random.Random()
+        self._rules = filters.Rules(query)
         self._consecutive_errors = 0
+        # The site being fetched when an error escapes, so the right session is replaced.
+        self._site = query.tld
+        self._warned_no_lookup = False
         self._log = log.bind(query_id=query.id, query=query.name, tld=query.tld)
 
     async def run(self) -> None:
         """Check on a schedule until the stop event is set."""
+        await self._wait(self._start_delay_s)
         while not self._stop.is_set():
             delay = await self.tick()
             await self._wait(delay)
@@ -72,108 +116,275 @@ class Poller:
             await self._check()
         except AuthExpiredError as exc:
             # The anonymous token aged out. A new one costs a single page load.
-            self._log.info("poll.session_expired", error=str(exc))
+            self._log.info("poll.session_expired", site=self._site, error=str(exc))
             await self._repo.record_failure(self.query.id, "http_401", str(exc))
-            await self._sessions.invalidate(self.query.tld)
+            await self._sessions.invalidate(self._site)
             return min(5.0, float(self.query.poll_interval_s))
         except BlockedError as exc:
             # Vinted is refusing this client. A fresh cookie will not change that, so back
             # off hard and come back with a different session.
             self._consecutive_errors += 1
             await self._repo.record_failure(self.query.id, "http_403", str(exc))
-            await self._sessions.rotate(self.query.tld, blocked=True)
+            await self._sessions.rotate(self._site, blocked=True)
             delay = self._backoff()
-            self._log.warning("poll.blocked", error=str(exc), retry_in_s=round(delay))
+            self._log.warning(
+                "poll.blocked", site=self._site, error=str(exc), retry_in_s=round(delay)
+            )
             return delay
         except RateLimitedError as exc:
             self._consecutive_errors += 1
             await self._repo.record_failure(self.query.id, "http_429", str(exc))
             delay = exc.retry_after or self._backoff()
-            self._log.warning("poll.rate_limited", retry_in_s=round(delay))
+            self._log.warning("poll.rate_limited", site=self._site, retry_in_s=round(delay))
             return float(delay)
         except MalformedResponseError as exc:
             # Not a retry problem: either the response shape changed or something was
             # served in its place. Keep going at normal pace and make it visible.
             self._consecutive_errors += 1
             await self._repo.record_failure(self.query.id, "malformed", str(exc))
-            self._log.error("poll.malformed_response", error=str(exc))
+            self._log.error("poll.malformed_response", site=self._site, error=str(exc))
             return self._interval()
         except NetworkError as exc:
             self._consecutive_errors += 1
             await self._repo.record_failure(self.query.id, "network", str(exc))
-            delay = min(self._backoff(), 120.0)
-            self._log.warning("poll.network_error", error=str(exc), retry_in_s=round(delay))
+            delay = self._backoff(cap=_NETWORK_BACKOFF_CAP_S)
+            self._log.warning(
+                "poll.network_error", site=self._site, error=str(exc), retry_in_s=round(delay)
+            )
             return delay
 
         self._consecutive_errors = 0
         return self._interval()
 
+    async def _fetch(self) -> tuple[list[Item], bool]:
+        """Every site's first page, in order, and whether each page was full.
+
+        Listing ids are shared across sites, so one floor covers them all.
+        """
+        items: list[Item] = []
+        all_full = True
+        for site in self.query.sites:
+            self._site = site
+            page = await self._client.search(site, self.query.params)
+            all_full = all_full and len(page) >= PER_PAGE
+            items.extend(page)
+        self._site = self.query.tld
+        return items, all_full
+
     async def _check(self) -> None:
-        items = await self._client.search(self.query.tld, self.query.params)
+        items, page_is_full = await self._fetch()
         state = await self._repo.get_state(self.query.id)
-
-        candidates: list[Item] = []
-        for item in items:
-            if filters.check(item, self.query) is None:
-                candidates.append(item)
-
-        known = await self._repo.known_item_ids([item.item_id for item in candidates])
+        seen = await self._repo.seen_by_query(self.query.id, [item.item_id for item in items])
+        window_min = self.query.max_age_min or self._settings.freshness_window_min
         selection = dedup.select(
-            candidates=candidates,
-            all_items=items,
-            known_ids=known,
-            high_water_mark=state.newest_item_ts,
+            items=items,
+            seen_ids=seen,
+            floor_item_id=state.floor_item_id,
             now=int(time.time()),
-            freshness_window_s=self._settings.freshness_window_min * 60,
+            freshness_window_s=window_min * 60,
             is_first_run=state.is_first_run,
-            first_run_mode=self._settings.first_run_mode,
+            page_is_full=page_is_full,
         )
 
-        destination_ids = await self._repo.destination_ids_for_query(self.query.id)
-        if selection.to_record:
-            await self._repo.record_new_items(
-                self.query,
-                selection.to_record,
-                destination_ids,
-                notify=selection.to_notify,
-                keep_raw=self._settings.keep_raw_json,
-            )
-            if selection.to_notify and self._work_available is not None:
-                self._work_available.set()
-
-        stale_cycles = state.stale_cycles
-        if selection.newest_raw_ts is not None and selection.newest_raw_ts == state.newest_raw_ts:
-            stale_cycles += 1
+        if state.is_first_run:
+            announced = await self._seed(selection.new)
         else:
-            stale_cycles = 0
+            announced = await self._judge(selection.new)
+
+        if announced and self._work_available is not None:
+            self._work_available.set()
 
         await self._repo.record_success(
             self.query.id,
             newest_raw_ts=selection.newest_raw_ts,
-            newest_item_ts=selection.newest_item_ts,
+            newest_item_ts=dedup.newest_timestamp(selection.new),
             seen=len(items),
-            stale_cycles=stale_cycles,
+            stale_cycles=self._stale_cycles(state, selection),
+            newest_raw_id=selection.newest_raw_id,
+            floor_item_id=selection.floor_item_id,
         )
 
         if state.is_first_run:
             self._log.info(
                 "poll.seeded",
-                recorded=len(selection.to_record),
-                announced=len(selection.to_notify),
+                recorded=len(selection.new),
+                announced=announced,
                 mode=self._settings.first_run_mode,
             )
-        elif selection.to_notify:
-            self._log.info("poll.new_items", count=len(selection.to_notify), returned=len(items))
+        elif announced:
+            self._log.info("poll.new_items", count=announced, returned=len(items))
         else:
-            self._log.debug("poll.nothing_new", returned=len(items))
+            self._log.debug("poll.nothing_new", returned=len(items), judged=len(selection.new))
+
+    @staticmethod
+    def _stale_cycles(state: QueryState, selection: dedup.Selection) -> int:
+        """Checks in a row whose newest listing has not moved, for the watchdog."""
+        if selection.newest_raw_id is None:
+            return state.stale_cycles
+        if selection.newest_raw_id == state.newest_raw_id:
+            return state.stale_cycles + 1
+        return 0
+
+    async def _seed(self, unseen: list[Item]) -> int:
+        """Record a new search's page without shouting about it. Returns how many announced.
+
+        Only listings passing the cheap rules are kept, so the typical price is built from
+        what the search actually wants. No seller lookups: nothing here is announced except
+        perhaps one, and a first page of ninety-six would be ninety-six requests.
+        """
+        blocked = frozenset(await self._repo.blocked_seller_ids())
+        keep = [item for item in unseen if self._rules.check(item, blocked_sellers=blocked) is None]
+        pick = dedup.first_run_pick(keep, self._settings.first_run_mode)
+        if not keep:
+            return 0
+        destination_ids = await self._repo.destination_ids_for_query(self.query.id)
+        await self._repo.record_new_items(
+            self.query,
+            keep,
+            destination_ids,
+            notify=pick,
+            seeded=True,
+            typical_prices=await self._repo.typical_prices(self.query.id),
+            keep_raw=self._settings.keep_raw_json,
+        )
+        return len(pick) if destination_ids else 0
+
+    async def _judge(self, new: list[Item]) -> int:
+        """Filter what is new, record the verdicts, queue the alerts. Returns how many queued."""
+        if not new:
+            return 0
+        verdicts = _Verdicts()
+        blocked = frozenset(await self._repo.blocked_seller_ids())
+        for item in new:
+            rejection = self._rules.check(item, blocked_sellers=blocked)
+            if rejection is None:
+                rejection, final = await self._judge_seller(item, verdicts)
+            else:
+                final = True
+            if rejection is None:
+                verdicts.matched.append(item)
+            else:
+                verdicts.rejected.append(
+                    RejectedListing(item, rejection.reason, rejection.detail, final=final)
+                )
+
+        typical = await self._repo.typical_prices(self.query.id)
+        for item in verdicts.matched:
+            if deal := filters.check_deal(item, self.query, typical.get(item.currency or "")):
+                verdicts.rejected.append(
+                    RejectedListing(item, deal.reason, deal.detail, final=False)
+                )
+            else:
+                verdicts.announce.append(item)
+
+        hold_until, silent = await self._apply_quiet_hours(verdicts)
+        destination_ids = await self._repo.destination_ids_for_query(self.query.id)
+        await self._repo.record_new_items(
+            self.query,
+            verdicts.matched,
+            destination_ids,
+            notify=verdicts.announce,
+            rejected=verdicts.rejected,
+            typical_prices=typical,
+            seller_countries=verdicts.seller_countries,
+            hold_until=hold_until,
+            silent=silent,
+            keep_raw=self._settings.keep_raw_json,
+        )
+        return len(verdicts.announce) if destination_ids else 0
+
+    async def _judge_seller(
+        self, item: Item, verdicts: _Verdicts
+    ) -> tuple[filters.Rejection | None, bool]:
+        """The seller checks for one listing: (rejection or None, whether it is final)."""
+        if not self.query.needs_seller_profile:
+            return None, True
+        profile: SellerProfile | None = None
+        if filters.needs_lookup(item, self.query):
+            if self._seller_lookup is None:
+                self._warn_no_lookup()
+            else:
+                profile = await self._seller_profile(item, verdicts)
+                if profile is None:
+                    # Not final: a lookup that failed this time may work next time.
+                    return filters.Rejection(
+                        "seller_unknown", "could not look up the seller just now"
+                    ), False
+                if profile.country_code:
+                    verdicts.seller_countries[profile.seller_id] = profile.country_code
+        return filters.check_seller(item, self.query, profile), True
+
+    async def _seller_profile(self, item: Item, verdicts: _Verdicts) -> SellerProfile | None:
+        """A seller's member page, from this check's memo, the cache, or one request."""
+        seller_id = item.seller_id
+        if seller_id is None or self._seller_lookup is None:
+            return None
+        if seller_id in verdicts.profiles:
+            return verdicts.profiles[seller_id]
+        cached = await self._repo.cached_seller(seller_id, max_age_s=SELLER_CACHE_S)
+        if cached is not None:
+            verdicts.profiles[seller_id] = cached
+            return cached
+        if verdicts.lookups_made >= _MAX_LOOKUPS_PER_CHECK:
+            return None
+        verdicts.lookups_made += 1
+        try:
+            profile = await self._seller_lookup(item.tld, seller_id)
+        except VintedError as exc:
+            # The listing is logged as undecided and judged again next check, by which
+            # time the session or the rate limit has usually sorted itself out.
+            self._log.info("poll.seller_lookup_failed", seller_id=seller_id, error=str(exc))
+            profile = None
+        verdicts.profiles[seller_id] = profile
+        if profile is not None:
+            await self._repo.cache_seller(profile)
+        return profile
+
+    def _warn_no_lookup(self) -> None:
+        if not self._warned_no_lookup:
+            self._warned_no_lookup = True
+            self._log.warning(
+                "poll.seller_filters_unavailable",
+                hint="seller country and rating filters need seller lookups, which this "
+                "build cannot do yet; listings are passed through unjudged",
+            )
+
+    async def _apply_quiet_hours(self, verdicts: _Verdicts) -> tuple[int | None, bool]:
+        """Hold, drop or silence this check's alerts if the search is in its quiet hours."""
+        if not verdicts.announce or self.query.quiet_start is None:
+            return None, False
+        app = await self._repo.app_settings(default_timezone=self._settings.timezone)
+        ends = quiet.window_end(
+            self.query.quiet_start, self.query.quiet_end, datetime.now(ZoneInfo(app.timezone))
+        )
+        if ends is None:
+            return None, False
+        match self.query.quiet_mode:
+            case "drop":
+                verdicts.rejected.extend(
+                    RejectedListing(
+                        item, "quiet_hours", f"quiet until {self.query.quiet_end}", final=False
+                    )
+                    for item in verdicts.announce
+                )
+                verdicts.announce = []
+                return None, False
+            case "silent":
+                return None, True
+            case _:
+                return int(ends.timestamp()), False
 
     def _interval(self) -> float:
         base = float(self.query.poll_interval_s)
         return base + self._rng.uniform(0, base * _JITTER_FRACTION)
 
-    def _backoff(self) -> float:
-        """Exponential backoff with jitter, capped so a search never sleeps forever."""
-        step = min(2.0**self._consecutive_errors * self.query.poll_interval_s, MAX_BACKOFF_S)
+    def _backoff(self, *, cap: float = MAX_BACKOFF_S) -> float:
+        """Exponential backoff with jitter, capped so a search never sleeps forever.
+
+        The jitter goes on after the cap. Clipping it away is what made every failing
+        search retry in the same second.
+        """
+        step = min(2.0**self._consecutive_errors * self.query.poll_interval_s, cap)
         return step + self._rng.uniform(0, step * _JITTER_FRACTION)
 
     async def _wait(self, seconds: float) -> None:

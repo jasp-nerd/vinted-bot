@@ -10,11 +10,17 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import sqlite3
 import time
 from dataclasses import dataclass
 from typing import Any
 
+import httpx
+
 from vinted_sniper.db.repo import Repo
+from vinted_sniper.log import get_logger
+
+log = get_logger(__name__)
 
 # If the heartbeat is older than this, the process is wedged rather than idle. Comfortably
 # longer than the slowest normal check plus its backoff.
@@ -45,10 +51,12 @@ class SearchHealth:
         """A one-word summary, chosen so the unhappy cases are never mistaken for quiet."""
         if self.paused:
             return "paused"
-        if self.last_success_at is None:
-            return "starting"
+        # Failing comes before starting: a search that has failed every check since it
+        # was added has never succeeded either, and "starting" would hide that forever.
         if self.last_status and self.last_status != "ok":
             return "failing"
+        if self.last_success_at is None:
+            return "starting"
         if self.checks_without_new_listings >= STALE_SUMMARY_CYCLES:
             return "stale"
         return "ok"
@@ -112,7 +120,9 @@ async def snapshot(repo: Repo) -> Snapshot:
                 last_success_at=state.last_success_at if state else None,
                 last_status=state.last_status if state else None,
                 last_error=state.last_error if state else None,
-                newest_listing_at=state.newest_raw_ts if state else None,
+                # The catalog stopped reporting photo times; when the newest listing id
+                # last moved is the closest stand-in.
+                newest_listing_at=(state.newest_raw_ts or state.raw_advanced_at) if state else None,
                 checks_without_new_listings=state.stale_cycles if state else 0,
                 items_total=state.items_seen_total if state else 0,
                 blocks=state.count_403 if state else 0,
@@ -131,22 +141,59 @@ async def snapshot(repo: Repo) -> Snapshot:
 
 
 class Heartbeat:
-    """Writes a timestamp the container health check can read.
+    """Writes a timestamp the container health check can read, and pings an outside monitor.
 
     Checking that the process exists proves very little; a poller can be alive and stuck.
-    This only gets written when the main loop actually comes round again.
+    This only gets written when the main loop actually comes round again. If a health
+    check URL is set (healthchecks.io, Uptime Kuma and the like), each beat also GETs it,
+    so a dead machine is noticed by something that is not on it.
     """
 
-    def __init__(self, repo: Repo, stop: asyncio.Event, *, interval_s: float = 30.0) -> None:
+    def __init__(
+        self,
+        repo: Repo,
+        stop: asyncio.Event,
+        *,
+        interval_s: float = 30.0,
+        http: httpx.AsyncClient | None = None,
+    ) -> None:
         self._repo = repo
         self._stop = stop
         self._interval_s = interval_s
+        self._http = http
 
     async def run(self) -> None:
         while not self._stop.is_set():
-            await self._repo.heartbeat()
+            await self.beat()
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(self._stop.wait(), timeout=self._interval_s)
+
+    async def beat(self) -> None:
+        """One heartbeat. Never raises: a missed beat is what the health check is for.
+
+        A database locked by a backup or the CLI used to escape from here and take the
+        whole process down with it, which is the opposite of what a heartbeat is for.
+        """
+        try:
+            await self._repo.heartbeat()
+            url = await self._repo.get_state_value("healthcheck_url")
+        except sqlite3.OperationalError as exc:
+            log.warning("heartbeat.db_unavailable", error=str(exc))
+            return
+        if url and self._http is not None:
+            await _ping(self._http, url)
+
+
+async def _ping(http: httpx.AsyncClient, url: str) -> None:
+    """GET a monitor's URL. The URL itself stays out of the logs: it is the monitor's secret."""
+    try:
+        response = await http.get(url, timeout=10.0)
+    except httpx.HTTPError as exc:
+        # The monitor will notice the missing ping, which is its job; ours is to keep going.
+        log.warning("heartbeat.ping_failed", error=type(exc).__name__)
+        return
+    if response.is_error:
+        log.warning("heartbeat.ping_rejected", status=response.status_code)
 
 
 async def is_alive(repo: Repo) -> bool:

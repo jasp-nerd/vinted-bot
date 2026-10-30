@@ -21,14 +21,22 @@ dependencies = [
     "pydantic-settings>=2.7",
     "structlog>=25.1",
     "aiogram>=3.17",
+    # Where the database goes outside a container: the platform's per-user data folder.
+    "platformdirs>=4.3",
+    # The dashboard is on by default, so its server is a core dependency, not an extra.
+    # python-multipart is what lets FastAPI read the dashboard's form posts.
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.20",
 ]
 
 [project.optional-dependencies]
 # TLS impersonation, only needed if plain httpx starts getting blocked.
 # Kept optional because curl_cffi ships compiled wheels that complicate ARM installs.
 impersonate = ["curl_cffi>=0.7"]
-# python-multipart is what lets FastAPI read the dashboard's form posts.
-web = ["fastapi>=0.115", "uvicorn[standard]>=0.34", "jinja2>=3.1", "python-multipart>=0.0.20"]
+# Kept, empty, so `--extra web` and `vinted-sniper[web]` from 1.x still install cleanly.
+web = []
 
 [project.scripts]
 vinted-sniper = "vinted_sniper.cli:main"
@@ -89,7 +97,7 @@ ignore = [
 # A route table and a command table are long and branchy by nature. Splitting them to
 # satisfy a complexity metric would scatter related handlers across files for no gain.
 "src/vinted_sniper/web/server.py" = ["C901", "PLR0915", "PLR0917", "PLR0913"]
-"src/vinted_sniper/cli.py" = ["C901", "PLR0911"]
+"src/vinted_sniper/cli.py" = ["C901", "PLR0911", "PLR0912"]
 # One send attempt has several distinct outcomes — delivered, paused, gone, retry, gave
 # up — and each needs its own early exit. Splitting them would hide the flow, not clarify it.
 "src/vinted_sniper/deliver/dispatcher.py" = ["C901", "PLR0911"]
@@ -125,8 +133,9 @@ exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedE
 known_first_party = ["vinted_sniper"]
 
 [tool.deptry.per_rule_ignores]
-# Optional extras are imported lazily behind config flags.
-DEP002 = ["curl_cffi", "fastapi", "uvicorn", "jinja2", "python-multipart"]
+# curl_cffi is imported lazily behind a config flag; python-multipart and jinja2 are loaded
+# by FastAPI and Starlette, never imported by name.
+DEP002 = ["curl_cffi", "python-multipart", "jinja2"]
 
 [tool.vulture]
 min_confidence = 80

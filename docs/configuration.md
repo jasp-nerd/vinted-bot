@@ -18,9 +18,22 @@ Every variable is prefixed `VINTED_SNIPER_`. All of them are optional except whe
 
 | Variable | Default | What it does |
 |---|---|---|
-| `DB_PATH` | `./data/app.db` | Where the SQLite file lives. Already set to `/data/app.db` in the container. |
+| `DB_PATH` | see below | Where the SQLite file lives. Already set to `/data/app.db` in the container. |
 | `ITEM_RETENTION_DAYS` | `30` | Delete stored listings older than this. Does not cause anything to be re-sent. |
 | `KEEP_RAW_JSON` | `false` | Keep each listing's full API payload. Handy when debugging a parsing problem; stores more seller data than notifications need. |
+
+Unset outside a container, the database goes in `./data/app.db` **if that file already
+exists**, so upgrading from 1.x keeps your searches where they are. Otherwise it goes in
+your user data folder: `~/.local/share/vinted-sniper/app.db` on Linux,
+`~/Library/Application Support/vinted-sniper/app.db` on macOS,
+`%LOCALAPPDATA%\vinted-sniper\app.db` on Windows. That way it no longer matters which
+folder you start the app from. `vinted-sniper migrate` prints the path it used.
+
+### Time
+
+| Variable | Default | What it does |
+|---|---|---|
+| `TIMEZONE` | `UTC` | IANA time zone such as `Europe/Paris`, used for quiet hours and the stats page. Falls back to the standard `TZ` variable when unset. The dashboard's settings page can override it. |
 
 ### Checking
 
