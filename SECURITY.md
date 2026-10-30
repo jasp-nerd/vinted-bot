@@ -34,6 +34,22 @@ computer can read its data either way.
 - It never logs in to Vinted and never handles Vinted credentials.
 - The dashboard listens on `localhost` only unless you change it, and warns in its log when
   it is reachable from elsewhere without a password.
+- It only answers to host names it was told about (localhost, IP addresses,
+  `VINTED_SNIPER_WEB_PUBLIC_URL` and `VINTED_SNIPER_WEB_ALLOWED_HOSTS`), and only accepts
+  changes from its own pages, so another website cannot use it through your browser, by DNS
+  rebinding or otherwise.
+- Sign-in sessions are random tokens kept on the server: signing out revokes them, and
+  changing the password signs every browser out. RSS feeds use a separate random key, never
+  the password.
+
+## What the server fetches on your behalf
+
+Whoever can change the dashboard's settings can make the server send requests: test sends
+and alerts go to any webhook, ntfy server or Apprise address you enter, and the health check
+pings the URL you give it, every 30 seconds. Their answers are not shown back, only
+whether it worked or the status code. That is the intended feature for a self-hosted app,
+and it is why the dashboard needs a password before it is reachable by anyone you would not
+hand your server to.
 - The Docker image runs the app as a non-root user and works with a read-only filesystem.
 - Release images carry signed build provenance: `gh attestation verify
   oci://ghcr.io/jasp-nerd/vinted-sniper:latest --owner jasp-nerd`. Python packages on PyPI
