@@ -21,6 +21,8 @@ dependencies = [
     "pydantic-settings>=2.7",
     "structlog>=25.1",
     "aiogram>=3.17",
+    # zoneinfo needs a time zone database; Windows and slim containers have none.
+    "tzdata>=2025.2",
     # Where the database goes outside a container: the platform's per-user data folder.
     "platformdirs>=4.3",
     # The dashboard is on by default, so its server is a core dependency, not an extra.
@@ -137,8 +139,8 @@ known_first_party = ["vinted_sniper"]
 
 [tool.deptry.per_rule_ignores]
 # curl_cffi and apprise are imported lazily behind config flags; python-multipart and jinja2 are loaded
-# by FastAPI and Starlette, never imported by name.
-DEP002 = ["curl_cffi", "apprise", "python-multipart", "jinja2"]
+# by FastAPI and Starlette, and tzdata by zoneinfo, never imported by name.
+DEP002 = ["tzdata", "curl_cffi", "apprise", "python-multipart", "jinja2"]
 
 [tool.vulture]
 min_confidence = 80
