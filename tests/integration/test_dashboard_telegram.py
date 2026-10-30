@@ -235,3 +235,38 @@ def test_setup_never_writes_a_typed_token_back_into_the_page(client: TestClient)
     page = _setup_alerts_step(client, telegram_token=REVOKED).text
 
     assert REVOKED.split(":")[1] not in page
+
+
+# --- The order of the choices ------------------------------------------------------------
+
+
+def _choices_page(client: TestClient) -> str:
+    state = {"tld": "fr", "search": {"link": "https://www.vinted.fr/catalog?search_text=nike"}}
+    return str(client.post("/welcome/alerts", data={"state": json.dumps(state)}).text)
+
+
+def test_setup_offers_telegram_then_discord_before_anything_else(client: TestClient) -> None:
+    page = _choices_page(client)
+
+    positions = [page.index(f'value="{kind}"') for kind in ("telegram", "discord", "ntfy")]
+    assert positions == sorted(positions) and page.index("More options") < positions[2]
+
+
+def test_setup_picks_nothing_for_you(client: TestClient) -> None:
+    assert "checked data-kind-pick" not in _choices_page(client)
+
+
+def test_the_alerts_page_offers_telegram_first(client: TestClient) -> None:
+    page = client.get("/alerts").text
+
+    assert (
+        page.index('value="telegram"') < page.index('value="discord"') < page.index('value="ntfy"')
+    )
+
+
+def test_continuing_without_a_choice_asks_for_one(client: TestClient) -> None:
+    state = {"tld": "fr", "search": {"link": "https://www.vinted.fr/catalog?search_text=nike"}}
+
+    page = client.post("/welcome/alerts", data={"state": json.dumps(state), "submitted": "1"})
+
+    assert "Pick where alerts should go." in page.text

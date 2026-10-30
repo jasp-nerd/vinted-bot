@@ -955,6 +955,8 @@
     if (r.error) return toast(r.error, { bad: true, ms: 9000 });
     $("[data-pair-command]", wrap).textContent = r.command;
     const link = $("[data-pair-link]", wrap); if (r.link) { link.href = r.link; link.hidden = false; }
+    const qrWrap = $("[data-pair-qr-wrap]", wrap);
+    if (qrWrap && r.link) { const box = $("[data-pair-qr]", qrWrap); box.dataset.qr = r.link; drawQr(box); qrWrap.hidden = false; }
     $("[data-pair-id]", wrap).value = r.id;
     $$("[data-pair-step]", wrap).forEach((s) => { s.hidden = s.dataset.pairStep !== "wait"; });
     const started = Date.now();

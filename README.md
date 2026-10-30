@@ -31,7 +31,7 @@ no Vinted account and no monthly fee, where paid Vinted bots charge €5 to €3
 ## How it works
 
 1. **Search on Vinted** the way you always do and copy the link. Or build the search in the dashboard.
-2. **Paste it into vinted-bot** and pick where alerts go: Discord, Telegram, your phone, email.
+2. **Paste it into vinted-bot** and pick where alerts go: Telegram or Discord, or email and more.
 3. **Get a message** for each new listing, with photos, the total price including buyer protection, size, condition and seller rating.
 
 It checks every minute. The first check is silent on purpose, so you only hear about listings that appear after you added the search.

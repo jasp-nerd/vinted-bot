@@ -1232,3 +1232,13 @@ select.chip { width: auto; max-width: 220px; }
 .token-row { align-items: flex-start; flex-wrap: nowrap; }
 .token-row .input { min-width: 0; }
 @media (max-width: 420px) { .token-row { flex-wrap: wrap; } .token-row .btn { width: 100%; } }
+
+/* "Where alerts go": the less common places, folded under the two main ones. */
+.more-choices { margin-top: 2px; }
+.more-choices > summary { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 4px; cursor: pointer; list-style: none; font-weight: 580; color: var(--c-ink); }
+.more-choices > summary::-webkit-details-marker { display: none; }
+.more-choices > summary small { font-weight: 400; color: var(--c-text-2); }
+.more-choices > summary .i { transition: transform .15s; }
+.more-choices[open] > summary .i { transform: rotate(90deg); }
+.pair-qr { display: flex; gap: 14px; align-items: center; }
+.pair-qr .qr { width: 132px; height: 132px; padding: 8px; }

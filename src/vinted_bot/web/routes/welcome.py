@@ -149,7 +149,7 @@ async def _alerts_page(
         3,
         state,
         status_code=400 if errors else 200,
-        kind=dest.get("kind") or "ntfy",
+        kind=dest.get("kind") or "",
         form=dest.get("form") or {},
         ntfy_topic=(dest.get("form") or {}).get("ntfy_topic")
         or await alerts.ntfy_topic(context, fresh_if_used=False),

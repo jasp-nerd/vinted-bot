@@ -32,7 +32,7 @@ sur votre ordinateur, sans compte Vinted ni abonnement, là où les bots Vinted 
 ## Comment ça marche
 
 1. **Cherchez sur Vinted** comme d'habitude et copiez le lien. Ou construisez la recherche dans le tableau de bord.
-2. **Collez-le dans vinted-bot** et choisissez où vont les alertes : Discord, Telegram, votre téléphone, un e-mail.
+2. **Collez-le dans vinted-bot** et choisissez où vont les alertes : Telegram ou Discord, ou bien un e-mail et d'autres.
 3. **Recevez un message** pour chaque nouvelle annonce, avec les photos, le prix total protection acheteurs comprise, la taille, l'état et la note du vendeur.
 
 L'outil vérifie chaque minute. Le premier passage est silencieux exprès : vous n'entendez parler que des annonces publiées après l'ajout de la recherche.

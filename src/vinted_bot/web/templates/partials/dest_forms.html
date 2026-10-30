@@ -2,8 +2,9 @@
 {#
   The "where alerts go" choices, shared by setup step 3 and the Alerts page's add flow.
   Context: errors, form (previous answers), ntfy_topic, telegram {configured, bot},
-  providers, security_modes. Phone notification comes first: it is the one a
-  person can set up from a phone in a minute.
+  providers, security_modes, webhook (offer "Your own app" too). Telegram and Discord
+  come first, side by side in weight: they are what nearly everyone uses. The rest sit
+  under "More options", folded unless one of them is the current answer.
 #}
 {% set E = errors or {} %}
 {# The BotFather token, checked with Telegram by "Check and save" (or by Continue in setup). #}
@@ -30,25 +31,7 @@
 </div>
 {%- endmacro %}
 
-{% call choice("ntfy", "Notification on your phone", "Free app called ntfy. Install it, add one name, done. No account.", "smartphone", kind == "ntfy") %}
-  {% set topic = F.ntfy_topic or ntfy_topic %}
-  {# ntfy:// links subscribe the Android app in one tap. The iPhone app has no such link,
-     so the name itself stays big enough to type, with Copy for people already on the phone. #}
-  {% set ntfy_link = "ntfy://ntfy.sh/" ~ topic ~ "?display=vinted-bot" %}
-  <ol class="steps-list" style="padding-top:6px">
-    <li><span>On your phone, install <b>ntfy</b> from the <a href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">App Store</a> or <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Google Play</a>. It's free and doesn't ask for your name, email or number.</span></li>
-    <li><span>In ntfy, tap <b>+</b> and add this name: <span class="code code--lg" data-ntfy-topic>{{ topic }}</span> <button class="btn btn--ghost btn--sm" type="button" data-copy="{{ topic }}">{{ ui.icon("copy", "i-sm") }}Copy</button>
-      <a class="btn btn--secondary btn--sm show-sm ntfy-open" href="{{ ntfy_link }}">{{ ui.icon("smartphone", "i-sm") }}Open in ntfy (Android)</a></span></li>
-  </ol>
-  <div class="ntfy-qr hide-sm">
-    <div class="qr" data-qr="{{ ntfy_link }}" aria-hidden="true"></div>
-    <p class="t-sm"><b class="t-ink">Android:</b> scan this with your phone's camera and tap the link. ntfy opens with this name already added.<br><b class="t-ink">iPhone:</b> type the name above into ntfy. It stays the same if you come back later.</p>
-  </div>
-  <input type="hidden" name="ntfy_topic" value="{{ topic }}">
-  {{ ui.field_error(E, "ntfy_topic") }}
-{% endcall %}
-
-{% call choice("telegram", "Telegram", "A chat message in Telegram. You make a small private bot first (about 3 minutes).", "send", kind == "telegram") %}
+{% call choice("telegram", "Telegram", "Each find as a chat message with its photo. You make your own free bot first, about 3 minutes.", "send", kind == "telegram") %}
   <div class="stack-lg" style="padding:6px 2px 4px" data-tg-choice>
     {% if not telegram.configured %}
     <div class="stack" data-tg-setup>
@@ -74,6 +57,7 @@
         <span class="t-sm">Send this to your bot:</span>
         <b class="code" data-pair-command></b>
         <a class="btn btn--primary btn--sm" data-pair-link href="#" target="_blank" rel="noopener" hidden>{{ ui.icon("send", "i-sm") }}Open Telegram</a>
+        <div class="pair-qr hide-sm" data-pair-qr-wrap hidden><div class="qr" data-pair-qr aria-hidden="true"></div><p class="t-sm">Telegram on your phone? Scan this with the camera to open your bot there with the code ready.</p></div>
         <span class="row t-sm" style="gap:8px"><span class="spinner"></span>Waiting for your message</span>
       </div>
       <div class="notice notice--ok" data-pair-step="done" hidden>{{ ui.icon("circle-check-big") }}<span><strong>Connected.</strong> Alerts will arrive in that chat.</span></div>
@@ -83,7 +67,7 @@
   </div>
 {% endcall %}
 
-{% call choice("discord", "Discord", "A message in a Discord channel. You need your own server (free, 30 seconds).", "message-circle", kind == "discord") %}
+{% call choice("discord", "Discord", "Each find as a card in a channel of your server, with photos and buttons.", "message-circle", kind == "discord") %}
   <div class="stack-lg" style="padding:6px 2px 4px">
     <p class="t-sm">You need to be allowed to manage the channel. On a friend's server that only works if they make you an admin; otherwise <a href="https://support.discord.com/hc/en-us/articles/204849977" target="_blank" rel="noopener">make your own server</a>.</p>
     <div class="seg" role="tablist" aria-label="Where you use Discord" data-steps-toggle>
@@ -105,6 +89,27 @@
       {% if E.discord_url %}{{ ui.field_error(E, "discord_url") }}{% else %}<p class="help" data-discord-help>Starts with discord.com/api/webhooks/. Keep it to yourself: anyone with it can post in that channel.</p>{% endif %}
     </div>
   </div>
+{% endcall %}
+
+<details class="more-choices"{% if kind in ("ntfy", "apprise", "webhook") %} open{% endif %}>
+  <summary>{{ ui.icon("chevron-right", "i-sm") }}More options<small class="t-sm">Phone notification app, email{% if webhook %}, your own app{% endif %}</small></summary>
+  <div class="choices">
+{% call choice("ntfy", "Phone notification app", "A plain notification from the free ntfy app. No account.", "smartphone", kind == "ntfy") %}
+  {% set topic = F.ntfy_topic or ntfy_topic %}
+  {# ntfy:// links subscribe the Android app in one tap. The iPhone app has no such link,
+     so the name itself stays big enough to type, with Copy for people already on the phone. #}
+  {% set ntfy_link = "ntfy://ntfy.sh/" ~ topic ~ "?display=vinted-bot" %}
+  <ol class="steps-list" style="padding-top:6px">
+    <li><span>On your phone, install <b>ntfy</b> from the <a href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">App Store</a> or <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Google Play</a>. It's free and doesn't ask for your name, email or number.</span></li>
+    <li><span>In ntfy, tap <b>+</b> and add this name: <span class="code code--lg" data-ntfy-topic>{{ topic }}</span> <button class="btn btn--ghost btn--sm" type="button" data-copy="{{ topic }}">{{ ui.icon("copy", "i-sm") }}Copy</button>
+      <a class="btn btn--secondary btn--sm show-sm ntfy-open" href="{{ ntfy_link }}">{{ ui.icon("smartphone", "i-sm") }}Open in ntfy (Android)</a></span></li>
+  </ol>
+  <div class="ntfy-qr hide-sm">
+    <div class="qr" data-qr="{{ ntfy_link }}" aria-hidden="true"></div>
+    <p class="t-sm"><b class="t-ink">Android:</b> scan this with your phone's camera and tap the link. ntfy opens with this name already added.<br><b class="t-ink">iPhone:</b> type the name above into ntfy. It stays the same if you come back later.</p>
+  </div>
+  <input type="hidden" name="ntfy_topic" value="{{ topic }}">
+  {{ ui.field_error(E, "ntfy_topic") }}
 {% endcall %}
 
 {% call choice("apprise", "Email", "Alerts in your inbox. Needs an app password from your email provider.", "mail", kind == "apprise") %}
@@ -129,6 +134,23 @@
     <div class="field"><label class="label" for="em-pw">App password</label><input class="input" id="em-pw" name="email_password" type="password" autocomplete="off"{{ ui.invalid(E, 'email_password') }}>{{ ui.field_error(E, "email_password") }}<p class="help">Your provider makes one in its security settings (Gmail: Google Account, Security, App passwords). Your normal password usually won't work.</p></div>
     <details class="adv"><summary>{{ ui.icon("chevron-right") }}Slack, Pushover, Matrix and more</summary><div class="field"><label class="label" for="ap-url">Apprise link</label><input class="input" id="ap-url" name="apprise_url" type="text" autocomplete="off" spellcheck="false" value="{{ F.apprise_url or '' }}"><p class="help">For people who've set these up before. <a href="https://github.com/caronc/apprise/wiki" target="_blank" rel="noopener">Every service's link format</a>.</p></div></details>
   </div>
-  {{ ui.field_error(E, "kind") }}
   {{ ui.field_error(E, "config") }}
 {% endcall %}
+
+{% if webhook %}
+<div class="choice choice--group">
+  <label class="choice__row">
+    <input type="radio" name="kind" value="webhook"{% if kind == "webhook" %} checked{% endif %} data-kind-pick>
+    <span class="choice__icon dest__logo dest__logo--webhook">{{ ui.icon("webhook") }}</span>
+    <span class="choice__text"><span class="choice__title">Your own app</span><span class="choice__desc">A signed JSON post, for developers</span></span>
+    <span class="choice__tick">{{ ui.icon("check") }}</span>
+  </label>
+  <div class="choice-more"><div class="stack" style="padding-top:6px">
+    <div class="field"><label class="label" for="wh-url">Address</label><input class="input" id="wh-url" name="webhook_url" type="text" inputmode="url" placeholder="https://example.com/hook" value="{{ F.webhook_url or '' }}"></div>
+    <div class="field"><label class="label" for="wh-secret">Signing secret <small>optional</small></label><input class="input" id="wh-secret" name="webhook_secret" type="text" autocomplete="off"></div>
+  </div></div>
+</div>
+{% endif %}
+  </div>
+</details>
+{{ ui.field_error(E, "kind") }}

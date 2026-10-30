@@ -83,7 +83,7 @@ On a NAS the dashboard is reachable from the whole home network, so set a dashbo
 <!-- TODO(web): replace the step wording below with the exact names of the onboarding screens and buttons once the dashboard redesign is final. -->
 
 1. Open http://localhost:8000. On first start, the dashboard walks through setup.
-2. Add where alerts go (see Alerts below). Use the test button to check a message arrives.
+2. Add where alerts go (see Alerts below). Telegram and Discord are the two main choices and come first; a phone notification app (ntfy), email and webhooks are under "More options". Nothing is preselected. Use the test button to check a message arrives.
 3. Add a search. Easiest: go to the Vinted website for their country (vinted.fr, vinted.de, vinted.co.uk, vinted.nl, and so on), search and set filters as usual, copy the address from the browser's address bar, and paste it into the dashboard. Or build the search in the dashboard's search builder.
 4. Optionally set a maximum price (including buyer protection), words to leave out, sizes, condition and seller rating.
 5. Wait. The first check is silent; new matching listings arrive from then on.
@@ -107,7 +107,7 @@ The webhook link works like a password for posting into that channel. It goes on
 
 A Telegram bot cannot message someone first; that is a Telegram rule, which is why the link step exists.
 
-### ntfy, RSS and webhooks
+### More options: ntfy, email, RSS and webhooks
 
 - ntfy: install the ntfy app on the phone, pick a hard-to-guess topic name, subscribe to it in the app, and add an ntfy destination with that topic in the dashboard.
 - RSS: each search has a feed at http://localhost:8000/rss/SEARCH_ID.xml.

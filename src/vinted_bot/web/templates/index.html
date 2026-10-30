@@ -31,7 +31,7 @@
 {% endif %}
 
 {% if no_destinations and searches %}
-<div class="notice notice--sun" style="margin:16px 0">{{ ui.icon("triangle-alert") }}<div><p><strong>Finds only show on this page for now.</strong> Add your phone, Telegram or Discord to hear about them anywhere. <a href="{{ url('alerts') }}" style="color:inherit">Add a place for alerts</a></p></div></div>
+<div class="notice notice--sun" style="margin:16px 0">{{ ui.icon("triangle-alert") }}<div><p><strong>Finds only show on this page for now.</strong> Add Telegram or Discord to hear about them anywhere. <a href="{{ url('alerts') }}" style="color:inherit">Add a place for alerts</a></p></div></div>
 {% endif %}
 
 {% if support_look is not none %}{{ support.card(support_look) }}{% endif %}

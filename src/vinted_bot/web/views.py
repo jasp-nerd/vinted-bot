@@ -457,7 +457,7 @@ def quiet_summary(query: Query) -> str | None:
 KIND_NAMES = {
     "discord": "Discord",
     "telegram": "Telegram",
-    "ntfy": "Notification on your phone",
+    "ntfy": "Phone notification app",
     "apprise": "Email and more",
     "webhook": "Your own app",
 }
