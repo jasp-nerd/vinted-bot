@@ -12,10 +12,12 @@ been alive more than how fast it is used.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from dataclasses import dataclass
 from http import HTTPStatus
+from typing import Final
 
 from vinted_sniper.db import Database
 from vinted_sniper.log import get_logger
@@ -31,6 +33,17 @@ log = get_logger(__name__)
 # others that travel with it, and dropping them makes the request look assembled by hand.
 SESSION_COOKIE = "access_token_web"
 
+# Set by the homepage alongside the token. The search service wants the first echoed back
+# as X-Anon-Id and the second as Locale, which is what picks the market and currency.
+ANON_ID_COOKIE = "anon_id"
+LOCALE_COOKIE = "anonymous-iso-locale"
+
+# Several searches on one site hit the same refusal at once, and each asks for a new
+# session. A session younger than this that has not itself been refused was minted in
+# answer to that same refusal, so replacing it again would only multiply homepage loads
+# at the worst possible moment.
+_JUST_MINTED_S: Final = 30
+
 
 @dataclass(slots=True)
 class Session:
@@ -44,6 +57,9 @@ class Session:
     # The route this session's cookie was minted through. Replaying it from somewhere else
     # is the kind of inconsistency anti-bot systems look for, so it travels with it.
     proxy: str | None = None
+    # Set when Vinted refused a request made with this session (401 or 403). Lets
+    # `invalidate` and `rotate` tell the refused session from its replacement.
+    failed: bool = False
 
     def age_s(self, now: int | None = None) -> int:
         return (now if now is not None else int(time.time())) - self.created_at
@@ -51,6 +67,15 @@ class Session:
     @property
     def cookie_header(self) -> dict[str, str]:
         return dict(self.cookies)
+
+    @property
+    def anon_id(self) -> str | None:
+        return self.cookies.get(ANON_ID_COOKIE)
+
+    @property
+    def locale(self) -> str:
+        """The locale the site chose for this visitor, e.g. 'pl-PL'."""
+        return self.cookies.get(LOCALE_COOKIE) or hdr.fallback_locale(self.tld)
 
 
 class SessionManager:
@@ -74,6 +99,10 @@ class SessionManager:
         self._rotate_after_s = rotate_after_minutes * 60
         self._proxies = proxies or ProxyRotation()
         self._cache: dict[str, Session] = {}
+        self._locks: dict[str, asyncio.Lock] = {}
+
+    def _lock(self, tld: str) -> asyncio.Lock:
+        return self._locks.setdefault(tld, asyncio.Lock())
 
     def transport_for(self, session: Session) -> Transport:
         """The client that reaches Vinted the same way this session was created."""
@@ -84,35 +113,58 @@ class SessionManager:
         return self._transport
 
     async def get(self, tld: str) -> Session:
-        """Return a usable session for a site, creating or replacing it as needed."""
-        session = self._cache.get(tld) or await self._load(tld)
+        """Return a usable session for a site, creating or replacing it as needed.
 
+        Creation is serialised per site: ten searches starting together on vinted.it
+        should cost one homepage load, not ten in the same second.
+        """
+        if (session := self._usable(self._cache.get(tld))) is not None:
+            return session
+        async with self._lock(tld):
+            session = self._usable(self._cache.get(tld)) or self._usable(await self._load(tld))
+            if session is None:
+                session = await self.bootstrap(tld)
+            self._cache[tld] = session
+            return session
+
+    def _usable(self, session: Session | None) -> Session | None:
         if session is not None and session.age_s() >= self._rotate_after_s:
-            log.info("session.expired", tld=tld, age_s=session.age_s())
-            session = None
-
-        if session is None:
-            session = await self.bootstrap(tld)
-
-        self._cache[tld] = session
+            log.info("session.expired", tld=session.tld, age_s=session.age_s())
+            return None
         return session
 
     async def invalidate(self, tld: str) -> None:
-        """Drop a session so the next call starts a new one."""
-        self._cache.pop(tld, None)
-        await self._db.execute("DELETE FROM sessions WHERE tld = ?", (tld,))
+        """Drop a session so the next call starts a new one.
+
+        If the current session is not the one that was refused but one minted moments
+        ago, it is kept: it is the answer to the very failure being reported, already
+        obtained by another search on the same site.
+        """
+        async with self._lock(tld):
+            await self._drop(tld)
 
     async def rotate(self, tld: str, *, blocked: bool = False) -> Session:
         """Replace a session outright, with a different browser persona.
 
         When the old one was refused rather than merely old, its route is set aside too:
-        a new cookie down the same blocked path buys nothing.
+        a new cookie down the same blocked path buys nothing. A replacement minted moments
+        ago is kept, as in `invalidate`.
         """
-        previous = self._cache.get(tld)
-        await self.invalidate(tld)
-        if blocked and previous is not None:
-            self._proxies.bench(previous.proxy, QUARANTINE_BLOCKED_S, "refused by Vinted")
+        async with self._lock(tld):
+            previous = await self._drop(tld)
+            if blocked and previous is not None:
+                self._proxies.bench(previous.proxy, QUARANTINE_BLOCKED_S, "refused by Vinted")
         return await self.get(tld)
+
+    async def _drop(self, tld: str) -> Session | None:
+        """Forget the current session unless it is a fresh replacement. Returns it if dropped."""
+        current = self._cache.get(tld)
+        if current is not None and not current.failed and current.age_s() < _JUST_MINTED_S:
+            log.debug("session.already_replaced", tld=tld, age_s=current.age_s())
+            return None
+        self._cache.pop(tld, None)
+        await self._db.execute("DELETE FROM sessions WHERE tld = ?", (tld,))
+        return current
 
     async def bootstrap(self, tld: str) -> Session:
         """Load the site's homepage the way a browser would, and keep what it sets."""
@@ -138,17 +190,22 @@ class SessionManager:
             raise BlockedError(
                 f"vinted.{tld} refused the connection before we could get a session. "
                 "This is usually the address you are coming from rather than the app; "
-                "see docs/troubleshooting.md."
+                "see docs/troubleshooting.md.",
+                status_code=response.status_code,
             )
         if response.status_code >= HTTPStatus.BAD_REQUEST:
-            raise NetworkError(f"vinted.{tld} answered {response.status_code} on the homepage")
+            raise NetworkError(
+                f"vinted.{tld} answered {response.status_code} on the homepage",
+                status_code=response.status_code,
+            )
 
         cookies = dict(response.cookies)
         if SESSION_COOKIE not in cookies:
             raise BlockedError(
                 f"vinted.{tld} served a page but set no {SESSION_COOKIE} cookie. "
                 "Run the check in docs/troubleshooting.md to see whether your address is "
-                "being challenged."
+                "being challenged.",
+                status_code=response.status_code,
             )
 
         session = Session(
@@ -207,11 +264,11 @@ class SessionManager:
         try:
             cookies = json.loads(row["cookies_json"])
         except json.JSONDecodeError:
-            await self.invalidate(tld)
+            await self._db.execute("DELETE FROM sessions WHERE tld = ?", (tld,))
             return None
 
         if not isinstance(cookies, dict) or SESSION_COOKIE not in cookies:
-            await self.invalidate(tld)
+            await self._db.execute("DELETE FROM sessions WHERE tld = ?", (tld,))
             return None
 
         return Session(

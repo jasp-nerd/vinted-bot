@@ -8,7 +8,15 @@ from __future__ import annotations
 
 
 class VintedError(Exception):
-    """Base class for everything in this module."""
+    """Base class for everything in this module.
+
+    Carries the HTTP status when there was one, so a diagnosis can say what Vinted
+    actually answered rather than guessing from the type.
+    """
+
+    def __init__(self, message: str = "", *, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class AuthExpiredError(VintedError):
@@ -34,7 +42,7 @@ class RateLimitedError(VintedError):
     def __init__(self, retry_after: float | None = None) -> None:
         self.retry_after = retry_after
         wait = f" for {retry_after:.0f}s" if retry_after else ""
-        super().__init__(f"rate limited{wait}")
+        super().__init__(f"rate limited{wait}", status_code=429)
 
 
 class MalformedResponseError(VintedError):
@@ -42,6 +50,22 @@ class MalformedResponseError(VintedError):
 
     Worth its own type: it usually means the response shape changed, which needs a code
     fix, not a retry.
+    """
+
+
+class ApiChangedError(MalformedResponseError):
+    """An endpoint we rely on answered 404: Vinted moved or removed it.
+
+    Not transient, and not something a retry or a new session fixes. It needs a new
+    version of this app, so it is reported loudly instead of looking like a network blip.
+    """
+
+
+class InvalidSearchError(MalformedResponseError):
+    """Vinted refused the search's parameters (HTTP 400).
+
+    The search itself needs editing; asking again with the same filters gets the same
+    answer.
     """
 
 

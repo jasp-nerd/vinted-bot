@@ -1,9 +1,12 @@
 """What our requests look like on the wire.
 
-Two request shapes matter. Fetching the homepage to pick up a session cookie should look
-like a person opening the site in a tab. Fetching the catalog afterwards should look like
-the page's own background request. Sending the wrong shape for either is the cheapest way
-to stand out, so they are kept apart here rather than assembled ad hoc at the call site.
+Three request shapes matter. Fetching the homepage to pick up a session cookie should look
+like a person opening the site in a tab. Calls to the site's own `/api/v2` (members,
+wardrobes, brands) should look like the page's background requests. Calls to the separate
+`api.` host (search and filters, since September 2026) carry a few extra headers the site's
+frontend adds there, and two of them decide which market answers. Sending the wrong shape
+for any of these is the cheapest way to stand out, so they are kept apart here rather than
+assembled ad hoc at the call site.
 
 Header order is part of the picture too — browsers send these in a consistent order — so
 these dictionaries are built in the order they should go out, and nothing downstream
@@ -44,6 +47,11 @@ _ACCEPT_LANGUAGE: Final[dict[str, str]] = {
     "dk": "da-DK,da;q=0.9,en-US;q=0.8,en;q=0.7",
     "ie": "en-IE,en;q=0.9,en-US;q=0.8",
     "lu": "fr-LU,fr;q=0.9,de-LU;q=0.8,en;q=0.7",
+    "hr": "hr-HR,hr;q=0.9,en-US;q=0.8,en;q=0.7",
+    "si": "sl-SI,sl;q=0.9,en-US;q=0.8,en;q=0.7",
+    "ee": "et-EE,et;q=0.9,en-US;q=0.8,en;q=0.7",
+    "lv": "lv-LV,lv;q=0.9,en-US;q=0.8,en;q=0.7",
+    "bg": "bg-BG,bg;q=0.9,en-US;q=0.8,en;q=0.7",
     "co.uk": "en-GB,en;q=0.9,en-US;q=0.8",
     "com": "en-US,en;q=0.9",
 }
@@ -124,6 +132,16 @@ def accept_language(tld: str) -> str:
     return _ACCEPT_LANGUAGE.get(tld, _DEFAULT_ACCEPT_LANGUAGE)
 
 
+def fallback_locale(tld: str) -> str:
+    """The site's locale when the session did not say, e.g. 'fr-FR'.
+
+    Only a fallback: the homepage sets the real one in its `anonymous-iso-locale` cookie,
+    and the two differ where Vinted has no translation (vinted.bg answers `bg-BG` with
+    untranslated keys such as `size.776.title`).
+    """
+    return accept_language(tld).split(",", 1)[0]
+
+
 def document_headers(tld: str, identity: BrowserIdentity) -> dict[str, str]:
     """Headers for loading the site itself — the request that earns us a session cookie."""
     headers = {
@@ -150,7 +168,7 @@ def document_headers(tld: str, identity: BrowserIdentity) -> dict[str, str]:
 
 
 def api_headers(tld: str, identity: BrowserIdentity, referer: str | None = None) -> dict[str, str]:
-    """Headers for the catalog call — the shape the site's own page scripts use."""
+    """Headers for `/api/v2` calls on the site's own host — members, wardrobes, brands."""
     origin = f"https://www.vinted.{tld}"
     headers = {
         "User-Agent": identity.user_agent,
@@ -170,4 +188,52 @@ def api_headers(tld: str, identity: BrowserIdentity, referer: str | None = None)
         headers["Sec-CH-UA"] = sec_ch_ua
         headers["Sec-CH-UA-Mobile"] = "?1" if identity.mobile else "?0"
         headers["Sec-CH-UA-Platform"] = identity.sec_ch_ua_platform
+    return headers
+
+
+def catalogue_headers(
+    tld: str, identity: BrowserIdentity, *, locale: str, anon_id: str | None
+) -> dict[str, str]:
+    """Headers for the search and filter services on the separate `api.` host.
+
+    `Locale` picks the market: without it every site answers with the euro-priced French
+    catalog, so a price limit typed in złoty would be compared against euros. `X-Anon-Id`
+    ties the request to the session the homepage handed out, as the site's own frontend
+    does. The request is cross-host, hence `same-site` and an explicit Origin.
+    """
+    origin = f"https://www.vinted.{tld}"
+    headers = {
+        "User-Agent": identity.user_agent,
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": accept_language(tld),
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+        "Origin": origin,
+        "Referer": f"{origin}/",
+        "Locale": locale,
+        "Platform": "web",
+        "X-Next-App": "marketplace-web",
+    }
+    if anon_id:
+        headers["X-Anon-Id"] = anon_id
+    headers.update(
+        {
+            "DNT": "1",
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-site",
+            "Connection": "keep-alive",
+        }
+    )
+    if sec_ch_ua := identity.sec_ch_ua:
+        headers["Sec-CH-UA"] = sec_ch_ua
+        headers["Sec-CH-UA-Mobile"] = "?1" if identity.mobile else "?0"
+        headers["Sec-CH-UA-Platform"] = identity.sec_ch_ua_platform
+    return headers
+
+
+def page_headers(tld: str, identity: BrowserIdentity) -> dict[str, str]:
+    """Headers for opening another page of the site from within it — an item page."""
+    headers = document_headers(tld, identity)
+    headers["Sec-Fetch-Site"] = "same-origin"
+    headers["Referer"] = f"https://www.vinted.{tld}/"
     return headers
