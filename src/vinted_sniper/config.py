@@ -7,6 +7,7 @@ never a question of which copy of a setting wins.
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 from typing import Literal
 
@@ -36,6 +37,28 @@ def _in_container() -> bool:
 
 # Where 1.x kept the database, relative to wherever the app was started.
 LEGACY_DB_PATH = Path("./data/app.db")
+
+
+def system_timezone() -> str:
+    """The computer's own time zone, or UTC when it can't be told.
+
+    Without this the default was UTC, and on a computer in Amsterdam every time on the
+    dashboard and every quiet hour was an hour off. Read the way tzlocal does it, without
+    the dependency: the /etc/localtime link (Linux and macOS) points into the zoneinfo
+    folder, and Debian also writes the name to /etc/timezone. TZ itself is read by the
+    field below. Windows has neither; the dashboard asks the browser there instead.
+    """
+    candidates: list[str] = []
+    with contextlib.suppress(OSError):
+        target = str(Path("/etc/localtime").resolve())
+        if "zoneinfo/" in target:
+            candidates.append(target.split("zoneinfo/", 1)[1])
+    with contextlib.suppress(OSError):
+        candidates.append(Path("/etc/timezone").read_text(encoding="utf-8").strip())
+    for name in candidates:
+        with contextlib.suppress(InvalidInputError):
+            return parse_timezone(name)
+    return "UTC"
 
 
 def default_db_path() -> Path:
@@ -84,10 +107,11 @@ class Settings(BaseSettings):
 
     # --- Time ----------------------------------------------------------------------
     timezone: str = Field(
-        default="UTC",
+        default_factory=system_timezone,
         validation_alias=AliasChoices("VINTED_SNIPER_TIMEZONE", "TZ"),
         description="IANA time zone for quiet hours and the stats page, such as "
-        "Europe/Paris. Falls back to TZ. The dashboard's settings page overrides it.",
+        "Europe/Paris. Falls back to TZ, then to the computer's own time zone. The "
+        "dashboard's settings page overrides it.",
     )
 
     # --- Logging -------------------------------------------------------------------

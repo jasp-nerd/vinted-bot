@@ -11,6 +11,7 @@
   </div>
 </div>
 
+{# Only real trouble gets the banner; "same results lately" clears itself and says so in its row. #}
 {% set waiting = searches|selectattr("status", "in", ["stuck", "blocked"])|list %}
 {% if waiting %}
 <div class="notice notice--sun" style="margin-bottom:20px">{{ ui.icon("hourglass") }}<div><p><strong>{{ waiting|length }} {{ "search is" if waiting|length == 1 else "searches are" }} waiting on Vinted.</strong> You don't need to do anything; they retry on their own. If it lasts more than a day, <a href="{{ url('settings') }}#vinted" style="color:inherit">see what you can do</a>.</p></div></div>
@@ -32,10 +33,9 @@
     </div>
     <div class="chips chips--scroll" role="group" aria-label="Show">
       <button class="chip" type="button" aria-pressed="true" data-status-filter="all">All <span class="chip__count">{{ searches|length }}</span></button>
-      <button class="chip" type="button" aria-pressed="false" data-status-filter="watching"><span class="status status--watching">Watching</span> <span class="chip__count">{{ counts.watching }}</span></button>
-      <button class="chip" type="button" aria-pressed="false" data-status-filter="quiet"><span class="status status--quiet">Quiet</span> <span class="chip__count">{{ counts.quiet }}</span></button>
-      <button class="chip" type="button" aria-pressed="false" data-status-filter="stuck"><span class="status status--stuck">Waiting on Vinted</span> <span class="chip__count">{{ counts.stuck }}</span></button>
-      <button class="chip" type="button" aria-pressed="false" data-status-filter="paused"><span class="status status--paused">Paused</span> <span class="chip__count">{{ counts.paused }}</span></button>
+      {% if counts.running %}<button class="chip" type="button" aria-pressed="false" data-status-filter="running"><span class="status status--watching">Running</span> <span class="chip__count">{{ counts.running }}</span></button>{% endif %}
+      {% if counts.waiting %}<button class="chip" type="button" aria-pressed="false" data-status-filter="waiting"><span class="status status--stuck">Waiting on Vinted</span> <span class="chip__count">{{ counts.waiting }}</span></button>{% endif %}
+      {% if counts.paused %}<button class="chip" type="button" aria-pressed="false" data-status-filter="paused"><span class="status status--paused">Paused</span> <span class="chip__count">{{ counts.paused }}</span></button>{% endif %}
     </div>
   </div>
 </div>
@@ -58,14 +58,14 @@
   </div>
   <ul class="slist">
     {% for s in searches %}
-    <li class="srow{% if s.paused %} srow--paused{% endif %}" data-status="{{ 'stuck' if s.status in ('stuck', 'blocked') else s.status }}" style="--sc: {{ s.color }}">
+    <li class="srow{% if s.paused %} srow--paused{% endif %}" data-filters="{% if s.status == 'paused' %}paused{% else %}running{% if s.status in ('stuck', 'blocked', 'stale') %} waiting{% endif %}{% endif %}" style="--sc: {{ s.color }}">
       <label class="check"><input type="checkbox" name="ids" value="{{ s.id }}" form="bulk" data-select-row aria-label="Select {{ s.name }}"></label>
       <span class="srow__bar" aria-hidden="true"></span>
       <div class="srow__main">
         <a class="srow__name" href="{{ url('search_detail', id=s.id) }}">{{ s.name }}</a>
         <span class="srow__sum">{{ s.sites }} · {{ s.summary }}</span>
         <span class="srow__dest meta">
-          {% for k in s.dests %}<span>{{ ui.dest_icon(k) }}{{ s.dest_names[loop.index0] }}</span>{% else %}<span class="t-muted">Only on this page</span>{% endfor %}
+          {% for k in s.dests %}<span{% if s.dest_off[loop.index0] %} class="is-off" title="Turned off. Fix it on Alerts."{% endif %}>{{ ui.dest_icon(k) }}{{ s.dest_names[loop.index0] }}{% if s.dest_off[loop.index0] %} (off){% endif %}</span>{% else %}<span class="t-muted">Only on this page</span>{% endfor %}
           <span class="t-muted">checks {{ s.interval_human }}</span>
         </span>
       </div>
@@ -100,16 +100,17 @@
 <details class="section" id="status-help" style="margin-top:28px">
   <summary class="t-h3" style="cursor:pointer">What the statuses mean</summary>
   <div class="grid-3" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-top:12px">
-    <div class="well stack" style="gap:6px">{{ ui.status("watching", "Watching") }}<p class="t-sm">Checked recently and working. New listings arrive as soon as Vinted shows them in search.</p></div>
-    <div class="well stack" style="gap:6px">{{ ui.status("quiet", "Quiet") }}<p class="t-sm">Working, but nothing new for a while. That's normal for narrow searches and at night.</p></div>
-    <div class="well stack" style="gap:6px">{{ ui.status("stuck", "Waiting on Vinted") }}<p class="t-sm">Vinted keeps showing the same results, or answered strangely. Nothing you need to do; it usually sorts itself out within the hour.</p></div>
+    <div class="well stack" style="gap:6px">{{ ui.status("watching", "Running") }}<p class="t-sm">Checked recently and working. New listings arrive as soon as Vinted shows them in search.</p></div>
+    <div class="well stack" style="gap:6px">{{ ui.status("quiet", "Quiet") }}<p class="t-sm">Running fine, but nothing new for a while. That's normal for narrow searches and at night.</p></div>
+    <div class="well stack" style="gap:6px">{{ ui.status("stale", "Same results lately") }}<p class="t-sm">Vinted answers, but keeps showing this search the same listings. Nothing you need to do; it usually sorts itself out within the hour.</p></div>
+    <div class="well stack" style="gap:6px">{{ ui.status("stuck", "Waiting on Vinted") }}<p class="t-sm">Vinted answered strangely, or we couldn't reach it. We keep trying on our own.</p></div>
     <div class="well stack" style="gap:6px">{{ ui.status("blocked", "Slowed down by Vinted") }}<p class="t-sm">Vinted asked us to slow down. We wait a few minutes and try again. Your Vinted account is not affected: we never use one.</p></div>
     <div class="well stack" style="gap:6px">{{ ui.status("paused", "Paused") }}<p class="t-sm">You paused it. No checks and no alerts until you resume.</p></div>
   </div>
 </details>
 {% endif %}
 
-<section class="card card--pad stack" style="margin-top:28px">
+<section class="card card--pad stack hide-sm" style="margin-top:28px">
   <h2 class="t-h3">Add searches straight from Vinted</h2>
   <p class="t-sm">Drag this button to your bookmarks bar. On any Vinted search, click it and the search opens here, ready to save.</p>
   <div class="row"><a class="btn btn--secondary btn--sm" href="{{ bookmarklet }}" data-bookmarklet>{{ ui.icon("bookmark", "i-sm") }}Watch this search</a><span class="t-sm">Or paste a Vinted link into <a href="{{ url('search_new') }}">New search</a>.</span></div>

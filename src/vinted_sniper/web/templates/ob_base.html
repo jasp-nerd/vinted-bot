@@ -7,11 +7,11 @@
   <title>{% block title %}Welcome{% endblock %} · vinted-sniper</title>
   {% include "partials/head.html" %}
 </head>
-<body class="is-task">
+<body class="is-task"{% if guess_timezone %} data-guess-tz{% endif %}>
 {% include "partials/icons.svg" %}
 {#
-  Setup: one question per screen. Answers travel in the hidden "state" field and nothing
-  is stored until "Open my finds". Skipping stores nothing but "setup done".
+  Setup: one question per screen. Answers travel in the hidden "state" field; the search
+  and the place for alerts are stored at the test step. Skipping stores only "setup done".
 #}
 <div class="ob {% block ob_class %}{% endblock %}">
   <div class="ob__main">

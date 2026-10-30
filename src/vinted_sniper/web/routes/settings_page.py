@@ -7,8 +7,10 @@ how to change them rather than offering a switch that could not stick.
 
 from __future__ import annotations
 
+import secrets
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, available_timezones
 
@@ -56,9 +58,14 @@ async def settings_page(request: Request) -> Response:
     for search in snapshot.searches:
         if search.paused:
             continue
-        site = sites.setdefault(search.tld, {"tld": search.tld, "ok": True, "last": None})
+        site = sites.setdefault(
+            search.tld, {"tld": search.tld, "ok": True, "last": None, "same_results": 0}
+        )
         if search.last_status == "http_403":
             site["ok"] = False
+        # The watchdog's "same results lately": Vinted answers, one search just isn't moving.
+        if search.checks_without_new_listings >= context.settings.watchdog_stale_cycles:
+            site["same_results"] += 1
         if search.last_success_at:
             site["last"] = max(site["last"] or 0, search.last_success_at)
     totals = await repo.totals(tz)
@@ -104,6 +111,11 @@ async def settings_page(request: Request) -> Response:
             "freshness": context.settings.freshness_window_min,
             "phone": core.phone_address(context.settings),
             "loopback": context.settings.web_is_loopback,
+            # The settings file is the .env in the folder the app was started from.
+            "settings_file": str(Path.cwd() / ".env"),
+            "in_container": core.in_container(),
+            # A ready-made password to paste, so nobody has to invent one on the spot.
+            "suggested_password": secrets.token_urlsafe(9),
             "bookmarklet": bookmarklet(base),
             "self_hosting": core.SELF_HOSTING_URL,
         },
@@ -122,6 +134,10 @@ async def save_setting(request: Request) -> Response:
         match key:
             case "timezone":
                 await repo.set_timezone(value)
+            case "timezone_guess":
+                # Sent once by a browser when the computer's own zone couldn't be read.
+                if await core.needs_timezone(core.ctx(request)):
+                    await repo.set_timezone(value)
             case "theme":
                 await repo.set_theme(value)
             case "update_check":

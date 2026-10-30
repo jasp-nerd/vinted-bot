@@ -7,7 +7,7 @@
   <title>{% block title %}Finds{% endblock %} · vinted-sniper</title>
   {% include "partials/head.html" %}
 </head>
-<body class="{% block body_class %}{% endblock %}" data-theme-pref="{{ app.theme if app else 'system' }}">
+<body class="{% block body_class %}{% endblock %}" data-theme-pref="{{ app.theme if app else 'system' }}"{% if app and app.guess_timezone %} data-guess-tz{% endif %}>
 {% include "partials/icons.svg" %}
 <a class="skip" href="#main">Skip to content</a>
 
@@ -38,12 +38,13 @@
       {% if app %}
       <a class="live hide-sm" href="{{ url('searches') }}">
         <i class="pulse" aria-hidden="true"></i>
-        <span><b>Watching {{ app.searches_active }}</b><span class="live__long"> {{ "search" if app.searches_active == 1 else "searches" }}</span></span>
+        <span><b>{{ app.searches_active }} running</b></span>
       </a>
       {% endif %}
-      <button class="btn btn--ghost btn--sm" type="button" data-sound aria-pressed="false" title="Sound in this tab for new finds">{{ ui.icon("volume-x") }}<span class="sound-label hide-sm" data-sound-label>Sound off</span></button>
+      <button class="btn btn--ghost btn--sm" type="button" data-sound aria-pressed="false" title="A chime in this tab for new finds. Your phone's alerts don't change.">{{ ui.icon("volume-x") }}<span class="sound-label" data-sound-label>Sound off</span></button>
       <button class="btn btn--icon hide-sm" type="button" data-theme-toggle aria-label="Switch to dark mode">{{ ui.icon("moon") }}</button>
-      <a class="btn btn--primary btn--sm" href="{{ url('search_new') }}">{{ ui.icon("plus") }}<span class="hide-sm">New search</span><span class="sr-only show-sm">New search</span></a>
+      {# One loud button per page: pages with their own main action get a quiet one here. #}
+      <a class="btn {{ 'btn--secondary' if nav in ('searches', 'alerts') else 'btn--primary' }} btn--sm" href="{{ url('search_new') }}">{{ ui.icon("plus") }}<span class="hide-sm">New search</span><span class="sr-only show-sm">New search</span></a>
     </div>
   </div>
   <nav class="navrow" aria-label="Main">

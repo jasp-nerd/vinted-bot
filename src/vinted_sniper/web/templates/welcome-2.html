@@ -11,7 +11,7 @@
   <label class="choice choice--compact">
     <input type="radio" name="tld" value="{{ t }}"{% if t == tld %} checked{% endif %}>
     <span class="choice__icon choice__icon--code" aria-hidden="true">{{ code }}</span>
-    <span class="choice__text"><span class="choice__title">{{ name }}{% if t == tld and guessed %} <small class="t-sm">(guessed from your language)</small>{% endif %}</span><span class="choice__desc">vinted.{{ t }} · prices in {{ currency(t) }}</span></span>
+    <span class="choice__text"><span class="choice__title">{{ name }}</span><span class="choice__desc">vinted.{{ t }} · prices in {{ currency(t) }}{% if t == tld and guessed %} · guessed from your language{% endif %}</span></span>
     <span class="choice__tick">{{ ui.icon("check") }}</span>
   </label>
   {% endfor %}

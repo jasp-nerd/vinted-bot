@@ -109,6 +109,9 @@ def settings(tmp_path: Path) -> Settings:
         poll_default_interval_s=60,
         freshness_window_min=20,
         first_run_mode="silent",
+        # Pinned: the default is now this computer's own zone, and quiet-hours tests
+        # build their windows in UTC.
+        timezone="UTC",
     )
 
 

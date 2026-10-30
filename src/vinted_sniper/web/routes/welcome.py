@@ -1,24 +1,27 @@
 """The first-run setup: country, a first search, where alerts go, a real test, done.
 
-Answers travel from step to step in one hidden field and nothing is stored until "Open
-my finds", so leaving halfway leaves nothing half-made. The one exception is Telegram:
-pairing needs a waiting destination for the bot to claim, so that is created when the
-person asks for a code (and reused if they ask again).
+Answers travel from step to step in one hidden field. The search and the place for alerts
+are stored at the test step, as soon as there is something worth keeping: the last screen
+tells people they can close the tab, and by then their phone is subscribed to a topic
+that has to exist. The ids of what was stored travel along too, so going back and
+changing an answer updates those rows instead of adding a second search. Telegram's
+place exists even earlier: pairing needs a waiting destination for the bot to claim.
 """
 
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from typing import Any, TypeGuard
 
 from fastapi import APIRouter, Request
 from fastapi.datastructures import FormData
 from fastapi.responses import RedirectResponse, Response
 
-from vinted_sniper.db.repo import Query
+from vinted_sniper.db.repo import Query, Repo
 from vinted_sniper.engine.validation import InvalidInputError
 from vinted_sniper.vinted import urls
-from vinted_sniper.web import core, destinations, forms, views
+from vinted_sniper.web import core, data, destinations, forms, views
 from vinted_sniper.web.routes import alerts
 
 router = APIRouter()
@@ -45,10 +48,18 @@ async def _page(
     status_code: int = 200,
     **extra: Any,
 ) -> Response:
+    context = core.ctx(request)
     return core.TEMPLATES.TemplateResponse(
         request,
         template,
-        {"step": step, "state": state, "state_json": json.dumps(state), "app": None, **extra},
+        {
+            "step": step,
+            "state": state,
+            "state_json": json.dumps(state),
+            "app": None,
+            "guess_timezone": await core.needs_timezone(context),
+            **extra,
+        },
         status_code=status_code,
     )
 
@@ -140,7 +151,8 @@ async def _alerts_page(
         status_code=400 if errors else 200,
         kind=dest.get("kind") or "ntfy",
         form=dest.get("form") or {},
-        ntfy_topic=(dest.get("form") or {}).get("ntfy_topic") or destinations.new_ntfy_topic(),
+        ntfy_topic=(dest.get("form") or {}).get("ntfy_topic")
+        or await alerts.ntfy_topic(context, fresh_if_used=False),
         errors=errors or {},
         telegram=await alerts.telegram_setup(context),
         apprise=destinations.apprise_installed(),
@@ -198,6 +210,8 @@ async def _test(request: Request, state: dict[str, Any]) -> Response:
     else:
         result = await alerts.test_unsaved(context, dest["kind"], dest["name"], dest["config"], tld)
     state["test"] = {"ok": result["ok"]}
+    # Kept now, not on the last screen: from here on the person may simply walk away.
+    await _save(context, state)
     return await _page(
         request,
         "welcome-5.html",
@@ -215,6 +229,9 @@ async def _test(request: Request, state: dict[str, Any]) -> Response:
 async def test_again(request: Request) -> Response:
     form = await request.form()
     state = _state(form.get("state"))
+    if form.get("next") == "ready" and not (state.get("test") or {}).get("ok"):
+        # "Skip, show finds only here" after a test that didn't arrive.
+        state["dest"] = {"kind": "skip"}
     if form.get("next") == "ready" or not state.get("dest"):
         return await _ready(request, state)
     return await _test(request, state)
@@ -228,6 +245,7 @@ async def _ready(request: Request, state: dict[str, Any]) -> Response:
     parsed, _ = forms.collect_errors(
         _search_values(state, tld, interval), default_interval=interval
     )
+    await _save(context, state)
     dest = state.get("dest") or {}
     return await _page(
         request,
@@ -260,17 +278,14 @@ def _preview_query(parsed: forms.ParsedSearch) -> Query:
 
 @router.post("/welcome/finish")
 async def finish(request: Request) -> Response:
-    """Store everything the setup collected, checked again first so nothing is half-made."""
+    """The last screen's button. Everything is stored already; this checks it once more."""
     context = core.ctx(request)
-    repo = context.repo
     form = await request.form()
     state = _state(form.get("state"))
     tld = state.get("tld") or "nl"
     interval = max(context.settings.poll_default_interval_s, 60)
-    parsed, errors = forms.collect_errors(
-        _search_values(state, tld, interval), default_interval=interval
-    )
-    if parsed is None:
+    errors = await _save(context, state)
+    if errors:
         state["search"] = {**(state.get("search") or {}), "mode": "paste"}
         return await _page(
             request,
@@ -280,34 +295,97 @@ async def finish(request: Request) -> Response:
             status_code=400,
             f=_search_values(state, tld, interval),
             mode="paste",
-            errors=errors or {"link": "Something about this search changed. Check it again."},
+            errors=errors,
             currency=views.symbol(views.currency_for(tld)),
             previews=context.previews is not None,
             builder=context.taxonomy is not None,
         )
-    dest = state.get("dest") or {}
-    route: list[int] = []
-    if dest.get("kind") == "telegram" and dest.get("id"):
-        route = [int(dest["id"])]
-    elif dest.get("kind") in destinations.KINDS and isinstance(dest.get("config"), dict):
-        route = [
-            await repo.add_destination(kind=dest["kind"], name=dest["name"], config=dest["config"])
-        ]
-    query_id = await repo.add_query(
-        name=parsed.name,
-        url=parsed.url,
-        tld=parsed.tld,
-        params=parsed.params,
-        poll_interval_s=parsed.poll_interval_s,
-        **parsed.filters,
+    return core.redirect("/", "All set. Your search is running.")
+
+
+async def _save(context: core.WebContext, state: dict[str, Any]) -> dict[str, str]:
+    """Store the search, and the place for alerts once its test arrived.
+
+    Safe to call on every step after the test: the ids in `state["saved"]` make it
+    update what an earlier call stored. Returns the search's field errors, if any.
+    """
+    repo = context.repo
+    tld = state.get("tld") or "nl"
+    interval = max(context.settings.poll_default_interval_s, 60)
+    parsed, errors = forms.collect_errors(
+        _search_values(state, tld, interval), default_interval=interval
     )
-    await repo.set_routes(query_id, route)
+    if parsed is None:
+        return errors or {"link": "Something about this search changed. Check it again."}
+    stored = state.get("saved")
+    saved: dict[str, Any] = stored if isinstance(stored, dict) else {}
+    destination_id = await _save_destination(repo, state, _int(saved.get("destination_id")))
+    query_id = await _save_query(repo, parsed, _int(saved.get("query_id")))
+    await repo.set_routes(query_id, [destination_id] if destination_id else [])
     await repo.set_onboarded(True)
-    return core.redirect(
-        "/",
-        "You're set. The first check skips what's already on Vinted, so only new "
-        "listings alert you.",
+    state["saved"] = {"query_id": query_id, "destination_id": destination_id}
+    return {}
+
+
+def _int(value: Any) -> int | None:
+    return value if isinstance(value, int) and value > 0 else None
+
+
+async def _save_query(repo: Repo, parsed: forms.ParsedSearch, query_id: int | None) -> int:
+    existing = await repo.get_query(query_id) if query_id else None
+    if existing is None:
+        return await repo.add_query(
+            name=parsed.name,
+            url=parsed.url,
+            tld=parsed.tld,
+            params=parsed.params,
+            poll_interval_s=parsed.poll_interval_s,
+            **parsed.filters,
+        )
+    await repo.update_query(
+        replace(
+            existing,
+            name=parsed.name,
+            url=parsed.url,
+            tld=parsed.tld,
+            params=parsed.params,
+            poll_interval_s=parsed.poll_interval_s,
+            **parsed.filters,
+        )
     )
+    return existing.id
+
+
+async def _save_destination(repo: Repo, state: dict[str, Any], saved_id: int | None) -> int | None:
+    """The place alerts go, or None for "only on this page".
+
+    A place whose test has not arrived (yet) is not stored: the search waits for it with
+    whatever an earlier, working answer stored. A place the person moved away from is
+    removed, since a search with no route sends to every place there is.
+    """
+    dest = state.get("dest") or {}
+    kind = dest.get("kind")
+    tested = bool((state.get("test") or {}).get("ok"))
+    saved = await repo.get_destination(saved_id) if saved_id else None
+    if saved is not None and data.is_removed(saved):
+        saved = None
+    if kind not in destinations.KINDS:
+        if saved is not None:
+            await repo.deactivate_destination(saved.id, data.REMOVED)
+        return None
+    if not tested:
+        return saved.id if saved is not None else None
+    if kind == "telegram":
+        wanted = _int(dest.get("id"))
+    elif saved is not None and saved.kind == kind and saved.active:
+        await repo.update_destination_config(saved.id, dest["config"])
+        wanted = saved.id
+    else:
+        wanted = await repo.add_destination(kind=kind, name=dest["name"], config=dest["config"])
+        await data.record_test(repo, wanted, ok=True, message="Setup's test arrived.")
+    if saved is not None and saved.id != wanted:
+        await repo.deactivate_destination(saved.id, data.REMOVED)
+    return wanted
 
 
 @router.post("/welcome/skip")
