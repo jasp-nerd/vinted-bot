@@ -1,5 +1,6 @@
 services:
   vinted-sniper:
+    # `latest` is the newest release. `edge` follows the main branch: newer, less tested.
     image: ghcr.io/jasp-nerd/vinted-sniper:latest
     # To run your own build instead of the published image, comment out `image:` above
     # and uncomment this:
@@ -11,8 +12,19 @@ services:
     env_file:
       - path: .env
         required: false
+    environment:
+      # Times in the dashboard and quiet hours use this. Pick yours from
+      # https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      TZ: Europe/Paris
+      # Who owns the files in /data. Leave these alone with the named volume below. If you
+      # swap it for a folder on your disk, set them to that folder's owner: run `id` on
+      # the host to see yours (Unraid: 99 and 100, Synology: usually 1026 and 100).
+      # PUID: "10001"
+      # PGID: "10001"
     volumes:
       - vinted-sniper-data:/data
+      # A folder next to this file instead, easier to back up (set PUID/PGID above):
+      # - ./data:/data
     ports:
       # The dashboard, reachable from this machine only. If you widen this beyond
       # 127.0.0.1, set VINTED_SNIPER_WEB_AUTH_TOKEN first — the dashboard has no other
@@ -25,11 +37,33 @@ services:
       - /tmp
     security_opt:
       - no-new-privileges:true
+    labels:
+      # Only read by the optional auto-updater at the bottom of this file.
+      com.centurylinklabs.watchtower.enable: "true"
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+
+  # Optional automatic updates. The dashboard already tells you when a new version is out,
+  # and `docker compose pull && docker compose up -d` installs it. If you would rather it
+  # happened by itself, start with:
+  #
+  #   docker compose --profile autoupdate up -d
+  #
+  # This is the maintained fork of Watchtower (the original was archived in December 2025).
+  # It needs the Docker socket, which amounts to root on this machine, so it stays off
+  # unless you ask for it. It only updates containers carrying the label above.
+  watchtower:
+    image: nickfedor/watchtower:latest
+    profiles: ["autoupdate"]
+    restart: unless-stopped
+    environment:
+      TZ: Europe/Paris
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --label-enable --cleanup --schedule "0 0 4 * * *"
 
 volumes:
   vinted-sniper-data:
