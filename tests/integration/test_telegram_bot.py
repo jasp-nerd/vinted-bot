@@ -1,7 +1,9 @@
-"""The paired chat as a remote control: /list, /pause, /resume, /remove, /add."""
+"""The paired chat as a remote control: /list, /pause, /resume, /remove, /add, pasted
+links, and the buttons on every alert."""
 
 from __future__ import annotations
 
+import time
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from typing import Any
@@ -9,20 +11,39 @@ from typing import Any
 import pytest
 from aiogram import Bot
 from aiogram.client.session.base import BaseSession
-from aiogram.methods import AnswerCallbackQuery, EditMessageText, GetMe, SendMessage
+from aiogram.methods import (
+    AnswerCallbackQuery,
+    EditMessageReplyMarkup,
+    EditMessageText,
+    GetMe,
+    SendMessage,
+)
 from aiogram.methods.base import TelegramMethod, TelegramType
-from aiogram.types import CallbackQuery, Chat, Message, MessageEntity, Update, User
+from aiogram.types import (
+    CallbackQuery,
+    Chat,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+    MessageEntity,
+    Update,
+    User,
+)
 
 from vinted_sniper.botctl.telegram_bot import (
+    add_link_text,
     add_search_text,
+    apply_action,
     build_dispatcher,
     chat_destination_ids,
     confirm_remove_text,
+    done_markup,
     list_text,
     remove_prompt,
     set_paused_text,
 )
 from vinted_sniper.db.repo import Repo
+from vinted_sniper.vinted.models import Item
 
 SEARCH_URL = "https://www.vinted.fr/catalog?search_text=nike%20air&price_to=40"
 PAIRED_CHAT = 4242
@@ -158,6 +179,152 @@ async def test_only_this_chat_s_destinations_count(repo: Repo) -> None:
     assert await chat_destination_ids(repo, 1) == [mine]
 
 
+# --- Pasted links -----------------------------------------------------------------------
+
+
+async def test_a_pasted_search_link_is_watched(repo: Repo) -> None:
+    await paired_chat(repo)
+
+    await add_link_text(repo, f"look {SEARCH_URL}", chat_id=PAIRED_CHAT, interval_s=60)
+
+    assert [query.url for query in await repo.list_queries()] == [
+        "https://www.vinted.fr/catalog?order=newest_first&price_to=40&search_text=nike+air"
+    ]
+
+
+async def test_a_pasted_listing_link_is_followed_for_its_price(repo: Repo) -> None:
+    await paired_chat(repo)
+
+    await add_link_text(
+        repo,
+        "https://www.vinted.fr/items/4242424242-carhartt-detroit-jacket",
+        chat_id=PAIRED_CHAT,
+        interval_s=60,
+    )
+
+    (watch,) = await repo.list_watches()
+    assert (watch.kind, watch.tld, watch.target_id, watch.label) == (
+        "item",
+        "fr",
+        4242424242,
+        "carhartt detroit jacket",
+    )
+
+
+async def test_a_pasted_profile_link_follows_the_seller(repo: Repo) -> None:
+    await paired_chat(repo)
+
+    await add_link_text(repo, "vinted.de/member/777-jo_vint", chat_id=PAIRED_CHAT, interval_s=60)
+
+    (watch,) = await repo.list_watches()
+    assert (watch.kind, watch.tld, watch.target_id, watch.label) == ("seller", "de", 777, "jo_vint")
+
+
+async def test_a_pasted_watch_sends_its_alerts_to_this_chat(repo: Repo) -> None:
+    destination_id = await paired_chat(repo)
+    await repo.add_destination(kind="ntfy", name="elsewhere", config={"topic": "t"})
+
+    await add_link_text(repo, "https://www.vinted.fr/items/42", chat_id=PAIRED_CHAT, interval_s=60)
+
+    (watch,) = await repo.list_watches()
+    assert await repo.destination_ids_for_watch(watch.id) == [destination_id]
+
+
+async def test_a_listing_already_followed_says_so(repo: Repo) -> None:
+    await paired_chat(repo)
+    link = "https://www.vinted.fr/items/42"
+    await add_link_text(repo, link, chat_id=PAIRED_CHAT, interval_s=60)
+
+    reply = await add_link_text(repo, link, chat_id=PAIRED_CHAT, interval_s=60)
+
+    assert reply == "That is already being watched."
+
+
+async def test_text_without_a_link_is_not_a_link(repo: Repo) -> None:
+    assert await add_link_text(repo, "hello", chat_id=PAIRED_CHAT, interval_s=60) is None
+
+
+# --- Alert buttons ----------------------------------------------------------------------
+
+
+async def stored_listing(repo: Repo, item_id: int = 7) -> int:
+    query_id = await a_search(repo)
+    query = await repo.get_query(query_id)
+    assert query is not None
+    item = Item(item_id=item_id, tld="fr", title="x", url=f"https://www.vinted.fr/items/{item_id}")
+    await repo.record_new_items(query, [item], [])
+    return query_id
+
+
+async def test_block_seller_adds_the_seller_to_the_blocklist(repo: Repo) -> None:
+    await apply_action(repo, "a:b:555:fr:jo_vint")
+
+    (blocked,) = await repo.list_blocked_sellers()
+    assert (blocked.seller_id, blocked.login, blocked.tld) == (555, "jo_vint", "fr")
+
+
+async def test_a_pressed_block_button_says_so_in_the_site_language(repo: Repo) -> None:
+    result = await apply_action(repo, "a:b:555:fr")
+
+    assert result.done_label == "Vendeur bloqué"
+
+
+async def test_mute_silences_the_search_for_an_hour(repo: Repo) -> None:
+    query_id = await a_search(repo)
+
+    await apply_action(repo, f"a:m:{query_id}:fr")
+
+    query = await repo.get_query(query_id)
+    assert query is not None and query.muted_until is not None
+    assert 3590 <= query.muted_until - int(time.time()) <= 3600
+
+
+async def test_muting_a_deleted_search_changes_nothing(repo: Repo) -> None:
+    result = await apply_action(repo, "a:m:99:fr")
+
+    assert (result.toast, result.done_label) == ("That search no longer exists.", None)
+
+
+async def test_hide_hides_the_listing_from_the_dashboard(repo: Repo) -> None:
+    await stored_listing(repo)
+
+    await apply_action(repo, "a:h:7:fr")
+
+    assert [entry.item.item_id for entry in await repo.items_feed(mark="hidden")] == [7]
+
+
+async def test_hiding_a_listing_no_longer_stored_says_so(repo: Repo) -> None:
+    result = await apply_action(repo, "a:h:7:fr")
+
+    assert result.toast == "That listing is no longer stored."
+
+
+@pytest.mark.parametrize("data", ["a:x:1:fr", "a:b:notanumber:fr", "a:b:1"])
+async def test_a_button_this_version_does_not_know_changes_nothing(repo: Repo, data: str) -> None:
+    result = await apply_action(repo, data)
+
+    assert result.done_label is None
+
+
+def test_the_pressed_button_alone_turns_into_its_done_state() -> None:
+    markup = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Open", url="https://www.vinted.fr/items/7")],
+            [
+                InlineKeyboardButton(text="Block seller", callback_data="a:b:5:fr"),
+                InlineKeyboardButton(text="Hide", callback_data="a:h:7:fr"),
+            ],
+        ]
+    )
+
+    changed = done_markup(markup, "a:h:7:fr", "Hidden")
+
+    assert [[button.text for button in row] for row in changed.inline_keyboard] == [
+        ["Open"],
+        ["Block seller", "Hidden"],
+    ]
+
+
 # --- Through aiogram -------------------------------------------------------------------
 
 
@@ -182,6 +349,8 @@ class RecordingSession(BaseSession):
         self.calls.append(method)
         if isinstance(method, (SendMessage, EditMessageText)):
             return _message(PAIRED_CHAT, str(method.text))
+        if isinstance(method, EditMessageReplyMarkup):
+            return _message(PAIRED_CHAT, "alert")
         if isinstance(method, AnswerCallbackQuery):
             return True
         raise AssertionError(f"unexpected call {type(method).__name__}")
@@ -294,3 +463,91 @@ async def test_the_remove_button_deletes_and_replaces_the_question(repo: Repo, b
 
     assert await repo.get_query(query_id) is None
     assert any(isinstance(call, EditMessageText) for call in sent(bot))
+
+
+def _alert(chat_id: int, query_id: int) -> Message:
+    """A listing alert as the bot sent it, with its action buttons."""
+    return _message(chat_id, "alert").model_copy(
+        update={
+            "reply_markup": InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(text="Mute 1 h", callback_data=f"a:m:{query_id}:fr"),
+                        InlineKeyboardButton(text="Hide", callback_data="a:h:7:fr"),
+                    ]
+                ]
+            )
+        }
+    )
+
+
+def _press(chat_id: int, query_id: int) -> CallbackQuery:
+    return CallbackQuery(
+        id="1",
+        from_user=User(id=chat_id, is_bot=False, first_name="me"),
+        chat_instance="x",
+        message=_alert(chat_id, query_id),
+        data=f"a:m:{query_id}:fr",
+    )
+
+
+async def test_pressing_mute_answers_with_a_toast(repo: Repo, bot: Bot) -> None:
+    await paired_chat(repo)
+    query_id = await a_search(repo)
+    dispatcher = build_dispatcher(repo)
+
+    await dispatcher.feed_update(
+        bot, Update(update_id=1, callback_query=_press(PAIRED_CHAT, query_id))
+    )
+
+    toast = next(call for call in sent(bot) if isinstance(call, AnswerCallbackQuery))
+    assert toast.text == "“nike” is muted for an hour."
+
+
+async def test_pressing_mute_redraws_the_button_as_done(repo: Repo, bot: Bot) -> None:
+    await paired_chat(repo)
+    query_id = await a_search(repo)
+    dispatcher = build_dispatcher(repo)
+
+    await dispatcher.feed_update(
+        bot, Update(update_id=1, callback_query=_press(PAIRED_CHAT, query_id))
+    )
+
+    edit = next(call for call in sent(bot) if isinstance(call, EditMessageReplyMarkup))
+    assert edit.reply_markup is not None
+    assert [b.text for b in edit.reply_markup.inline_keyboard[0]] == ["En silence 1 h", "Hide"]
+
+
+async def test_a_stranger_s_button_press_does_nothing(repo: Repo, bot: Bot) -> None:
+    """A forwarded alert's buttons only work in a paired chat."""
+    await paired_chat(repo)
+    query_id = await a_search(repo)
+    dispatcher = build_dispatcher(repo)
+
+    await dispatcher.feed_update(bot, Update(update_id=1, callback_query=_press(999, query_id)))
+
+    query = await repo.get_query(query_id)
+    assert query is not None and query.muted_until is None
+
+
+async def test_pasting_a_link_in_the_chat_watches_it(repo: Repo, bot: Bot) -> None:
+    await paired_chat(repo)
+    dispatcher = build_dispatcher(repo)
+
+    await dispatcher.feed_update(
+        bot, Update(update_id=1, message=_message(PAIRED_CHAT, f"this one {SEARCH_URL}"))
+    )
+
+    assert len(await repo.list_queries()) == 1
+
+
+async def test_add_with_a_listing_link_follows_the_listing(repo: Repo, bot: Bot) -> None:
+    await paired_chat(repo)
+    dispatcher = build_dispatcher(repo)
+
+    await dispatcher.feed_update(
+        bot,
+        Update(update_id=1, message=_message(PAIRED_CHAT, "/add https://www.vinted.fr/items/42")),
+    )
+
+    assert [watch.target_id for watch in await repo.list_watches()] == [42]

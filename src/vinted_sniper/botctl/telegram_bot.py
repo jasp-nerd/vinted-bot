@@ -7,8 +7,13 @@ one-time code, and it records the chat itself. Works the same for a group or a f
 
 Once paired, the chat doubles as a remote control: /list, /pause, /resume, /remove (with a
 confirmation button) and /add with a pasted search link, plus /status to ask whether
-everything is still running without opening the web UI. Only chats that were paired get
-answers, because anyone can find a bot by name and message it.
+everything is still running without opening the web UI. Pasting any Vinted link does the
+obvious thing with it: a search is watched, a listing is followed for price drops and its
+sale, a member's profile for new uploads. And every alert carries three buttons this bot
+answers: block the seller, mute the search for an hour, hide the listing.
+
+Only chats that were paired get answers, because anyone can find a bot by name and message
+it. That includes the alert buttons: a forwarded alert's buttons do nothing elsewhere.
 """
 
 from __future__ import annotations
@@ -16,12 +21,16 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import html
+import re
 import secrets
 import time
 from collections.abc import Awaitable, Callable
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Literal
+from urllib.parse import urlparse
 
 from aiogram import Bot, Dispatcher, F
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandObject
 from aiogram.types import (
     CallbackQuery,
@@ -34,7 +43,10 @@ from aiogram.types import (
 
 from vinted_sniper.config import MIN_POLL_INTERVAL_S
 from vinted_sniper.db.repo import Repo
+from vinted_sniper.deliver.labels import labels_for
+from vinted_sniper.deliver.telegram import ACTION_PREFIX, BLOCK, HIDE, MUTE
 from vinted_sniper.engine import health
+from vinted_sniper.engine.validation import InvalidInputError
 from vinted_sniper.log import get_logger
 from vinted_sniper.vinted import urls
 
@@ -116,8 +128,22 @@ HELP_TEXT = (
     "/remove 3: delete search 3 (asks first)\n"
     "/add <Vinted search link>: watch it, with alerts in this chat\n"
     "/status: is everything still running\n"
-    "/start <code>: connect this chat to vinted-sniper"
+    "/start <code>: connect this chat to vinted-sniper\n"
+    "\n"
+    "Or just paste a Vinted link: a search to watch it, a listing to follow its price and "
+    "sale, a member's profile to follow their new uploads."
 )
+
+# How long the mute button on an alert silences its search.
+MUTE_S = 3600
+
+# Where a pasted Vinted address sits in a message, share text and all.
+_VINTED_LINK = re.compile(r"(?i)\b(?:https?://)?(?:[a-z0-9-]+\.)*vinted\.[a-z.]+/\S*")
+_ITEM = re.compile(r"^/items/(\d+)(?:-([^/?#]*))?")
+_MEMBER = re.compile(r"^/member/(\d+)(?:-([^/?#]*))?")
+
+# What a pressed action button turns into: inert, so a second press only gets a toast.
+_DONE = f"{ACTION_PREFIX}done"
 
 _REMOVE_PREFIX = "remove:"
 _KEEP = "remove:keep"
@@ -227,6 +253,129 @@ async def add_search_text(
     return (
         f"Watching “{html.escape(name)}” on vinted.{tld} (search {query_id}). "
         "New listings will arrive in this chat."
+    )
+
+
+async def add_link_text(
+    repo: Repo, text: str | None, *, chat_id: int, interval_s: int
+) -> str | None:
+    """Do the obvious thing with a pasted Vinted link. None if the text holds no link.
+
+    A search is watched like /add; a listing is followed for price drops and its sale; a
+    member's profile for new uploads. Alerts for any of them go to the chat that asked.
+    """
+    match = _VINTED_LINK.search(text or "")
+    if match is None:
+        return None
+    link = match.group(0)
+    if not re.match(r"(?i)^https?://", link):
+        link = f"https://{link}"
+    path = urlparse(link).path
+    item, member = _ITEM.match(path), _MEMBER.match(path)
+    if item is None and member is None:
+        return await add_search_text(repo, link, chat_id=chat_id, interval_s=interval_s)
+    try:
+        tld = urls.extract_tld(link)
+    except urls.InvalidSearchURLError as exc:
+        return f"That link will not work: {html.escape(str(exc))}"
+
+    kind: Literal["item", "seller"] = "item" if item is not None else "seller"
+    found = item or member
+    assert found is not None  # one of the two matched, or we returned above
+    target_id = int(found.group(1))
+    slug = (found.group(2) or "").strip()
+    label = slug.replace("-", " ") if kind == "item" else slug
+    try:
+        watch_id = await repo.add_watch(
+            kind=kind,
+            tld=tld,
+            target_id=target_id,
+            label=label or f"{'listing' if kind == 'item' else 'seller'} {target_id}",
+            destination_ids=await chat_destination_ids(repo, chat_id),
+        )
+    except InvalidInputError:
+        return "That is already being watched."
+    log.info("telegram.watch_added", watch_id=watch_id, kind=kind, chat_id=chat_id)
+    if kind == "item":
+        return (
+            f"Following that listing on vinted.{tld} (watch {watch_id}). You will hear here "
+            "if its price drops or it sells."
+        )
+    who = html.escape(slug) if slug else "that member"
+    return f"Following {who} on vinted.{tld} (watch {watch_id}). New uploads will arrive here."
+
+
+# --- Alert buttons ----------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class ActionResult:
+    """What pressing an alert's button did: a toast, and what the button now says."""
+
+    toast: str
+    # None leaves the buttons as they are, for a press that changed nothing.
+    done_label: str | None = None
+
+
+_OUTDATED = ActionResult("That button is from an older version and no longer works.")
+
+
+async def _block(repo: Repo, seller_id: int, tld: str, login: str | None) -> ActionResult:
+    await repo.block_seller(seller_id, login=login, tld=tld, reason="blocked from a Telegram alert")
+    log.info("telegram.seller_blocked", seller_id=seller_id)
+    return ActionResult(
+        f"{login or 'That seller'} is blocked in every search.", labels_for(tld).blocked
+    )
+
+
+async def _mute(repo: Repo, query_id: int, tld: str, _: str | None) -> ActionResult:
+    query = await repo.get_query(query_id)
+    if query is None:
+        return ActionResult("That search no longer exists.")
+    await repo.mute_query(query_id, int(time.time()) + MUTE_S)
+    log.info("telegram.search_muted", query_id=query_id)
+    return ActionResult(f"“{query.name}” is muted for an hour.", labels_for(tld).muted)
+
+
+async def _hide(repo: Repo, item_id: int, tld: str, _: str | None) -> ActionResult:
+    if not await repo.known_item_ids([item_id]):
+        return ActionResult("That listing is no longer stored.")
+    await repo.set_mark(item_id, "hidden")
+    return ActionResult("Hidden from the dashboard.", labels_for(tld).hidden)
+
+
+_ACTIONS: dict[str, Callable[[Repo, int, str, str | None], Awaitable[ActionResult]]] = {
+    BLOCK: _block,
+    MUTE: _mute,
+    HIDE: _hide,
+}
+
+
+async def apply_action(repo: Repo, data: str) -> ActionResult:
+    """Carry out an alert button: "a:<verb>:<id>:<site>[:<login>]"."""
+    if data == _DONE:
+        return ActionResult("Already done.")
+    verb, _, rest = data.removeprefix(ACTION_PREFIX).partition(":")
+    target, _, rest = rest.partition(":")
+    tld, _, login = rest.partition(":")
+    action = _ACTIONS.get(verb)
+    if action is None or not target.isdigit() or not tld:
+        return _OUTDATED
+    return await action(repo, int(target), tld, login or None)
+
+
+def done_markup(markup: InlineKeyboardMarkup, pressed: str, label: str) -> InlineKeyboardMarkup:
+    """The same buttons, with the pressed one saying what it did and doing nothing more."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=label, callback_data=_DONE)
+                if button.callback_data == pressed
+                else button
+                for button in row
+            ]
+            for row in markup.inline_keyboard
+        ]
     )
 
 
@@ -347,10 +496,41 @@ async def _handle_remove_choice(callback: CallbackQuery, repo: Repo) -> None:
 async def _handle_add(
     message: Message, command: CommandObject, repo: Repo, default_interval_s: int
 ) -> None:
-    reply = await add_search_text(
+    reply = await add_link_text(
         repo, command.args, chat_id=message.chat.id, interval_s=default_interval_s
     )
+    if reply is None:
+        reply = await add_search_text(
+            repo, command.args, chat_id=message.chat.id, interval_s=default_interval_s
+        )
     await message.answer(reply, parse_mode="HTML", link_preview_options=_NO_PREVIEW)
+
+
+async def _handle_link(message: Message, repo: Repo, default_interval_s: int) -> None:
+    reply = await add_link_text(
+        repo, message.text, chat_id=message.chat.id, interval_s=default_interval_s
+    )
+    if reply is None:  # pragma: no cover - the filter only routes messages with a link
+        await _handle_anything_else(message)
+        return
+    await message.answer(reply, parse_mode="HTML", link_preview_options=_NO_PREVIEW)
+
+
+async def _handle_action(callback: CallbackQuery, repo: Repo) -> None:
+    data = callback.data or ""
+    result = await apply_action(repo, data)
+    await callback.answer(result.toast)
+    message = callback.message
+    if result.done_label is None or not isinstance(message, Message):
+        return
+    if message.reply_markup is None:
+        return
+    # The action is done whatever happens here; a button that cannot be redrawn (the
+    # message was deleted, or pressed twice in a row) only costs the visual cue.
+    with contextlib.suppress(TelegramBadRequest):
+        await message.edit_reply_markup(
+            reply_markup=done_markup(message.reply_markup, data, result.done_label)
+        )
 
 
 async def _handle_anything_else(message: Message) -> None:
@@ -373,8 +553,10 @@ def build_dispatcher(repo: Repo, *, default_interval_s: int = 60) -> Dispatcher:
     message.register(_handle_resume, Command("resume"))
     message.register(_handle_remove, Command("remove"))
     message.register(_handle_add, Command("add"))
+    message.register(_handle_link, F.text.regexp(_VINTED_LINK, mode="search"))
     message.register(_handle_anything_else, F.text)
     dispatcher.callback_query.register(_handle_remove_choice, F.data.startswith(_REMOVE_PREFIX))
+    dispatcher.callback_query.register(_handle_action, F.data.startswith(ACTION_PREFIX))
     return dispatcher
 
 

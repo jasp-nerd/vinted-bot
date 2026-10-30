@@ -101,3 +101,18 @@ def test_time_zones_are_checked() -> None:
     assert validation.parse_timezone(":Europe/Paris") == "Europe/Paris"
     with pytest.raises(InvalidInputError):
         validation.parse_timezone("Mars/Olympus")
+
+
+@pytest.mark.parametrize(("typed", "expected"), [("10", 10.0), ("12,9", 12.9), ("8 %", 8.0)])
+def test_resale_fees_are_percentages(typed: str, expected: float) -> None:
+    assert validation.parse_fee_pct(typed) == expected
+
+
+def test_a_blank_resale_fee_means_none() -> None:
+    assert validation.parse_fee_pct(" ") is None
+
+
+@pytest.mark.parametrize("typed", ["100", "-1", "lots"])
+def test_impossible_resale_fees_are_refused(typed: str) -> None:
+    with pytest.raises(InvalidInputError):
+        validation.parse_fee_pct(typed)

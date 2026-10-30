@@ -4,7 +4,7 @@ Not legal advice. This is what the project assumes and why, so you can decide fo
 
 ## Vinted's terms
 
-Vinted's terms of service prohibit automated access — bots, scrapers, crawlers, the usual
+Vinted's terms of service prohibit automated access: bots, scrapers, crawlers, the usual
 list. That is a contract between you and Vinted, not a law. Breaking it is not a crime; it
 gives Vinted grounds to stop serving you.
 
@@ -31,7 +31,13 @@ The defaults are deliberately unhurried, and worth keeping that way:
 
 - One check a minute per search, with a floor of ten seconds. Vinted's own catalog lags behind
   uploads anyway, so faster finds nothing sooner.
-- One request per check. No walking through pages, no fetching every listing's detail page.
+- One request per check for each country site the search covers. No walking through pages,
+  no fetching every listing's detail page.
+- A seller's public profile is read only for searches that filter on the seller (country,
+  rating, reviews), only for listings that passed every other filter, and at most once a
+  week per seller.
+- Watched listings and sellers are re-read every half hour or quarter of an hour, a few
+  requests a minute at most across all of them.
 - Sessions are reused rather than re-established constantly.
 - Backing off when told to, and honouring the wait Vinted asks for.
 
@@ -47,15 +53,17 @@ survive publishing or sharing.
 
 How the project keeps that small:
 
-- Only what a notification needs is stored: username and rating, not full profiles.
+- Only what a notification or a filter needs is stored: username, rating, number of reviews
+  and country, not full profiles.
 - Full API payloads are off by default (`KEEP_RAW_JSON=false`).
-- Listings are deleted after thirty days.
+- Listings are deleted after thirty days, and the list of skipped listings after a week.
+- Blocking a seller stores their username and your reason, on your machine only.
 - Everything stays in a file on your machine. Nothing is sent anywhere except the
   notifications you configured.
 - No seller profiling, no cross-referencing, no aggregate datasets.
 
-If you change these — turning on raw payloads, extending retention, exporting the database —
-you are taking on more responsibility for that data. If you make anything public, you need a
+If you change these (turning on raw payloads, extending retention, exporting your finds as
+CSV or JSON) you are taking on more responsibility for that data. If you make anything public, you need a
 lawful basis, and "it was already public" is not one.
 
 Do not use this to build a dataset about individual sellers, to resell scraped data, or to
@@ -64,7 +72,7 @@ target anyone. That is a different activity from watching for a jacket in your s
 ## Sharing what you find
 
 Notifications are for you. Republishing listing photos or descriptions at scale runs into
-copyright — the seller took those photos — as well as the concerns above. A link is fine. A
+copyright (the seller took those photos) as well as the concerns above. A link is fine. A
 mirror is not.
 
 ## If Vinted asks you to stop

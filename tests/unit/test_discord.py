@@ -18,7 +18,7 @@ from tests.unit.sending import (
 )
 from vinted_sniper.deliver.base import SenderConfigError
 from vinted_sniper.deliver.discord import DiscordSender, link_text
-from vinted_sniper.deliver.render import MINUS
+from vinted_sniper.deliver.labels import MINUS
 
 HOOK = "https://discord.test/hook"
 
@@ -122,20 +122,67 @@ async def test_the_gallery_shows_four_photos_at_most() -> None:
     assert len(gallery["items"]) == 4
 
 
-async def test_the_total_price_is_the_big_number() -> None:
+def first_text(payload: dict[str, Any]) -> str:
+    """The first text display: what a phone's notification shows for the message."""
+    return all_text(payload).splitlines()[0]
+
+
+async def test_the_first_line_leads_with_the_total_price() -> None:
     recorder = Recorder()
 
     await sender(recorder).send([notification(1)])
 
-    assert "# £16.45\n-# £15.00 + buyer protection" in all_text(recorder.payload())
+    assert first_text(recorder.payload()) == "**£16.45** · Item 1"
 
 
-async def test_a_deal_is_badged_against_the_typical_price() -> None:
+async def test_the_asking_price_is_in_the_small_print() -> None:
+    recorder = Recorder()
+
+    await sender(recorder).send([notification(1)])
+
+    assert "-# £15.00 + buyer protection" in all_text(recorder.payload())
+
+
+async def test_a_deal_is_badged_on_the_first_line() -> None:
     recorder = Recorder()
 
     await sender(recorder).send([notification(1, typical_price=Decimal("30.00"))])
 
-    assert f"`Steal {MINUS}45% vs typical`" in all_text(recorder.payload())
+    assert first_text(recorder.payload()) == f"**£16.45** · Steal {MINUS}45% · Item 1"
+
+
+async def test_the_margin_is_on_the_first_line() -> None:
+    recorder = Recorder()
+
+    await sender(recorder).send([notification(1, margin=Decimal("18.55"))])
+
+    assert first_text(recorder.payload()) == "**£16.45** · margin ~+£19 · Item 1"
+
+
+async def test_the_photo_comes_first_then_the_buttons_then_the_small_print() -> None:
+    recorder = Recorder()
+
+    await sender(recorder).send([notification(1)])
+
+    container = recorder.payload()["components"][0]
+    assert [c["type"] for c in container["components"]] == [10, 12, 1, 10]
+
+
+async def test_a_listing_with_one_photo_shows_just_that_photo() -> None:
+    recorder = Recorder()
+
+    await sender(recorder).send([bare(1)])
+
+    gallery = next(c for c in recorder.payload()["components"][0]["components"] if c["type"] == 12)
+    assert len(gallery["items"]) == 1
+
+
+async def test_the_time_says_found_when_vinted_gave_none() -> None:
+    recorder = Recorder()
+
+    await sender(recorder).send([bare(1)])
+
+    assert "trouvé <t:1760000100:R>" in all_text(recorder.payload())
 
 
 async def test_a_deal_paints_the_accent_green() -> None:
@@ -163,8 +210,16 @@ async def test_a_price_drop_strikes_through_the_old_price() -> None:
         [notification(1, kind="price_drop", previous_price=Decimal("25.00"))]
     )
 
-    text = all_text(recorder.payload())
-    assert "-# Price drop" in text and "~~£25.00~~" in text
+    assert first_text(recorder.payload()).startswith("Price drop: **£16.45** ~~£25.00~~")
+
+
+async def test_a_seller_s_login_in_the_first_line_has_no_backslashes() -> None:
+    """The first line is the phone notification, which shows escapes literally."""
+    recorder = Recorder()
+
+    await sender(recorder).send([notification(1, kind="seller_upload", seller_login="jo_vint")])
+
+    assert "\\" not in first_text(recorder.payload())
 
 
 async def test_a_sold_listing_has_no_buy_button() -> None:
@@ -172,7 +227,7 @@ async def test_a_sold_listing_has_no_buy_button() -> None:
 
     await sender(recorder).send([notification(1, kind="sold")])
 
-    assert [b["label"] for b in buttons(recorder.payload())] == ["Open on Vinted"]
+    assert [b["label"] for b in buttons(recorder.payload())] == ["Open on Vinted", "eBay sold"]
 
 
 async def test_the_buttons_go_buy_message_open_dashboard() -> None:
@@ -194,6 +249,18 @@ async def test_a_loopback_dashboard_gets_no_button() -> None:
     await sender(recorder, dashboard_url="http://127.0.0.1:8000").send([notification(1)])
 
     assert "Dashboard" not in [b["label"] for b in buttons(recorder.payload())]
+
+
+async def test_without_a_reachable_dashboard_the_last_button_checks_ebay_sold_prices() -> None:
+    recorder = Recorder()
+
+    await sender(recorder, dashboard_url="http://127.0.0.1:8000").send([notification(1)])
+
+    last = buttons(recorder.payload())[-1]
+    assert (last["label"], last["url"]) == (
+        "eBay sold",
+        "https://www.ebay.co.uk/sch/i.html?_nkw=Item+1&LH_Sold=1&LH_Complete=1",
+    )
 
 
 async def test_labels_follow_the_listing_site() -> None:
@@ -261,23 +328,55 @@ async def test_title_markdown_renders_literally(title: str, live_markup: str) ->
 
     await sender(recorder).send([notification(1, title=title)])
 
-    heading = next(
-        line for line in all_text(recorder.payload()).splitlines() if line.startswith("### ")
-    )
-    assert live_markup not in heading
+    assert live_markup not in first_text(recorder.payload())
 
 
 # --- Mentions and silence --------------------------------------------------------------
 
 
-async def test_a_configured_role_is_pinged_and_only_that_role() -> None:
+def steal(item_id: int, **kwargs: Any) -> Any:
+    """16.45 against a typical 30 is 45% under: a steal."""
+    return notification(item_id, typical_price=Decimal("30.00"), **kwargs)
+
+
+async def test_a_configured_role_is_pinged_for_a_steal_and_only_that_role() -> None:
+    recorder = Recorder()
+
+    await sender(recorder, mention="<@&42>").send([steal(1)])
+
+    assert recorder.payload()["allowed_mentions"] == {"parse": [], "roles": ["42"]}
+
+
+async def test_the_ping_leads_the_first_line() -> None:
+    recorder = Recorder()
+
+    await sender(recorder, mention="<@&42>").send([steal(1)])
+
+    assert first_text(recorder.payload()).startswith("<@&42> **£16.45**")
+
+
+async def test_an_ordinary_listing_does_not_ping_by_default() -> None:
     recorder = Recorder()
 
     await sender(recorder, mention="<@&42>").send([notification(1)])
 
     payload = recorder.payload()
-    assert payload["allowed_mentions"] == {"parse": [], "roles": ["42"]}
-    assert payload["components"][0] == {"type": 10, "content": "<@&42>"}
+    assert (payload["allowed_mentions"], "<@&42>" in all_text(payload)) == ({"parse": []}, False)
+
+
+async def test_ping_tiers_can_ask_for_every_listing() -> None:
+    recorder = Recorder()
+
+    await sender(recorder, mention="<@&42>", ping_tiers=["steal", "deal", "normal"]).send(
+        [notification(1)]
+    )
+
+    assert recorder.payload()["allowed_mentions"] == {"parse": [], "roles": ["42"]}
+
+
+async def test_an_unknown_ping_tier_is_a_configuration_error() -> None:
+    with pytest.raises(SenderConfigError):
+        sender(Recorder(), mention="<@&42>", ping_tiers=["bargain"])
 
 
 async def test_a_malformed_mention_is_a_configuration_error() -> None:
@@ -288,7 +387,7 @@ async def test_a_malformed_mention_is_a_configuration_error() -> None:
 async def test_a_silent_listing_neither_pings_nor_buzzes() -> None:
     recorder = Recorder()
 
-    await sender(recorder, mention="<@&42>").send([notification(1, silent=True)])
+    await sender(recorder, mention="<@&42>").send([steal(1, silent=True)])
 
     payload = recorder.payload()
     assert payload["flags"] & (1 << 12)
@@ -348,7 +447,7 @@ async def test_a_digest_names_the_count_and_the_search() -> None:
 
     await sender(recorder).send([notification(i) for i in range(1, 6)])
 
-    assert all_text(recorder.payload()).startswith("### 5 new matches · my search")
+    assert all_text(recorder.payload()).startswith("**5 new matches** · my search")
 
 
 async def test_compact_style_shows_one_listing_as_a_thumbnail_row() -> None:
@@ -357,7 +456,23 @@ async def test_compact_style_shows_one_listing_as_a_thumbnail_row() -> None:
     await sender(recorder, style="compact").send([notification(1)])
 
     container = recorder.payload()["components"][0]
-    assert [c["type"] for c in container["components"]] == [10, 9, 1]
+    assert [c["type"] for c in container["components"]] == [9, 1]
+
+
+async def test_a_compact_row_names_its_search() -> None:
+    recorder = Recorder()
+
+    await sender(recorder, style="compact").send([notification(1, query_name="carhartt")])
+
+    assert "· carhartt" in all_text(recorder.payload())
+
+
+async def test_a_compact_row_leads_with_the_first_line() -> None:
+    recorder = Recorder()
+
+    await sender(recorder, style="compact").send([notification(1)])
+
+    assert first_text(recorder.payload()) == "**£16.45** · Item 1"
 
 
 async def test_an_unknown_style_is_a_configuration_error() -> None:
@@ -411,7 +526,29 @@ async def test_the_embed_fallback_keeps_its_buttons() -> None:
     await sender(recorder, style="classic").send([notification(1)])
 
     row = recorder.payload()["components"][0]
-    assert [b["label"] for b in row["components"]] == ["Buy", "Message seller", "Open on Vinted"]
+    assert [b["label"] for b in row["components"]] == [
+        "Buy",
+        "Message seller",
+        "Open on Vinted",
+        "eBay sold",
+    ]
+
+
+async def test_an_embed_s_message_text_is_the_first_line() -> None:
+    """For an embed, the notification shows the message text, so that carries the price."""
+    recorder = Recorder()
+
+    await sender(recorder, style="classic").send([notification(1, typical_price=Decimal("30"))])
+
+    assert recorder.payload()["content"] == f"**£16.45** · Steal {MINUS}45% · Item 1"
+
+
+async def test_an_embed_ping_leads_the_message_text() -> None:
+    recorder = Recorder()
+
+    await sender(recorder, style="classic", mention="<@&42>").send([steal(1)])
+
+    assert recorder.payload()["content"].startswith("<@&42> **£16.45**")
 
 
 async def test_the_embed_card_folds_extra_photos_into_a_mosaic() -> None:

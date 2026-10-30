@@ -33,6 +33,7 @@ def notification(item_id: int, **kwargs: Any) -> PendingNotification:
             "silent",
             "kind",
             "previous_price",
+            "margin",
         )
         if key in kwargs
     }
@@ -69,6 +70,7 @@ def notification(item_id: int, **kwargs: Any) -> PendingNotification:
         silent=outer.get("silent", False),
         kind=outer.get("kind", "listing"),
         previous_price=outer.get("previous_price"),
+        margin=outer.get("margin"),
     )
 
 

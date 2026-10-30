@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from vinted_sniper.db.repo import PendingNotification
+from vinted_sniper.deals import TIERS, Tier
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,3 +68,21 @@ def require(config: dict[str, Any], key: str, kind: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise SenderConfigError(f"{kind} destination needs a {key!r}")
     return value.strip()
+
+
+def parse_tiers(config: dict[str, Any], key: str, default: tuple[Tier, ...]) -> frozenset[Tier]:
+    """A destination's list of deal tiers ("steal", "deal", "normal") under `key`."""
+    raw = config.get(key)
+    if raw is None:
+        return frozenset(default)
+    if isinstance(raw, str):
+        raw = [part.strip() for part in raw.split(",") if part.strip()]
+    if not isinstance(raw, list):
+        raise SenderConfigError(f"{key} must be a list of tiers: steal, deal, normal")
+    tiers: set[Tier] = set()
+    for value in raw:
+        tier = next((known for known in TIERS if known == str(value).strip().lower()), None)
+        if tier is None:
+            raise SenderConfigError(f"{key} can only hold steal, deal and normal, not {value!r}")
+        tiers.add(tier)
+    return frozenset(tiers)

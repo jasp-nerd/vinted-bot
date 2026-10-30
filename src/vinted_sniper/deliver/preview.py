@@ -55,7 +55,9 @@ class TestResult:
 def sample_notification(
     kind: str = "listing", *, tld: str = DEFAULT_SAMPLE_TLD, index: int = 0
 ) -> PendingNotification:
-    """A realistic, clearly invented listing. Priced as a steal so the deal badge shows."""
+    """A realistic, clearly invented listing. Priced as a steal with a resale margin so the
+    deal badge and the margin show; no listing time, like every real search result now.
+    No seller id either, so a test alert's "block seller" button cannot block anyone real."""
     if kind not in KINDS:
         raise ValueError(f"unknown alert kind {kind!r}; expected one of {', '.join(KINDS)}")
     now = int(time.time())
@@ -73,7 +75,6 @@ def sample_notification(
         currency=_CURRENCY_BY_TLD.get(tld, "EUR"),
         photo_url=SAMPLE_PHOTO,
         photo_urls=(SAMPLE_PHOTO,),
-        photo_ts=now - 120,
         seller_login="sample-seller",
         seller_rating=0.98,
         seller_feedback_count=213,
@@ -88,6 +89,7 @@ def sample_notification(
         item=item,
         detected_at=now - 60,
         typical_price=Decimal("45.00"),
+        margin=Decimal("18.60"),
         kind=kind,
         previous_price=Decimal("32.00") if kind == "price_drop" else None,
     )

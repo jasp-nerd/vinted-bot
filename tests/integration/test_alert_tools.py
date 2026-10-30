@@ -14,7 +14,8 @@ from tests.unit.sending import cv2_problems, notification, telegram_length
 from vinted_sniper.config import Settings
 from vinted_sniper.db.repo import Destination, Repo
 from vinted_sniper.deliver import preview_payload, send_test
-from vinted_sniper.deliver.dispatcher import Dispatcher, skip_reason
+from vinted_sniper.deliver.base import SenderConfigError
+from vinted_sniper.deliver.dispatcher import Dispatcher, Routing, deliver_silently, skip_reason
 from vinted_sniper.vinted.models import Item
 
 
@@ -75,6 +76,83 @@ def test_an_unpicky_destination_skips_nothing() -> None:
     assert skip_reason(notification(1), {}) is None
 
 
+# --- Tiers -------------------------------------------------------------------------------
+# 16.45 against a typical 30 is 45% under (a steal); against 25, 34% (a deal); against 17,
+# 3% (normal).
+
+
+def test_a_steals_only_destination_skips_a_deal() -> None:
+    reason = skip_reason(notification(1, typical_price=Decimal("25")), {"tiers": ["steal"]})
+
+    assert reason is not None and "takes steals only" in reason
+
+
+def test_a_steals_only_destination_takes_a_steal() -> None:
+    assert skip_reason(notification(1, typical_price=Decimal("30")), {"tiers": ["steal"]}) is None
+
+
+def test_a_destination_can_take_only_ordinary_listings() -> None:
+    """A "feed" channel next to a "deals" one: everything the other does not get."""
+    reason = skip_reason(notification(1, typical_price=Decimal("30")), {"tiers": ["normal"]})
+
+    assert reason is not None
+
+
+def test_deals_only_is_the_steal_and_deal_tiers() -> None:
+    listing = notification(1, typical_price=Decimal("25"))
+
+    assert skip_reason(listing, {"deals_only": True}) == skip_reason(
+        listing, {"tiers": ["steal", "deal"]}
+    )
+
+
+def test_a_skip_says_how_far_under_typical_the_listing_was() -> None:
+    reason = skip_reason(notification(1, typical_price=Decimal("17")), {"tiers": ["steal"]})
+
+    assert reason is not None and reason.startswith("skipped: 3% under the typical price")
+
+
+def test_an_unknown_tier_is_a_configuration_error() -> None:
+    with pytest.raises(SenderConfigError):
+        Routing.from_config({"tiers": ["bargain"]})
+
+
+def test_tiers_may_be_typed_as_a_comma_separated_list() -> None:
+    assert Routing.from_config({"tiers": "Steal, deal"}).tiers == {"steal", "deal"}
+
+
+def test_tiers_that_are_not_a_list_are_a_configuration_error() -> None:
+    with pytest.raises(SenderConfigError):
+        Routing.from_config({"tiers": {"steal": True}})
+
+
+def test_a_threshold_that_is_not_a_number_is_a_configuration_error() -> None:
+    with pytest.raises(SenderConfigError):
+        Routing.from_config({"min_deal_pct": "lots"})
+
+
+def test_an_empty_tier_list_is_a_configuration_error() -> None:
+    """Delivering nothing at all is what switching the destination off is for."""
+    with pytest.raises(SenderConfigError):
+        Routing.from_config({"tiers": []})
+
+
+def test_silent_tiers_quiet_only_those_tiers() -> None:
+    routing = Routing.from_config({"silent_tiers": ["normal"]})
+
+    assert (
+        deliver_silently(notification(1, typical_price=Decimal("17")), routing),
+        deliver_silently(notification(2, typical_price=Decimal("30")), routing),
+    ) == (True, False)
+
+
+def test_a_watch_alert_is_never_silenced_by_tier() -> None:
+    routing = Routing.from_config({"silent_tiers": ["normal"]})
+    drop = notification(1, kind="price_drop", previous_price=Decimal("30"))
+
+    assert deliver_silently(drop, routing) is False
+
+
 async def test_skipped_listings_never_reach_the_destination(repo: Repo, settings: Settings) -> None:
     query_id = await repo.add_query(
         name="test", url="https://www.vinted.fr/catalog?search_text=x", tld="fr", params={},
@@ -102,6 +180,68 @@ async def test_skipped_listings_never_reach_the_destination(repo: Repo, settings
     await dispatcher.drain()
 
     assert (len(endpoint.requests), await repo.outbox_depth()) == (0, 0)
+
+
+async def test_a_silent_tier_reaches_the_destination_without_a_sound(
+    repo: Repo, settings: Settings
+) -> None:
+    query_id = await repo.add_query(
+        name="test", url="https://www.vinted.fr/catalog?search_text=x", tld="fr", params={},
+        poll_interval_s=60,
+    )  # fmt: skip
+    query = await repo.get_query(query_id)
+    assert query is not None
+    destination_id = await repo.add_destination(
+        kind="ntfy", name="feed", config={"topic": "feed", "silent_tiers": ["normal"]}
+    )
+    item = Item(
+        item_id=1, tld="fr", title="x", url="https://www.vinted.fr/items/1",
+        price=Decimal("10"), currency="EUR",
+    )  # fmt: skip
+    await repo.record_new_items(query, [item], [destination_id])
+    endpoint = Endpoint()
+    dispatcher = Dispatcher(
+        repo=repo,
+        settings=settings,
+        stop=asyncio.Event(),
+        work_available=asyncio.Event(),
+        client=endpoint.client(),
+    )
+
+    await dispatcher.drain()
+
+    assert json.loads(endpoint.requests[0].content)["priority"] == 2
+
+
+async def test_a_destination_with_unknown_tiers_is_switched_off(
+    repo: Repo, settings: Settings
+) -> None:
+    destination_id = await repo.add_destination(
+        kind="ntfy", name="feed", config={"topic": "feed", "tiers": ["bargain"]}
+    )
+    query_id = await repo.add_query(
+        name="test", url="https://www.vinted.fr/catalog?search_text=x", tld="fr", params={},
+        poll_interval_s=60,
+    )  # fmt: skip
+    query = await repo.get_query(query_id)
+    assert query is not None
+    item = Item(
+        item_id=1, tld="fr", title="x", url="https://www.vinted.fr/items/1",
+        price=Decimal("10"), currency="EUR",
+    )  # fmt: skip
+    await repo.record_new_items(query, [item], [destination_id])
+    dispatcher = Dispatcher(
+        repo=repo,
+        settings=settings,
+        stop=asyncio.Event(),
+        work_available=asyncio.Event(),
+        client=Endpoint().client(),
+    )
+
+    await dispatcher.drain()
+
+    destination = await repo.get_destination(destination_id)
+    assert destination is not None and destination.active is False
 
 
 # --- Test send -------------------------------------------------------------------------

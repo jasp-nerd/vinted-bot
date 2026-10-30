@@ -50,9 +50,16 @@ def _server_and_topic(config: dict[str, Any]) -> tuple[str, str]:
 
 
 def _priority(listing: ListingView, default: int) -> int:
+    """Deals louder, quiet hours and silent tiers quieter, the destination's choice otherwise.
+
+    Silence wins over a deal: a destination that asked for its deals without a sound
+    should not get a top-priority buzz for one.
+    """
+    if listing.silent:
+        return SILENT_PRIORITY
     if listing.deal is not None:
         return STEAL_PRIORITY if listing.deal.tier == "steal" else DEAL_PRIORITY
-    return SILENT_PRIORITY if listing.silent else default
+    return default
 
 
 def push(
@@ -60,14 +67,11 @@ def push(
 ) -> dict[str, Any]:
     """The JSON body for one listing."""
     labels = listing.labels
-    title = f"{listing.price} · {listing.title}" if listing.price else listing.title
-    if listing.kind != "listing":
-        title = f"{listing.headline}: {title}"
-
+    # The title is what the phone shows first, so it is the whole decision line.
+    title = listing.first_line_text
     first = " · ".join(
         part
         for part in (
-            f"**{listing.badge}**" if listing.badge else None,
             f"~~{listing.previous_price}~~" if listing.previous_price else None,
             listing.price_note,
         )
