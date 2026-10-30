@@ -111,7 +111,12 @@ def skip_reason(notification: PendingNotification, config: dict[str, Any]) -> st
     routing = Routing.from_config(config)
     pct = _deal_pct(notification)
     tier = tier_for(pct)
-    wants_threshold = routing.min_deal_pct is not None
+    # A custom threshold narrows what counts as a deal. Once the tiers have been chosen
+    # and include ordinary listings, the destination wants everything: a threshold left
+    # over from 1.x kept filtering there although the Alerts page showed "everything
+    # else" ticked.
+    takes_everything = "tiers" in config and "normal" in routing.tiers
+    wants_threshold = routing.min_deal_pct is not None and not takes_everything
     if pct is None and (tier not in routing.tiers or wants_threshold):
         return "skipped: this destination only wants deals and there is no typical price yet"
     if tier not in routing.tiers:

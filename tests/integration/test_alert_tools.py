@@ -61,6 +61,13 @@ def test_a_custom_threshold_is_honoured() -> None:
     ) == (True, True)
 
 
+def test_an_old_threshold_does_not_filter_a_destination_that_takes_everything() -> None:
+    """The Alerts page showed "everything else" ticked while 1.x's threshold still filtered."""
+    listing = notification(1, typical_price=Decimal("17"))
+
+    assert skip_reason(listing, {"tiers": ["steal", "deal", "normal"], "min_deal_pct": 30}) is None
+
+
 def test_without_a_typical_price_nothing_counts_as_a_deal() -> None:
     assert skip_reason(notification(1), {"deals_only": True}) is not None
 
