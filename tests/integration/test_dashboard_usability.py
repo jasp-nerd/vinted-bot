@@ -158,7 +158,9 @@ async def test_resuming_everything_counts_only_the_paused_ones(
     first, second = await _search(repo, name="a"), await _search(repo, name="b")
     await repo.set_paused(second, True)
 
-    page = client.post("/searches/bulk", data={"ids": [str(first), str(second)], "action": "resume"})
+    page = client.post(
+        "/searches/bulk", data={"ids": [str(first), str(second)], "action": "resume"}
+    )
 
     assert "Resumed 1 search." in page.text
 

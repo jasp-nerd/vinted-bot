@@ -1032,7 +1032,9 @@ select.chip, .chip--select { appearance: none; padding-right: 32px; background-i
 @media (max-width: 760px) {
   .chip-pop__panel { position: fixed; z-index: 45; top: auto; left: 0; right: 0; bottom: 0; width: auto; border-radius: 20px 20px 0 0; padding: 18px var(--gutter) calc(18px + env(safe-area-inset-bottom, 0px)); white-space: normal; box-shadow: 0 -8px 32px rgba(var(--c-ink-rgb), .18), var(--ring); }
   .chip-pop__title { display: block; }
-  .chip-pop__fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; }
+  /* The sheet is fixed to the screen, so the chip row can keep scrolling inside itself. */
+  .toolbar .chips--scroll:has(.chip-pop[open]) { overflow-x: auto; }
+  .chip-pop__fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; align-items: start; }
   .chip-pop__panel .btn { min-height: 46px; }
 }
 .chips--scroll:has(.chip-pop[open]) { overflow: visible; }
@@ -1110,7 +1112,7 @@ select.chip { width: auto; max-width: 220px; }
 .hbar--delivery { grid-template-columns: minmax(110px, 220px) minmax(0, 1fr) 110px; }
 
 /* ntfy: a code to scan on a computer, the name big enough to type on an iPhone. */
-.code--lg { font-size: 15px; padding: 3px 8px; }
+.code--lg { font-size: 15px; padding: 3px 8px; white-space: nowrap; }
 .ntfy-qr { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 16px; align-items: center; margin-top: 4px; padding: 12px; border-radius: var(--r-card); background: var(--c-surface-2); }
 .ntfy-qr .qr { width: 112px; height: 112px; padding: 8px; border-radius: 8px; background: #fff; }
 .ntfy-open { margin-top: 8px; }
@@ -1128,9 +1130,8 @@ select.chip { width: auto; max-width: 220px; }
 }
 
 /* Sign in: one frame, the app's name on it, and a show-password button. */
-.login__card { padding: 150px 0 0; overflow: hidden; }
-.login__brand { position: absolute; top: 18px; left: 22px; color: var(--c-on-photo); }
-.login__brand .brand__name, .login__brand .brand__name span { color: #fff; }
+.login__card { padding: 150px 0 0; overflow: hidden; box-shadow: var(--ring); }
+.login__brand { position: absolute; top: 18px; left: 22px; }
 .login__mags { top: 30px; }
 .login__form { border-radius: 0; box-shadow: none; }
 .affix--end .input { padding-left: 14px; padding-right: 92px; }

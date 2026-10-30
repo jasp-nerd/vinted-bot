@@ -70,7 +70,7 @@
           </div>
         </div>
         {% else %}
-        <p>Right now only this computer can open this page. Alerts don't need it: they reach your phone either way. To open the page on your phone too, on the same Wi-Fi, takes about two minutes:</p>
+        <p>Right now only this computer can open this page. Alerts don't need it. To open the page on your phone too, on the same Wi-Fi, takes about two minutes:</p>
         {% if in_container %}
         <ol class="steps-list">
           <li><span>In your <span class="code">docker-compose.yml</span>, change the port line from <span class="code">127.0.0.1:8000:8000</span> to <span class="code">8000:8000</span> and add a password under <span class="code">environment</span>: <span class="code">VINTED_SNIPER_WEB_AUTH_TOKEN: {{ suggested_password }}</span></span></li>
