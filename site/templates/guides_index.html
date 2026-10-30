@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block main %}
+<div class="wrap page">
+  {% include "_crumbs.html" %}
+  <header class="head page__head">
+    <h1 class="h1 h1--page">{{ t.guides.h1 }}</h1>
+    <p class="lead">{{ t.guides.lead }}</p>
+  </header>
+  <ul class="guide-list">
+    {%- for g in guides %}
+    <li class="guide-card"><a href="{{ g.path }}"><span class="guide-card__title">{{ g.title }}</span><span class="guide-card__desc">{{ g.description }}</span><span class="guide-card__meta"><time datetime="{{ g.updated }}">{{ g.updated_h }}</time></span></a></li>
+    {%- endfor %}
+  </ul>
+  {% include "_install_cta.html" %}
+</div>
+{% endblock %}

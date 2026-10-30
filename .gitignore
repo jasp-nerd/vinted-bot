@@ -18,3 +18,6 @@ data/
 *.db-shm
 
 .DS_Store
+
+# Landing site build output (python3 site/build.py)
+site/dist/
