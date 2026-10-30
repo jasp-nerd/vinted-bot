@@ -998,12 +998,28 @@ class Repo:
         kind: str,
         name: str,
         config: dict[str, Any],
-        notify_status: bool = False,
+        notify_status: bool | None = None,
     ) -> int:
+        """Store a destination. Status notices are on unless said otherwise when no other
+        active destination gets them yet.
+
+        Status notices (a stale search, a site that keeps failing, an update installed
+        overnight) used to be off for every destination made in the dashboard, in setup or
+        by pairing Telegram, so they reached nobody.
+        """
+        if notify_status is None:
+            notify_status = not await self.status_destination_ids()
         return await self._db.insert(
             "INSERT INTO destinations (kind, name, config_json, notify_status, created_at) "
             "VALUES (?, ?, ?, ?, ?)",
             (kind, name, json.dumps(config), int(notify_status), int(time.time())),
+        )
+
+    async def set_notify_status(self, destination_id: int, enabled: bool) -> None:
+        """Whether a destination gets status notices as well as alerts."""
+        await self._db.execute(
+            "UPDATE destinations SET notify_status = ? WHERE id = ?",
+            (int(enabled), destination_id),
         )
 
     async def list_destinations(self, *, active_only: bool = False) -> list[Destination]:

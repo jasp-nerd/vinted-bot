@@ -202,6 +202,30 @@ async def test_a_duplicate_keeps_the_rules_and_routes_but_starts_paused(repo: Re
 # --- Routing -----------------------------------------------------------------------
 
 
+async def test_the_first_destination_gets_status_notices(repo: Repo) -> None:
+    """Made in setup, the dashboard or by pairing Telegram, it used to get none."""
+    first = await repo.add_destination(kind="ntfy", name="n", config={"topic": "t"})
+
+    assert await repo.status_destination_ids() == [first]
+
+
+async def test_later_destinations_do_not_also_get_status_notices(repo: Repo) -> None:
+    first = await repo.add_destination(kind="ntfy", name="n", config={"topic": "t"})
+    await repo.add_destination(kind="webhook", name="w", config={"url": "https://x.test"})
+
+    assert await repo.status_destination_ids() == [first]
+
+
+async def test_status_notices_can_be_switched_per_destination(repo: Repo) -> None:
+    first = await repo.add_destination(kind="ntfy", name="n", config={"topic": "t"})
+    second = await repo.add_destination(kind="webhook", name="w", config={"url": "https://x"})
+
+    await repo.set_notify_status(first, False)
+    await repo.set_notify_status(second, True)
+
+    assert await repo.status_destination_ids() == [second]
+
+
 async def test_an_unrouted_search_goes_to_every_active_destination(repo: Repo) -> None:
     """Adding the search first and Discord second used to mean silence forever."""
     query = await add(repo)

@@ -119,7 +119,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     destination.add_argument("--name", default="", help="What to call it.")
     destination.add_argument(
-        "--status", action="store_true", help="Also send health warnings here."
+        "--status",
+        action="store_true",
+        default=None,
+        help="Also send status notices here (stale searches, a site that keeps failing, "
+        "updates). The first destination gets them without asking.",
     )
 
     sub.add_parser("destinations", help="List destinations.")
