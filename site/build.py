@@ -56,7 +56,17 @@ SITE = Path(__file__).resolve().parent
 ROOT = SITE.parent
 DIST = SITE / "dist"
 sys.path.insert(0, str(SITE))
-from siteconfig import BASE_URL, NAME, PYPI, REPO, REPO_BLOB, REPO_RAW  # noqa: E402
+from siteconfig import (  # noqa: E402
+    BASE_URL,
+    HOST,
+    NAME,
+    PYPI,
+    REPO,
+    REPO_BLOB,
+    REPO_RAW,
+    UMAMI_SCRIPT,
+    UMAMI_WEBSITE_ID,
+)
 
 # Language order on the site: English is the root and x-default.
 LANG_ORDER = ["en", "fr", "de", "it", "es", "pl", "nl"]
@@ -277,7 +287,15 @@ class Site:
         self.env.filters["a"] = lambda s: escape(str(s))
         self.env.filters["q"] = lambda s: urllib.parse.quote(str(s), safe="")
         self.env.globals["zip"] = zip
-        self.env.globals.update(name=NAME, repo=REPO, repo_raw=REPO_RAW, base_url=BASE_URL)
+        self.env.globals.update(
+            name=NAME,
+            repo=REPO,
+            repo_raw=REPO_RAW,
+            base_url=BASE_URL,
+            host=HOST,
+            umami_script=UMAMI_SCRIPT,
+            umami_website_id=UMAMI_WEBSITE_ID,
+        )
 
     # ── content discovery ──
 

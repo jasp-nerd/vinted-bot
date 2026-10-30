@@ -44,7 +44,7 @@
     "note": "Windows, Mac, Linux, Raspberry Pi, Docker or a NAS.",
     "independent": "Independent and open source. Not affiliated with Vinted.",
     "trust_aria": "In short",
-    "trust": ["€0, where paid bots charge €5 to €300 a month", "No Vinted login", "No ads, no tracking"],
+    "trust": ["€0, where paid bots charge €5 to €300 a month", "No Vinted login", "No ads, no tracking in the app"],
     "stage_caption": "A demo of the dashboard: new Vinted listings appear at the top of the grid, and a notification arrives for each one.",
     "push_now": "now",
     "stage_title": "Finds",
@@ -253,6 +253,7 @@
   "footer": {
     "legal_1": "Independent open-source tool. Not affiliated with, endorsed by, or connected to Vinted. Vinted is a trademark of its owner.",
     "legal_2": "Free forever, MIT licence. Made by <a href=\"{p}about/\">jasp-nerd</a>. Listing photos and names on this page are invented.",
+    "legal_3": "This site counts visits with Umami: no cookies, no personal data.",
     "project": "Project",
     "source": "Source code",
     "releases": "Releases",

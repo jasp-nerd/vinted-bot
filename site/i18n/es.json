@@ -44,7 +44,7 @@
     "note": "Windows, Mac, Linux, Raspberry Pi, Docker o un NAS.",
     "independent": "Proyecto independiente y de código abierto. Sin relación con Vinted.",
     "trust_aria": "En resumen",
-    "trust": ["0 €, cuando los bots de Vinted de pago cobran de 5 a 300 € al mes", "Sin iniciar sesión en Vinted", "Sin publicidad ni rastreo"],
+    "trust": ["0 €, cuando los bots de Vinted de pago cobran de 5 a 300 € al mes", "Sin iniciar sesión en Vinted", "Sin publicidad ni rastreo en la app"],
     "stage_caption": "Una demo del panel: los artículos nuevos de Vinted aparecen arriba en la cuadrícula, y llega una notificación por cada uno.",
     "push_now": "ahora",
     "stage_title": "Hallazgos",
@@ -253,6 +253,7 @@
   "footer": {
     "legal_1": "Herramienta independiente de código abierto. Sin relación, respaldo ni vínculo con Vinted. Vinted es una marca de su propietario.",
     "legal_2": "Gratis para siempre, licencia MIT. Hecho por <a href=\"{p}about/\">jasp-nerd</a>. Las fotos y los nombres de artículos de esta página son inventados.",
+    "legal_3": "Este sitio cuenta las visitas con Umami: sin cookies ni datos personales.",
     "project": "Proyecto",
     "source": "Código fuente",
     "releases": "Versiones",

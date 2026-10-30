@@ -44,7 +44,7 @@
     "note": "Windows, Mac, Linux, Raspberry Pi, Docker o un NAS.",
     "independent": "Progetto indipendente e open source. Non affiliato a Vinted.",
     "trust_aria": "In breve",
-    "trust": ["0 €, mentre i bot a pagamento costano da 5 a 300 € al mese", "Nessun login Vinted", "Niente pubblicità, niente tracciamento"],
+    "trust": ["0 €, mentre i bot a pagamento costano da 5 a 300 € al mese", "Nessun login Vinted", "Niente pubblicità, niente tracciamento nell'app"],
     "stage_caption": "Una demo della dashboard: i nuovi articoli Vinted compaiono in cima alla griglia e per ognuno arriva una notifica.",
     "push_now": "ora",
     "stage_title": "Trovati",
@@ -253,6 +253,7 @@
   "footer": {
     "legal_1": "Strumento open source indipendente. Non è affiliato, approvato o collegato in alcun modo a Vinted. Vinted è un marchio del suo proprietario.",
     "legal_2": "Gratis per sempre, licenza MIT. Creato da <a href=\"{p}about/\">jasp-nerd</a>. Le foto e i nomi degli articoli in questa pagina sono inventati.",
+    "legal_3": "Questo sito conta le visite con Umami: niente cookie, niente dati personali.",
     "project": "Progetto",
     "source": "Codice sorgente",
     "releases": "Versioni",

@@ -44,7 +44,7 @@
     "note": "Windows, Mac, Linux, Raspberry Pi, Docker ou un NAS.",
     "independent": "Projet indépendant et open source. Sans lien avec Vinted.",
     "trust_aria": "En bref",
-    "trust": ["0 €, là où les bots payants coûtent de 5 à 300 € par mois", "Aucune connexion à Vinted", "Sans pub, sans pistage"],
+    "trust": ["0 €, là où les bots payants coûtent de 5 à 300 € par mois", "Aucune connexion à Vinted", "Sans pub, sans pistage dans l'appli"],
     "stage_caption": "Une démo du tableau de bord : les nouvelles annonces Vinted apparaissent en haut de la grille, et une notification arrive pour chacune.",
     "push_now": "maintenant",
     "stage_title": "Trouvailles",
@@ -253,6 +253,7 @@
   "footer": {
     "legal_1": "Outil open source indépendant. Sans affiliation, soutien ni lien avec Vinted. Vinted est une marque de son propriétaire.",
     "legal_2": "Gratuit pour toujours, licence MIT. Créé par <a href=\"{p}about/\">jasp-nerd</a>. Les photos et noms d'annonces de cette page sont inventés.",
+    "legal_3": "Ce site compte les visites avec Umami : sans cookies, sans données personnelles.",
     "project": "Projet",
     "source": "Code source",
     "releases": "Versions",

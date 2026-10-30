@@ -44,7 +44,7 @@
     "note": "Windows, Mac, Linux, Raspberry Pi, Docker of een NAS.",
     "independent": "Onafhankelijk en open source. Niet verbonden aan Vinted.",
     "trust_aria": "In het kort",
-    "trust": ["€ 0, waar betaalde bots € 5 tot € 300 per maand vragen", "Geen Vinted-login", "Geen advertenties, geen tracking"],
+    "trust": ["€ 0, waar betaalde bots € 5 tot € 300 per maand vragen", "Geen Vinted-login", "Geen advertenties, geen tracking in de app"],
     "stage_caption": "Een demo van het dashboard: nieuwe Vinted-artikelen verschijnen bovenaan in het overzicht, en voor elk artikel komt er een melding binnen.",
     "push_now": "nu",
     "stage_title": "Vondsten",
@@ -253,6 +253,7 @@
   "footer": {
     "legal_1": "Onafhankelijke open-source tool. Niet verbonden aan, goedgekeurd door of gelieerd aan Vinted. Vinted is een handelsmerk van de eigenaar.",
     "legal_2": "Altijd gratis, MIT-licentie. Gemaakt door <a href=\"{p}about/\">jasp-nerd</a>. De foto's en namen van artikelen op deze pagina zijn verzonnen.",
+    "legal_3": "Deze site telt bezoeken met Umami: geen cookies, geen persoonsgegevens.",
     "project": "Project",
     "source": "Broncode",
     "releases": "Releases",

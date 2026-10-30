@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% macro icon(name, cls="i") %}<svg class="{{ cls }}" aria-hidden="true"><use href="{{ icons }}#i-{{ name }}"></use></svg>{% endmacro %}
-{% macro copybtn(label=None) %}<button class="copy" type="button" data-copy>{{ icon('copy') }}<span>{{ label or t.install['copy'] }}</span></button>{% endmacro %}
+{% macro copybtn(label=None) %}<button class="copy" type="button" data-copy data-umami-event="copy-install">{{ icon('copy') }}<span>{{ label or t.install['copy'] }}</span></button>{% endmacro %}
 {% macro code(text) %}<div class="code"><pre><code>{{ text }}</code></pre>{{ copybtn() }}</div>{% endmacro %}
 {% block main %}
 
@@ -11,8 +11,8 @@
       <h1 class="h1" id="hero-title">{{ t.hero.h1 }}</h1>
       <p class="lead">{{ t.hero.lead }}</p>
       <div class="btn-row">
-        <a class="btn btn--primary btn--lg" href="#install">{{ icon('arrow-right') }}{{ t.hero.cta_install }}</a>
-        <a class="btn btn--secondary btn--lg" href="{{ repo }}">{{ icon('github') }}{{ t.hero.cta_github }}</a>
+        <a class="btn btn--primary btn--lg" href="#install" data-umami-event="install-cta" data-umami-event-where="hero">{{ icon('arrow-right') }}{{ t.hero.cta_install }}</a>
+        <a class="btn btn--secondary btn--lg" href="{{ repo }}" data-umami-event="github" data-umami-event-where="hero">{{ icon('github') }}{{ t.hero.cta_github }}</a>
       </div>
       <p class="hero__indep">{{ t.hero.independent }}</p>
       <p class="hero__note">{{ t.hero.note }}</p>
@@ -386,9 +386,9 @@ docker compose up -d</code></pre>{{ copybtn() }}</div></li>
         <div class="prompt">
           <pre id="ai-prompt" tabindex="0" aria-label="{{ t.ai.prompt_aria|a }}">{{ t.ai.prompt }}</pre>
           <div class="prompt__foot">
-            <button class="copy" type="button" data-copy="#ai-prompt">{{ icon('copy') }}<span>{{ t.ai.copy_prompt }}</span></button>
-            <a class="btn btn--secondary" href="https://claude.ai/new?q={{ t.ai.prompt|q }}" rel="noopener">{{ icon('external-link') }}{{ t.ai.open_claude }}</a>
-            <a class="btn btn--secondary" href="https://chatgpt.com/?q={{ t.ai.prompt|q }}" rel="noopener">{{ icon('external-link') }}{{ t.ai.open_chatgpt }}</a>
+            <button class="copy" type="button" data-copy="#ai-prompt" data-umami-event="copy-ai-prompt">{{ icon('copy') }}<span>{{ t.ai.copy_prompt }}</span></button>
+            <a class="btn btn--secondary" href="https://claude.ai/new?q={{ t.ai.prompt|q }}" rel="noopener" data-umami-event="open-claude">{{ icon('external-link') }}{{ t.ai.open_claude }}</a>
+            <a class="btn btn--secondary" href="https://chatgpt.com/?q={{ t.ai.prompt|q }}" rel="noopener" data-umami-event="open-chatgpt">{{ icon('external-link') }}{{ t.ai.open_chatgpt }}</a>
           </div>
         </div>
         <p class="ai__fine">{{ t.ai.fine }}</p>
@@ -440,8 +440,8 @@ docker compose up -d</code></pre>{{ copybtn() }}</div></li>
         <h2 class="h2" id="closer-title">{{ t.closer.title }}</h2>
         <p class="lead" style="color: var(--field-ink)">{{ t.closer.lead }}</p>
         <div class="btn-row">
-          <a class="btn btn--primary btn--lg" href="#install">{{ t.closer.cta }}</a>
-          <a class="btn btn--secondary btn--lg" href="{{ repo }}">{{ icon('github') }}{{ t.closer.github }}</a>
+          <a class="btn btn--primary btn--lg" href="#install" data-umami-event="install-cta" data-umami-event-where="closer">{{ t.closer.cta }}</a>
+          <a class="btn btn--secondary btn--lg" href="{{ repo }}" data-umami-event="github" data-umami-event-where="closer">{{ icon('github') }}{{ t.closer.github }}</a>
         </div>
       </div>
       <img src="/assets/img/mags-cheer.webp" width="346" height="400" alt="" loading="lazy">

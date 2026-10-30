@@ -44,7 +44,7 @@
     "note": "Windows, Mac, Linux, Raspberry Pi, Docker albo NAS.",
     "independent": "Niezależny projekt open source. Niezwiązany z Vinted.",
     "trust_aria": "W skrócie",
-    "trust": ["0 €, a płatne boty Vinted biorą od 5 do 300 € miesięcznie", "Bez logowania do Vinted", "Bez reklam i śledzenia"],
+    "trust": ["0 €, a płatne boty Vinted biorą od 5 do 300 € miesięcznie", "Bez logowania do Vinted", "Bez reklam i śledzenia w aplikacji"],
     "stage_caption": "Demo panelu: nowe ogłoszenia z Vinted pojawiają się na górze siatki, a do każdego przychodzi powiadomienie.",
     "push_now": "teraz",
     "stage_title": "Znaleziska",
@@ -253,6 +253,7 @@
   "footer": {
     "legal_1": "Niezależne narzędzie open source. Niepowiązane z Vinted, niepopierane przez Vinted i w żaden sposób z nim niezwiązane. Vinted jest znakiem towarowym swojego właściciela.",
     "legal_2": "Zawsze za darmo, licencja MIT. Autor: <a href=\"{p}about/\">jasp-nerd</a>. Zdjęcia i nazwy ogłoszeń na tej stronie są wymyślone.",
+    "legal_3": "Ta strona liczy odwiedziny za pomocą Umami: bez plików cookie i danych osobowych.",
     "project": "Projekt",
     "source": "Kod źródłowy",
     "releases": "Wydania",
