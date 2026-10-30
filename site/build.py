@@ -270,6 +270,7 @@ class Site:
                     "date": date, "updated": updated,
                     "date_h": fmt_date(date, lang), "updated_h": fmt_date(updated, lang),
                     "keywords": meta.get("keywords") or [], "faq": meta.get("faq") or [],
+                    "seo_title": meta.get("seo_title"),
                     "path": f"{prefix(lang)}guides/{meta['slug']}/",
                 }
                 if len(g["description"]) > 160:
@@ -284,6 +285,15 @@ class Site:
             for g in items:
                 self.by_key.setdefault(g["key"], {})[g["lang"]] = g
                 self.by_slug.setdefault(g["slug"], []).append(g)
+
+    @staticmethod
+    def guide_title(g: dict) -> str:
+        """The <title>: front matter `seo_title` if given, else the guide's title, with the
+        brand added when there's room and a trailing "(...)" dropped when it's too long."""
+        title = g.get("seo_title") or g["title"]
+        if len(title) > 62 and title.endswith(")") and " (" in title:
+            title = title[: title.rindex(" (")]
+        return f"{title} | vinted-sniper" if len(title) <= 44 else title
 
     def guide_link(self, lang: str, slug: str) -> str | None:
         """Where /guides/<slug>/ should point on a page in `lang`: that language's version of
@@ -360,7 +370,7 @@ class Site:
             for g in items:
                 alts = {l: v["path"] for l, v in self.by_key[g["key"]].items()}
                 self.add(kind="guide", lang=lang, path=g["path"], alternates=alts, guide=g,
-                         title=f"{g['title']} | vinted-sniper" if len(g["title"]) <= 44 else g["title"],
+                         title=self.guide_title(g),
                          description=g["description"], og_type="article",
                          lastmod=g["updated"], section="guides", sources=[])
 
