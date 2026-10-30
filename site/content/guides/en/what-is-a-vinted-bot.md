@@ -23,11 +23,11 @@ faq:
     a: "In competitive categories such as consoles, phones and popular clothing at low prices, many good listings are bought within minutes by people using alerts or autobuy. In most other categories you're competing with ordinary shoppers."
 ---
 
-A Vinted bot is a program that does something on Vinted automatically. Most of the time people mean an alert bot (also called a monitor or sniper) that watches a search and sends you new listings within minutes. The term also covers autobuy bots that purchase for you, and seller bots that relist items or send likes and follows. They work very differently and carry very different risks.
+A Vinted bot is a program that does something on Vinted automatically. Most of the time people mean an alert bot (also called a monitor) that watches a search and sends you new listings within minutes. The term also covers autobuy bots that purchase for you, and seller bots that relist items or send likes and follows. They work very differently and carry very different risks.
 
 ## The four kinds of Vinted bot
 
-### Alert bots, monitors and snipers
+### Alert bots and monitors
 
 These watch one or more searches and tell you when something new appears, usually on Discord or Telegram, sometimes as a phone notification. You still open the listing and buy it yourself. They don't need your Vinted account, because search results are public.
 
@@ -85,7 +85,7 @@ Free community servers post listings from preset searches into shared channels. 
 
 Open-source bots run on a machine you own: your laptop, a Raspberry Pi, a NAS. They're free, you control the filters, and your searches and alert links stay with you. The trade-off is that the machine has to stay on.
 
-vinted-sniper is this kind. It's free and open source, never logs in, and sends alerts to Discord, Telegram, your phone (through the free ntfy app) or a webhook. It shows prices including buyer protection, lets you skip words and low-rated sellers, and tells you in plain words when a search stops working.
+vinted-bot is this kind. It's free and open source, never logs in, and sends alerts to Discord, Telegram, your phone (through the free ntfy app) or a webhook. It shows prices including buyer protection, lets you skip words and low-rated sellers, and tells you in plain words when a search stops working.
 
 {{install}}
 

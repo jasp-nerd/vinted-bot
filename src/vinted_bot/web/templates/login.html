@@ -1,0 +1,32 @@
+{% import "partials/macros.html" as ui %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sign in · vinted-bot</title>
+  {% include "partials/head.html" %}
+</head>
+<body>
+{% include "partials/icons.svg" %}
+<main class="login" id="main">
+  <div class="field-panel field-panel--teal login__card">
+    <span class="brand login__brand"><span class="brand__name"><span>vinted-</span>bot</span></span>
+    {{ ui.mags("head", "login__mags") }}
+    <form class="card login__form" method="post" action="/login">
+      <input type="hidden" name="next" value="{{ next }}">
+      <h1 class="t-h1">Welcome back</h1>
+      <p>This vinted-bot has a password. You only need it once per browser.</p>
+      <div class="field">
+        <label class="label" for="password">Password</label>
+        <div class="affix affix--end"><input class="input" id="password" name="password" type="password" autocomplete="current-password"{% if error %} aria-invalid="true" aria-describedby="pw-err"{% endif %} autofocus><button class="btn btn--ghost btn--sm affix__btn" type="button" data-show-password="password" aria-pressed="false">{{ ui.icon("eye", "i-sm") }}<span>Show</span></button></div>
+        {% if error %}<p class="help help--error" id="pw-err">{{ ui.icon("circle-alert") }}<span>{{ error }}</span></p>{% endif %}
+      </div>
+      <button class="btn btn--primary btn--lg btn--block" type="submit">Sign in</button>
+      <details class="faq"><summary>{{ ui.icon("circle-help", "i-sm") }}Forgot it?</summary><div class="prose"><p>It's the VINTED_BOT_WEB_AUTH_TOKEN line in the settings file on the computer running vinted-bot. Look it up there, or change it and restart.</p></div></details>
+    </form>
+  </div>
+</main>
+<script src="{{ static('js/app.js') }}" defer></script>
+</body>
+</html>

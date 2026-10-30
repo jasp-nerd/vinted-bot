@@ -1,7 +1,7 @@
 # Deployment templates
 
 Ready-made files for app stores and hosting platforms. Each runs the published image,
-`ghcr.io/jasp-nerd/vinted-sniper`, with its database on a persistent volume at `/data`.
+`ghcr.io/jasp-nerd/vinted-bot`, with its database on a persistent volume at `/data`.
 For a plain Docker host, use the [docker-compose.yml](../docker-compose.yml) in the root.
 
 | Folder | For | How it gets used |
@@ -18,11 +18,11 @@ Two things are true everywhere:
   data folder on the host and the container hands `/data` to that user before starting.
   The app never runs as root.
 - **Anything reachable beyond the machine itself needs a password.** Set
-  `VINTED_SNIPER_WEB_AUTH_TOKEN`. The dashboard shows your webhook links.
+  `VINTED_BOT_WEB_AUTH_TOKEN`. The dashboard shows your webhook links.
 
 ## Unraid
 
-[unraid/vinted-sniper.xml](unraid/vinted-sniper.xml) is a Community Applications template.
+[unraid/vinted-bot.xml](unraid/vinted-bot.xml) is a Community Applications template.
 
 To use it before it is listed: Docker tab, Add Container, paste the raw URL of the XML into
 Template, and apply. To get it listed, Community Applications wants a repository with
@@ -45,7 +45,7 @@ repository made from
 [getumbrel/umbrel-community-app-store](https://github.com/getumbrel/umbrel-community-app-store),
 then in Umbrel: App Store, the three dots, Community App Stores, and paste the repository URL.
 
-Before each store update, set the image in `jasp-vinted-sniper/docker-compose.yml` to the
+Before each store update, set the image in `jasp-vinted-bot/docker-compose.yml` to the
 release tag and its digest, and bump `version` in `umbrel-app.yml` to match. Umbrel puts its
 own sign-in in front of the app, so no dashboard password is needed there.
 
@@ -59,7 +59,7 @@ In the CasaOS dashboard: App Store, Custom Install, the import button at the top
 paste [casaos/docker-compose.yml](casaos/docker-compose.yml). Uncomment the password line
 first. The `x-casaos` block is the metadata community stores such as
 [BigBear's](https://github.com/bigbeartechworld/big-bear-casaos) expect, so the same file is
-the start of a pull request there (as `Apps/vinted-sniper/docker-compose.yml` with a
+the start of a pull request there (as `Apps/vinted-bot/docker-compose.yml` with a
 `config.json` beside it).
 
 ## Synology
@@ -74,7 +74,7 @@ change two things:
 
 ## Portainer
 
-Stacks, Add stack, Repository: `https://github.com/jasp-nerd/vinted-sniper`, compose path
+Stacks, Add stack, Repository: `https://github.com/jasp-nerd/vinted-bot`, compose path
 `docker-compose.yml`. Or Web editor and paste the file. Turn on "Re-pull image" when
 updating.
 
@@ -87,7 +87,7 @@ it is under Environment.
 
 ## Coolify
 
-[coolify/vinted-sniper.yaml](coolify/vinted-sniper.yaml) follows Coolify's service template
+[coolify/vinted-bot.yaml](coolify/vinted-bot.yaml) follows Coolify's service template
 format: Coolify generates the dashboard password and the public URL. Paste it as a new
 Docker Compose resource, or submit it to `templates/compose/` in
 [coollabsio/coolify](https://github.com/coollabsio/coolify) with an icon in `svgs/`.
@@ -96,10 +96,10 @@ Docker Compose resource, or submit it to `templates/compose/` in
 
 Railway templates are made in its web interface rather than from a file:
 
-1. New project, Deploy a Docker image: `ghcr.io/jasp-nerd/vinted-sniper:latest`.
+1. New project, Deploy a Docker image: `ghcr.io/jasp-nerd/vinted-bot:latest`.
 2. Add a volume mounted at `/data`.
-3. Variables: `VINTED_SNIPER_WEB_AUTH_TOKEN` set to a long random value (the template
-   editor can generate one), `VINTED_SNIPER_WEB_PUBLIC_URL` set to
+3. Variables: `VINTED_BOT_WEB_AUTH_TOKEN` set to a long random value (the template
+   editor can generate one), `VINTED_BOT_WEB_PUBLIC_URL` set to
    `https://${{RAILWAY_PUBLIC_DOMAIN}}`, and `TZ`.
 4. Networking: generate a domain on port 8000.
 5. Publish it as a template to get a Deploy on Railway button.

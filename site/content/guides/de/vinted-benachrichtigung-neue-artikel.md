@@ -14,13 +14,13 @@ keywords:
   - vinted benachrichtigung favoriten
 faq:
   - q: "Wie bekomme ich bei Vinted eine Benachrichtigung, wenn ein neuer Artikel eingestellt wird?"
-    a: "Für einen bestimmten Verkäufer folgst du ihm, dann meldet Vinted neue Artikel. Für eine Suche speicherst du sie in der App, diese Benachrichtigungen kommen aber oft spät oder gar nicht. Zuverlässig geht es mit einem externen Tool wie vinted-sniper, das deine Suche jede Minute prüft."
+    a: "Für einen bestimmten Verkäufer folgst du ihm, dann meldet Vinted neue Artikel. Für eine Suche speicherst du sie in der App, diese Benachrichtigungen kommen aber oft spät oder gar nicht. Zuverlässig geht es mit einem externen Tool wie vinted-bot, das deine Suche jede Minute prüft."
   - q: "Wo stelle ich die Vinted Benachrichtigung für eine gespeicherte Suche ein?"
     a: "In der App unter Profil, Einstellungen, Benachrichtigungen. Dort müssen Push-Benachrichtigungen und die Benachrichtigungen zu neuen Artikeln und gespeicherten Suchen eingeschaltet sein. Die Bezeichnungen ändern sich je nach App-Version etwas."
   - q: "Bekomme ich eine Benachrichtigung bei Preissenkung von Favoriten?"
-    a: "Was Vinted zu Favoriten meldet, hängt von deinen Benachrichtigungseinstellungen in der App ab. Unabhängig davon kannst du mit vinted-sniper kannst du einzelne Artikel beobachten und bekommst eine Nachricht, wenn der Preis sinkt oder der Artikel verkauft ist."
+    a: "Was Vinted zu Favoriten meldet, hängt von deinen Benachrichtigungseinstellungen in der App ab. Unabhängig davon kannst du mit vinted-bot kannst du einzelne Artikel beobachten und bekommst eine Nachricht, wenn der Preis sinkt oder der Artikel verkauft ist."
   - q: "Wie schnell kommen Vinted Benachrichtigungen?"
-    a: "Vinted nimmt neue Artikel erst einige Minuten nach dem Hochladen in die Suche auf, jede Benachrichtigung kommt also danach. vinted-sniper prüft standardmäßig jede Minute, du hörst meist wenige Minuten nach dem Einstellen davon."
+    a: "Vinted nimmt neue Artikel erst einige Minuten nach dem Hochladen in die Suche auf, jede Benachrichtigung kommt also danach. vinted-bot prüft standardmäßig jede Minute, du hörst meist wenige Minuten nach dem Einstellen davon."
 ---
 
 Für eine Benachrichtigung bei neuen Artikeln auf Vinted gibt es drei Wege: die Suche in der App speichern, interessanten Mitgliedern folgen oder ein Tool nutzen, das deine Suche selbst prüft und dir schreibt. Die ersten beiden sind eingebaut und kostenlos, aber eingeschränkt. Der dritte ist der einzige, der für eine Suche verlässlich funktioniert, und er kann ebenfalls kostenlos sein.
@@ -49,7 +49,7 @@ Das deckt allerdings nur Leute ab, die du schon kennst. Den nächsten guten Verk
 
 Ein solches Tool, oft Vinted Bot oder Monitor genannt, lädt regelmäßig die neuesten Ergebnisse deiner Suche und schickt dir alles, was es noch nicht gesehen hat. Wohin, entscheidest du: Telegram, Discord, eine Push-Benachrichtigung aufs Handy, E-Mail.
 
-Bezahlte Dienste machen das von ihren Servern aus für grob 5 bis 30 € im Monat (Stand Oktober 2026). vinted-sniper macht es kostenlos von deinem eigenen Rechner aus, Open Source und ohne Vinted-Login. So richtest du es ein:
+Bezahlte Dienste machen das von ihren Servern aus für grob 5 bis 30 € im Monat (Stand Oktober 2026). vinted-bot macht es kostenlos von deinem eigenen Rechner aus, Open Source und ohne Vinted-Login. So richtest du es ein:
 
 1. Mit dem Einzeiler von der Startseite installieren. Das Dashboard öffnet sich im Browser.
 2. Den Link deiner Vinted-Suche einfügen oder die Suche im Dashboard mit den Kategorien, Marken und Größen von Vinted bauen.
@@ -63,7 +63,7 @@ Jede Nachricht zeigt Fotos, Endpreis, Größe, Zustand, Marke, die Bewertung des
 
 ## Welcher Weg passt zu dir?
 
-| | Gespeicherte Suche (Vinted) | Mitgliedern folgen | Kostenloses Tool (vinted-sniper) | Bezahlter Dienst |
+| | Gespeicherte Suche (Vinted) | Mitgliedern folgen | Kostenloses Tool (vinted-bot) | Bezahlter Dienst |
 |---|---|---|---|---|
 | Kosten | Kostenlos | Kostenlos | Kostenlos | Etwa 5 bis 30 € im Monat |
 | Zuverlässigkeit | Oft spät oder gar nicht | Meist in Ordnung | Prüft jede Minute, meldet, wenn es hakt | Je nach Dienst |
@@ -82,15 +82,15 @@ Beim Stöbern darf eine Suche breit sein, du überfliegst ja nur. Eine Suche, di
 
 ### "Dies oder das" statt fünf Suchen
 
-"Levi's 501 oder 505" kann eine einzige Suche sein: In vinted-sniper darf ein Pflichtwort Alternativen haben, geschrieben als `501|505`. Weniger Suchen heißt weniger Anfragen an Vinted und weniger Gefahr, ausgebremst zu werden.
+"Levi's 501 oder 505" kann eine einzige Suche sein: In vinted-bot darf ein Pflichtwort Alternativen haben, geschrieben als `501|505`. Weniger Suchen heißt weniger Anfragen an Vinted und weniger Gefahr, ausgebremst zu werden.
 
 ### Mehrere Länder abdecken
 
-Jede Vinted-Länderseite zeigt eine etwas andere Mischung an Verkäufern. Eine Suche in vinted-sniper kann mehrere Seiten gleichzeitig beobachten, etwa vinted.de und vinted.at, und ein Artikel, der auf zweien auftaucht, wird nur einmal gemeldet.
+Jede Vinted-Länderseite zeigt eine etwas andere Mischung an Verkäufern. Eine Suche in vinted-bot kann mehrere Seiten gleichzeitig beobachten, etwa vinted.de und vinted.at, und ein Artikel, der auf zweien auftaucht, wird nur einmal gemeldet.
 
 ### Preissenkungen und Verkäufer beobachten
 
-Einen einzelnen Artikel, der dir noch zu teuer ist, kannst du in vinted-sniper auf die Beobachtungsliste setzen. Du bekommst eine Nachricht, wenn der Preis sinkt oder wenn er verkauft ist. Genauso kannst du einem Verkäufer folgen und alles gemeldet bekommen, was er neu einstellt.
+Einen einzelnen Artikel, der dir noch zu teuer ist, kannst du in vinted-bot auf die Beobachtungsliste setzen. Du bekommst eine Nachricht, wenn der Preis sinkt oder wenn er verkauft ist. Genauso kannst du einem Verkäufer folgen und alles gemeldet bekommen, was er neu einstellt.
 
 ### Ruhezeiten festlegen
 

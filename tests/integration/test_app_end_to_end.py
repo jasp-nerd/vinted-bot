@@ -1,6 +1,6 @@
 """The whole app, start to finish, without touching the network.
 
-Uses the same offline mode that `VINTED_SNIPER_FETCH_MODE=mock` gives you, so this is
+Uses the same offline mode that `VINTED_BOT_FETCH_MODE=mock` gives you, so this is
 also a demonstration that the mode works.
 """
 
@@ -15,11 +15,11 @@ from pathlib import Path
 import pytest
 import structlog
 
-from vinted_sniper.app import Application
-from vinted_sniper.config import Settings
-from vinted_sniper.db import Database, apply_pending
-from vinted_sniper.db.repo import Repo
-from vinted_sniper.engine.poller import Poller
+from vinted_bot.app import Application
+from vinted_bot.config import Settings
+from vinted_bot.db import Database, apply_pending
+from vinted_bot.db.repo import Repo
+from vinted_bot.engine.poller import Poller
 
 
 def write_scenario(directory: Path, *, item_count: int = 3) -> None:

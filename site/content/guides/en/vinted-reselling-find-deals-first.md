@@ -71,11 +71,11 @@ Add words to skip such as "fake", "replica", "inspired", "style", "box only", "f
 
 ### Price below typical, not just below a number
 
-A fixed limit is a blunt tool. vinted-sniper learns the typical total price of what each search finds and marks listings that are clearly under it (it needs 15 finds in two weeks before it knows). You can choose to be told only about those.
+A fixed limit is a blunt tool. vinted-bot learns the typical total price of what each search finds and marks listings that are clearly under it (it needs 15 finds in two weeks before it knows). You can choose to be told only about those.
 
 ### Let it calculate your margin
 
-In vinted-sniper's search editor there's a resale section: enter what the item resells for, the selling fee (0 for Vinted, about 10 for eBay) and your postage, and each alert shows what you'd keep. Set a minimum margin and anything that leaves too little isn't sent.
+In vinted-bot's search editor there's a resale section: enter what the item resells for, the selling fee (0 for Vinted, about 10 for eBay) and your postage, and each alert shows what you'd keep. Set a minimum margin and anything that leaves too little isn't sent.
 
 ### Watch sellers, not only searches
 
@@ -83,11 +83,11 @@ Some sellers consistently underprice: house clearances, parents emptying wardrob
 
 ### Cover more than one country
 
-The same search on another Vinted country site shows a different mix of sellers. One vinted-sniper search can watch several, and a listing seen twice is announced once.
+The same search on another Vinted country site shows a different mix of sellers. One vinted-bot search can watch several, and a listing seen twice is announced once.
 
 ## Setting up free alerts
 
-vinted-sniper is free and open source. It runs on your own computer, checks each search every minute and sends new listings to Discord, Telegram or your phone with the total price, the seller's rating and Buy and Message buttons. It never logs in to Vinted.
+vinted-bot is free and open source. It runs on your own computer, checks each search every minute and sends new listings to Discord, Telegram or your phone with the total price, the seller's rating and Buy and Message buttons. It never logs in to Vinted.
 
 1. Install it with the one-line command from the homepage.
 2. Paste each search link, or build the searches in the dashboard.
@@ -98,7 +98,7 @@ vinted-sniper is free and open source. It runs on your own computer, checks each
 
 ## Speed: what alerts can and can't do
 
-Vinted adds new uploads to its search a few minutes after they're posted. Every tool, paid or free, only sees the listing then. vinted-sniper checks every minute, so you usually hear within a few minutes of the upload. In a quiet niche that's plenty. On a hyped item that everyone watches, autobuy often gets there first.
+Vinted adds new uploads to its search a few minutes after they're posted. Every tool, paid or free, only sees the listing then. vinted-bot checks every minute, so you usually hear within a few minutes of the upload. In a quiet niche that's plenty. On a hyped item that everyone watches, autobuy often gets there first.
 
 Some practical habits help more than a faster bot:
 

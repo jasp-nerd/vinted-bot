@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from vinted_sniper.db import Database, apply_pending, current_version
-from vinted_sniper.db.migrations import discover
+from vinted_bot.db import Database, apply_pending, current_version
+from vinted_bot.db.migrations import discover
 
 
 async def test_fresh_database_gets_full_schema(tmp_path: Path) -> None:

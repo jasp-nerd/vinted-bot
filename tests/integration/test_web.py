@@ -22,18 +22,18 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
 from tests.conftest import ScriptedTransport
-from vinted_sniper.botctl.telegram_bot import claim_pairing
-from vinted_sniper.config import Settings
-from vinted_sniper.db import Database
-from vinted_sniper.db.repo import Repo
-from vinted_sniper.vinted.client import VintedClient
-from vinted_sniper.vinted.models import Item
-from vinted_sniper.vinted.session import SessionManager
-from vinted_sniper.vinted.taxonomy import Taxonomy
-from vinted_sniper.vinted.transport import Response
-from vinted_sniper.web import core, preview, security
-from vinted_sniper.web.routes import finds
-from vinted_sniper.web.server import SESSION_COOKIE, create_app
+from vinted_bot.botctl.telegram_bot import claim_pairing
+from vinted_bot.config import Settings
+from vinted_bot.db import Database
+from vinted_bot.db.repo import Repo
+from vinted_bot.vinted.client import VintedClient
+from vinted_bot.vinted.models import Item
+from vinted_bot.vinted.session import SessionManager
+from vinted_bot.vinted.taxonomy import Taxonomy
+from vinted_bot.vinted.transport import Response
+from vinted_bot.web import core, preview, security
+from vinted_bot.web.routes import finds
+from vinted_bot.web.server import SESSION_COOKIE, create_app
 
 TOKEN = "test-token-please-ignore"
 BASE = "http://127.0.0.1"
@@ -313,7 +313,7 @@ def test_the_unknown_host_page_names_the_setting_to_use(
 
     page = docker.get("/", headers={"Host": "nas.local:8000"})
 
-    assert "VINTED_SNIPER_WEB_ALLOWED_HOSTS" in page.text
+    assert "VINTED_BOT_WEB_ALLOWED_HOSTS" in page.text
 
 
 def test_an_ip_address_always_reaches_the_dashboard(
@@ -643,7 +643,7 @@ def test_the_searches_page_offers_the_bookmarklet(client: TestClient) -> None:
 
 
 async def test_the_not_sent_tab_says_why_in_words(client: TestClient, repo: Repo) -> None:
-    from vinted_sniper.db.repo import RejectedListing  # noqa: PLC0415
+    from vinted_bot.db.repo import RejectedListing  # noqa: PLC0415
 
     query_id = await _search(repo)
     query = await repo.get_query(query_id)
@@ -890,7 +890,7 @@ async def test_removing_a_destination_takes_it_off_the_page(client: TestClient, 
 def test_pairing_telegram_without_a_bot_explains_the_setting(client: TestClient) -> None:
     response = client.post("/destinations/telegram/pair")
 
-    assert "VINTED_SNIPER_TELEGRAM_BOT_TOKEN" in response.json()["error"]
+    assert "VINTED_BOT_TELEGRAM_BOT_TOKEN" in response.json()["error"]
 
 
 async def test_pairing_telegram_finishes_when_the_bot_claims_the_code(

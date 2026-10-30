@@ -23,7 +23,7 @@ faq:
     a: "Potrzebujesz uprawnienia do zarządzania webhookami, co na cudzym serwerze zwykle oznacza bycie administratorem. Własny serwer jest darmowy i zakładasz go w niecałą minutę."
 ---
 
-Żeby dostawać ogłoszenia z Vinted na Discordzie, potrzebujesz URL webhooka: prywatnego linku, przez który aplikacja może pisać na jednym kanale. Załóż serwer (za darmo), otwórz ustawienia kanału, wejdź w Integracje, potem Webhooki, Nowy webhook, i skopiuj URL. Wklej go do bota Vinted i wyślij test. Z vinted-sniper całość jest darmowa i zajmuje około dwóch minut.
+Żeby dostawać ogłoszenia z Vinted na Discordzie, potrzebujesz URL webhooka: prywatnego linku, przez który aplikacja może pisać na jednym kanale. Załóż serwer (za darmo), otwórz ustawienia kanału, wejdź w Integracje, potem Webhooki, Nowy webhook, i skopiuj URL. Wklej go do bota Vinted i wyślij test. Z vinted-bot całość jest darmowa i zajmuje około dwóch minut.
 
 ## Dlaczego webhook, a nie bot na serwerze
 
@@ -65,9 +65,9 @@ URL zaczyna się od `https://discord.com/api/webhooks/`, a dalej są dwa długie
 
 Mała pułapka: Discord nie przyjmuje nazw webhooków zawierających słowo "discord". Jeśli zmiana nazwy się nie udaje, to dlatego.
 
-## Krok 3: wklej go do vinted-sniper
+## Krok 3: wklej go do vinted-bot
 
-vinted-sniper to darmowa aplikacja open source, która obserwuje Twoje wyszukiwania na Vinted i wysyła nowe ogłoszenia na przykład na Discorda. Nie wymaga abonamentu ani logowania do Vinted. Po instalacji panel otwiera się pod adresem `http://localhost:8000`.
+vinted-bot to darmowa aplikacja open source, która obserwuje Twoje wyszukiwania na Vinted i wysyła nowe ogłoszenia na przykład na Discorda. Nie wymaga abonamentu ani logowania do Vinted. Po instalacji panel otwiera się pod adresem `http://localhost:8000`.
 
 1. Otwórz stronę "Alerts" (miejsca, do których trafiają powiadomienia) i dodaj nowe miejsce.
 2. Wybierz Discorda i wklej URL webhooka.
@@ -107,7 +107,7 @@ Ustawienia powiadomień Discorda to najczęstsza przyczyna sytuacji "nic nie dos
 
 ### Webhook został usunięty
 
-Jeśli ktoś usunie webhook albo kanał, Discord informuje vinted-sniper, że już nie istnieje, a aplikacja wyłącza to miejsce. To celowe: ciągłe wysyłanie do martwego webhooka sprawia, że sam Discord zaczyna ograniczać Twój adres. Utwórz nowy webhook i dodaj go ponownie.
+Jeśli ktoś usunie webhook albo kanał, Discord informuje vinted-bot, że już nie istnieje, a aplikacja wyłącza to miejsce. To celowe: ciągłe wysyłanie do martwego webhooka sprawia, że sam Discord zaczyna ograniczać Twój adres. Utwórz nowy webhook i dodaj go ponownie.
 
 ### URL wyciekł
 
@@ -119,4 +119,4 @@ Sprawdź limit ceny. Zawiera on ochronę kupujących, więc limit 80 zł odrzuci
 
 ## Wolisz coś innego niż Discord?
 
-Jeśli nie używasz Discorda, vinted-sniper wysyła też na Telegrama (przez własnego bota z BotFather) albo jako zwykłe powiadomienie na telefon przez darmową aplikację ntfy, bez zakładania konta. Pełną konfigurację opisuje poradnik o [darmowym bocie Vinted](/guides/darmowy-bot-vinted/), a ustawienia samego Vinted poradnik o [powiadomieniach Vinted](/guides/powiadomienia-vinted/).
+Jeśli nie używasz Discorda, vinted-bot wysyła też na Telegrama (przez własnego bota z BotFather) albo jako zwykłe powiadomienie na telefon przez darmową aplikację ntfy, bez zakładania konta. Pełną konfigurację opisuje poradnik o [darmowym bocie Vinted](/guides/darmowy-bot-vinted/), a ustawienia samego Vinted poradnik o [powiadomieniach Vinted](/guides/powiadomienia-vinted/).

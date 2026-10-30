@@ -7,12 +7,12 @@ from pathlib import Path
 from typing import Any
 
 from tests.conftest import ScriptedTransport
-from vinted_sniper.db import Database
-from vinted_sniper.vinted.canary import check_site, listing_problems
-from vinted_sniper.vinted.client import VintedClient
-from vinted_sniper.vinted.models import parse_item
-from vinted_sniper.vinted.session import SessionManager
-from vinted_sniper.vinted.transport import Response
+from vinted_bot.db import Database
+from vinted_bot.vinted.canary import check_site, listing_problems
+from vinted_bot.vinted.client import VintedClient
+from vinted_bot.vinted.models import parse_item
+from vinted_bot.vinted.session import SessionManager
+from vinted_bot.vinted.transport import Response
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "vinted"
 

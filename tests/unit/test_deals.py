@@ -6,7 +6,7 @@ from decimal import Decimal
 
 import pytest
 
-from vinted_sniper.deals import deal_percent, margin, tier_for
+from vinted_bot.deals import deal_percent, margin, tier_for
 
 
 @pytest.mark.parametrize(

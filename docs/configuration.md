@@ -11,7 +11,7 @@ question about which copy wins.
 
 ## Environment variables
 
-Every variable is prefixed `VINTED_SNIPER_`. All of them are optional except where noted.
+Every variable is prefixed `VINTED_BOT_`. All of them are optional except where noted.
 [`.env.example`](../.env.example) has the same list with comments, ready to copy.
 
 Besides the environment, the app reads a file called `.env` **in the folder you start it
@@ -30,10 +30,10 @@ checkout's `.env`, Telegram token and all.
 
 Unset outside a container, the database goes in `./data/app.db` **if that file already
 exists**, so upgrading from 1.x keeps your searches where they are. Otherwise it goes in
-your user data folder: `~/.local/share/vinted-sniper/app.db` on Linux,
-`~/Library/Application Support/vinted-sniper/app.db` on macOS,
-`%LOCALAPPDATA%\vinted-sniper\app.db` on Windows. That way it no longer matters which
-folder you start the app from. `vinted-sniper migrate` prints the path it used.
+your user data folder: `~/.local/share/vinted-bot/app.db` on Linux,
+`~/Library/Application Support/vinted-bot/app.db` on macOS,
+`%LOCALAPPDATA%\vinted-bot\app.db` on Windows. That way it no longer matters which
+folder you start the app from. `vinted-bot migrate` prints the path it used.
 
 ### Time
 
@@ -117,20 +117,20 @@ in [Running it somewhere: Updating](self-hosting.md#updating).
 ## Commands
 
 ```
-vinted-sniper run [--open]             start watching (what the container runs);
+vinted-bot run [--open]             start watching (what the container runs);
                                        --open also opens the dashboard in your browser
-vinted-sniper check --url <url>        fetch one search once and print the result
-vinted-sniper watch <url> [options]    add a search
-vinted-sniper searches                 list searches
-vinted-sniper unwatch <id>             remove one
-vinted-sniper destination <kind> <target>   add somewhere to send
-vinted-sniper destinations             list them
-vinted-sniper export [--format csv|json] [--search ID] [--output FILE]
+vinted-bot check --url <url>        fetch one search once and print the result
+vinted-bot watch <url> [options]    add a search
+vinted-bot searches                 list searches
+vinted-bot unwatch <id>             remove one
+vinted-bot destination <kind> <target>   add somewhere to send
+vinted-bot destinations             list them
+vinted-bot export [--format csv|json] [--search ID] [--output FILE]
                                        write found listings for a spreadsheet
-vinted-sniper pair-telegram            print a link that connects a Telegram chat
-vinted-sniper status                   how each search is doing
-vinted-sniper migrate                  create or update the database, then exit
-vinted-sniper heartbeat                exit 0 if the app is alive (the health check)
+vinted-bot pair-telegram            print a link that connects a Telegram chat
+vinted-bot status                   how each search is doing
+vinted-bot migrate                  create or update the database, then exit
+vinted-bot heartbeat                exit 0 if the app is alive (the health check)
 ```
 
 Options for `watch`:
@@ -163,7 +163,7 @@ are logged with the reason, so the dashboard can answer "why did I not get this 
 ## Adding a search
 
 Search on Vinted, set your filters, copy the address bar, and paste that URL into the
-dashboard or `vinted-sniper watch`. The dashboard can also build the URL for you, from
+dashboard or `vinted-bot watch`. The dashboard can also build the URL for you, from
 Vinted's own categories, brand autocomplete and filters.
 
 Any country site works: `vinted.fr`, `.de`, `.nl`, `.co.uk`, `.com`, and the rest. The site
@@ -177,7 +177,7 @@ Where to get each kind of target:
 | Kind | Setup |
 |---|---|
 | `discord` | In your server: Settings → Integrations → Webhooks → New Webhook → Copy URL. Nothing to invite, nothing to host. |
-| `telegram` | Create a bot with [@BotFather](https://t.me/BotFather), set `TELEGRAM_BOT_TOKEN`, then run `vinted-sniper pair-telegram` and tap the link it prints. It finds your chat id for you. |
+| `telegram` | Create a bot with [@BotFather](https://t.me/BotFather), set `TELEGRAM_BOT_TOKEN`, then run `vinted-bot pair-telegram` and tap the link it prints. It finds your chat id for you. |
 | `ntfy` | Pick a topic name, install the ntfy app. No account. |
 | `webhook` | Any URL you control: n8n, Home Assistant, a script. Payload below. |
 
@@ -187,7 +187,7 @@ active destination, including ones added later, so the order you set things up i
 matter. Watches follow the same rule. When two searches match the same listing, each
 destination still hears about it once.
 
-What is stored per destination — the dashboard and `vinted-sniper destination` fill these in
+What is stored per destination — the dashboard and `vinted-bot destination` fill these in
 for you:
 
 | Kind | Fields |
@@ -286,8 +286,8 @@ it is usually `null`; `detected_at` is the honest "found it" time.
 With a `secret` set on the destination, every request carries two headers:
 
 ```
-X-Vinted-Sniper-Timestamp: 1792000000
-X-Vinted-Sniper-Signature: sha256=<hex>
+X-Vinted-Bot-Timestamp: 1792000000
+X-Vinted-Bot-Signature: sha256=<hex>
 ```
 
 The signature is the HMAC-SHA256, under the secret, of the timestamp, a full stop, and the

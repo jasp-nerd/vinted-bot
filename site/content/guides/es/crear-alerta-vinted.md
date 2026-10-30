@@ -18,9 +18,9 @@ faq:
   - q: "¿Cómo activo las notificaciones de Vinted?"
     a: "En la app, entra en tu perfil, Ajustes, Notificaciones, y activa las notificaciones push. En el móvil, permite las notificaciones de Vinted en los ajustes del sistema y quita la app del ahorro de batería."
   - q: "¿Cómo recibo notificaciones de Vinted en España al momento?"
-    a: "Nada es inmediato, porque Vinted añade los anuncios a su búsqueda unos minutos después de subirlos. Para enterarte en pocos minutos, usa una herramienta que revise tu búsqueda cada minuto, como vinted-sniper, que es gratis."
+    a: "Nada es inmediato, porque Vinted añade los anuncios a su búsqueda unos minutos después de subirlos. Para enterarte en pocos minutos, usa una herramienta que revise tu búsqueda cada minuto, como vinted-bot, que es gratis."
   - q: "¿Puedo recibir las alertas de Vinted en Telegram?"
-    a: "Vinted no envía alertas a Telegram, pero vinted-sniper sí: creas tu propio bot con BotFather, lo conectas con un código de un solo uso y recibes cada artículo nuevo con foto y precio total."
+    a: "Vinted no envía alertas a Telegram, pero vinted-bot sí: creas tu propio bot con BotFather, lo conectas con un código de un solo uso y recibes cada artículo nuevo con foto y precio total."
 ---
 
 Hay tres formas de enterarte cuando sale un artículo nuevo en Vinted: crear una alerta guardando la búsqueda en la app, seguir a los vendedores que te interesan, o usar una herramienta que revisa tu búsqueda y te escribe. Las dos primeras vienen incluidas y son gratis, pero tienen límites. La tercera es la única fiable para una búsqueda, y también puede ser gratis.
@@ -49,7 +49,7 @@ Pero solo cubre a quien ya conoces. No te ayuda a encontrar al próximo buen ven
 
 Una herramienta de alertas, a menudo llamada bot de Vinted, carga los resultados más recientes de tu búsqueda cada cierto tiempo y te envía lo que no había visto antes. Tú decides dónde llegan los mensajes: un chat de Telegram, un canal de Discord, una notificación en el móvil.
 
-Los servicios de pago lo hacen desde sus servidores por entre 5 y 30 euros al mes, aproximadamente (a octubre de 2026). vinted-sniper lo hace gratis desde tu ordenador, sin suscripción y sin pedirte tu cuenta de Vinted. Se configura así:
+Los servicios de pago lo hacen desde sus servidores por entre 5 y 30 euros al mes, aproximadamente (a octubre de 2026). vinted-bot lo hace gratis desde tu ordenador, sin suscripción y sin pedirte tu cuenta de Vinted. Se configura así:
 
 1. Instálalo con el comando de una línea de la página principal. El panel se abre en el navegador.
 2. Pega el enlace de tu búsqueda de Vinted, o crea la búsqueda en el panel con las categorías, marcas y tallas de Vinted.
@@ -63,7 +63,7 @@ Cada alerta muestra las fotos, el precio total, talla, estado, marca, la valorac
 
 ## ¿Cuál usar?
 
-| | Búsqueda guardada (Vinted) | Seguir a un vendedor | Alertas gratis (vinted-sniper) | Servicio de pago |
+| | Búsqueda guardada (Vinted) | Seguir a un vendedor | Alertas gratis (vinted-bot) | Servicio de pago |
 |---|---|---|---|---|
 | Coste | Gratis | Gratis | Gratis | Entre 5 y 30 euros al mes |
 | Fiabilidad | A menudo tarde o nunca | En general buena | Revisa cada minuto y avisa si se para | Depende del servicio |
@@ -82,11 +82,11 @@ Una búsqueda para mirar puede ser amplia. Una que hace vibrar tu móvil debe se
 
 ### "Esto o aquello" en una sola búsqueda
 
-"Levi's 501 o 505" puede ser una búsqueda: en vinted-sniper, una palabra obligatoria puede tener alternativas, escritas `501|505`. Menos búsquedas significa menos peticiones a Vinted y menos riesgo de que te frene.
+"Levi's 501 o 505" puede ser una búsqueda: en vinted-bot, una palabra obligatoria puede tener alternativas, escritas `501|505`. Menos búsquedas significa menos peticiones a Vinted y menos riesgo de que te frene.
 
 ### Más de un país
 
-Cada sitio de Vinted muestra una mezcla de vendedores algo distinta. Una búsqueda de vinted-sniper puede vigilar varios sitios, y un anuncio visto en dos se avisa una sola vez.
+Cada sitio de Vinted muestra una mezcla de vendedores algo distinta. Una búsqueda de vinted-bot puede vigilar varios sitios, y un anuncio visto en dos se avisa una sola vez.
 
 ### Horas de silencio
 

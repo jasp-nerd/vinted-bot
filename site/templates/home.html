@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% macro icon(name, cls="i") %}<svg class="{{ cls }}" aria-hidden="true"><use href="{{ icons }}#i-{{ name }}"></use></svg>{% endmacro %}
-{% macro copybtn(label=None) %}<button class="copy" type="button" data-copy>{{ icon('copy') }}<span>{{ label or t.install['copy'] }}</span></button>{% endmacro %}
+{% macro copybtn(label=None) %}<button class="copy" type="button" data-copy data-umami-event="copy-install">{{ icon('copy') }}<span>{{ label or t.install['copy'] }}</span></button>{% endmacro %}
 {% macro code(text) %}<div class="code"><pre><code>{{ text }}</code></pre>{{ copybtn() }}</div>{% endmacro %}
 {% block main %}
 
@@ -11,9 +11,10 @@
       <h1 class="h1" id="hero-title">{{ t.hero.h1 }}</h1>
       <p class="lead">{{ t.hero.lead }}</p>
       <div class="btn-row">
-        <a class="btn btn--primary btn--lg" href="#install">{{ icon('arrow-right') }}{{ t.hero.cta_install }}</a>
-        <a class="btn btn--secondary btn--lg" href="https://github.com/jasp-nerd/vinted-sniper">{{ icon('github') }}{{ t.hero.cta_github }}</a>
+        <a class="btn btn--primary btn--lg" href="#install" data-umami-event="install-cta" data-umami-event-where="hero">{{ icon('arrow-right') }}{{ t.hero.cta_install }}</a>
+        <a class="btn btn--secondary btn--lg" href="{{ repo }}" data-umami-event="github" data-umami-event-where="hero">{{ icon('github') }}{{ t.hero.cta_github }}</a>
       </div>
+      <p class="hero__indep">{{ t.hero.independent }}</p>
       <p class="hero__note">{{ t.hero.note }}</p>
       <ul class="trust" aria-label="{{ t.hero.trust_aria|a }}">
         {%- for item in t.hero.trust %}
@@ -28,7 +29,7 @@
       <div class="push" data-push aria-hidden="true">
         <img class="push__icon" src="/assets/img/icon-96.webp" width="38" height="38" alt="">
         <div class="push__body">
-          <div class="push__top"><span class="push__app">vinted-sniper</span><span>{{ t.hero.push_now }}</span></div>
+          <div class="push__top"><span class="push__app">{{ name }}</span><span>{{ t.hero.push_now }}</span></div>
           <div class="push__title" data-push-title>{{ t.demo.match }} · {{ first.search }}</div>
           <div class="push__text" data-push-text>{{ first.title }} · {{ first.total }} {{ t.demo.fees }} · {{ t.demo.under|replace('{n}', first.deal|string) }}</div>
         </div>
@@ -116,11 +117,11 @@
     <div class="compare-wrap">
       <table class="compare">
         <thead>
-          <tr><th scope="col"><span class="sr-only">{{ t.compare.col_question }}</span></th><th scope="col" class="is-us">vinted-sniper</th><th scope="col">{{ t.compare.col_paid }}</th></tr>
+          <tr><th scope="col"><span class="sr-only">{{ t.compare.col_question }}</span></th><th scope="col" class="is-us">{{ name }}</th><th scope="col">{{ t.compare.col_paid }}</th></tr>
         </thead>
         <tbody>
           {%- for row in t.compare.rows %}
-          <tr><th scope="row">{{ row.q }}</th><td class="is-us" data-label="vinted-sniper">{% if row.yes %}<svg class="i yes" aria-hidden="true"><use href="{{ icons }}#i-check"></use></svg>{% endif %}{{ row.us }}</td><td data-label="{{ t.compare.label_paid|a }}">{{ row.them }}</td></tr>
+          <tr><th scope="row">{{ row.q }}</th><td class="is-us" data-label="{{ name }}">{% if row.yes %}<svg class="i yes" aria-hidden="true"><use href="{{ icons }}#i-check"></use></svg>{% endif %}{{ row.us }}</td><td data-label="{{ t.compare.label_paid|a }}">{{ row.them }}</td></tr>
           {%- endfor %}
         </tbody>
       </table>
@@ -146,7 +147,7 @@
           <div class="dc" role="img" aria-label="{{ A.dc_aria|a }}">
             <img class="dc__avatar" src="/assets/img/icon-96.webp" width="40" height="40" alt="" loading="lazy">
             <div>
-              <div class="dc__head"><span class="dc__name">vinted-sniper</span><span class="dc__tag">APP</span><span class="dc__time">{{ A.dc_time }}</span></div>
+              <div class="dc__head"><span class="dc__name">{{ name }}</span><span class="dc__tag">APP</span><span class="dc__time">{{ A.dc_time }}</span></div>
               <div class="dc__box">
                 <div class="dc__sub">{{ A.sub_match }} <i class="flag"></i> {{ A.sub_listed }}</div>
                 <div class="dc__h3"><a href="#alerts" tabindex="-1">{{ A.item_title }}</a></div>
@@ -281,10 +282,10 @@
       <p class="lead">{{ t.install.lead }}</p>
     </div>
     {%- set I = t.install %}
-    {%- set PS = 'powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.ps1 | iex"' %}
-    {%- set PS_RM = "powershell -ExecutionPolicy ByPass -c '$env:VINTED_SNIPER_UNINSTALL=1; irm https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.ps1 | iex'" %}
-    {%- set SH = 'curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.sh | sh' %}
-    {%- set SH_RM = 'curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.sh | sh -s -- --uninstall' %}
+    {%- set PS = 'powershell -ExecutionPolicy ByPass -c "irm ' ~ repo_raw ~ '/install.ps1 | iex"' %}
+    {%- set PS_RM = "powershell -ExecutionPolicy ByPass -c '$env:VINTED_BOT_UNINSTALL=1; irm ' ~ repo_raw ~ '/install.ps1 | iex'" %}
+    {%- set SH = 'curl -LsSf ' ~ repo_raw ~ '/install.sh | sh' %}
+    {%- set SH_RM = 'curl -LsSf ' ~ repo_raw ~ '/install.sh | sh -s -- --uninstall' %}
     <div class="install">
       <div class="tabs" role="tablist" aria-label="{{ I.tabs_aria|a }}" data-tabs="os">
         <button role="tab" id="tab-win" aria-controls="os-win" aria-selected="true" data-os="windows">{{ icon('monitor') }}{{ I.os_windows }}</button>
@@ -342,8 +343,8 @@
       <div class="install__panel" role="tabpanel" id="os-docker" aria-labelledby="tab-docker" tabindex="0" hidden>
         <ol>
           <li><p>{{ I.docker_1 }}</p>
-            <div class="code"><pre><code>mkdir vinted-sniper &amp;&amp; cd vinted-sniper
-curl -O https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docker-compose.yml
+            <div class="code"><pre><code>mkdir {{ name }} &amp;&amp; cd {{ name }}
+curl -O {{ repo_raw }}/docker-compose.yml
 docker compose up -d</code></pre>{{ copybtn() }}</div></li>
           <li><p>{{ I.docker_2 }}</p></li>
         </ol>
@@ -355,7 +356,7 @@ docker compose up -d</code></pre>{{ copybtn() }}</div></li>
           <li><p>{{ I.nas_unraid }}</p></li>
           <li><p>{{ I.nas_umbrel }}</p></li>
           <li><p>{{ I.nas_casa }}</p>
-            {{ code('https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/deploy/casaos/docker-compose.yml') }}</li>
+            {{ code(repo_raw ~ '/deploy/casaos/docker-compose.yml') }}</li>
           <li><p>{{ I.nas_synology }}</p></li>
         </ol>
         <p class="fine">{{ I.nas_fine }}</p>
@@ -385,9 +386,9 @@ docker compose up -d</code></pre>{{ copybtn() }}</div></li>
         <div class="prompt">
           <pre id="ai-prompt" tabindex="0" aria-label="{{ t.ai.prompt_aria|a }}">{{ t.ai.prompt }}</pre>
           <div class="prompt__foot">
-            <button class="copy" type="button" data-copy="#ai-prompt">{{ icon('copy') }}<span>{{ t.ai.copy_prompt }}</span></button>
-            <a class="btn btn--secondary" href="https://claude.ai/new?q={{ t.ai.prompt|q }}" rel="noopener">{{ icon('external-link') }}{{ t.ai.open_claude }}</a>
-            <a class="btn btn--secondary" href="https://chatgpt.com/?q={{ t.ai.prompt|q }}" rel="noopener">{{ icon('external-link') }}{{ t.ai.open_chatgpt }}</a>
+            <button class="copy" type="button" data-copy="#ai-prompt" data-umami-event="copy-ai-prompt">{{ icon('copy') }}<span>{{ t.ai.copy_prompt }}</span></button>
+            <a class="btn btn--secondary" href="https://claude.ai/new?q={{ t.ai.prompt|q }}" rel="noopener" data-umami-event="open-claude">{{ icon('external-link') }}{{ t.ai.open_claude }}</a>
+            <a class="btn btn--secondary" href="https://chatgpt.com/?q={{ t.ai.prompt|q }}" rel="noopener" data-umami-event="open-chatgpt">{{ icon('external-link') }}{{ t.ai.open_chatgpt }}</a>
           </div>
         </div>
         <p class="ai__fine">{{ t.ai.fine }}</p>
@@ -439,8 +440,8 @@ docker compose up -d</code></pre>{{ copybtn() }}</div></li>
         <h2 class="h2" id="closer-title">{{ t.closer.title }}</h2>
         <p class="lead" style="color: var(--field-ink)">{{ t.closer.lead }}</p>
         <div class="btn-row">
-          <a class="btn btn--primary btn--lg" href="#install">{{ t.closer.cta }}</a>
-          <a class="btn btn--secondary btn--lg" href="https://github.com/jasp-nerd/vinted-sniper">{{ icon('github') }}{{ t.closer.github }}</a>
+          <a class="btn btn--primary btn--lg" href="#install" data-umami-event="install-cta" data-umami-event-where="closer">{{ t.closer.cta }}</a>
+          <a class="btn btn--secondary btn--lg" href="{{ repo }}" data-umami-event="github" data-umami-event-where="closer">{{ icon('github') }}{{ t.closer.github }}</a>
         </div>
       </div>
       <img src="/assets/img/mags-cheer.webp" width="346" height="400" alt="" loading="lazy">

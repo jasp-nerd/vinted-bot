@@ -17,7 +17,7 @@
 <meta name="theme-color" content="#101515" media="(prefers-color-scheme: dark)">
 {%- if not page.noindex %}
 <meta property="og:type" content="{{ page.og_type or 'website' }}">
-<meta property="og:site_name" content="vinted-sniper">
+<meta property="og:site_name" content="{{ name }}">
 <meta property="og:url" content="{{ page.url }}">
 <meta property="og:title" content="{{ page.og_title or page.title }}">
 <meta property="og:description" content="{{ page.og_description or page.description }}">
@@ -45,6 +45,7 @@
 <link rel="preload" href="{{ asset('fonts/Inter-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="{{ asset('css/site.css') }}">
 <script>document.documentElement.classList.replace('no-js', 'js');</script>
+<script defer src="{{ umami_script }}" data-website-id="{{ umami_website_id }}" data-domains="{{ host }}"></script>
 {%- if page.jsonld %}
 <script type="application/ld+json">{{ page.jsonld }}</script>
 {%- endif %}
@@ -56,7 +57,7 @@
   <div class="wrap nav__row">
     <a class="brand" href="{{ prefix }}" aria-label="{{ t.common.home_aria|a }}">
       <img src="/assets/img/icon-96.webp" width="34" height="34" alt="">
-      <span>vinted-sniper</span>
+      <span>{{ name }}</span>
     </a>
     <nav aria-label="{{ t.common.nav_aria|a }}">
       <ul class="nav__links">
@@ -77,8 +78,8 @@
           {%- endfor %}
         </ul>
       </details>
-      <a class="btn btn--ghost nav__gh" href="https://github.com/jasp-nerd/vinted-sniper" aria-label="{{ t.common.github_aria|a }}"><svg class="i" aria-hidden="true"><use href="{{ icons }}#i-github"></use></svg></a>
-      <a class="btn btn--primary btn--sm" href="{{ home_anchor }}#install">{{ t.common.install }}</a>
+      <a class="btn btn--ghost nav__gh" href="{{ repo }}" data-umami-event="github" data-umami-event-where="nav" aria-label="{{ t.common.github_aria|a }}"><svg class="i" aria-hidden="true"><use href="{{ icons }}#i-github"></use></svg></a>
+      <a class="btn btn--primary btn--sm" href="{{ home_anchor }}#install" data-umami-event="install-cta" data-umami-event-where="nav">{{ t.common.install }}</a>
     </div>
   </div>
 </header>
@@ -90,17 +91,17 @@
 <footer class="footer">
   <div class="wrap footer__grid">
     <div class="footer__legal">
-      <a class="brand" href="{{ prefix }}"><img src="/assets/img/icon-96.webp" width="34" height="34" alt="" loading="lazy"><span>vinted-sniper</span></a>
+      <a class="brand" href="{{ prefix }}"><img src="/assets/img/icon-96.webp" width="34" height="34" alt="" loading="lazy"><span>{{ name }}</span></a>
       <p>{{ t.footer.legal_1 }}</p>
       <p>{{ t.footer.legal_2 }}</p>
     </div>
     <div>
       <h2>{{ t.footer.project }}</h2>
       <ul>
-        <li><a href="https://github.com/jasp-nerd/vinted-sniper">{{ t.footer.source }}</a></li>
+        <li><a href="{{ repo }}">{{ t.footer.source }}</a></li>
         <li><a href="/changelog/"{% if lang != 'en' %} hreflang="en"{% endif %}>{{ t.footer.changelog }}</a>{% if lang != 'en' %} <span class="muted">(EN)</span>{% endif %}</li>
         <li><a href="{{ prefix }}about/">{{ t.footer.about }}</a></li>
-        <li><a href="https://github.com/jasp-nerd/vinted-sniper/issues">{{ t.footer.report }}</a></li>
+        <li><a href="{{ repo }}/issues">{{ t.footer.report }}</a></li>
         <li><a href="/llms.txt">{{ t.footer.llms }}</a></li>
       </ul>
     </div>

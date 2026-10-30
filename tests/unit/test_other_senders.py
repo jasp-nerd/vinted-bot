@@ -14,10 +14,10 @@ import pytest
 from apprise.decorators import notify
 
 from tests.unit.sending import Recorder, bare, fast_bucket, notification
-from vinted_sniper.deliver.apprise import AppriseSender
-from vinted_sniper.deliver.base import SenderConfigError
-from vinted_sniper.deliver.ntfy import NtfySender
-from vinted_sniper.deliver.webhook import WebhookSender
+from vinted_bot.deliver.apprise import AppriseSender
+from vinted_bot.deliver.base import SenderConfigError
+from vinted_bot.deliver.ntfy import NtfySender
+from vinted_bot.deliver.webhook import WebhookSender
 
 # --- ntfy ------------------------------------------------------------------------------
 
@@ -293,11 +293,11 @@ async def test_a_secret_signs_the_body_and_timestamp() -> None:
     await hook(recorder, secret="s3cret").send([notification(1)])
 
     request = recorder.requests[0]
-    timestamp = request.headers["x-vinted-sniper-timestamp"]
+    timestamp = request.headers["x-vinted-bot-timestamp"]
     expected = hmac.new(
         b"s3cret", timestamp.encode() + b"." + request.content, hashlib.sha256
     ).hexdigest()
-    assert request.headers["x-vinted-sniper-signature"] == f"sha256={expected}"
+    assert request.headers["x-vinted-bot-signature"] == f"sha256={expected}"
 
 
 async def test_without_a_secret_nothing_is_signed() -> None:
@@ -305,7 +305,7 @@ async def test_without_a_secret_nothing_is_signed() -> None:
 
     await hook(recorder).send([notification(1)])
 
-    assert "x-vinted-sniper-signature" not in recorder.requests[0].headers
+    assert "x-vinted-bot-signature" not in recorder.requests[0].headers
 
 
 async def test_a_failed_second_search_keeps_the_first_delivered() -> None:
@@ -408,7 +408,7 @@ def test_a_missing_apprise_extra_says_how_to_install_it(monkeypatch: pytest.Monk
     # None in sys.modules is how Python spells "this import fails".
     monkeypatch.setitem(sys.modules, "apprise", None)
 
-    with pytest.raises(SenderConfigError, match=r"vinted-sniper\[apprise\]"):
+    with pytest.raises(SenderConfigError, match=r"vinted-bot\[apprise\]"):
         AppriseSender({"urls": ["vstest://"]})
 
 

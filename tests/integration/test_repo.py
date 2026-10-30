@@ -12,11 +12,11 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from vinted_sniper.db import export
-from vinted_sniper.db.connection import Database
-from vinted_sniper.db.repo import PALETTE, Query, RejectedListing, Repo
-from vinted_sniper.engine.validation import InvalidInputError
-from vinted_sniper.vinted.models import Item, SellerProfile
+from vinted_bot.db import export
+from vinted_bot.db.connection import Database
+from vinted_bot.db.repo import PALETTE, Query, RejectedListing, Repo
+from vinted_bot.engine.validation import InvalidInputError
+from vinted_bot.vinted.models import Item, SellerProfile
 
 UTC = ZoneInfo("UTC")
 

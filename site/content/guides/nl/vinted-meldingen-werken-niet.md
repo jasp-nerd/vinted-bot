@@ -20,7 +20,7 @@ faq:
   - q: "Waarom komen Vinted meldingen te laat?"
     a: "Twee vertragingen stapelen zich op. Vinted zet nieuwe items pas een paar minuten na het uploaden in de zoekresultaten, en de melding van een opgeslagen zoekopdracht komt daarna. Batterijbesparing en focusmodi kunnen haar nog verder ophouden."
   - q: "Hoe krijg ik betrouwbare meldingen voor een Vinted-zoekopdracht?"
-    a: "Gebruik een aparte tool die de zoekopdracht zelf controleert. vinted-sniper doet dat gratis: elke minuut, met berichten op Discord, Telegram of je telefoon, en het laat weten wanneer een zoekopdracht niet meer werkt."
+    a: "Gebruik een aparte tool die de zoekopdracht zelf controleert. vinted-bot doet dat gratis: elke minuut, met berichten op Discord, Telegram of je telefoon, en het laat weten wanneer een zoekopdracht niet meer werkt."
 ---
 
 Komen de meldingen van je opgeslagen zoekopdracht op Vinted niet binnen, dan ligt het vaak niet aan je telefoon. Veel gebruikers hebben alles aan staan en krijgen die meldingen toch laat of helemaal niet, en Vinted legt niet uit hoe het ze bundelt. Loop eerst de instellingen hieronder na, want die lossen sommige gevallen echt op. Helpt dat niet, dan is een tool die de zoekopdracht zelf controleert de betrouwbare oplossing.
@@ -72,7 +72,7 @@ Wat je wel kunt veranderen: wie de zoekopdracht controleert. In plaats van te wa
 
 ## Het gratis alternatief: een tool die zelf controleert
 
-vinted-sniper is een gratis open-source app die precies dat doet. Je plakt dezelfde Vinted-zoeklink, en de app controleert hem elke minuut vanaf je eigen computer. Elk nieuw item komt als bericht op Discord, Telegram, ntfy op je telefoon of een webhook, met de foto's, de totaalprijs inclusief kopersbescherming, maat, staat, de beoordeling van de verkoper en een knop naar het item.
+vinted-bot is een gratis open-source app die precies dat doet. Je plakt dezelfde Vinted-zoeklink, en de app controleert hem elke minuut vanaf je eigen computer. Elk nieuw item komt als bericht op Discord, Telegram, ntfy op je telefoon of een webhook, met de foto's, de totaalprijs inclusief kopersbescherming, maat, staat, de beoordeling van de verkoper en een knop naar het item.
 
 Het lost ook een paar dingen op die opgeslagen zoekopdrachten niet kunnen:
 

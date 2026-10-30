@@ -1,11 +1,11 @@
 [project]
-name = "vinted-sniper"
-version = "2.0.0"
+name = "vinted-bot"
+version = "2.1.0"
 description = "Free, self-hosted Vinted bot and monitor: alerts for new Vinted listings on Discord, Telegram, ntfy or email, with a web dashboard. No login, no subscription."
 readme = "README.md"
 requires-python = ">=3.13"
 license = "MIT"
-authors = [{ name = "vinted-sniper contributors" }]
+authors = [{ name = "vinted-bot contributors" }]
 keywords = [
     "vinted", "vinted-bot", "vinted-monitor", "vinted-alerts", "vinted-notifications",
     "vinted-scraper", "vinted-api", "second-hand", "monitor", "notifier", "discord", "telegram",
@@ -52,21 +52,19 @@ dependencies = [
 # TLS impersonation, only needed if plain httpx starts getting blocked.
 # Kept optional because curl_cffi ships compiled wheels that complicate ARM installs.
 impersonate = ["curl_cffi>=0.7"]
-# Kept, empty, so `--extra web` and `vinted-sniper[web]` from 1.x still install cleanly.
-web = []
 # Apprise reaches the long tail of services (email, Slack, Pushover, Gotify, Matrix, Signal,
 # Home Assistant...) through one URL each. Optional: it pulls in requests and friends.
 apprise = ["apprise>=2.1"]
 
 [project.scripts]
-vinted-sniper = "vinted_sniper.cli:main"
+vinted-bot = "vinted_bot.cli:main"
 
 [project.urls]
-Homepage = "https://vinted-sniper.jaspnerd.dev"
-Source = "https://github.com/jasp-nerd/vinted-sniper"
-Documentation = "https://github.com/jasp-nerd/vinted-sniper/tree/main/docs"
-Changelog = "https://github.com/jasp-nerd/vinted-sniper/blob/main/CHANGELOG.md"
-Issues = "https://github.com/jasp-nerd/vinted-sniper/issues"
+Homepage = "https://vinted-bot.jaspnerd.dev"
+Source = "https://github.com/jasp-nerd/vinted-bot"
+Documentation = "https://github.com/jasp-nerd/vinted-bot/tree/main/docs"
+Changelog = "https://github.com/jasp-nerd/vinted-bot/blob/main/CHANGELOG.md"
+Issues = "https://github.com/jasp-nerd/vinted-bot/issues"
 
 [dependency-groups]
 dev = [
@@ -90,7 +88,7 @@ build-backend = "hatchling.build"
 exclude = ["/site", "/deploy", "/docs/media", "/scripts", "/.github"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/vinted_sniper"]
+packages = ["src/vinted_bot"]
 
 [tool.ruff]
 line-length = 100
@@ -127,11 +125,11 @@ ignore = [
 "site/**" = ["B007", "PLC0415", "PLR0911", "E402", "E501", "E741", "PLR2004", "B905", "PLW1510", "PLW0603", "PLR0912", "PLR0915", "PLR0917", "C901", "RUF005"]
 # A route table and a command table are long and branchy by nature. Splitting them to
 # satisfy a complexity metric would scatter related handlers across files for no gain.
-"src/vinted_sniper/web/server.py" = ["C901", "PLR0915", "PLR0917", "PLR0913"]
-"src/vinted_sniper/cli.py" = ["C901", "PLR0911", "PLR0912"]
+"src/vinted_bot/web/server.py" = ["C901", "PLR0915", "PLR0917", "PLR0913"]
+"src/vinted_bot/cli.py" = ["C901", "PLR0911", "PLR0912"]
 # One send attempt has several distinct outcomes — delivered, paused, gone, retry, gave
 # up — and each needs its own early exit. Splitting them would hide the flow, not clarify it.
-"src/vinted_sniper/deliver/dispatcher.py" = ["C901", "PLR0911"]
+"src/vinted_bot/deliver/dispatcher.py" = ["C901", "PLR0911"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
@@ -154,14 +152,14 @@ addopts = "-q --strict-markers --strict-config"
 filterwarnings = ["error"]
 
 [tool.coverage.run]
-source = ["src/vinted_sniper"]
+source = ["src/vinted_bot"]
 branch = true
 
 [tool.coverage.report]
 exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedError"]
 
 [tool.deptry]
-known_first_party = ["vinted_sniper"]
+known_first_party = ["vinted_bot"]
 
 [tool.deptry.per_rule_ignores]
 # curl_cffi and apprise are imported lazily behind config flags; python-multipart and jinja2 are loaded

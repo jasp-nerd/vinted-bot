@@ -19,6 +19,7 @@ from pathlib import Path
 
 from fontTools.ttLib import TTFont
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from siteconfig import NAME
 
 SITE = Path(__file__).resolve().parent
 FONTS = SITE / "assets/fonts"
@@ -102,7 +103,7 @@ def draw(meta: dict, out: Path):
         .resize((s(52), s(52)), Image.LANCZOS)
     )
     im.paste(icon, (s(64), s(58)), icon)
-    gab.draw(d, (s(128), s(84)), "vinted-sniper", s(32), 800, "white", anchor="lm")
+    gab.draw(d, (s(128), s(84)), NAME, s(32), 800, "white", anchor="lm")
 
     # Headline: up to four lines; the later ones must clear Mags in the lower middle.
     lines = meta["og_headline"][:4]
@@ -207,6 +208,8 @@ def ensure(i18n: dict[str, dict], src_dir: Path, dist_dir: Path | None = None, f
             shutil.copyfile(out, dist_dir / out.name)
     if changed:
         manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+        # The un-localised fallback next to the per-language images is the English one.
+        shutil.copyfile(src_dir / "en.jpg", src_dir.parent / "og.jpg")
 
 
 if __name__ == "__main__":

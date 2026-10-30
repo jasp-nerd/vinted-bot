@@ -16,9 +16,9 @@ from tests.unit.sending import (
     fast_bucket,
     notification,
 )
-from vinted_sniper.deliver.base import SenderConfigError
-from vinted_sniper.deliver.discord import DiscordSender, link_text
-from vinted_sniper.deliver.labels import MINUS
+from vinted_bot.deliver.base import SenderConfigError
+from vinted_bot.deliver.discord import DiscordSender, link_text
+from vinted_bot.deliver.labels import MINUS
 
 HOOK = "https://discord.test/hook"
 
@@ -98,8 +98,8 @@ async def test_the_card_names_the_app_and_its_icon() -> None:
 
     payload = recorder.payload()
     assert (payload["username"], payload["avatar_url"]) == (
-        "vinted-sniper",
-        "https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docs/media/icon-256.png",
+        "vinted-bot",
+        "https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docs/media/icon-256.png",
     )
 
 
@@ -233,7 +233,7 @@ async def test_a_sold_listing_has_no_buy_button() -> None:
 async def test_the_buttons_go_buy_message_open_dashboard() -> None:
     recorder = Recorder()
 
-    await sender(recorder, dashboard_url="https://sniper.example.net").send([notification(1)])
+    await sender(recorder, dashboard_url="https://bot.example.net").send([notification(1)])
 
     assert [b["label"] for b in buttons(recorder.payload())] == [
         "Buy",

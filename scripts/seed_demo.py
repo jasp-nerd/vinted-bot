@@ -1,8 +1,8 @@
 """Fill a fresh database with invented searches, finds and history, for screenshots and demos.
 
     uv run python scripts/seed_demo.py /tmp/demo.db
-    VINTED_SNIPER_DB_PATH=/tmp/demo.db VINTED_SNIPER_FETCH_MODE=mock \\
-        VINTED_SNIPER_MOCK_SCENARIO_DIR=scripts/demo/mock uv run vinted-sniper run
+    VINTED_BOT_DB_PATH=/tmp/demo.db VINTED_BOT_FETCH_MODE=mock \\
+        VINTED_BOT_MOCK_SCENARIO_DIR=scripts/demo/mock uv run vinted-bot run
 
 The mock scenario answers every search with an empty page, so that demo never talks to
 Vinted or sends anything. Without the two mock variables the searches run for real.
@@ -31,14 +31,14 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from vinted_sniper.db import Database, apply_pending
-from vinted_sniper.db.repo import Repo
-from vinted_sniper.vinted import urls
-from vinted_sniper.vinted.models import Item
-from vinted_sniper.web.views import SLOT_COLORS
+from vinted_bot.db import Database, apply_pending
+from vinted_bot.db.repo import Repo
+from vinted_bot.vinted import urls
+from vinted_bot.vinted.models import Item
+from vinted_bot.web.views import SLOT_COLORS
 
 HERE = Path(__file__).parent
-PHOTO_BASE = "https://vinted-sniper.jaspnerd.dev/assets/demo"
+PHOTO_BASE = "https://vinted-bot.jaspnerd.dev/assets/demo"
 FEE_FIXED = Decimal("0.70")
 FEE_RATE = Decimal("0.05")
 

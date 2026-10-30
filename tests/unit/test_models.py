@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from vinted_sniper.vinted.models import ParseError, parse_item, parse_seller
+from vinted_bot.vinted.models import ParseError, parse_item, parse_seller
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "vinted"
 

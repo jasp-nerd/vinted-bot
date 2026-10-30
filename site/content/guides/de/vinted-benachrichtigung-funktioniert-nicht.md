@@ -18,7 +18,7 @@ faq:
   - q: "Warum bekomme ich bei Vinted keine Benachrichtigung mehr?"
     a: "Häufige Ursachen sind ausgeschaltete Benachrichtigungen in der App oder auf dem Handy, Energiesparen, Fokus oder Nicht stören und eine abgelaufene Anmeldung. Hilft das alles nicht, liegt es meist an Vinted selbst."
   - q: "Wie bekomme ich die Vinted Benachrichtigungen wieder?"
-    a: "Benachrichtigungen in der Vinted-App und in den Handy-Einstellungen prüfen, Energiesparen für Vinted abschalten, App aktualisieren, ab- und wieder anmelden. Für Suchen, die dir wichtig sind, ist ein Tool wie vinted-sniper verlässlicher."
+    a: "Benachrichtigungen in der Vinted-App und in den Handy-Einstellungen prüfen, Energiesparen für Vinted abschalten, App aktualisieren, ab- und wieder anmelden. Für Suchen, die dir wichtig sind, ist ein Tool wie vinted-bot verlässlicher."
   - q: "Warum kommen Vinted Benachrichtigungen zu spät?"
     a: "Zwei Verzögerungen addieren sich: Vinted nimmt neue Artikel erst einige Minuten nach dem Hochladen in die Suche auf, und die Benachrichtigung zur gespeicherten Suche kommt noch später. Energiesparen und Fokus-Modi können sie weiter zurückhalten."
 ---
@@ -72,7 +72,7 @@ Was du ändern kannst: wer die Suche prüft. Statt darauf zu warten, dass Vinted
 
 ## Die kostenlose Alternative: ein Tool, das die Suche selbst prüft
 
-vinted-sniper ist eine kostenlose Open-Source-App, die genau das macht. Du fügst denselben Vinted-Suchlink ein, und die App prüft ihn jede Minute von deinem Rechner aus. Jeder neue Artikel kommt als Nachricht per Telegram, Discord, ntfy aufs Handy oder Webhook, mit Fotos, Endpreis inklusive Käuferschutz, Größe, Zustand, Bewertung des Verkäufers und einem Button zum Artikel.
+vinted-bot ist eine kostenlose Open-Source-App, die genau das macht. Du fügst denselben Vinted-Suchlink ein, und die App prüft ihn jede Minute von deinem Rechner aus. Jeder neue Artikel kommt als Nachricht per Telegram, Discord, ntfy aufs Handy oder Webhook, mit Fotos, Endpreis inklusive Käuferschutz, Größe, Zustand, Bewertung des Verkäufers und einem Button zum Artikel.
 
 Dazu löst sie einiges, was die gespeicherte Suche nicht kann:
 

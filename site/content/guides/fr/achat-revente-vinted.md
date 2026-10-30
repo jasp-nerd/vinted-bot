@@ -74,11 +74,11 @@ Ajoutez des mots à exclure comme « copie », « réplique », « inspiré », 
 
 ### Sous le prix habituel, pas seulement sous un chiffre
 
-Une limite fixe, c'est grossier. vinted-sniper apprend le prix total habituel de ce que trouve chaque recherche et signale les annonces nettement en dessous (il lui faut 15 trouvailles sur deux semaines pour le connaître). Vous pouvez choisir de ne recevoir que celles-là.
+Une limite fixe, c'est grossier. vinted-bot apprend le prix total habituel de ce que trouve chaque recherche et signale les annonces nettement en dessous (il lui faut 15 trouvailles sur deux semaines pour le connaître). Vous pouvez choisir de ne recevoir que celles-là.
 
 ### Laissez-le calculer votre marge
 
-Dans l'éditeur de recherche de vinted-sniper, une section « Resale » (revente) permet d'indiquer le prix de revente, les frais de la plateforme (0 pour Vinted, environ 10 pour eBay) et votre port. Chaque alerte affiche alors ce qu'il vous resterait. Fixez une marge minimum, et ce qui laisse trop peu n'est pas envoyé.
+Dans l'éditeur de recherche de vinted-bot, une section « Resale » (revente) permet d'indiquer le prix de revente, les frais de la plateforme (0 pour Vinted, environ 10 pour eBay) et votre port. Chaque alerte affiche alors ce qu'il vous resterait. Fixez une marge minimum, et ce qui laisse trop peu n'est pas envoyé.
 
 ### Suivez des vendeurs, pas seulement des recherches
 
@@ -86,11 +86,11 @@ Certains vendeurs sous-évaluent régulièrement : vide-greniers, parents qui vi
 
 ### Couvrez plusieurs pays
 
-La même recherche sur vinted.be, vinted.es ou vinted.it montre un autre mélange de vendeurs. Une recherche vinted-sniper peut en surveiller plusieurs, et une annonce vue deux fois n'est signalée qu'une fois.
+La même recherche sur vinted.be, vinted.es ou vinted.it montre un autre mélange de vendeurs. Une recherche vinted-bot peut en surveiller plusieurs, et une annonce vue deux fois n'est signalée qu'une fois.
 
 ## Mettre en place des alertes gratuites
 
-vinted-sniper est gratuit et open source. Il tourne sur votre propre ordinateur, vérifie chaque recherche toutes les minutes et envoie les nouvelles annonces sur Discord, Telegram ou votre téléphone, avec le prix total, la note du vendeur et des boutons Acheter et Contacter. Il ne se connecte jamais à Vinted.
+vinted-bot est gratuit et open source. Il tourne sur votre propre ordinateur, vérifie chaque recherche toutes les minutes et envoie les nouvelles annonces sur Discord, Telegram ou votre téléphone, avec le prix total, la note du vendeur et des boutons Acheter et Contacter. Il ne se connecte jamais à Vinted.
 
 1. Installez-le avec la commande d'une ligne de la page d'accueil.
 2. Collez chaque lien de recherche, ou construisez les recherches dans le tableau de bord.
@@ -101,7 +101,7 @@ vinted-sniper est gratuit et open source. Il tourne sur votre propre ordinateur,
 
 ## La vitesse : ce que les alertes peuvent faire, et ce qu'elles ne peuvent pas
 
-Vinted ajoute les nouvelles annonces à sa recherche quelques minutes après leur publication. Tout outil, payant ou gratuit, ne les voit qu'à ce moment-là : le « 0 délai » n'existe pas. vinted-sniper vérifie chaque minute, donc vous êtes en général prévenu quelques minutes après la mise en ligne. Dans une niche calme, c'est largement suffisant. Sur un article très recherché, l'achat automatique passe souvent avant.
+Vinted ajoute les nouvelles annonces à sa recherche quelques minutes après leur publication. Tout outil, payant ou gratuit, ne les voit qu'à ce moment-là : le « 0 délai » n'existe pas. vinted-bot vérifie chaque minute, donc vous êtes en général prévenu quelques minutes après la mise en ligne. Dans une niche calme, c'est largement suffisant. Sur un article très recherché, l'achat automatique passe souvent avant.
 
 Quelques habitudes aident plus qu'un bot plus rapide :
 

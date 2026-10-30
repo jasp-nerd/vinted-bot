@@ -8,17 +8,17 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import ScriptedTransport
-from vinted_sniper.db import Database
-from vinted_sniper.vinted.client import VintedClient
-from vinted_sniper.vinted.errors import (
+from vinted_bot.db import Database
+from vinted_bot.vinted.client import VintedClient
+from vinted_bot.vinted.errors import (
     ApiChangedError,
     AuthExpiredError,
     BlockedError,
     InvalidSearchError,
     RateLimitedError,
 )
-from vinted_sniper.vinted.session import SessionManager
-from vinted_sniper.vinted.transport import Response, TransportError
+from vinted_bot.vinted.session import SessionManager
+from vinted_bot.vinted.transport import Response, TransportError
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "vinted"
 HOMEPAGE_COOKIES = {

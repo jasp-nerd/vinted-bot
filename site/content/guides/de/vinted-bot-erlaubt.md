@@ -76,9 +76,9 @@ Das trifft deine Verbindung, nicht dein Konto. Surfst du über dieselbe Verbindu
 
 Das wird oft gefragt. Vinted veröffentlicht nicht, wie es Geräte erkennt, deshalb kann das außerhalb von Vinted niemand genau beantworten. Klar ist: Kontosperren hängen am Konto, Verbindungssperren an der Internetadresse. Ein Tool, das sich nie anmeldet und zurückhaltend prüft, bleibt nach allem, was man weiß, bei beidem außen vor.
 
-## Wie vinted-sniper auf der sicheren Seite bleibt
+## Wie vinted-bot auf der sicheren Seite bleibt
 
-vinted-sniper ist ein kostenloses Open-Source-Tool für Benachrichtigungen, das um genau diesen Unterschied herum gebaut ist:
+vinted-bot ist ein kostenloses Open-Source-Tool für Benachrichtigungen, das um genau diesen Unterschied herum gebaut ist:
 
 - Es meldet sich nie an, fragt nie nach deinem Vinted-Passwort und fasst dein Konto nicht an.
 - Es kauft nicht, schreibt nicht und stellt nichts neu ein. Kaufen ist bewusst keine Funktion und wird auch keine. Jede Nachricht hat einen Kaufen-Button, der den Checkout von Vinted öffnet, du kaufst also als du selbst.

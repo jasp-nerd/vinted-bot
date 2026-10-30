@@ -9,9 +9,9 @@ import httpx
 import pytest
 
 from tests.unit.sending import Recorder, bare, fast_bucket, notification, telegram_length
-from vinted_sniper.deliver.base import SenderConfigError
-from vinted_sniper.deliver.labels import MINUS
-from vinted_sniper.deliver.telegram import TelegramSender
+from vinted_bot.deliver.base import SenderConfigError
+from vinted_bot.deliver.labels import MINUS
+from vinted_bot.deliver.telegram import TelegramSender
 
 OK = httpx.Response(200, json={"ok": True})
 
@@ -118,16 +118,16 @@ async def test_buy_is_green_and_open_is_blue() -> None:
 async def test_a_public_dashboard_adds_a_button() -> None:
     recorder = Recorder()
 
-    await sender(recorder, dashboard_url="https://sniper.example.net").send([notification(1)])
+    await sender(recorder, dashboard_url="https://bot.example.net").send([notification(1)])
 
     second_row = recorder.payload()["reply_markup"]["inline_keyboard"][1]
-    assert second_row[1]["url"] == "https://sniper.example.net/searches/1"
+    assert second_row[1]["url"] == "https://bot.example.net/searches/1"
 
 
 async def test_every_button_is_an_https_link() -> None:
     recorder = Recorder()
 
-    await sender(recorder, dashboard_url="https://sniper.example.net").send([bare(1)])
+    await sender(recorder, dashboard_url="https://bot.example.net").send([bare(1)])
 
     rows = recorder.payload()["reply_markup"]["inline_keyboard"]
     links = [button["url"] for row in rows for button in row if "callback_data" not in button]
@@ -148,7 +148,7 @@ async def test_without_a_reachable_dashboard_ebay_sold_prices_take_its_place() -
 async def test_the_photo_search_has_a_row_with_the_price_check_when_there_is_a_dashboard() -> None:
     recorder = Recorder()
 
-    await sender(recorder, dashboard_url="https://sniper.example.net").send([notification(1)])
+    await sender(recorder, dashboard_url="https://bot.example.net").send([notification(1)])
 
     third_row = recorder.payload()["reply_markup"]["inline_keyboard"][2]
     assert [b["text"] for b in third_row] == ["eBay sold", "Photo search"]

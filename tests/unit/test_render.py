@@ -7,22 +7,22 @@ from typing import Any
 
 import pytest
 
-from vinted_sniper.db.repo import PendingNotification
-from vinted_sniper.deliver.labels import (
+from vinted_bot.db.repo import PendingNotification
+from vinted_bot.deliver.labels import (
     MINUS,
     format_money,
     format_rough_money,
     labels_for,
     money_text,
 )
-from vinted_sniper.deliver.render import (
+from vinted_bot.deliver.render import (
     BRAND_COLOUR,
     DEAL_COLOUR,
     escape_markdown,
     reachable_dashboard,
     view,
 )
-from vinted_sniper.vinted.models import Item
+from vinted_bot.vinted.models import Item
 
 
 def pending(**overrides: Any) -> PendingNotification:
@@ -171,9 +171,9 @@ def test_a_dashboard_only_this_machine_can_open_is_not_linked(url: str) -> None:
 
 
 def test_a_public_dashboard_is_linked_per_search() -> None:
-    listing = view(pending(), dashboard_url="https://sniper.example.net/")
+    listing = view(pending(), dashboard_url="https://bot.example.net/")
 
-    assert listing.search_url == "https://sniper.example.net/searches/3"
+    assert listing.search_url == "https://bot.example.net/searches/3"
 
 
 @pytest.mark.parametrize(
@@ -195,7 +195,7 @@ def test_each_kind_of_alert_has_its_own_headline(kind: str, headline: str) -> No
 
 
 def test_a_watch_alert_has_no_search_page_to_link() -> None:
-    listing = view(pending(query_id=None), dashboard_url="https://sniper.example.net/")
+    listing = view(pending(query_id=None), dashboard_url="https://bot.example.net/")
 
     assert listing.search_url is None
 

@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from vinted_sniper.vinted.errors import MalformedResponseError
-from vinted_sniper.vinted.item_page import parse_item_page
+from vinted_bot.vinted.errors import MalformedResponseError
+from vinted_bot.vinted.item_page import parse_item_page
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "vinted"
 AVAILABLE_ID = 10590400585

@@ -9,11 +9,11 @@ from typing import Literal
 
 import pytest
 
-from vinted_sniper.db.connection import Database
-from vinted_sniper.db.repo import Repo
-from vinted_sniper.engine.watcher import Watcher
-from vinted_sniper.vinted.errors import BlockedError
-from vinted_sniper.vinted.models import Item, ItemSnapshot
+from vinted_bot.db.connection import Database
+from vinted_bot.db.repo import Repo
+from vinted_bot.engine.watcher import Watcher
+from vinted_bot.vinted.errors import BlockedError
+from vinted_bot.vinted.models import Item, ItemSnapshot
 
 SnapshotStatus = Literal["available", "reserved", "sold", "gone"]
 

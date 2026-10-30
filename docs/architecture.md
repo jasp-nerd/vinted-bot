@@ -76,7 +76,7 @@ repository as everything else, so a search added there is picked up by the super
 `migrations.py` applies the numbered files in `db/migrations/` at startup, each in one
 transaction with foreign keys checked before it commits, so a failed upgrade leaves the
 database at the last version that fully applied. `export.py` writes found listings as CSV or
-JSON for both `vinted-sniper export` and the dashboard's download button.
+JSON for both `vinted-bot export` and the dashboard's download button.
 
 Process settings (where the database lives, intervals, the dashboard password) come from
 the environment through `config.py`. Everything a person owns lives in the database:
@@ -191,7 +191,7 @@ changes something, we hear about it from CI rather than from an issue.
 Run it offline the way the tests do:
 
 ```bash
-VINTED_SNIPER_FETCH_MODE=mock VINTED_SNIPER_MOCK_SCENARIO_DIR=./scenario uv run vinted-sniper run
+VINTED_BOT_FETCH_MODE=mock VINTED_BOT_MOCK_SCENARIO_DIR=./scenario uv run vinted-bot run
 ```
 
 A scenario directory holds `root.json` and `catalog.json` describing responses. Either can be

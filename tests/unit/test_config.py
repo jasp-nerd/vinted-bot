@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from pydantic import SecretStr, ValidationError
 
-from vinted_sniper import config
-from vinted_sniper.config import MIN_POLL_INTERVAL_S, Settings
+from vinted_bot import config
+from vinted_bot.config import MIN_POLL_INTERVAL_S, Settings
 
 
 def test_defaults_are_conservative() -> None:
@@ -86,7 +86,7 @@ def test_a_fresh_install_uses_the_user_data_folder(
     path = config.default_db_path()
 
     assert path.name == "app.db"
-    assert path.parent.name == "vinted-sniper"
+    assert path.parent.name == "vinted-bot"
 
 
 def test_a_container_keeps_the_relative_default(

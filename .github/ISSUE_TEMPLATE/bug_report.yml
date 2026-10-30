@@ -7,8 +7,8 @@ body:
       value: |
         Thanks for taking the time. Two things first, because they solve most reports:
 
-        1. **Are you on the newest version?** Vinted moved its search in September 2026 and versions before 2.0.0 find nothing. Updating: [self-hosting guide](https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/self-hosting.md#updating).
-        2. **Does Vinted answer your machine?** The [reachability check](https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/troubleshooting.md#vinted-reachable-from-this-machine) takes one command.
+        1. **Are you on the newest version?** Vinted moved its search in September 2026 and versions before 2.0.0 find nothing. Updating: [self-hosting guide](https://github.com/jasp-nerd/vinted-bot/blob/main/docs/self-hosting.md#updating).
+        2. **Does Vinted answer your machine?** The [reachability check](https://github.com/jasp-nerd/vinted-bot/blob/main/docs/troubleshooting.md#vinted-reachable-from-this-machine) takes one command.
 
         Please don't paste webhook links, bot tokens or passwords below.
   - type: textarea
@@ -36,8 +36,8 @@ body:
     id: version
     attributes:
       label: Version
-      description: "`vinted-sniper --version`, or the image tag you run."
-      placeholder: vinted-sniper 2.0.0
+      description: "`vinted-bot --version`, or the image tag you run."
+      placeholder: vinted-bot 2.1.0
     validations:
       required: true
   - type: input
@@ -48,14 +48,14 @@ body:
   - type: textarea
     id: status
     attributes:
-      label: Output of `vinted-sniper status`
-      description: "With Docker: `docker compose exec vinted-sniper vinted-sniper status`."
+      label: Output of `vinted-bot status`
+      description: "With Docker: `docker compose exec vinted-bot vinted-bot status`."
       render: text
   - type: textarea
     id: logs
     attributes:
       label: The last part of the log
-      description: Where to find it is in [troubleshooting](https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/troubleshooting.md#where-the-logs-are). A couple of hundred lines is plenty. Check it for tokens or webhook links before posting.
+      description: Where to find it is in [troubleshooting](https://github.com/jasp-nerd/vinted-bot/blob/main/docs/troubleshooting.md#where-the-logs-are). A couple of hundred lines is plenty. Check it for tokens or webhook links before posting.
       render: text
   - type: dropdown
     id: reachable

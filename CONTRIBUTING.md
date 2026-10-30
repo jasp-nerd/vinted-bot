@@ -7,9 +7,9 @@ Bug reports with logs attached are the most useful thing anyone can send. For co
 You need [uv](https://docs.astral.sh/uv/). It installs the right Python by itself.
 
 ```bash
-git clone https://github.com/jasp-nerd/vinted-sniper && cd vinted-sniper
+git clone https://github.com/jasp-nerd/vinted-bot && cd vinted-bot
 uv sync --all-extras
-uv run vinted-sniper run --open
+uv run vinted-bot run --open
 ```
 
 The test suite never contacts Vinted, so it runs anywhere.
@@ -24,8 +24,8 @@ history. Its photos are the AI-generated ones hosted with the project site
 
 ```bash
 uv run python scripts/seed_demo.py /tmp/demo.db
-VINTED_SNIPER_DB_PATH=/tmp/demo.db VINTED_SNIPER_FETCH_MODE=mock \
-  VINTED_SNIPER_MOCK_SCENARIO_DIR=scripts/demo/mock uv run vinted-sniper run --open
+VINTED_BOT_DB_PATH=/tmp/demo.db VINTED_BOT_FETCH_MODE=mock \
+  VINTED_BOT_MOCK_SCENARIO_DIR=scripts/demo/mock uv run vinted-bot run --open
 ```
 
 The mock scenario answers every search with an empty page, so this never talks to Vinted
@@ -35,7 +35,7 @@ on Vinted is announced, and the demo's places for alerts reach nobody (a random 
 name, a switched-off Discord webhook, a Telegram chat that doesn't exist). Run it from a
 folder without your own `.env`, or it picks up your real bot token and settings.
 
-The dashboard's templates live in `src/vinted_sniper/web/templates` and its CSS and
+The dashboard's templates live in `src/vinted_bot/web/templates` and its CSS and
 script in `web/static`; they need no build step. Static files are served with a content
 hash in the URL, so a reload always picks up a change.
 
@@ -94,39 +94,55 @@ people running the app.
 
 ## Cutting a release
 
-For the maintainer. Releases are made by pushing a tag; the workflows do the rest.
+For the maintainer. A release is one button; the workflows do the rest.
 
-1. In `CHANGELOG.md`, rename `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD`, add a fresh empty
-   `## [Unreleased]` above it, and update the compare links at the bottom.
-2. Set `version = "X.Y.Z"` in `pyproject.toml` and run `uv lock`.
-3. Commit (`Release X.Y.Z`), merge to main, then tag that commit and push the tag:
+1. In a pull request: in `CHANGELOG.md`, rename `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD`,
+   add a fresh empty `## [Unreleased]` above it, and update the compare links at the bottom.
+   Set `version = "X.Y.Z"` in `pyproject.toml` and `__version__` in
+   `src/vinted_bot/__init__.py`, run `uv lock`, and merge it to main.
+2. On GitHub, open **Actions**, choose **Release** on the left, click **Run workflow**, leave
+   the branch on `main`, and click the green **Run workflow** button. There is nothing to
+   fill in.
 
-   ```bash
-   git tag -a vX.Y.Z -m "vX.Y.Z"
-   git push origin vX.Y.Z
-   ```
+The Release workflow then:
 
-Pushing the tag starts two workflows:
+- reads the version from `pyproject.toml`, and stops without changing anything if
+  `CHANGELOG.md` has no `## [X.Y.Z]` section, if the tag `vX.Y.Z` already exists, or if it
+  was started on a branch other than main;
+- creates the tag `vX.Y.Z` on that commit;
+- builds the package and publishes it to PyPI;
+- builds the Docker image for amd64 and arm64 and tags it `X.Y.Z`, `X.Y`, `X` and `latest`
+  (by calling **Publish image**);
+- last, creates the GitHub release with this version's changelog section as its text and the
+  package files attached. The dashboard's update notice reads that release, so it only
+  appears once the package and the image are out.
 
-- **Publish image** builds the Docker image for amd64 and arm64 and tags it `X.Y.Z`, `X.Y`,
-  `X` and `latest`.
-- **Release** checks the tag matches `pyproject.toml`, builds the package, publishes it to
-  PyPI and creates the GitHub release with this version's changelog section as its text. The
-  dashboard's update notice reads that release.
+If a check fails before the tag is made, fix it and click Run workflow again. If a later job
+fails (PyPI or the registry having a bad moment), open that run and use **Re-run failed
+jobs**: a new run would refuse, because the tag exists by then. If the fix needs a code
+change, release it as the next version instead.
 
-Builds of main keep going out as the `edge` image in between.
+Pushing a tag by hand (`git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`) still works
+and does the same, with the image built by **Publish image** on that push. Builds of main
+keep going out as the `edge` image in between.
 
 ### One-time PyPI setup
 
 The Release workflow publishes with PyPI trusted publishing, so no token is stored anywhere.
 Before the first release:
 
-1. On pypi.org, under Your projects, Publishing, add a pending publisher: project
-   `vinted-sniper`, owner `jasp-nerd`, repository `vinted-sniper`, workflow `release.yml`,
-   environment `pypi`.
-2. In the GitHub repository settings, create an environment named `pypi`. Adding yourself as
-   a required reviewer there means each PyPI upload waits for a click.
+1. On pypi.org, open Your account, **Publishing**, and under "Add a new pending publisher"
+   choose GitHub and fill in:
 
-Once the package is on PyPI, the installers can switch to it: change `PACKAGE` in
-`install.sh` and `$spec` in `install.ps1` to `vinted-sniper`, and update the rollback example
-in `docs/troubleshooting.md`.
+   | Field | Value |
+   |---|---|
+   | PyPI Project Name | `vinted-bot` |
+   | Owner | `jasp-nerd` |
+   | Repository name | `vinted-bot` |
+   | Workflow name | `release.yml` |
+   | Environment name | `pypi` |
+
+   The first release creates the project and turns the pending publisher into a normal one.
+2. In the GitHub repository's **Settings**, **Environments**, create an environment named
+   `pypi`. Adding yourself as a required reviewer there means each PyPI upload waits for a
+   click.

@@ -15,16 +15,16 @@ keywords:
   - bot vinted 0 délai
 faq:
   - q: "Existe-t-il un bot Vinted gratuit ?"
-    a: "Oui. vinted-sniper est gratuit et open source (licence MIT), sans formule payante. Il surveille vos recherches Vinted et envoie les nouvelles annonces sur Discord, Telegram, votre téléphone (appli ntfy) ou un webhook. Il tourne sur votre propre ordinateur, qui doit donc rester allumé."
+    a: "Oui. vinted-bot est gratuit et open source (licence MIT), sans formule payante. Il surveille vos recherches Vinted et envoie les nouvelles annonces sur Discord, Telegram, votre téléphone (appli ntfy) ou un webhook. Il tourne sur votre propre ordinateur, qui doit donc rester allumé."
   - q: "Un bot Vinted gratuit sans Discord, c'est possible ?"
-    a: "Oui. vinted-sniper fonctionne aussi avec Telegram, avec une notification sur le téléphone via l'appli gratuite ntfy (sans compte), par flux RSS ou par webhook. L'e-mail est possible avec un module optionnel."
+    a: "Oui. vinted-bot fonctionne aussi avec Telegram, avec une notification sur le téléphone via l'appli gratuite ntfy (sans compte), par flux RSS ou par webhook. L'e-mail est possible avec un module optionnel."
   - q: "Un bot Vinted 0 délai, ça existe ?"
     a: "Non. Vinted ajoute les nouvelles annonces à sa recherche quelques minutes après leur mise en ligne, et aucun outil, payant ou gratuit, ne les voit avant. Le « 0 délai » se mesure à partir du moment où l'annonce apparaît dans la recherche, pas de la publication."
   - q: "Un bot Vinted gratuit peut-il faire bannir mon compte ?"
     a: "Un bot d'alerte qui ne se connecte jamais à votre compte n'a aucun compte à faire suspendre. Le risque concerne surtout les bots qui achètent, envoient des messages ou republient à votre place. Vinted peut en revanche ralentir temporairement une adresse IP trop insistante."
 ---
 
-Oui, un bot Vinted gratuit existe. vinted-sniper est une application gratuite et open source qui surveille vos recherches Vinted et envoie chaque nouvelle annonce sur Discord, Telegram ou votre téléphone, avec le prix que vous paierez vraiment. Elle tourne sur votre propre ordinateur plutôt que sur le serveur d'une société, ce qui explique qu'elle ne coûte rien, et elle ne demande jamais vos identifiants Vinted.
+Oui, un bot Vinted gratuit existe. vinted-bot est une application gratuite et open source qui surveille vos recherches Vinted et envoie chaque nouvelle annonce sur Discord, Telegram ou votre téléphone, avec le prix que vous paierez vraiment. Elle tourne sur votre propre ordinateur plutôt que sur le serveur d'une société, ce qui explique qu'elle ne coûte rien, et elle ne demande jamais vos identifiants Vinted.
 
 Ce guide explique ce qu'on appelle un « bot Vinted », quelles options gratuites existent vraiment, comment en installer un en une dizaine de minutes, et ses limites avant de compter dessus.
 
@@ -32,7 +32,7 @@ Ce guide explique ce qu'on appelle un « bot Vinted », quelles options gratuite
 
 Le mot recouvre des outils très différents, et la différence compte autant pour le prix que pour le risque.
 
-Un bot d'alerte (on dit aussi moniteur ou sniper) surveille une recherche et vous prévient dès qu'une nouvelle annonce apparaît. Vous ouvrez l'annonce et vous achetez vous-même. C'est ce que cherchent la plupart des gens quand les alertes de recherche sauvegardée de Vinted ne suivent pas.
+Un bot d'alerte (on dit aussi moniteur) surveille une recherche et vous prévient dès qu'une nouvelle annonce apparaît. Vous ouvrez l'annonce et vous achetez vous-même. C'est ce que cherchent la plupart des gens quand les alertes de recherche sauvegardée de Vinted ne suivent pas.
 
 Un bot d'achat automatique (autobuy, autocop) se connecte à votre compte et lance l'achat dès qu'une annonce correspond. Ce sont les plus chers, et ils ont besoin de votre compte et de votre moyen de paiement.
 
@@ -56,9 +56,9 @@ Des salons partagés qui publient les annonces de catégories populaires. Vous r
 
 ### Les outils open source à faire tourner soi-même
 
-Gratuits, sans limite de recherches, mais il faut un ordinateur qui reste allumé. vinted-sniper en fait partie. Son parti pris : être simple à installer et vous dire clairement quand il ne fonctionne plus, ce qui est le reproche numéro un fait aux bots gratuits.
+Gratuits, sans limite de recherches, mais il faut un ordinateur qui reste allumé. vinted-bot en fait partie. Son parti pris : être simple à installer et vous dire clairement quand il ne fonctionne plus, ce qui est le reproche numéro un fait aux bots gratuits.
 
-## Pourquoi vinted-sniper est gratuit
+## Pourquoi vinted-bot est gratuit
 
 Il n'y a pas de serveur de notre côté. L'application tourne sur votre PC portable, votre ordinateur fixe, un Raspberry Pi ou un NAS, interroge vos recherches depuis votre propre connexion internet et envoie les alertes depuis là. Pas d'hébergement à payer, donc rien à vous facturer. Le code est public sur GitHub sous licence MIT : n'importe qui peut lire exactement ce qu'il fait.
 
@@ -90,7 +90,7 @@ Les alertes partent de la machine où il tourne. Un portable en veille n'envoie 
 
 ### Le « 0 délai » n'existe pas
 
-Vinted ajoute les nouvelles annonces à sa recherche quelques minutes après leur publication. Tous les outils qui lisent la recherche, payants ou gratuits, les voient à ce moment-là. Les serveurs qui promettent « 0 délai » mesurent le temps entre l'apparition dans la recherche et l'alerte, pas depuis la mise en ligne. vinted-sniper vérifie chaque minute par défaut. Vérifier plus souvent ne trouve rien plus tôt et fait ralentir votre connexion par Vinted. Si vous voulez battre les bots d'achat automatique sur des consoles bradées, aucun outil d'alerte ne gagnera cette course. Si vous cherchez une taille, une marque ou une pièce de collection précise, une minute suffit largement.
+Vinted ajoute les nouvelles annonces à sa recherche quelques minutes après leur publication. Tous les outils qui lisent la recherche, payants ou gratuits, les voient à ce moment-là. Les serveurs qui promettent « 0 délai » mesurent le temps entre l'apparition dans la recherche et l'alerte, pas depuis la mise en ligne. vinted-bot vérifie chaque minute par défaut. Vérifier plus souvent ne trouve rien plus tôt et fait ralentir votre connexion par Vinted. Si vous voulez battre les bots d'achat automatique sur des consoles bradées, aucun outil d'alerte ne gagnera cette course. Si vous cherchez une taille, une marque ou une pièce de collection précise, une minute suffit largement.
 
 ### Votre connexion compte
 

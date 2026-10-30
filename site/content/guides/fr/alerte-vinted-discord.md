@@ -14,7 +14,7 @@ keywords:
   - meilleur bot vinted gratuit discord
 faq:
   - q: "Comment avoir un bot Vinted gratuit sur Discord ?"
-    a: "Créez votre propre serveur Discord, ajoutez un webhook dans un salon et copiez son URL. Collez-la dans vinted-sniper, un bot Vinted gratuit et open source, puis ajoutez vos recherches : chaque nouvelle annonce arrive dans le salon avec photos, prix total et boutons."
+    a: "Créez votre propre serveur Discord, ajoutez un webhook dans un salon et copiez son URL. Collez-la dans vinted-bot (gratuit et open source), puis ajoutez vos recherches : chaque nouvelle annonce arrive dans le salon avec photos, prix total et boutons."
   - q: "Comment créer un webhook Discord ?"
     a: "Sur un serveur où vous pouvez gérer les salons, ouvrez les paramètres du salon (Modifier le salon), puis Intégrations, Webhooks, Nouveau webhook, et copiez l'URL du webhook. Sur mobile, appuyez longuement sur le nom du salon pour accéder à Modifier le salon."
   - q: "Faut-il inviter un bot sur mon serveur Discord ?"
@@ -23,7 +23,7 @@ faq:
     a: "Il faut la permission de gérer les webhooks, ce qui sur le serveur de quelqu'un d'autre veut souvent dire être administrateur. Créer votre propre serveur est gratuit et prend moins d'une minute."
 ---
 
-Pour recevoir des alertes Vinted sur Discord, il vous faut l'URL d'un webhook Discord : un lien privé qui permet à une application de publier dans un salon. Créez un serveur (gratuit), ouvrez les paramètres du salon, allez dans Intégrations, puis Webhooks, puis Nouveau webhook, et copiez l'URL. Collez-la dans votre bot Vinted et envoyez un test. Avec vinted-sniper, l'ensemble est gratuit et prend environ deux minutes.
+Pour recevoir des alertes Vinted sur Discord, il vous faut l'URL d'un webhook Discord : un lien privé qui permet à une application de publier dans un salon. Créez un serveur (gratuit), ouvrez les paramètres du salon, allez dans Intégrations, puis Webhooks, puis Nouveau webhook, et copiez l'URL. Collez-la dans votre bot Vinted et envoyez un test. Avec vinted-bot, l'ensemble est gratuit et prend environ deux minutes.
 
 Les libellés ci-dessous sont ceux de Discord en français ; ils peuvent varier légèrement selon la version.
 
@@ -67,9 +67,9 @@ L'URL commence par `https://discord.com/api/webhooks/` suivi de deux longs codes
 
 Petit piège : Discord refuse les noms de webhook qui contiennent le mot « discord ». Si le renommage échoue, c'est pour ça.
 
-## Étape 3 : la coller dans vinted-sniper
+## Étape 3 : la coller dans vinted-bot
 
-vinted-sniper est une application gratuite et open source qui surveille vos recherches Vinted et envoie les nouvelles annonces vers Discord, entre autres. Après l'installation, le tableau de bord s'ouvre sur `http://localhost:8000`.
+vinted-bot est une application gratuite et open source qui surveille vos recherches Vinted et envoie les nouvelles annonces vers Discord, entre autres. Après l'installation, le tableau de bord s'ouvre sur `http://localhost:8000`.
 
 1. Ouvrez la page « Alerts » (où arrivent les alertes) et ajoutez une destination.
 2. Choisissez Discord et collez l'URL du webhook.
@@ -105,7 +105,7 @@ La plupart des « je n'ai jamais reçu l'alerte » viennent des notifications Di
 
 ### Le webhook a été supprimé
 
-Si quelqu'un supprime le webhook ou le salon, Discord répond à vinted-sniper qu'il n'existe plus, et l'application désactive cette destination. C'est voulu : envoyer en boucle vers un webhook mort, c'est ce qui fait limiter une adresse par Discord lui-même. Créez un nouveau webhook et ajoutez-le à nouveau.
+Si quelqu'un supprime le webhook ou le salon, Discord répond à vinted-bot qu'il n'existe plus, et l'application désactive cette destination. C'est voulu : envoyer en boucle vers un webhook mort, c'est ce qui fait limiter une adresse par Discord lui-même. Créez un nouveau webhook et ajoutez-le à nouveau.
 
 ### L'URL a fuité
 

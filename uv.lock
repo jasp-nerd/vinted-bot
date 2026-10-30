@@ -1725,8 +1725,8 @@ wheels = [
 ]
 
 [[package]]
-name = "vinted-sniper"
-version = "2.0.0"
+name = "vinted-bot"
+version = "2.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiogram" },
@@ -1780,7 +1780,7 @@ requires-dist = [
     { name = "tzdata", specifier = ">=2025.2" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34" },
 ]
-provides-extras = ["impersonate", "web", "apprise"]
+provides-extras = ["impersonate", "apprise"]
 
 [package.metadata.requires-dev]
 dev = [

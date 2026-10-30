@@ -6,12 +6,27 @@ becomes the text of its GitHub release, so write it for the people running the a
 
 ## [Unreleased]
 
-<!-- Planned as 2.1.0. Rename this heading to `## [2.1.0] - YYYY-MM-DD` when cutting the
-     release; see "Cutting a release" in CONTRIBUTING.md. -->
+## [2.1.0] - 2026-10-30
+
+### Changed
+
+- **Renamed to vinted-bot** (from vinted-sniper), the name people search for. Everything
+  uses it now: the `vinted-bot` command, the PyPI package `vinted-bot`, the Docker image
+  `ghcr.io/jasp-nerd/vinted-bot`, the repository github.com/jasp-nerd/vinted-bot (old links
+  redirect), the website vinted-bot.jaspnerd.dev, settings (`VINTED_BOT_...`), the data folder
+  (`vinted-bot`), the installers' start-at-login entries, the Docker volume
+  (`vinted-bot-data`), the default Discord name and the webhook headers
+  (`X-Vinted-Bot-Signature`, `X-Vinted-Bot-Timestamp`). The old names are not read any more,
+  so this is a fresh install: install vinted-bot with the commands in the README, uninstall
+  the old copy, and rename any settings in your `.env`. To keep your searches, copy the old
+  data folder's `app.db` into the new one before the first start.
+- The installers' start-at-login entries now tell the app they restart it
+  (`VINTED_BOT_SUPERVISED`), and the Windows launcher stays running in the background so it
+  can install an update while the app is closed.
 
 ### Added
 
-- **Update from the dashboard.** Where the installer set vinted-sniper up to start by itself,
+- **Update from the dashboard.** Where the installer set vinted-bot up to start by itself,
   "Update now" installs the new version and restarts into it, and "Install updates by
   itself" (off unless you turn it on) does that between 4 and 5 at night, never while an
   alert is on its way out, then says so in your status alerts. Installed with uv or pipx but
@@ -20,11 +35,10 @@ becomes the text of its GitHub release, so write it for the people running the a
   pipx, and only when GitHub has a newer release; a failed update leaves the running version
   alone and says what went wrong.
 
-### Changed
+### Removed
 
-- The installers' start-at-login entries now tell the app they restart it
-  (`VINTED_SNIPER_SUPERVISED`), and the Windows launcher stays running in the background so it
-  can install an update while the app is closed. Run the installer once more to get this.
+- The empty `web` extra, kept in 2.0 only so 1.x install commands still worked. The
+  dashboard is part of every install.
 
 ## [2.0.0] - 2026-10-30
 
@@ -36,9 +50,9 @@ and destinations carry over: the database upgrades itself on the first start.
 ### Fixed
 
 - Searches work again after Vinted's September 2026 move to a new search address
-  ([#9](https://github.com/jasp-nerd/vinted-sniper/issues/9),
-  [#12](https://github.com/jasp-nerd/vinted-sniper/issues/12),
-  [#14](https://github.com/jasp-nerd/vinted-sniper/issues/14)). Filters saved before the move
+  ([#9](https://github.com/jasp-nerd/vinted-bot/issues/9),
+  [#12](https://github.com/jasp-nerd/vinted-bot/issues/12),
+  [#14](https://github.com/jasp-nerd/vinted-bot/issues/14)). Filters saved before the move
   keep working, and brand, size and condition show up in alerts again.
 - The search builder's filter options load again.
 - A listing that turns up in the results after a newer one was announced is no longer
@@ -162,6 +176,7 @@ First version, never tagged as a release: polling with a stale-catalog watchdog,
 the total price including buyer protection, Discord, Telegram, ntfy, RSS and webhook
 delivery through a reliable outbox, and a web dashboard.
 
-[Unreleased]: https://github.com/jasp-nerd/vinted-sniper/compare/v2.0.0...HEAD
-[2.0.0]: https://github.com/jasp-nerd/vinted-sniper/compare/v0.1.0...v2.0.0
-[0.1.0]: https://github.com/jasp-nerd/vinted-sniper/commits/v0.1.0
+[Unreleased]: https://github.com/jasp-nerd/vinted-bot/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/jasp-nerd/vinted-bot/compare/v2.0.0...v2.1.0
+[2.0.0]: https://github.com/jasp-nerd/vinted-bot/compare/v0.1.0...v2.0.0
+[0.1.0]: https://github.com/jasp-nerd/vinted-bot/commits/v0.1.0

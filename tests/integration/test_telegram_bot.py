@@ -30,7 +30,7 @@ from aiogram.types import (
     User,
 )
 
-from vinted_sniper.botctl.telegram_bot import (
+from vinted_bot.botctl.telegram_bot import (
     add_link_text,
     add_search_text,
     apply_action,
@@ -42,8 +42,8 @@ from vinted_sniper.botctl.telegram_bot import (
     remove_prompt,
     set_paused_text,
 )
-from vinted_sniper.db.repo import Repo
-from vinted_sniper.vinted.models import Item
+from vinted_bot.db.repo import Repo
+from vinted_bot.vinted.models import Item
 
 SEARCH_URL = "https://www.vinted.fr/catalog?search_text=nike%20air&price_to=40"
 PAIRED_CHAT = 4242
@@ -345,7 +345,7 @@ class RecordingSession(BaseSession):
         timeout: int | None = None,  # noqa: ASYNC109 - the signature aiogram defines
     ) -> Any:
         if isinstance(method, GetMe):
-            return User(id=1, is_bot=True, first_name="sniper", username="sniper_bot")
+            return User(id=1, is_bot=True, first_name="vinted-bot", username="vinted_alerts_bot")
         self.calls.append(method)
         if isinstance(method, (SendMessage, EditMessageText)):
             return _message(PAIRED_CHAT, str(method.text))

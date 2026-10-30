@@ -20,7 +20,7 @@ faq:
   - q: "Czy Vinted wysyła powiadomienia o zapisanych wyszukiwaniach?"
     a: "Strony pomocy Vinted mówią, że tak. W praktyce wiele osób dostaje je z opóźnieniem albo wcale. Powiadomienia o nowych przedmiotach od obserwowanych członków są zwykle pewniejsze."
   - q: "Jak szybko przychodzą powiadomienia o nowych ogłoszeniach na Vinted?"
-    a: "Vinted dodaje ogłoszenia do wyszukiwarki kilka minut po wystawieniu, więc każde powiadomienie przychodzi później. vinted-sniper sprawdza co minutę, więc zwykle dowiadujesz się kilka minut po wystawieniu."
+    a: "Vinted dodaje ogłoszenia do wyszukiwarki kilka minut po wystawieniu, więc każde powiadomienie przychodzi później. vinted-bot sprawdza co minutę, więc zwykle dowiadujesz się kilka minut po wystawieniu."
 ---
 
 Powiadomienia Vinted o nowych ogłoszeniach możesz dostawać na trzy sposoby: przez zapisane wyszukiwanie w aplikacji Vinted, przez obserwowanie sprzedających albo przez narzędzie, które samo sprawdza Twoje wyszukiwanie i wysyła Ci wiadomość. Dwa pierwsze są wbudowane i darmowe, ale zawodne. Trzeci jest jedynym pewnym sposobem dla wyszukiwania i też może być darmowy.
@@ -82,7 +82,7 @@ Możesz za to zmienić to, kto sprawdza wyszukiwanie.
 
 Narzędzie do powiadomień, często nazywane botem Vinted, co jakiś czas wczytuje najnowsze wyniki Twojego wyszukiwania i wysyła Ci to, czego jeszcze nie widziało. Sam decydujesz, dokąd trafiają wiadomości: na telefon, na Discorda, na Telegrama.
 
-Płatne usługi robią to ze swoich serwerów za mniej więcej 5 do 30 euro miesięcznie (stan na październik 2026). vinted-sniper robi to za darmo, z Twojego komputera, bez abonamentu i bez logowania do Vinted:
+Płatne usługi robią to ze swoich serwerów za mniej więcej 5 do 30 euro miesięcznie (stan na październik 2026). vinted-bot robi to za darmo, z Twojego komputera, bez abonamentu i bez logowania do Vinted:
 
 1. Zainstaluj go jednolinijkowym poleceniem ze strony głównej. Panel otworzy się w przeglądarce.
 2. Wklej link do wyszukiwania z Vinted albo zbuduj wyszukiwanie w panelu z kategoriami, markami i rozmiarami Vinted.
@@ -98,7 +98,7 @@ Ograniczenie: aplikacja działa na Twoim komputerze, więc powiadomienia przycho
 
 ## Porównanie
 
-| | Zapisane wyszukiwanie (Vinted) | Obserwowanie sprzedającego | Darmowy bot (vinted-sniper) | Płatna usługa |
+| | Zapisane wyszukiwanie (Vinted) | Obserwowanie sprzedającego | Darmowy bot (vinted-bot) | Płatna usługa |
 |---|---|---|---|---|
 | Koszt | Za darmo | Za darmo | Za darmo | Ok. 5 do 30 euro miesięcznie |
 | Niezawodność | Często z opóźnieniem lub wcale | Zwykle dobra | Sprawdza co minutę, mówi, gdy przestanie działać | Zależy od usługi |
