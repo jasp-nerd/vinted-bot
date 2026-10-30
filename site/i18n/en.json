@@ -258,6 +258,7 @@
     "releases": "Releases",
     "changelog": "What's new",
     "report": "Report a problem",
+    "coffee": "Buy me a coffee",
     "llms": "Guide for AI assistants",
     "about": "About",
     "help": "Help",
@@ -292,6 +293,7 @@
     "sections": [
       {"h": "Who makes it", "body": "<p>vinted-bot is built and maintained by <a href=\"https://github.com/jasp-nerd\">jasp-nerd</a>, a developer in the Netherlands. It began in August 2026 as a small command-line tool and grew into the app it is now, with a dashboard, deal badges, health checks and one-line installers.</p>"},
       {"h": "Why it's free", "body": "<p>Alerts for your own searches shouldn't cost a monthly fee. Because vinted-bot runs on your own computer, there's no server to pay for, so there's nothing to charge for. There's no paid tier, no trial, no account and no ads, and there won't be. The code is MIT-licensed: you can read it, change it and run it however you like.</p>"},
+      {"h": "How it's paid for", "body": "<p>It isn't. There are no ads, no paid version, and nothing about you is collected or sold. If it got you a good find, you can <a href=\"{kofi}\">buy me a coffee</a> or <a href=\"{sponsors}\">sponsor it on GitHub</a>. A star on GitHub helps other people find it too.</p>"},
       {"h": "What it will never do", "body": "<p>It will never ask for your Vinted login, and it will never buy, list, like or message for you. Those things need your account, and that's where restrictions come from. It reads public listings anonymously, at an unhurried pace, and slows down by itself when Vinted asks it to. More in <a href=\"/docs/legal/\">rules and risks</a> (in English).</p>"},
       {"h": "Not affiliated with Vinted", "body": "<p>vinted-bot is an independent project. It is not affiliated with, endorsed by or connected to Vinted UAB. Vinted is a trademark of its owner. The name says what it is, a bot for Vinted. It doesn't mean it comes from Vinted.</p>"},
       {"h": "Contact", "body": "<p>Found a bug, or have an idea? <a href=\"https://github.com/jasp-nerd/vinted-bot/issues\">Open an issue on GitHub</a>. Security problems go through the <a href=\"https://github.com/jasp-nerd/vinted-bot/blob/main/SECURITY.md\">security policy</a>. Everything that changes is in the <a href=\"/changelog/\">changelog</a>.</p>"}

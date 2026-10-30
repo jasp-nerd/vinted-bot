@@ -60,13 +60,16 @@ from siteconfig import (
     BASE_URL,
     GOOGLE_SITE_VERIFICATION,
     HOST,
+    KO_FI,
     NAME,
     PYPI,
     REPO,
     REPO_BLOB,
     REPO_RAW,
+    SPONSORS,
     UMAMI_SCRIPT,
     UMAMI_WEBSITE_ID,
+    tracked,
 )
 
 # Language order on the site: English is the root and x-default.
@@ -191,7 +194,13 @@ def load_i18n() -> dict[str, dict]:
         if not f.exists():
             print(f"  ! no strings for {lang}, skipping that language")
             continue
-        raw = f.read_text("utf-8").replace("{p}", prefix(lang))
+        raw = (
+            f.read_text("utf-8")
+            .replace("{p}", prefix(lang))
+            # Only the About page's "How it's paid for" uses these, inside HTML.
+            .replace("{kofi}", tracked(KO_FI, "about").replace("&", "&amp;"))
+            .replace("{sponsors}", tracked(SPONSORS, "about").replace("&", "&amp;"))
+        )
         out[lang] = json.loads(raw)
 
     # Every language must have exactly the keys (and list lengths) English has.
@@ -292,6 +301,7 @@ class Site:
             name=NAME,
             repo=REPO,
             repo_raw=REPO_RAW,
+            kofi_footer=tracked(KO_FI, "footer"),
             base_url=BASE_URL,
             host=HOST,
             umami_script=UMAMI_SCRIPT,

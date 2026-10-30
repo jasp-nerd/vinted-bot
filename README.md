@@ -223,6 +223,12 @@ Your searches are kept, and database changes apply by themselves at startup. Wha
 
 Bug reports with the log attached help most: the [issue form](https://github.com/jasp-nerd/vinted-bot/issues/new/choose) asks for what's needed. For code, see [CONTRIBUTING.md](https://github.com/jasp-nerd/vinted-bot/blob/main/CONTRIBUTING.md). Security problems go through [SECURITY.md](https://github.com/jasp-nerd/vinted-bot/blob/main/SECURITY.md).
 
+## Support
+
+It's free, without ads, and it stays that way. If it got you a good find, you can buy me a coffee or [sponsor it on GitHub](https://github.com/sponsors/jasp-nerd). A star helps other people find it.
+
+[![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jaspnerd)
+
 ---
 
 <sub>Independent open-source tool. Not affiliated with Vinted. It reads public listings anonymously and never logs in, buys, or lists anything; buying for you is deliberately not a feature. MIT licensed.</sub>

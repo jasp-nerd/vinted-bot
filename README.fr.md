@@ -227,6 +227,12 @@ En anglais :
 
 Les rapports de bug avec le journal joint sont les plus utiles : le [formulaire](https://github.com/jasp-nerd/vinted-bot/issues/new/choose) demande ce qu'il faut. Pour le code, voir [CONTRIBUTING.md](https://github.com/jasp-nerd/vinted-bot/blob/main/CONTRIBUTING.md). Les problèmes de sécurité passent par [SECURITY.md](https://github.com/jasp-nerd/vinted-bot/blob/main/SECURITY.md).
 
+## Soutenir le projet
+
+C'est gratuit, sans publicité, et ça le restera. Si l'outil vous a fait dénicher une bonne affaire, vous pouvez m'offrir un café ou [le sponsoriser sur GitHub](https://github.com/sponsors/jasp-nerd). Une étoile aide aussi d'autres personnes à le trouver.
+
+[![Me soutenir sur Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jaspnerd)
+
 ---
 
 <sub>Outil open source indépendant. Sans affiliation avec Vinted. Il lit des annonces publiques de façon anonyme et ne se connecte jamais, n'achète rien et ne publie rien ; acheter à votre place n'est volontairement pas une fonction. Licence MIT.</sub>

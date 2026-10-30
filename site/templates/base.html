@@ -103,6 +103,7 @@
         <li><a href="/changelog/"{% if lang != 'en' %} hreflang="en"{% endif %}>{{ t.footer.changelog }}</a>{% if lang != 'en' %} <span class="muted">(EN)</span>{% endif %}</li>
         <li><a href="{{ prefix }}about/">{{ t.footer.about }}</a></li>
         <li><a href="{{ repo }}/issues">{{ t.footer.report }}</a></li>
+        <li><a href="{{ kofi_footer }}" data-umami-event="kofi" data-umami-event-where="footer">{{ t.footer.coffee }}</a></li>
         <li><a href="/llms.txt">{{ t.footer.llms }}</a></li>
       </ul>
     </div>

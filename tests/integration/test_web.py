@@ -1251,3 +1251,100 @@ def test_chart_tooltips_never_parse_page_data_as_markup() -> None:
     script = (core.STATIC_DIR / "js" / "app.js").read_text(encoding="utf-8")
 
     assert not re.search(r"innerHTML\s*=[^;]*dataset", script)
+
+
+# --- Asking for support ----------------------------------------------------------------
+
+SUPPORT_HEADING = "Did it find you something good?"
+
+
+async def _delivered(repo: Repo) -> int:
+    """A search with one find whose alert reached a phone."""
+    query_id = await _search(repo)
+    phone = await repo.add_destination(kind="ntfy", name="Phone", config={"topic": "t"})
+    query = await repo.get_query(query_id)
+    assert query is not None
+    await repo.record_new_items(query, [_item(1)], [phone])
+    (pending,) = await repo.claim_batch(phone, 1)
+    await repo.mark_sent([pending.outbox_id])
+    await repo.set_onboarded(True)
+    return query_id
+
+
+async def test_finds_asks_for_support_once_an_alert_has_reached_someone(
+    client: TestClient, repo: Repo
+) -> None:
+    await _delivered(repo)
+
+    page = client.get("/").text
+
+    assert SUPPORT_HEADING in page
+
+
+async def test_the_support_card_links_to_ko_fi_tagged_with_where_it_was(
+    client: TestClient, repo: Repo
+) -> None:
+    await _delivered(repo)
+
+    page = client.get("/").text
+
+    kofi = "https://ko-fi.com/jaspnerd?utm_source=vinted-bot&amp;utm_medium=support-card"
+    assert f'href="{kofi}"' in page
+
+
+async def test_finds_doesnt_ask_before_any_alert_was_delivered(
+    client: TestClient, repo: Repo
+) -> None:
+    await _seed(repo)
+
+    assert "Buy me a coffee" not in client.get("/").text
+
+
+async def test_the_support_card_doesnt_come_back_the_same_week(
+    client: TestClient, repo: Repo
+) -> None:
+    await _delivered(repo)
+    client.get("/")
+
+    assert "Buy me a coffee" not in client.get("/").text
+
+
+async def test_finds_doesnt_ask_while_a_search_waits_on_vinted(
+    client: TestClient, repo: Repo
+) -> None:
+    query_id = await _delivered(repo)
+    await repo.record_failure(query_id, "http_403", "refused")
+
+    assert "Buy me a coffee" not in client.get("/").text
+
+
+async def test_dont_show_again_stops_the_card_for_good(client: TestClient, repo: Repo) -> None:
+    await _delivered(repo)
+    client.post("/support/hide", headers={"Origin": BASE, "Accept": "application/json"})
+    # A week later, after another alert, it would otherwise ask again.
+    await repo.record_support_card_shown(1, int(time.time()) - 8 * 24 * 3600)
+
+    assert "Buy me a coffee" not in client.get("/").text
+
+
+def test_dont_show_again_works_without_the_page_script(client: TestClient) -> None:
+    response = client.post("/support/hide", headers={"Origin": BASE}, follow_redirects=False)
+
+    assert response.headers["location"] == "/"
+
+
+async def test_settings_offers_one_off_gifts_that_open_ko_fi(
+    client: TestClient, repo: Repo
+) -> None:
+    await repo.set_onboarded(True)
+
+    page = client.get("/settings").text
+
+    assert page.count("ko-fi.com/jaspnerd?utm_source=vinted-bot&amp;utm_medium=settings") == 3
+
+
+async def test_setup_never_asks_for_support(client: TestClient, repo: Repo) -> None:
+    """Asking before it has found anything is asking for nothing in return."""
+    await _delivered(repo)
+
+    assert "ko-fi.com" not in client.get("/welcome/ready").text

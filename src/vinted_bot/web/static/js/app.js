@@ -863,6 +863,25 @@
     poll();
   });
 
+  /* ── The support card on Finds ────────────────────── */
+  /* Giving or starring keeps the card, with a thank-you that fits what was clicked (the
+   * link itself opens in a new tab). "Don't show again" hides it without a reload. */
+  const supportCard = $("[data-support-card]");
+  if (supportCard) {
+    $$("[data-support-thanks]", supportCard).forEach((a) => a.addEventListener("click", () => {
+      const [title, pitch] = (supportCard.dataset["thanks" + (a.dataset.supportThanks === "coffee" ? "Coffee" : "Star")] || "|").split("|");
+      $("[data-support-title]", supportCard).textContent = title;
+      $("[data-support-pitch]", supportCard).textContent = pitch;
+    }));
+    const hide = $("[data-support-hide]", supportCard);
+    hide.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const r = await post(hide.action, {});
+      if (r.ok === false) toast("That didn't save. Try again?", { bad: true });
+      else supportCard.remove();
+    });
+  }
+
   /* ── Settings that save as you change them ────────── */
   $$("[data-setting]").forEach((el) => {
     const key = el.dataset.setting;

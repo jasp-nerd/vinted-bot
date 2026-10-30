@@ -607,3 +607,52 @@ async def test_app_settings_are_stored_and_checked(repo: Repo) -> None:
     assert stored.healthcheck_url == "https://hc-ping.com/abc"
     with pytest.raises(InvalidInputError):
         await repo.set_timezone("Nowhere/Special")
+
+
+# --- Asking for support -----------------------------------------------------------------
+
+
+async def test_support_state_starts_with_nothing_delivered(repo: Repo) -> None:
+    state = await repo.support_state()
+
+    assert (state.times_shown, state.last_shown_at, state.opted_out, state.last_alert_at) == (
+        0,
+        0,
+        False,
+        None,
+    )
+
+
+async def test_support_state_counts_only_alerts_that_were_delivered(repo: Repo) -> None:
+    query = await add(repo)
+    destination_id = await repo.add_destination(kind="ntfy", name="n", config={"topic": "t"})
+    await repo.record_new_items(query, [listing(1)], [destination_id])
+
+    assert (await repo.support_state()).last_alert_at is None
+
+
+async def test_support_state_knows_when_an_alert_last_reached_someone(repo: Repo) -> None:
+    query = await add(repo)
+    destination_id = await repo.add_destination(kind="ntfy", name="n", config={"topic": "t"})
+    await repo.record_new_items(query, [listing(1)], [destination_id])
+    (pending,) = await repo.claim_batch(destination_id, 1)
+    before = int(time.time())
+    await repo.mark_sent([pending.outbox_id])
+
+    last = (await repo.support_state()).last_alert_at
+
+    assert last is not None and last >= before
+
+
+async def test_support_card_showing_is_remembered(repo: Repo) -> None:
+    await repo.record_support_card_shown(2, 1_900_000_000)
+
+    state = await repo.support_state()
+
+    assert (state.times_shown, state.last_shown_at) == (2, 1_900_000_000)
+
+
+async def test_dont_show_again_is_remembered(repo: Repo) -> None:
+    await repo.opt_out_of_support_card()
+
+    assert (await repo.support_state()).opted_out

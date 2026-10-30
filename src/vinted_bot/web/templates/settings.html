@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "partials/support.html" as support %}
 {% block title %}Settings{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -9,7 +10,7 @@
 </div>
 <div class="settings">
   <nav class="snav" aria-label="Settings sections">
-    {% for id, label, ic in [("general", "General", "settings"), ("vinted", "Connection to Vinted", "activity"), ("phone", "Open on your phone", "smartphone"), ("access", "Password and access", "lock"), ("updates", "Updates", "download"), ("data", "Your data", "server"), ("blocked", "Blocked sellers", "ban"), ("advanced", "Advanced", "sliders-horizontal"), ("about", "About and legal", "info")] %}
+    {% for id, label, ic in [("general", "General", "settings"), ("vinted", "Connection to Vinted", "activity"), ("phone", "Open on your phone", "smartphone"), ("access", "Password and access", "lock"), ("updates", "Updates", "download"), ("data", "Your data", "server"), ("blocked", "Blocked sellers", "ban"), ("advanced", "Advanced", "sliders-horizontal"), ("support", "Help keep it free", "heart"), ("about", "About and legal", "info")] %}
     <a href="#{{ id }}"{% if loop.first %} aria-current="true"{% endif %}>{{ ui.icon(ic) }}{{ label }}</a>
     {% endfor %}
   </nav>
@@ -161,6 +162,8 @@
       </div>
     </section>
 
+    <div class="ssec" id="support">{{ support.block("settings") }}</div>
+
     <section class="ssec" id="about" aria-labelledby="h-about">
       <h2 class="t-h2" id="h-about">About and legal</h2>
       <div class="card">
@@ -170,7 +173,8 @@
           <p class="t-sm">Fonts: Figtree and Gabarito (SIL Open Font License). Icons: Lucide (ISC). QR codes: qrcode-generator (MIT). Mags the magpie was drawn for this project.</p>
         </div></div>
         <div class="set"><div class="set__text"><span class="t-h3">Run setup again</span><span class="t-sm">Walks through country, a search and where alerts go. Keeps what you have.</span></div><a class="btn btn--secondary btn--sm" href="{{ url('welcome_1') }}">Open setup</a></div>
-        <div class="set"><div class="set__text"><span class="t-h3">Finding good stuff?</span><span class="t-sm">A star on GitHub helps other people find this tool.</span></div><a class="btn btn--ghost btn--sm" href="https://github.com/jasp-nerd/vinted-bot" target="_blank" rel="noopener">{{ ui.icon("star", "i-sm") }}Star on GitHub</a></div>
+        {% set links = support_links("settings") %}
+        <div class="set"><div class="set__text"><span class="t-h3">Get in touch</span><span class="t-sm">Something broken, or missing? I read every report.</span></div><div class="btn-row"><a class="btn btn--secondary btn--sm" href="{{ links.issue }}" target="_blank" rel="noopener">{{ ui.icon("flag", "i-sm") }}Report a problem</a><a class="btn btn--ghost btn--sm" href="{{ links.sponsors }}" target="_blank" rel="noopener">{{ ui.icon("heart", "i-sm") }}Sponsor on GitHub</a></div></div>
       </div>
     </section>
   </div>
