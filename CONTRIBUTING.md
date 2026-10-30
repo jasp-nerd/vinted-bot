@@ -15,6 +15,26 @@ uv run vinted-sniper run --open
 The test suite never contacts Vinted, so it runs anywhere.
 [docs/architecture.md](docs/architecture.md) explains how the pieces fit together.
 
+### A dashboard with something in it
+
+For screenshots, the public demo or working on the dashboard, `scripts/seed_demo.py` fills
+a fresh database with invented searches, a month of finds, destinations and delivery
+history. Its photos are the AI-generated ones hosted with the project site
+(`scripts/demo/catalog.json` lists them), so nothing points at a real listing.
+
+```bash
+uv run python scripts/seed_demo.py /tmp/demo.db
+VINTED_SNIPER_DB_PATH=/tmp/demo.db uv run vinted-sniper run --open
+```
+
+The second command also starts the searches, which then check Vinted for real. To only
+look at the pages, stop the app and open the database with the dashboard alone, or point
+`VINTED_SNIPER_FETCH_MODE=mock` at a scenario directory.
+
+The dashboard's templates live in `src/vinted_sniper/web/templates` and its CSS and
+script in `web/static`; they need no build step. Static files are served with a content
+hash in the URL, so a reload always picks up a change.
+
 ## Before you push
 
 CI runs exactly these, and a pull request needs all of them green:
