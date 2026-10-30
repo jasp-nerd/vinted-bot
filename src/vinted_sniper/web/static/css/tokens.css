@@ -72,6 +72,9 @@
   --c-border-faint: rgba(21, 25, 26, .07);
   --c-scrim: rgba(21, 25, 26, .48);
   --c-on-photo: #ffffff;         /* buttons sitting on photos */
+  /* Ink on those white buttons and pills. The same in both themes, because the white is. */
+  --c-on-photo-ink: #15191a;
+  --c-on-photo-ink-2: #5a6566;
 
   /* ── Semantic (Vinted naming translated) ── */
   --c-success: #28865a;          /* 4.6:1 */

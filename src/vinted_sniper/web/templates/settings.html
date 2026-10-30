@@ -9,7 +9,7 @@
 </div>
 <div class="settings">
   <nav class="snav" aria-label="Settings sections">
-    {% for id, label, ic in [("general", "General", "settings"), ("vinted", "Vinted from this computer", "activity"), ("phone", "Open on your phone", "smartphone"), ("access", "Password and access", "lock"), ("updates", "Updates", "download"), ("data", "Your data", "server"), ("blocked", "Blocked sellers", "ban"), ("advanced", "Advanced", "sliders-horizontal"), ("about", "About and legal", "info")] %}
+    {% for id, label, ic in [("general", "General", "settings"), ("vinted", "Connection to Vinted", "activity"), ("phone", "Open on your phone", "smartphone"), ("access", "Password and access", "lock"), ("updates", "Updates", "download"), ("data", "Your data", "server"), ("blocked", "Blocked sellers", "ban"), ("advanced", "Advanced", "sliders-horizontal"), ("about", "About and legal", "info")] %}
     <a href="#{{ id }}"{% if loop.first %} aria-current="true"{% endif %}>{{ ui.icon(ic) }}{{ label }}</a>
     {% endfor %}
   </nav>
@@ -28,13 +28,13 @@
     </section>
 
     <section class="ssec" id="vinted" aria-labelledby="h-vinted">
-      <h2 class="t-h2" id="h-vinted">Vinted from this computer</h2>
+      <h2 class="t-h2" id="h-vinted">Connection to Vinted</h2>
       <p>Whether Vinted answers us right now. If a search says it's waiting on Vinted, start here.</p>
       {% set trouble = sites|rejectattr("ok")|list %}
       <div class="field-panel {{ 'field-panel--rose' if trouble else 'field-panel--teal' }} diag" data-diag>
         <div class="diag__rows receipt" style="font-size:14.5px">
           {% for site in sites %}
-          <div class="receipt__row">{{ ui.icon("globe" if site.ok else "hourglass") }}<span>{{ site.name }}</span><b class="{{ 'ok-ink' if site.ok else 'bad-ink' }}">{% if site.ok %}Answering · last good check {{ site.last }}{% else %}Slowing us down{% endif %}</b></div>
+          <div class="receipt__row diag__site">{{ ui.icon("globe" if site.ok else "hourglass") }}<span>{{ site.name }}</span><b class="{{ 'ok-ink' if site.ok else 'bad-ink' }}">{% if site.ok %}Answering · last good check {{ site.last }}{% if site.same_results %} · {{ site.same_results }} {{ "search sees" if site.same_results == 1 else "searches see" }} the same results lately{% endif %}{% else %}Slowing us down{% endif %}</b></div>
           {% else %}
           <div class="receipt__row">{{ ui.icon("globe") }}<span>No searches running yet</span><b></b></div>
           {% endfor %}
@@ -70,8 +70,22 @@
           </div>
         </div>
         {% else %}
-        <p>Right now only this computer can open the dashboard{% if not loopback %} at an address we can show here{% endif %}.</p>
-        <p class="t-sm">To open it on your phone at home: in the settings file set <span class="code">VINTED_SNIPER_WEB_HOST=0.0.0.0</span> and a password with <span class="code">VINTED_SNIPER_WEB_AUTH_TOKEN</span>, then restart. This page then shows a code to scan.</p>
+        <p>Right now only this computer can open this page. Alerts don't need it. To open the page on your phone too, on the same Wi-Fi, takes about two minutes:</p>
+        {% if in_container %}
+        <ol class="steps-list">
+          <li><span>In your <span class="code">docker-compose.yml</span>, change the port line from <span class="code">127.0.0.1:8000:8000</span> to <span class="code">8000:8000</span> and add a password under <span class="code">environment</span>: <span class="code">VINTED_SNIPER_WEB_AUTH_TOKEN: {{ suggested_password }}</span></span></li>
+          <li><span>Run <span class="code">docker compose up -d</span>. Your phone asks for that password once.</span></li>
+        </ol>
+        {% else %}
+        {% set lines = "VINTED_SNIPER_WEB_HOST=0.0.0.0" ~ ("" if app.auth else "\nVINTED_SNIPER_WEB_AUTH_TOKEN=" ~ suggested_password) %}
+        <ol class="steps-list">
+          <li><span>Stop vinted-sniper: in the window where it runs, press <kbd>Ctrl</kbd>+<kbd>C</kbd>.</span></li>
+          <li><span>Open the settings file in a text editor, or make it if it isn't there yet. It's a file called <span class="code">.env</span> in the folder you start vinted-sniper from:<span class="row" style="flex-wrap:nowrap;margin-top:6px"><span class="code grow" style="overflow:auto;white-space:nowrap">{{ settings_file }}</span><button class="btn btn--icon btn--sm" type="button" data-copy="{{ settings_file }}" aria-label="Copy the file's location">{{ ui.icon("copy", "i-sm") }}</button></span></span></li>
+          <li><span>Add {{ "this line" if app.auth else "these two lines" }}{% if not app.auth %}. The second is a password we made up for you; use your own if you like{% endif %}:<span class="row" style="flex-wrap:nowrap;margin-top:6px;align-items:flex-start"><pre class="code grow envlines">{{ lines }}</pre><button class="btn btn--icon btn--sm" type="button" data-copy="{{ lines }}" aria-label="Copy the lines">{{ ui.icon("copy", "i-sm") }}</button></span></span></li>
+          <li><span>Start vinted-sniper again the way you did before. This section then shows a code to scan with your phone{% if not app.auth %}, and your phone asks for the password once{% endif %}.</span></li>
+        </ol>
+        <p class="t-sm">The password keeps other people on the same Wi-Fi out, since this page shows where your alerts go.</p>
+        {% endif %}
         {% endif %}
       </div>
     </section>
@@ -79,8 +93,8 @@
     <section class="ssec" id="access" aria-labelledby="h-access">
       <h2 class="t-h2" id="h-access">Password and access</h2>
       <div class="card">
-        <div class="set"><div class="set__text"><span class="t-h3">Who can open it</span><span class="t-sm">{% if loopback %}Only this computer.{% else %}Other devices on your network too.{% endif %} Set with VINTED_SNIPER_WEB_HOST in the settings file.</span></div></div>
-        <div class="set"><div class="set__text"><span class="t-h3">Password</span><span class="t-sm">{% if app.auth %}On. Asked once per browser. Change it with VINTED_SNIPER_WEB_AUTH_TOKEN and restart.{% else %}Off. Set VINTED_SNIPER_WEB_AUTH_TOKEN in the settings file to add one.{% endif %}</span></div>{% if app.auth %}<form method="post" action="/logout"><button class="btn btn--secondary btn--sm" type="submit">Sign out</button></form>{% endif %}</div>
+        <div class="set"><div class="set__text"><span class="t-h3">Who can open it</span><span class="t-sm">{% if loopback %}Only this computer. "Open on your phone" above shows how to change that.{% else %}Other devices on your network too.{% endif %}</span></div></div>
+        <div class="set"><div class="set__text"><span class="t-h3">Password</span><span class="t-sm">{% if app.auth %}On. Asked once per browser. It's the VINTED_SNIPER_WEB_AUTH_TOKEN line in the settings file ({{ settings_file }}).{% else %}Off. Only needed when other devices can open this page; "Open on your phone" above adds one.{% endif %}</span></div>{% if app.auth %}<form method="post" action="/logout"><button class="btn btn--secondary btn--sm" type="submit">Sign out</button></form>{% endif %}</div>
       </div>
     </section>
 
@@ -98,7 +112,7 @@
       <p>Everything is stored in one file on this computer.</p>
       <div class="card">
         <div class="set"><div class="set__text"><span class="t-h3">Download your finds</span><span class="t-sm">{{ "{:,}".format(finds) }} {{ "find" if finds == 1 else "finds" }}, with prices, links and which search found them.</span></div><div class="btn-row"><a class="btn btn--secondary btn--sm" href="/export.csv" download>{{ ui.icon("download", "i-sm") }}Spreadsheet (CSV)</a><a class="btn btn--ghost btn--sm" href="/export.json" download>{{ ui.icon("download", "i-sm") }}JSON</a></div></div>
-        <div class="set"><div class="set__text"><span class="t-h3">Finds are kept for {{ retention }} days</span><span class="t-sm">Saved and watched ones stay. Change with VINTED_SNIPER_ITEM_RETENTION_DAYS.</span></div></div>
+        <div class="set"><div class="set__text"><span class="t-h3">Finds are kept for {{ retention }} days</span><span class="t-sm">Saved and watched ones stay. To keep them longer, add VINTED_SNIPER_ITEM_RETENTION_DAYS=90 to the settings file and restart.</span></div></div>
       </div>
     </section>
 
@@ -119,7 +133,7 @@
       <div class="card">
         <div class="set set--wide"><div class="set__text"><label class="t-h3" for="hc">Warn me if vinted-sniper stops</label><span class="t-sm">For when the computer sleeps or the app crashes. Make a free check at healthchecks.io, paste its link here, and it emails you when the pings stop.</span></div>
           <div class="field"><input class="input" id="hc" type="text" inputmode="url" placeholder="https://hc-ping.com/…" value="{{ prefs.healthcheck_url or '' }}" data-setting="healthcheck_url"><p class="help" data-setting-help="healthcheck_url">{% if prefs.healthcheck_url %}Pinged every 30 seconds while the app runs.{% else %}Optional.{% endif %}</p></div></div>
-        <div class="set set--stack"><div class="set__text"><span class="t-h3">Add searches straight from Vinted</span><span class="t-sm">Drag this to your bookmarks bar. On any Vinted search, click it to open that search here.</span></div><div class="row"><a class="btn btn--secondary btn--sm" href="{{ bookmarklet }}" data-bookmarklet>{{ ui.icon("bookmark", "i-sm") }}Watch this search</a></div></div>
+        <div class="set set--stack hide-sm"><div class="set__text"><span class="t-h3">Add searches straight from Vinted</span><span class="t-sm">Drag this to your bookmarks bar. On any Vinted search, click it to open that search here.</span></div><div class="row"><a class="btn btn--secondary btn--sm" href="{{ bookmarklet }}" data-bookmarklet>{{ ui.icon("bookmark", "i-sm") }}Watch this search</a></div></div>
         <div class="set set--stack"><div class="set__text"><span class="t-h3">Data folder</span></div><div class="row" style="flex-wrap:nowrap"><span class="code grow" style="overflow:auto;white-space:nowrap;padding:8px 10px">{{ db_path }}</span><button class="btn btn--icon btn--sm" type="button" data-copy="{{ db_path }}" aria-label="Copy folder path">{{ ui.icon("copy", "i-sm") }}</button></div></div>
         <div class="set"><div class="set__text"><span class="t-h3">Run it day and night</span><span class="t-sm">Searches only run while this computer is on and awake. A Raspberry Pi or home server keeps it going without your laptop.</span></div><a class="btn btn--ghost btn--sm" href="{{ self_hosting }}" target="_blank" rel="noopener">See the guide</a></div>
       </div>

@@ -11,6 +11,7 @@
 {% include "partials/icons.svg" %}
 <main class="login" id="main">
   <div class="field-panel field-panel--teal login__card">
+    <span class="brand login__brand"><span class="brand__name"><span>vinted-</span>sniper</span></span>
     {{ ui.mags("head", "login__mags") }}
     <form class="card login__form" method="post" action="/login">
       <input type="hidden" name="next" value="{{ next }}">
@@ -18,7 +19,7 @@
       <p>This vinted-sniper has a password. You only need it once per browser.</p>
       <div class="field">
         <label class="label" for="password">Password</label>
-        <input class="input" id="password" name="password" type="password" autocomplete="current-password"{% if error %} aria-invalid="true" aria-describedby="pw-err"{% endif %} autofocus>
+        <div class="affix affix--end"><input class="input" id="password" name="password" type="password" autocomplete="current-password"{% if error %} aria-invalid="true" aria-describedby="pw-err"{% endif %} autofocus><button class="btn btn--ghost btn--sm affix__btn" type="button" data-show-password="password" aria-pressed="false">{{ ui.icon("eye", "i-sm") }}<span>Show</span></button></div>
         {% if error %}<p class="help help--error" id="pw-err">{{ ui.icon("circle-alert") }}<span>{{ error }}</span></p>{% endif %}
       </div>
       <button class="btn btn--primary btn--lg btn--block" type="submit">Sign in</button>
@@ -26,5 +27,6 @@
     </form>
   </div>
 </main>
+<script src="{{ static('js/app.js') }}" defer></script>
 </body>
 </html>

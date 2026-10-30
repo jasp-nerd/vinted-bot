@@ -4,15 +4,16 @@
 {% block question %}
 {% if not failed %}
 <h1 class="t-display" tabindex="-1" data-autofocus>Did it arrive?</h1>
-<p class="t-lead">We sent a sample listing to {{ kind_name }}{% if dest_name and dest_name != kind_name %} ({{ dest_name }}){% endif %}. {{ result.message }}</p>
+{% set where = {"ntfy": "your phone", "telegram": "your Telegram chat", "discord": "your Discord channel", "apprise": "your inbox", "webhook": "your app"}.get(kind, dest_name) %}
+<p class="t-lead">We sent a test to {{ where }}. {% if kind == "ntfy" %}It should buzz within a few seconds.{% else %}It should be there within a few seconds.{% endif %}</p>
 <div class="card summary-card">
-  <div class="summary-row"><span class="choice__icon" style="background:var(--c-success-tint);color:var(--c-success-ink)">{{ ui.icon("check") }}</span><span><b>{{ kind_name }} accepted the message</b><small>It usually shows up within a second or two</small></span><span></span></div>
-  <div class="summary-row"><span class="choice__icon" style="background:var(--c-success-tint);color:var(--c-success-ink)">{{ ui.icon("check") }}</span><span><b>Photo, price and link included</b><small>Real alerts look like this one</small></span><span></span></div>
+  <div class="summary-row"><span class="choice__icon" style="background:var(--c-success-tint);color:var(--c-success-ink)">{{ ui.icon("check") }}</span><span><b>{{ "ntfy" if kind == "ntfy" else kind_name }} accepted it</b><small>Your search and this place are saved, so nothing is lost if you stop here</small></span><span></span></div>
+  <div class="summary-row"><span class="choice__icon" style="background:var(--c-success-tint);color:var(--c-success-ink)">{{ ui.icon("check") }}</span><span><b>A sample pair of jeans, with photo and price</b><small>Real alerts look like this, with your own finds</small></span><span></span></div>
 </div>
 <details class="faq">
   <summary>{{ ui.icon("circle-help", "i-sm") }}I don't see it</summary>
   <div class="prose">
-    {% if kind == "ntfy" %}<p>Check that ntfy is subscribed to exactly the name shown on the last step, and that notifications for ntfy are allowed in your phone's settings.</p>
+    {% if kind == "ntfy" %}<p>Check that ntfy on your phone has exactly the name from the last step, and that your phone's settings allow notifications for ntfy.</p>
     {% elif kind == "discord" %}<p>Look in the channel the webhook belongs to, not in your messages. A muted server doesn't buzz, but the message is still there.</p>
     {% elif kind == "telegram" %}<p>Look in the chat where you sent the code to your bot.</p>
     {% else %}<p>Check your spam folder, and that the address is right.</p>{% endif %}

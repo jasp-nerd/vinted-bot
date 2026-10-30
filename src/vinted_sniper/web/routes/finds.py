@@ -57,18 +57,26 @@ async def _feed(
     search = params.get("search", "")
     sort = params.get("sort", "newest")
     windowed = sort != "newest" or show == "deals"
+    low, high = params.get("min", ""), params.get("max", "")
+    # A filter with a mistake in it is shown with its message and not applied.
+    prices_ok = not price_errors(low, high)
     entries: list[FeedItem] = await context.repo.items_feed(
         query_id=int(search) if search.isdigit() else None,
         mark=mark,
         text=params.get("q") or None,
-        min_price=_price(params.get("min")),
-        max_price=_price(params.get("max")),
+        min_price=_price(low) if prices_ok else None,
+        max_price=_price(high) if prices_ok else None,
         before_seq=before,
         since=since,
         limit=SORT_WINDOW if windowed else PAGE_SIZE,
     )
     now = int(time.time())
-    cards = [views.item_view(entry, now) for entry in entries]
+    # Blocking a seller hides what they already listed too, the way Vinted's own block
+    # does. Filtered here rather than in SQL: the list is short and the feed page is too.
+    blocked = await context.repo.blocked_seller_ids()
+    cards = [
+        views.item_view(entry, now) for entry in entries if entry.item.seller_id not in blocked
+    ]
     if show == "deals":
         cards = [card for card in cards if card["deal_pct"]]
     if sort == "deal":
@@ -84,6 +92,19 @@ def _price(raw: str | None) -> Decimal | None:
         return validation.parse_price(raw)
     except validation.InvalidInputError:
         return None
+
+
+def price_errors(low: str, high: str) -> dict[str, str]:
+    """What is wrong with the Price filter, in the editor's words, so nothing is ignored
+    silently while the chip still looks switched on."""
+    errors: dict[str, str] = {}
+    for key, raw in (("min", low), ("max", high)):
+        if raw.strip() and _price(raw) is None:
+            errors[key] = "Type a price like 35 or 12,50."
+    low_value, high_value = _price(low), _price(high)
+    if low_value is not None and high_value is not None and low_value > high_value:
+        errors["min"] = "The lowest price is higher than the highest. Swap them?"
+    return errors
 
 
 @router.get("/")
@@ -102,10 +123,15 @@ async def home(request: Request) -> Response:
     states = [s for s in snapshot.searches if s.last_success_at]
     last_check = max((s.last_success_at or 0 for s in states), default=None)
     params = request.query_params
-    filtered = any(params.get(key) for key in ("q", "search", "min", "max")) or params.get(
-        "show", "all"
-    ) not in ("all", "")
-    waiting = [row for row in rows if row["status"] in ("stuck", "blocked")]
+    low, high = params.get("min", ""), params.get("max", "")
+    price_problems = price_errors(low, high)
+    price_on = (_price(low) is not None or _price(high) is not None) and not price_problems
+    filtered = (
+        any(params.get(key) for key in ("q", "search"))
+        or price_on
+        or params.get("show", "all") not in ("all", "")
+    )
+    waiting = [row for row in rows if row["status"] in ("stuck", "blocked", "stale")]
     return await core.render(
         request,
         "index.html",
@@ -123,8 +149,10 @@ async def home(request: Request) -> Response:
             "show": params.get("show", "all"),
             "search_filter": params.get("search", ""),
             "q": params.get("q", ""),
-            "min": params.get("min", ""),
-            "max": params.get("max", ""),
+            "min": low,
+            "max": high,
+            "price_on": price_on,
+            "price_errors": price_problems,
             "sort": params.get("sort", "newest"),
             "last_check_s": int(time.time()) - last_check if last_check else None,
             "latest_seq": await repo.latest_seq(),
@@ -233,8 +261,12 @@ async def live(request: Request, after: int | None = None) -> StreamingResponse:
             if await request.is_disconnected():
                 return
             now = int(time.time())
-            for entry in await context.repo.items_after(cursor):
+            entries = await context.repo.items_after(cursor)
+            blocked = await context.repo.blocked_seller_ids() if entries else set()
+            for entry in entries:
                 cursor = entry.seq
+                if entry.item.seller_id in blocked:
+                    continue
                 card = views.item_view(entry, now)
                 card["is_new"] = True
                 payload = {

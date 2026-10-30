@@ -24,12 +24,16 @@ history. Its photos are the AI-generated ones hosted with the project site
 
 ```bash
 uv run python scripts/seed_demo.py /tmp/demo.db
-VINTED_SNIPER_DB_PATH=/tmp/demo.db uv run vinted-sniper run --open
+VINTED_SNIPER_DB_PATH=/tmp/demo.db VINTED_SNIPER_FETCH_MODE=mock \
+  VINTED_SNIPER_MOCK_SCENARIO_DIR=scripts/demo/mock uv run vinted-sniper run --open
 ```
 
-The second command also starts the demo searches, which then check Vinted for real (and
-add real finds next to the invented ones). If you only want to look at the pages, select
-them all on the Searches page and pause them.
+The mock scenario answers every search with an empty page, so this never talks to Vinted
+and never sends an alert. Leave out the two mock variables and the demo searches check
+Vinted for real, adding real finds next to the invented ones. Even then nothing already
+on Vinted is announced, and the demo's places for alerts reach nobody (a random ntfy
+name, a switched-off Discord webhook, a Telegram chat that doesn't exist). Run it from a
+folder without your own `.env`, or it picks up your real bot token and settings.
 
 The dashboard's templates live in `src/vinted_sniper/web/templates` and its CSS and
 script in `web/static`; they need no build step. Static files are served with a content

@@ -1,0 +1,6 @@
+{
+  "status": 200,
+  "body": "<!doctype html><title>Vinted (demo mock)</title>",
+  "headers": {"content-type": "text/html"},
+  "cookies": {"access_token_web": "demo-session", "anon_id": "demo"}
+}

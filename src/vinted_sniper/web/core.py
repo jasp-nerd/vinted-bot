@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote, unquote
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -114,6 +115,17 @@ async def timezone(context: WebContext) -> ZoneInfo:
     return ZoneInfo(prefs.timezone)
 
 
+async def needs_timezone(context: WebContext) -> bool:
+    """Whether to ask the browser for its time zone: none was set and none could be read.
+
+    Only then, so a zone someone picked, or set with TZ, is never replaced by a guess.
+    """
+    settings = context.settings
+    if settings.timezone != "UTC" or "timezone" in settings.model_fields_set:
+        return False
+    return await context.repo.get_state_value("timezone") is None
+
+
 async def shell(context: WebContext, snapshot: health.Snapshot | None = None) -> dict[str, Any]:
     """What the frame around every page shows: counts, banners, the next-check ring."""
     snapshot = snapshot or await health.snapshot(context.repo)
@@ -155,6 +167,7 @@ async def shell(context: WebContext, snapshot: health.Snapshot | None = None) ->
         "exposed": context.settings.web_is_exposed_without_a_password,
         "new_count": 0,
         "troubleshooting": TROUBLESHOOTING_URL,
+        "guess_timezone": await needs_timezone(context),
     }
 
 
@@ -168,14 +181,15 @@ async def render(
 ) -> HTMLResponse:
     context = ctx(request)
     # A confirmation from the change that redirected here, shown once.
-    flash = request.cookies.get(FLASH_COOKIE)
+    raw_flash = request.cookies.get(FLASH_COOKIE)
+    flash = unquote(raw_flash) if raw_flash else None
     response = TEMPLATES.TemplateResponse(
         request,
         template,
         {"app": await shell(context, snapshot), "flash": flash, **page},
         status_code=status_code,
     )
-    if flash:
+    if raw_flash:
         response.delete_cookie(FLASH_COOKIE)
     return response
 
@@ -184,7 +198,10 @@ def redirect(target: str, flash: str | None = None) -> RedirectResponse:
     """Redirect after a change, carrying a confirmation the next page shows once."""
     response = RedirectResponse(target, status_code=303)
     if flash:
-        response.set_cookie(FLASH_COOKIE, flash, max_age=30, samesite="lax", httponly=True)
+        # Cookie values are Latin-1 on the wire, and names carry euro signs and emoji.
+        response.set_cookie(
+            FLASH_COOKIE, quote(flash, safe=""), max_age=30, samesite="lax", httponly=True
+        )
     return response
 
 

@@ -180,6 +180,19 @@ def create_app(
             shell=False,
         )
 
+    @app.exception_handler(Exception)
+    async def crashed(request: Request, exc: Exception) -> Response:
+        # Starlette logs the traceback and re-raises after this; the handler only makes
+        # sure the person sees a page that says what to do instead of plain text.
+        log.error("web.unhandled", path=request.url.path, error=type(exc).__name__)
+        return await _problem(
+            request,
+            500,
+            "Something went wrong on our side",
+            "What you did may have worked anyway. Reload the page to check.",
+            shell=False,
+        )
+
     return app
 
 

@@ -381,16 +381,17 @@
       label.textContent = r.error || first || "Fill in the search to see what matches";
       return;
     }
-    count.textContent = r.count;
+    count.textContent = r.count; count.hidden = false;
     label.textContent = r.count === 1 ? "listing matches right now" : "listings match right now";
-    const thumbs = $("[data-preview-thumbs]", preview);
-    thumbs.innerHTML = r.thumbs.map((t) => `<a class="t" href="${esc(t.url)}" target="_blank" rel="noopener" title="${esc(t.title)}">${t.photo ? `<img src="${esc(t.photo)}" alt="" referrerpolicy="no-referrer">` : ""}<span>${esc(t.total)}</span></a>`).join("");
+    // The phone layout has a second set of thumbnails above the Continue button.
+    const thumbHtml = r.thumbs.map((t) => `<a class="t" href="${esc(t.url)}" target="_blank" rel="noopener" title="${esc(t.title)}">${t.photo ? `<img src="${esc(t.photo)}" alt="" referrerpolicy="no-referrer">` : ""}<span>${esc(t.total)}</span></a>`).join("");
+    $$("[data-preview-thumbs]").forEach((box) => { box.innerHTML = thumbHtml; });
     const receipt = $("[data-preview-receipt]", preview);
     receipt.innerHTML = `<div class="receipt__row">${icon("search")}<span>Newest on ${esc(r.site)}</span><b>${r.seen}</b></div>` +
       r.receipt.map((x) => `<div class="receipt__row">${icon(x.icon)}<span>${esc(x.label)}</span><b>−${x.removed}</b></div>`).join("") +
-      `<div class="receipt__row receipt__row--total">${icon("check")}<span>Would be sent</span><b>${r.count}</b></div>`;
+      `<div class="receipt__row receipt__row--total">${icon("check")}<span>Match your filters</span><b>${r.count}</b></div>`;
     const note = $("[data-preview-note]", preview); if (note) note.hidden = !r.seller_filters;
-    const live = $("[data-livecount]"); if (live) live.innerHTML = `<b class="num">${esc(r.count)}</b> of the newest ${esc(r.seen)} on ${esc(r.site)} match right now.${r.newest ? " Newest " + esc(r.newest) + "." : ""}`;
+    const live = $("[data-livecount]"); if (live) live.innerHTML = `<b class="num">${esc(r.count)}</b> ${r.count === 1 ? "listing" : "listings"} on ${esc(r.site)} match right now.${r.newest ? " Newest " + esc(r.newest) + "." : ""}${r.understood ? `<br><span class="t-sm">Got it: ${esc(r.understood)}</span>` : ""}`;
     const sb = $("[data-savebar-count]"); if (sb) sb.textContent = `${r.count} match now`;
   }
   const schedule = debounce(runPreview, 900);
@@ -499,8 +500,10 @@
     const r = await post(`/api/items/${itemId(blockFor)}/block-seller`);
     d.close();
     if (!r.ok) return toast(r.error || "That didn't work.", { bad: true });
-    blockFor.hidden = true;
-    toast(`Blocked ${r.seller}. Undo in Settings.`, { ok: true, icon: "ban" });
+    // Everything from that seller goes, not just the card the block came from.
+    const seller = blockFor.dataset.seller;
+    $$(".item").forEach((c) => { if (c === blockFor || (seller && c.dataset.seller === seller)) c.hidden = true; });
+    toast(`Blocked ${r.seller}. Their finds are hidden. Undo in Settings.`, { ok: true, icon: "ban" });
   });
 
   const qv = $("#quickview");
@@ -517,7 +520,7 @@
     const deal = $(".item__flags .badge--deal", card);
     set("deal", deal ? `<span class="badge badge--deal">${deal.innerHTML}</span>` : "");
     const meta = $(".item__meta", card); const seller = $(".item__seller", card);
-    set("dl", (meta ? `<dt>Size and condition</dt><dd>${esc(meta.textContent)}</dd>` : "") +
+    set("dl", (meta ? `<dt>Details</dt><dd>${esc(meta.textContent)}</dd>` : "") +
       `<dt>Found</dt><dd>${esc($(".item__foot time", card).textContent)}</dd>` +
       (seller ? `<dt>Seller rating</dt><dd>${esc(seller.textContent.trim())}</dd>` : `<dt>Seller rating</dt><dd class="t-muted">Vinted didn't share it for this listing</dd>`));
     const id = itemId(card); const t = card.dataset.tld;
@@ -543,7 +546,20 @@
     cursor = Math.max(0, Math.min(cards.length - 1, cursor + d));
     const c = cards[cursor]; c.classList.add("is-cursor");
     c.scrollIntoView({ block: "nearest", behavior: reduced ? "auto" : "smooth" });
+    // Real focus, so a screen reader follows the cursor too.
+    const open = $(".item__open", c); if (open) open.focus({ preventScroll: true });
   }
+  // The same letters work on the find whose details are open.
+  document.addEventListener("keydown", (e) => {
+    if (!qv || !qv.open || !qv._card || e.metaKey || e.ctrlKey || e.altKey || e.target.closest("input, textarea, select")) return;
+    const card = qv._card;
+    const keys = {
+      o: () => window.open($(".item__open", card).href, "_blank", "noopener"),
+      s: () => $("[data-toggle-save]", qv).click(),
+      h: () => act("hide", card), b: () => act("block", card), w: () => act("watch", card),
+    };
+    if (keys[e.key]) { e.preventDefault(); keys[e.key](); }
+  });
   document.addEventListener("keydown", (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest("input, textarea, select, [contenteditable], dialog[open]")) return;
     if (e.key === "/") { const q = $("#q"); if (q && q.offsetParent) { e.preventDefault(); q.focus(); } return; }
@@ -597,7 +613,7 @@
   function paintNotify() {
     const ok = "Notification" in window;
     $$("[data-notify-state]").forEach((n) => {
-      n.textContent = !ok ? "This browser can't show pop-ups." : Notification.permission === "granted" ? "Allowed. Pop-ups show while this tab is in the background." : Notification.permission === "denied" ? "Blocked in this browser's site settings." : "Your browser asks once for permission.";
+      n.textContent = !ok ? "This browser can't show pop-ups." : Notification.permission === "granted" ? "Allowed. Pop-ups show while this tab is in the background." : Notification.permission === "denied" ? "Off in this browser. Not needed if your phone gets the alerts; to turn on, allow notifications in the browser's site settings." : "Your browser asks once for permission.";
     });
     $$("[data-notify-allow]").forEach((b) => { b.hidden = !ok || Notification.permission !== "default"; });
   }
@@ -681,7 +697,7 @@
   $$("[data-status-filter]").forEach((chip) => chip.addEventListener("click", () => {
     $$("[data-status-filter]").forEach((c) => c.setAttribute("aria-pressed", c === chip));
     const st = chip.dataset.statusFilter;
-    $$(".srow").forEach((r) => { r.hidden = st !== "all" && r.dataset.status !== st; });
+    $$(".srow").forEach((r) => { r.hidden = st !== "all" && !(r.dataset.filters || "").split(" ").includes(st); });
   }));
 
   /* ── Alerts: test sends, options, adding a place ──── */
@@ -696,7 +712,10 @@
     if (!b) return;
     busy(b, async () => {
       const r = await post(`/destinations/${b.dataset.testDest}/test`);
-      toast(r.message + (r.detail ? " " + r.detail : ""), { ok: r.ok, bad: !r.ok, icon: "send", ms: 8000 });
+      const text = r.ok ? r.message : r.message + (r.detail ? " " + r.detail : "");
+      // Reload so the card's badge shows how the test went; the toast follows the reload.
+      try { sessionStorage.setItem("vs-after", JSON.stringify({ text, bad: !r.ok })); location.reload(); }
+      catch (err) { toast(text, { ok: r.ok, bad: !r.ok, ms: 9000 }); }
     });
   });
   $$("form[data-autosave]").forEach((f) => {
@@ -713,8 +732,33 @@
     f.addEventListener("submit", (e) => { e.preventDefault(); save(); });
   });
   const addForm = $("[data-add-dest]");
+  // A problem shows under the field it is about; only the rest goes to the bottom line.
+  function clearAddErrors() {
+    if (!addForm) return;
+    $$("[data-field-error]", addForm).forEach((n) => n.remove());
+    $$("[aria-invalid=true]", addForm).forEach((n) => n.removeAttribute("aria-invalid"));
+    const err = $("[data-add-error]", addForm); if (err) err.hidden = true;
+  }
+  function showAddError(fieldName, message) {
+    clearAddErrors();
+    const picked = $(".choice:has(input[data-kind-pick]:checked)", addForm);
+    const input = fieldName && picked ? $(`[name="${fieldName}"]`, picked) : null;
+    const field = input && input.closest(".field");
+    if (field) {
+      input.setAttribute("aria-invalid", "true");
+      const own = $("[data-discord-help]", field); if (own) own.remove();
+      const p = document.createElement("p"); p.className = "help help--error"; p.dataset.fieldError = "";
+      p.innerHTML = icon("circle-alert") + `<span>${esc(message)}</span>`;
+      field.appendChild(p); input.focus();
+      return;
+    }
+    const err = $("[data-add-error]", addForm);
+    err.hidden = false; err.innerHTML = icon("circle-alert") + `<span>${esc(message)}</span>`;
+  }
+  if (addForm) addForm.addEventListener("change", (e) => { if (e.target.matches("[data-kind-pick]")) clearAddErrors(); });
   if (addForm) addForm.addEventListener("submit", async (e) => {
     e.preventDefault();
+    clearAddErrors();
     const err = $("[data-add-error]", addForm);
     const data = new FormData(addForm);
     if (data.get("kind") === "telegram") {
@@ -724,13 +768,16 @@
     const btn = $("button[type=submit]", addForm);
     await busy(btn, async () => {
       const r = await post("/destinations", data);
-      if (!r.ok) { err.hidden = false; err.innerHTML = icon("circle-alert") + `<span>${esc(r.error)}</span>`; return; }
+      if (!r.ok) { showAddError(r.field, r.error); return; }
       const t = await post(`/destinations/${r.id}/test`);
-      sessionStorage.setItem("vs-after", (t.ok ? "Added, and a test is on its way. " : "Added, but the test didn't arrive: ") + t.message);
+      sessionStorage.setItem("vs-after", JSON.stringify({ text: (t.ok ? "Added, and a test is on its way. " : "Added, but the test didn't arrive: ") + t.message, bad: !t.ok }));
       location.reload();
     });
   });
-  try { const after = sessionStorage.getItem("vs-after"); if (after) { sessionStorage.removeItem("vs-after"); toast(after, { ok: true, ms: 8000 }); } } catch (e) { /* no storage */ }
+  try {
+    const after = sessionStorage.getItem("vs-after");
+    if (after) { sessionStorage.removeItem("vs-after"); const a = JSON.parse(after); toast(a.text, { ok: !a.bad, bad: a.bad, ms: 9000 }); }
+  } catch (e) { /* no storage, or an old plain-text value */ }
   $$("[data-kind-pick]").forEach((r) => r.addEventListener("change", () => {
     $$("[data-preview-for]").forEach((p) => { p.hidden = !p.dataset.previewFor.split(" ").includes(r.value); });
   }));
@@ -825,6 +872,29 @@
     obf.dataset.sent = "1";
     setTimeout(() => { delete obf.dataset.sent; }, 8000);
   });
+  /* ── Time zone: told once by the browser when the computer's own couldn't be read ── */
+  if (document.body.hasAttribute("data-guess-tz")) {
+    try {
+      const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (zone) post("/settings", { key: "timezone_guess", value: zone }, { quiet: true }).catch(() => {});
+    } catch (e) { /* no Intl: the setting stays as it is */ }
+  }
+  // Long option lists start folded on a phone; a computer has room to show them.
+  if (matchMedia("(max-width: 760px)").matches) $$("details[data-collapse-sm]").forEach((d) => { d.open = false; });
+  // The mail server only matters for "Something else".
+  $$("[data-smtp-field]").forEach((f) => {
+    const sel = $("select[name=email_provider]", f.closest(".stack") || document);
+    if (sel) sel.addEventListener("change", () => { f.hidden = sel.value !== "other"; });
+  });
+  // Show what was typed in a password field, for long made-up passwords.
+  $$("[data-show-password]").forEach((b) => b.addEventListener("click", () => {
+    const input = document.getElementById(b.dataset.showPassword); if (!input) return;
+    const show = input.type === "password";
+    input.type = show ? "text" : "password";
+    b.setAttribute("aria-pressed", show);
+    const label = $("span", b); if (label) label.textContent = show ? "Hide" : "Show";
+    input.focus();
+  }));
   // Typed-but-not-entered words still count when a form is saved.
   $$("form").forEach((f) => f.addEventListener("submit", () => {
     $$("[data-tokens]:not([data-tokens=brand]) input:not([type=hidden])", f).forEach((i) => i.dispatchEvent(new Event("blur")));

@@ -20,16 +20,16 @@
 </div>
 
 <div class="kpis" style="margin-bottom:16px">
-  <div class="kpi"><span class="kpi__label">Finds today</span><span class="kpi__value">{{ finds_today }}</span><span class="kpi__note">{% set diff = finds_today - finds_yesterday %}{% if diff > 0 %}{{ diff }} more than yesterday by now{% elif diff < 0 %}{{ -diff }} fewer than yesterday by now{% else %}Same as yesterday by now{% endif %}</span></div>
+  <div class="kpi"><span class="kpi__label">Finds today</span><span class="kpi__value">{{ finds_today }}</span><span class="kpi__note">{% set diff = finds_today - finds_yesterday %}{% if first_day %}Since midnight, your time{% elif diff > 0 %}{{ diff }} more than yesterday by now{% elif diff < 0 %}{{ -diff }} fewer than yesterday by now{% else %}Same as yesterday by now{% endif %}</span></div>
   <div class="kpi"><span class="kpi__label">Last 14 days</span><span class="kpi__value">{{ finds_14 }}</span><div class="kpi__spark">{{ ui.spark(spark, 200, 32) }}</div></div>
-  <div class="kpi"><span class="kpi__label">Typical price with fees</span><span class="kpi__value">{% if typical %}{{ typical|join(" · ") }}{% else %}–{% endif %}</span><span class="kpi__note">{% if typical %}Middle price of recent finds{% else %}Known after about 15 finds{% endif %}</span></div>
-  <div class="kpi"><span class="kpi__label">Alerts delivered</span>{% set tried = delivery.sent + delivery.failed %}<span class="kpi__value">{% if tried %}{{ (delivery.sent / tried * 100)|round|int }}<small>%</small>{% else %}–{% endif %}</span><span class="kpi__note">{% if tried %}{{ delivery.sent }} of {{ tried }} sent{% if delivery.pending %}, {{ delivery.pending }} waiting{% endif %}{% else %}Nothing sent yet{% endif %}</span></div>
+  <div class="kpi"><span class="kpi__label">Typical price with fees</span><span class="kpi__value">{% if typical %}{{ typical|join(" · ") }}{% else %}–{% endif %}</span><span class="kpi__note">{% if typical %}Middle price of what it saw on Vinted in 14 days{% else %}Known once it has seen about 15 listings{% endif %}</span></div>
+  <div class="kpi"><span class="kpi__label">Alerts delivered</span>{% set tried = delivery.sent + delivery.failed %}<span class="kpi__value">{% if tried %}{{ "%g"|format((delivery.sent / tried * 100)|round(1)) }}%{% else %}–{% endif %}</span><span class="kpi__note">{% if tried %}{{ delivery.sent }} of {{ tried }} sent{% if delivery.pending %}, {{ delivery.pending }} waiting{% endif %}{% else %}Nothing sent yet{% endif %}</span></div>
 </div>
 
 <div class="card" style="margin-bottom:28px">
   <div class="card__body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px 28px;padding:18px 20px">
     <div class="stack" style="gap:6px"><span class="t-sm">Looks for</span><span class="t-ink">{{ s.summary }}</span></div>
-    <div class="stack" style="gap:6px"><span class="t-sm">Sends to</span><span class="srow__dest meta" style="font-size:14px;color:var(--c-ink)">{% for k in s.dests %}<span>{{ ui.dest_icon(k) }}{{ s.dest_names[loop.index0] }}</span>{% else %}<span>Only this page</span>{% endfor %}</span>{% if s.routes_all and s.dests %}<span class="t-sm">Every place you've added, because none is picked.</span>{% endif %}</div>
+    <div class="stack" style="gap:6px"><span class="t-sm">Sends to</span><span class="srow__dest meta" style="font-size:14px;color:var(--c-ink)">{% for k in s.dests %}<span{% if s.dest_off[loop.index0] %} class="is-off"{% endif %}>{{ ui.dest_icon(k) }}{{ s.dest_names[loop.index0] }}{% if s.dest_off[loop.index0] %} (turned off, <a href="{{ url('alerts') }}">fix it on Alerts</a>){% endif %}</span>{% else %}<span>Only this page</span>{% endfor %}</span>{% if s.routes_all and s.dests %}<span class="t-sm">Every place you've added, because none is picked.</span>{% endif %}</div>
     <div class="stack" style="gap:6px"><span class="t-sm">Quiet hours</span><span class="t-ink">{{ quiet or "None" }}</span><a class="t-sm" href="{{ rss }}">RSS feed of this search</a></div>
   </div>
 </div>
@@ -83,8 +83,8 @@
       <h2 class="t-h3">Since this search started</h2>
       <div class="receipt" style="--field-ink: var(--c-ink)">
         <div class="receipt__row">{{ ui.icon("search") }}<span>Listings looked at</span><b>{{ "{:,}".format(state.items_seen_total) }}</b></div>
-        <div class="receipt__row" style="color:var(--c-amber-ink)">{{ ui.icon("hourglass") }}<span>Vinted asked us to wait</span><b>{{ state.count_429 }}</b></div>
-        <div class="receipt__row" style="color:var(--c-danger-ink)">{{ ui.icon("circle-x") }}<span>Vinted turned a check away</span><b>{{ state.count_403 }}</b></div>
+        <div class="receipt__row"{% if state.count_429 %} style="color:var(--c-amber-ink)"{% endif %}>{{ ui.icon("hourglass") }}<span>Vinted asked us to wait</span><b>{{ state.count_429 }}</b></div>
+        <div class="receipt__row"{% if state.count_403 %} style="color:var(--c-danger-ink)"{% endif %}>{{ ui.icon("circle-x") }}<span>Vinted turned a check away</span><b>{{ state.count_403 }}</b></div>
       </div>
       <p class="t-sm">Vinted shows new listings in search a few minutes after they're posted. We see them on the first check after that.</p>
     </div>

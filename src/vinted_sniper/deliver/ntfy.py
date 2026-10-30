@@ -82,7 +82,8 @@ def push(
         first,
         " · ".join(escape_markdown(value) for _, value in listing.facts),
         " · ".join(p for p in (seller, listing.rating) if p),
-        f"{listing.flag} {listing.site} · _{escape_markdown(listing.search_name)}_".strip(),
+        # Plain, not _italic_: the iOS app and older Android ones show the underscores.
+        f"{listing.flag} {listing.site} · {escape_markdown(listing.search_name)}".strip(),
     ]
 
     actions = []
