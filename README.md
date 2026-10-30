@@ -7,13 +7,17 @@
   <img src="https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/817aafe56c2093f4b45c8d4492f258ce06a569d3/docs/media/banner.png" alt="vinted-sniper: alerts for your Vinted searches" width="820">
 </picture>
 
-### Vinted doesn't tell you when your saved search gets something new. This does.
+# Free Vinted bot for new listing alerts
+
+**Vinted doesn't tell you when your saved search gets something new. This does.**
 
 Paste a Vinted search, choose where alerts go, and get a message with the photos and the price<br>
-you'll actually pay as soon as a new listing turns up. Free, on your own computer, no Vinted account.
+you'll actually pay as soon as a new listing turns up. Free forever, open source, on your own computer,<br>
+no Vinted account and no monthly fee, where paid Vinted bots charge €5 to €300 a month.
 
 [![CI](https://github.com/jasp-nerd/vinted-sniper/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/jasp-nerd/vinted-sniper/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/jasp-nerd/vinted-sniper?color=007782)](https://github.com/jasp-nerd/vinted-sniper/releases)
+[![PyPI](https://img.shields.io/pypi/v/vinted-sniper?color=007782&label=pypi)](https://pypi.org/project/vinted-sniper/)
 [![Container image](https://img.shields.io/badge/ghcr.io-vinted--sniper-2496ED?logo=docker&logoColor=white)](https://github.com/jasp-nerd/vinted-sniper/pkgs/container/vinted-sniper)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/jasp-nerd/vinted-sniper/blob/main/LICENSE)
@@ -43,6 +47,7 @@ It checks every minute. The first check is silent on purpose, so you only hear a
 | A Mac | [macOS](#macos) | While it's on and awake |
 | A Raspberry Pi or a Linux machine | [Linux and Raspberry Pi](#linux-and-raspberry-pi) | Yes |
 | Docker already installed | [Docker](#docker) | Yes, if the machine stays on |
+| Python already installed | `uvx vinted-sniper run` or `pipx install vinted-sniper` | While it's on and awake |
 | Unraid, Synology, Umbrel or CasaOS | [NAS](#nas) | Yes |
 | Nothing that stays on | [Cloud](#cloud), a few euros a month | Yes |
 
