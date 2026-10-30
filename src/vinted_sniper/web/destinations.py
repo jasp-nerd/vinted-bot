@@ -20,6 +20,7 @@ import httpx
 
 from vinted_sniper.config import Settings
 from vinted_sniper.db.repo import Destination
+from vinted_sniper.deals import TIERS
 from vinted_sniper.deliver.base import SenderConfigError
 from vinted_sniper.deliver.dispatcher import build_sender
 from vinted_sniper.engine.validation import InvalidInputError
@@ -168,9 +169,14 @@ def build(kind: str, form: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
 def options(kind: str, form: Mapping[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     """A destination's display options from its card on the Alerts page."""
     updated = dict(config)
-    for flag in ("deals_only", "silent"):
-        updated[flag] = bool(_field(form, flag))
+    # Tiers replace the 1.x "deals only" switch; keeping both would let them disagree.
+    updated.pop("deals_only", None)
+    updated["tiers"] = _tier_list(form, "tiers")
+    updated["silent_tiers"] = _tier_list(form, "silent_tiers")
+    if not updated["tiers"]:
+        raise InvalidInputError("tiers", "Pick at least one kind of listing to receive.")
     if kind == "discord":
+        updated["ping_tiers"] = _tier_list(form, "ping_tiers")
         updated["style"] = "compact" if _field(form, "style") == "compact" else "card"
         mention = discord_mention(_field(form, "mention"))
         updated.pop("mention", None)
@@ -184,6 +190,11 @@ def options(kind: str, form: Mapping[str, Any], config: dict[str, Any]) -> dict[
             raise InvalidInputError("priority", "Pick a priority from the list.")
         updated["priority"] = int(priority)
     return updated
+
+
+def _tier_list(form: Any, key: str) -> list[str]:
+    raw = form.getlist(key) if hasattr(form, "getlist") else form.get(key) or []
+    return [tier for tier in TIERS if tier in {str(value) for value in raw}]
 
 
 def check(kind: str, config: dict[str, Any], settings: Settings, http: httpx.AsyncClient) -> None:

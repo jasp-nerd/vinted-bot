@@ -8,6 +8,7 @@
     <div class="row" style="gap:6px 14px">{{ ui.status(s.status, s.status_label) }}<span class="t-sm">{{ s.why }} Checks {{ s.interval_human }} on {{ s.sites }}.</span></div>
   </div>
   <div class="page-head__actions">
+    {% if s.muted %}<form method="post" action="/searches/{{ s.id }}/unmute"><button class="btn btn--secondary btn--sm" type="submit">{{ ui.icon("bell", "i-sm") }}Unmute</button></form>{% endif %}
     <form method="post" action="/searches/{{ s.id }}/pause">
       <input type="hidden" name="paused" value="{{ '0' if s.paused else '1' }}">
       <input type="hidden" name="back" value="{{ url('search_detail', id=s.id) }}">

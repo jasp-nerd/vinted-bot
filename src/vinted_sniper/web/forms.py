@@ -98,6 +98,10 @@ def default_values(*, tld: str, interval: int, color: str) -> dict[str, Any]:
         "tags": "",
         "notes": "",
         "extra_tlds": [],
+        "resale_price": "",
+        "resale_fee_pct": "",
+        "resale_shipping": "",
+        "min_margin": "",
     }
 
 
@@ -134,6 +138,10 @@ def values_from_query(query: Query, routes: list[int]) -> dict[str, Any]:
         "tags": ",".join(query.tags),
         "notes": query.notes or "",
         "extra_tlds": list(query.extra_tlds),
+        "resale_price": _plain(query.resale_price),
+        "resale_fee_pct": f"{query.resale_fee_pct:g}" if query.resale_fee_pct is not None else "",
+        "resale_shipping": _plain(query.resale_shipping),
+        "min_margin": _plain(query.min_margin),
     }
 
 
@@ -192,6 +200,10 @@ def values_from_form(form: Any) -> dict[str, Any]:
             "color",
             "tags",
             "notes",
+            "resale_price",
+            "resale_fee_pct",
+            "resale_shipping",
+            "min_margin",
         )
     }
     for flag in ("deal_on", "skip_unrated_sellers", "quiet_on"):
@@ -293,6 +305,7 @@ def parse_search(values: dict[str, Any], *, default_interval: int) -> ParsedSear
         "tags": validation.parse_words(values["tags"], field="tags"),
         "notes": validation.parse_notes(values["notes"]),
         "extra_tlds": validation.parse_tlds(values["extra_tlds"], primary=tld),
+        **_resale(values),
     }
     name = validation.parse_name(
         values["name"], fallback=validation.default_search_name(params, tld)
@@ -300,6 +313,24 @@ def parse_search(values: dict[str, Any], *, default_interval: int) -> ParsedSear
     interval = validation.parse_interval(values["interval"], default=default_interval)
     destinations = [int(raw) for raw in values["dest"] if str(raw).isdigit()]
     return ParsedSearch(name, url, tld, params, interval, filters, destinations)
+
+
+def _resale(values: dict[str, Any]) -> dict[str, Any]:
+    """The reselling sums: what a find resells for, the platform's cut, postage, the floor."""
+    resale_price = validation.parse_price(values["resale_price"], field="resale_price")
+    min_margin = validation.parse_price(values["min_margin"], field="min_margin")
+    if min_margin is not None and resale_price is None:
+        raise InvalidInputError(
+            "min_margin", "Set what it resells for first: the margin is worked out from that."
+        )
+    return {
+        "resale_price": resale_price,
+        "resale_fee_pct": validation.parse_fee_pct(values["resale_fee_pct"]),
+        "resale_shipping": validation.parse_price(
+            values["resale_shipping"], field="resale_shipping"
+        ),
+        "min_margin": min_margin,
+    }
 
 
 def collect_errors(

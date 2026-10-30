@@ -117,6 +117,8 @@ REJECTION_WORDS: dict[str, tuple[str, str]] = {
     "seller_unknown": ("Couldn't check the seller yet", "hourglass"),
     "not_a_deal": ("Not cheap enough to be a deal", "trending-down"),
     "quiet_hours": ("Quiet hours", "clock"),
+    "low_margin": ("Not enough left after reselling", "badge-percent"),
+    "muted": ("Search was muted", "bell-off"),
 }
 
 
@@ -278,12 +280,9 @@ def search_status(
     while another search on the same site still finds things.
     """
     site = f"vinted.{query.tld}"
-    if query.paused:
-        return Status(
-            "paused", "Paused", "Paused by you. No checks and no alerts until you resume."
-        )
-    if health is None or (health.last_success_at is None and not health.last_status):
-        return Status("quiet", "Starting", "Getting ready. The first check runs within a minute.")
+    held = _held_status(query, health, now)
+    if held is not None or health is None:
+        return held or Status("quiet", "Starting", _STARTING)
     failing = _failing_status(health, site)
     if failing is not None:
         return failing
@@ -303,6 +302,28 @@ def search_status(
         )
     checked = ago(now - health.last_success_at) if health.last_success_at else "recently"
     return Status("watching", "Watching", f"Checked {checked}. All fine.")
+
+
+_STARTING = "Getting ready. The first check runs within a minute."
+_PAUSED = "Paused by you. No checks and no alerts until you resume."
+
+
+def _held_status(query: Query, health: SearchHealth | None, now: int) -> Status | None:
+    """Paused, muted, or not checked yet: states the person caused or just started."""
+    if query.paused:
+        return Status(
+            "paused", "Paused", "Paused by you. No checks and no alerts until you resume."
+        )
+    if query.muted_until is not None and query.is_muted(now):
+        return Status(
+            "paused",
+            "Muted",
+            f"Muted for another {duration(query.muted_until - now)}. It keeps checking, "
+            "but sends nothing until then.",
+        )
+    if health is None or (health.last_success_at is None and not health.last_status):
+        return Status("quiet", "Starting", _STARTING)
+    return None
 
 
 def _failing_status(health: SearchHealth, site: str) -> Status | None:
@@ -458,6 +479,9 @@ def destination_view(
         "detail": detail,
         "searches": searches,
         "opts": {
+            "tiers": _tiers(config, "tiers", ["steal", "deal", "normal"]),
+            "silent_tiers": _tiers(config, "silent_tiers", []),
+            "ping_tiers": _tiers(config, "ping_tiers", ["steal"]),
             "deals_only": bool(config.get("deals_only")),
             "silent": bool(config.get("silent")),
             "style": config.get("style") or ("card" if destination.kind == "discord" else "photo"),
@@ -466,6 +490,18 @@ def destination_view(
             "min_deal_pct": config.get("min_deal_pct") or "",
         },
     }
+
+
+def _tiers(config: dict[str, Any], key: str, default: list[str]) -> list[str]:
+    raw = config.get(key)
+    if raw is None:
+        tiers = list(default)
+        if key == "tiers" and config.get("deals_only"):
+            tiers = ["steal", "deal"]
+        return tiers
+    if isinstance(raw, str):
+        raw = raw.split(",")
+    return [str(tier).strip().lower() for tier in raw] if isinstance(raw, list) else default
 
 
 # --- Time --------------------------------------------------------------------------

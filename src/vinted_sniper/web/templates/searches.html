@@ -75,6 +75,9 @@
       </div>
       <div class="srow__n"><b class="num">{{ s.finds_today }}</b><small>{{ s.newest }}</small></div>
       <div class="srow__actions">
+        {% if s.muted %}
+        <form method="post" action="/searches/{{ s.id }}/unmute"><button class="btn btn--ghost btn--sm" type="submit">{{ ui.icon("bell", "i-sm") }}Unmute<span class="sr-only"> {{ s.name }}</span></button></form>
+        {% endif %}
         <form method="post" action="/searches/{{ s.id }}/pause">
           <input type="hidden" name="paused" value="{{ '0' if s.paused else '1' }}">
           <button class="btn btn--ghost btn--sm" type="submit" title="{{ 'Resume checking' if s.paused else 'Pause: no checks, no alerts' }}">{{ ui.icon("play" if s.paused else "pause", "i-sm") }}<span class="hide-sm">{{ "Resume" if s.paused else "Pause" }}</span><span class="sr-only show-sm">{{ "Resume" if s.paused else "Pause" }} {{ s.name }}</span></button>

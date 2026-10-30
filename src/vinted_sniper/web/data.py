@@ -77,6 +77,7 @@ async def searches(
                 if query.id in newest
                 else "nothing yet",
                 "paused": query.paused,
+                "muted": query.is_muted(now),
                 "tags": query.tags,
                 "query": query,
             }

@@ -362,6 +362,13 @@ async def pause(request: Request, query_id: int) -> Response:
     return core.redirect(target, toast)
 
 
+@router.post("/searches/{query_id}/unmute")
+async def unmute(request: Request, query_id: int) -> Response:
+    await _query(request, query_id)
+    await core.ctx(request).repo.mute_query(query_id, int(time.time()))
+    return core.redirect(core.url("search_detail", id=query_id), "Unmuted. Alerts are back on.")
+
+
 @router.post("/searches/{query_id}/duplicate")
 async def duplicate(request: Request, query_id: int) -> Response:
     copy_id = await core.ctx(request).repo.duplicate_query(query_id)
