@@ -8,13 +8,16 @@ from typing import Any
 import pytest
 
 from vinted_sniper.db.repo import PendingNotification
-from vinted_sniper.deliver.labels import format_money, labels_for, money_text
+from vinted_sniper.deliver.labels import (
+    MINUS,
+    format_money,
+    format_rough_money,
+    labels_for,
+    money_text,
+)
 from vinted_sniper.deliver.render import (
     BRAND_COLOUR,
     DEAL_COLOUR,
-    MINUS,
-    deal_for,
-    deal_pct,
     escape_markdown,
     reachable_dashboard,
     view,
@@ -47,19 +50,19 @@ def pending(**overrides: Any) -> PendingNotification:
 
 
 @pytest.mark.parametrize(
-    ("total", "typical", "tier"),
-    [("5.40", "10", "steal"), ("7.90", "10", "good"), ("8.50", "10", None), ("12", "10", None)],
+    ("total", "tier"), [("5.40", "steal"), ("7.90", "deal"), ("8.50", "normal"), ("12", "normal")]
 )
-def test_deal_tiers_follow_the_distance_from_the_typical_price(
-    total: str, typical: str, tier: str | None
-) -> None:
-    deal = deal_for(deal_pct(Decimal(total), Decimal(typical)))
+def test_the_view_carries_the_shared_tier(total: str, tier: str) -> None:
+    listing = view(
+        pending(item={"total_price": Decimal(total)}, typical_price=Decimal("10")),
+        dashboard_url=None,
+    )
 
-    assert (deal.tier if deal else None) == tier
+    assert listing.tier == tier
 
 
 def test_no_typical_price_means_no_deal_claim() -> None:
-    assert deal_pct(Decimal("5"), None) is None
+    assert view(pending(), dashboard_url=None).deal is None
 
 
 def test_the_badge_states_the_percentage_and_its_basis() -> None:
@@ -204,3 +207,95 @@ def test_a_sold_listing_offers_nothing_to_buy() -> None:
 def test_markdown_escaping_leaves_ordinary_punctuation_alone() -> None:
     """Text-only services receive the markdown as is, so needless backslashes would show."""
     assert escape_markdown("Levi's 501, W32. Size: M!") == "Levi's 501, W32. Size: M!"
+
+
+# --- Phone-first details ----------------------------------------------------------------
+
+
+def test_a_time_vinted_never_gave_is_labelled_as_found() -> None:
+    listing = view(pending(item={"photo_ts": None}), dashboard_url=None)
+
+    assert listing.time_label == "trouvé"
+
+
+def test_a_known_listing_time_is_labelled_as_listed() -> None:
+    listing = view(pending(item={"photo_ts": 1_759_999_000}), dashboard_url=None)
+
+    assert listing.time_label == "publié"
+
+
+@pytest.mark.parametrize(
+    ("tld", "word"),
+    [
+        ("co.uk", "found"),
+        ("fr", "trouvé"),
+        ("de", "gefunden"),
+        ("nl", "gevonden"),
+        ("es", "encontrado"),
+        ("it", "trovato"),
+        ("pl", "znaleziono"),
+        ("lt", "rasta"),
+        ("cz", "nalezeno"),
+    ],
+)
+def test_found_is_said_in_the_site_language(tld: str, word: str) -> None:
+    assert labels_for(tld).found == word
+
+
+def test_the_margin_is_a_rough_signed_figure_in_the_site_language() -> None:
+    listing = view(pending(margin=Decimal("18.60")), dashboard_url=None)
+
+    assert listing.margin_text == "marge ~+19 €"
+
+
+def test_a_loss_reads_with_a_real_minus_sign() -> None:
+    assert format_rough_money(Decimal("-4.20"), "GBP", "en") == f"{MINUS}£4"
+
+
+def test_without_a_resale_price_there_is_no_margin() -> None:
+    assert view(pending(), dashboard_url=None).margin_text is None
+
+
+def test_the_first_line_summary_is_the_short_badge_then_the_margin() -> None:
+    listing = view(
+        pending(typical_price=Decimal("25.00"), margin=Decimal("12")), dashboard_url=None
+    )
+
+    assert listing.summary == [f"Super affaire {MINUS}55%", "marge ~+12 €"]
+
+
+@pytest.mark.parametrize(
+    ("tld", "host"),
+    [
+        ("fr", "www.ebay.fr"),
+        ("de", "www.ebay.de"),
+        ("co.uk", "www.ebay.co.uk"),
+        ("be", "www.befr.ebay.be"),
+        ("pl", "www.ebay.pl"),
+        ("lt", "www.ebay.com"),
+    ],
+)
+def test_the_price_check_goes_to_the_matching_ebay(tld: str, host: str) -> None:
+    listing = view(pending(item={"tld": tld}), dashboard_url=None)
+
+    assert listing.price_check_url.startswith(f"https://{host}/sch/i.html?")
+
+
+def test_the_price_check_searches_sold_listings_for_the_title() -> None:
+    listing = view(pending(), dashboard_url=None)
+
+    assert listing.price_check_url.endswith("_nkw=Jean+Levi%27s+501&LH_Sold=1&LH_Complete=1")
+
+
+def test_the_photo_search_hands_lens_the_photo_url() -> None:
+    listing = view(
+        pending(item={"photo_url": "https://images.vinted.net/a.jpg?s=1&t=2"}), dashboard_url=None
+    )
+
+    assert listing.photo_search_url == (
+        "https://lens.google.com/uploadbyurl?url=https%3A%2F%2Fimages.vinted.net%2Fa.jpg%3Fs%3D1%26t%3D2"
+    )
+
+
+def test_a_listing_without_a_photo_has_no_photo_search() -> None:
+    assert view(pending(), dashboard_url=None).photo_search_url is None

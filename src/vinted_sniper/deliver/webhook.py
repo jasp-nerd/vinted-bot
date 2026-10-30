@@ -26,10 +26,11 @@ from typing import Any
 import httpx
 
 from vinted_sniper.db.repo import PendingNotification
+from vinted_sniper.deals import deal_percent, tier_for
 from vinted_sniper.deliver.base import SendResult, require
 from vinted_sniper.deliver.labels import money_text
 from vinted_sniper.deliver.ratelimit import TokenBucket
-from vinted_sniper.deliver.render import absolute, deal_for, deal_pct
+from vinted_sniper.deliver.render import absolute
 from vinted_sniper.vinted.models import Item
 
 PAYLOAD_VERSION = 2
@@ -42,8 +43,7 @@ def item_json(notification: PendingNotification) -> dict[str, Any]:
     """One listing in the documented shape."""
     item = notification.item
     total = item.total_price if item.total_price is not None else item.price
-    pct = deal_pct(total, notification.typical_price)
-    deal = deal_for(pct)
+    pct = deal_percent(total, notification.typical_price)
     return {
         "id": item.item_id,
         "site": f"vinted.{item.tld}",
@@ -68,7 +68,9 @@ def item_json(notification: PendingNotification) -> dict[str, Any]:
         "previous_price": _money(notification.previous_price),
         "typical_price": _money(notification.typical_price),
         "deal_pct": pct,
-        "deal_tier": deal.tier if deal else None,
+        # "steal", "deal" or "normal": the tiers a destination's `tiers` setting names.
+        "deal_tier": tier_for(pct),
+        "margin": _money(notification.margin),
         "favourites": item.favourite_count,
         "seller_profile": _seller(item),
     }

@@ -38,9 +38,7 @@ def is_available() -> bool:
 def message(listing: ListingView) -> tuple[str, str]:
     """A title and a markdown body for one listing."""
     labels = listing.labels
-    title = f"{listing.price} · {listing.title}" if listing.price else listing.title
-    if listing.kind != "listing":
-        title = f"{listing.headline}: {title}"
+    title = listing.first_line_text
 
     seller = escape_markdown(listing.seller_login) if listing.seller_login else None
     lines = [
@@ -51,6 +49,7 @@ def message(listing: ListingView) -> tuple[str, str]:
                 f"**{listing.price}**" if listing.price else None,
                 f"~~{listing.previous_price}~~" if listing.previous_price else None,
                 listing.badge,
+                listing.margin_text,
             )
             if part
         ),

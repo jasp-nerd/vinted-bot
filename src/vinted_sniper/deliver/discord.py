@@ -4,12 +4,14 @@ A webhook is the whole integration: paste a URL, get notifications. No bot to in
 gateway connection to keep alive, and when someone deletes the webhook we get a clean 404
 instead of a bot that silently stops working.
 
-Listings go out as Components V2 cards: an accent bar in the search's colour (green for a
-deal), the title as a link, a photo gallery, the total price large with a deal badge, the
-facts in two lines and a row of link buttons. Plain webhooks may carry non-interactive
-components, and link buttons are non-interactive, so this needs nothing beyond the URL.
-Cards pack several to a message up to Discord's 40-component limit; bigger bursts become a
-digest of thumbnail rows, which reads far better than a wall of full-height cards.
+Listings go out as Components V2 cards, laid out for a phone: an accent bar in the
+search's colour (green for a deal), then one line with the total price, the deal badge,
+the margin and the title, then the photo, then the buttons, then the small print. The first
+line is also what the phone's notification shows, so it is the whole buy-or-skip decision;
+the buttons sit right under the photo so nothing needs scrolling. Plain webhooks may carry
+non-interactive components, and link buttons are non-interactive, so this needs nothing
+beyond the URL. Cards pack several to a message up to Discord's 40-component limit; bigger
+bursts become a digest of thumbnail rows, which reads far better than a wall of cards.
 
 If Discord ever answers a card with a 400 about components, the same listings are resent as
 classic embeds and this destination stays on embeds until the app restarts. That costs one
@@ -18,22 +20,27 @@ rejected request, and 400s do not count against the invalid-request allowance (o
 
 Two details are doing real work. Every mention is opt-in: `allowed_mentions` is always sent
 empty unless the destination names a role or user to ping, so a listing titled "@everyone"
-pings nobody. And rejected requests count against an allowance that, once spent, gets the
+pings nobody. The ping goes in front of the first line, and by default only for steals
+(`ping_tiers`): a role pinged for every listing is a role everyone mutes within a day. And
+rejected requests count against an allowance that, once spent, gets the
 whole address blocked — so a webhook that answers 404 is switched off rather than retried.
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import partial
 from http import HTTPStatus
 from typing import Any, Literal
 
 import httpx
 
 from vinted_sniper.db.repo import PendingNotification
-from vinted_sniper.deliver.base import SenderConfigError, SendResult, require
+from vinted_sniper.deals import Tier
+from vinted_sniper.deliver.base import SenderConfigError, SendResult, parse_tiers, require
 from vinted_sniper.deliver.ratelimit import TokenBucket
 from vinted_sniper.deliver.render import BOT_NAME, ICON_URL, STATUS_COLOUR, ListingView, view
 from vinted_sniper.log import get_logger
@@ -51,9 +58,13 @@ CARD_BATCH = 3
 # Nine thumbnail rows with separators is 37 components; ten would be 41.
 DIGEST_BATCH = 9
 
-# Photos in a card's gallery. Four make a balanced mosaic; Vinted's portrait photos make
-# anything longer taller than a phone screen.
+# Photos in a card's gallery, when a listing has more than one. Four make a balanced
+# mosaic; Vinted's portrait photos make anything longer taller than a phone screen. The
+# search results carry a single photo now, so most cards show just that one.
 GALLERY_PHOTOS = 4
+
+# Which tiers a configured mention pings for when the destination does not say.
+DEFAULT_PING_TIERS: tuple[Tier, ...] = ("steal",)
 
 # The documented per-webhook limit is around five requests every two seconds, but webhooks
 # in the same server have been observed sharing one allowance. One request every half
@@ -94,10 +105,19 @@ class DiscordOptions:
     style: Style = "card"
     mention: str | None = None
     allowed_mentions: dict[str, list[str]] | None = None
+    ping_tiers: frozenset[Tier] = frozenset(DEFAULT_PING_TIERS)
     silent: bool = False
     username: str = BOT_NAME
     avatar_url: str = ICON_URL
     photos: int = GALLERY_PHOTOS
+
+    def pings_for(self, listings: list[ListingView]) -> bool:
+        """Whether a message carrying these listings should ping the configured mention."""
+        return (
+            self.mention is not None
+            and not self.silent
+            and any(listing.tier in self.ping_tiers and not listing.silent for listing in listings)
+        )
 
     @classmethod
     def from_config(cls, config: dict[str, Any]) -> DiscordOptions:
@@ -112,6 +132,7 @@ class DiscordOptions:
             style=style,
             mention=mention,
             allowed_mentions=allowed,
+            ping_tiers=parse_tiers(config, "ping_tiers", DEFAULT_PING_TIERS),
             silent=bool(config.get("silent")),
             username=str(config.get("username") or BOT_NAME)[:80],
             avatar_url=str(config.get("avatar_url") or ICON_URL),
@@ -199,6 +220,8 @@ def _button(label: str, url: str) -> dict[str, Any]:
 
 
 def _buttons(listing: ListingView) -> dict[str, Any]:
+    """Buy, message, open, and the dashboard, or eBay's sold prices when the dashboard
+    cannot be opened from a phone."""
     labels = listing.labels
     buttons = []
     if listing.can_buy:
@@ -207,31 +230,34 @@ def _buttons(listing: ListingView) -> dict[str, Any]:
     buttons.append(_button(labels.open, listing.url))
     if listing.dashboard_url:
         buttons.append(_button(labels.dashboard, listing.search_url or listing.dashboard_url))
+    else:
+        buttons.append(_button(labels.price_check, listing.price_check_url))
     return {"type": ACTION_ROW, "components": buttons}
 
 
-def _header(listing: ListingView) -> str:
-    search = escape(listing.search_name)
-    if listing.search_url:
-        search = f"[{search}]({_link(listing.search_url)})"
-    site = f"{listing.flag} {listing.site}".strip()
-    return (
-        f"-# {escape(listing.headline)} · {search} · {site} · "
-        f"{listing.labels.listed} <t:{listing.listed_at}:R>"
-    )
+def first_line(listing: ListingView, *, link_title: bool = False) -> str:
+    """Total, badge, margin, title: the line a phone shows on the lock screen.
 
-
-def _price_block(listing: ListingView) -> str | None:
-    if listing.price is None:
-        return None
-    line = f"# {listing.price}"
-    if listing.previous_price:
-        line += f"  ~~{listing.previous_price}~~"
-    if listing.badge:
-        line += f"  `{listing.badge}`"
-    if listing.price_note:
-        line += f"\n-# {listing.price_note}"
+    The title goes through `link_text` rather than `escape`: backslashes would show in
+    the notification, which renders the text without Discord's markdown.
+    """
+    price = ""
+    if listing.price:
+        price = f"**{listing.price}**"
+        if listing.previous_price:
+            price += f" ~~{listing.previous_price}~~"
+    title = link_text(listing.title)
+    if link_title:
+        title = f"[{title}]({_link(listing.url)})"
+    parts = [price, *listing.summary, title]
+    line = " · ".join(part for part in parts if part)
+    if listing.kind != "listing":
+        line = f"{escape(listing.headline)}: {line}"
     return line
+
+
+def _when(listing: ListingView) -> str:
+    return f"{listing.time_label} <t:{listing.listed_at}:R>"
 
 
 def _seller_line(listing: ListingView) -> str | None:
@@ -240,80 +266,77 @@ def _seller_line(listing: ListingView) -> str | None:
         login = escape(listing.seller_login)
         if listing.seller_url:
             login = f"[{login}]({_link(listing.seller_url)})"
-        parts.append(f"**{listing.labels.seller}** {login}")
+        parts.append(f"{listing.labels.seller} {login}")
     if listing.rating:
         parts.append(listing.rating)
     if listing.favourites:
         parts.append(f"♥ {listing.favourites}")
-    return "  ·  ".join(parts) or None
+    return " · ".join(parts) or None
 
 
-def _facts_block(listing: ListingView) -> str | None:
-    lines = []
-    if listing.facts:
-        lines.append("  ·  ".join(f"**{label}** {escape(value)}" for label, value in listing.facts))
-    if seller := _seller_line(listing):
-        lines.append(seller)
-    return "\n".join(lines) or None
+def _small_print(listing: ListingView) -> str:
+    """Everything under the buttons, as subtext: the price basis, the facts, where from."""
+    search = escape(listing.search_name)
+    if listing.search_url:
+        search = f"[{search}]({_link(listing.search_url)})"
+    site = f"{listing.flag} {listing.site}".strip()
+    lines = [
+        listing.price_note,
+        " · ".join(
+            part
+            for part in (
+                " · ".join(escape(value) for _, value in listing.facts) or None,
+                _seller_line(listing),
+            )
+            if part
+        ),
+        f"{site} · {_when(listing)} · {search}",
+    ]
+    return "\n".join(f"-# {line}" for line in lines if line)
 
 
 def card(listing: ListingView, *, photos: int = GALLERY_PHOTOS) -> dict[str, Any]:
     """The full listing card: one container, built from top to bottom."""
-    children: list[dict[str, Any]] = [
-        _text(_header(listing)),
-        _text(f"### [{link_text(listing.title)}]({_link(listing.url)})"),
-    ]
+    children: list[dict[str, Any]] = [_text(first_line(listing))]
     if listing.photos:
+        shown = listing.photos[:photos] if len(listing.photos) > 1 else listing.photos[:1]
         children.append(
             {
                 "type": GALLERY,
                 "items": [
-                    {"media": {"url": url}, "description": listing.title[:1024]}
-                    for url in listing.photos[:photos]
+                    {"media": {"url": url}, "description": listing.title[:1024]} for url in shown
                 ],
             }
         )
-    if price := _price_block(listing):
-        children.append(_text(price))
-    if facts := _facts_block(listing):
-        children.append(_separator())
-        children.append(_text(facts))
     children.append(_buttons(listing))
+    children.append(_text(_small_print(listing)))
     return {"type": CONTAINER, "accent_color": listing.accent, "components": children}
 
 
-def _row_text(listing: ListingView) -> str:
-    """One listing as three lines of a digest."""
-    title = f"**[{link_text(listing.title)}]({_link(listing.url)})**"
-    price = " ".join(
-        part
-        for part in (
-            f"**{listing.price}**" if listing.price else None,
-            f"~~{listing.previous_price}~~" if listing.previous_price else None,
-            f"`{listing.badge}`" if listing.badge else None,
-        )
-        if part
-    )
-    second = [price, *(escape(value) for _, value in listing.facts)]
-    third = [
-        part
-        for part in (
-            listing.rating,
-            f"<t:{listing.listed_at}:R>",
-            f"[{listing.labels.buy}]({_link(listing.buy_url)})" if listing.can_buy else None,
-            f"[{listing.labels.message}]({_link(listing.message_url)})"
-            if listing.can_buy
-            else None,
-        )
-        if part
+def _row_text(listing: ListingView, *, link_title: bool) -> str:
+    """One listing as three lines: the decision, the facts, then when and the links."""
+    second = [
+        *(escape(value) for _, value in listing.facts),
+        listing.rating,
+        f"♥ {listing.favourites}" if listing.favourites else None,
     ]
-    second_line = " · ".join(part for part in second if part)
-    lines = [title, second_line, f"-# {' · '.join(third)}"]
+    third = [
+        f"{listing.flag} {listing.site}".strip(),
+        _when(listing),
+    ]
+    if link_title and listing.can_buy:
+        third.append(f"[{listing.labels.buy}]({_link(listing.buy_url)})")
+        third.append(f"[{listing.labels.message}]({_link(listing.message_url)})")
+    lines = [
+        first_line(listing, link_title=link_title),
+        " · ".join(part for part in second if part),
+        f"-# {' · '.join(part for part in third if part)}",
+    ]
     return "\n".join(line for line in lines if line)
 
 
-def _row(listing: ListingView) -> dict[str, Any]:
-    text = _text(_row_text(listing))
+def _row(listing: ListingView, *, link_title: bool = True) -> dict[str, Any]:
+    text = _text(_row_text(listing, link_title=link_title))
     if not listing.photos:
         return text
     return {
@@ -327,23 +350,27 @@ def _row(listing: ListingView) -> dict[str, Any]:
     }
 
 
-def digest(listings: list[ListingView], *, with_buttons: bool = False) -> dict[str, Any]:
+def compact(listing: ListingView) -> dict[str, Any]:
+    """One listing as a thumbnail row with its buttons: a third of a phone screen."""
+    return {
+        "type": CONTAINER,
+        "accent_color": listing.accent,
+        "components": [_row(listing, link_title=False), _buttons(listing)],
+    }
+
+
+def digest(listings: list[ListingView]) -> dict[str, Any]:
     """Several listings as thumbnail rows in one container."""
     first = listings[0]
     searches = {listing.search_name for listing in listings}
-    if len(listings) == 1:
-        heading = f"-# {escape(first.headline)} · {escape(first.search_name)}"
-    else:
-        heading = f"### {first.labels.new_matches.format(n=len(listings))}"
-        if len(searches) == 1:
-            heading += f" · {escape(first.search_name)}"
+    heading = f"**{first.labels.new_matches.format(n=len(listings))}**"
+    if len(searches) == 1:
+        heading += f" · {escape(first.search_name)}"
     children: list[dict[str, Any]] = [_text(heading)]
     for index, listing in enumerate(listings):
         if index:
             children.append(_separator())
         children.append(_row(listing))
-    if with_buttons:
-        children.append(_buttons(first))
     accent = next((listing.accent for listing in listings if listing.deal), first.accent)
     return {"type": CONTAINER, "accent_color": accent, "components": children}
 
@@ -369,33 +396,48 @@ def text_chars(components: list[dict[str, Any]]) -> int:
     return total
 
 
-def _envelope(options: DiscordOptions, *, silent: bool) -> dict[str, Any]:
+def _envelope(options: DiscordOptions, *, ping: bool) -> dict[str, Any]:
     return {
         "username": options.username,
         "avatar_url": options.avatar_url,
-        "allowed_mentions": (options.allowed_mentions if not silent else None) or {"parse": []},
+        "allowed_mentions": (options.allowed_mentions if ping else None) or {"parse": []},
     }
+
+
+def _prefix_first_text(component: dict[str, Any], prefix: str) -> tuple[dict[str, Any], bool]:
+    """A copy of `component` with `prefix` put in front of its first text display."""
+    if component.get("type") == TEXT:
+        return {**component, "content": f"{prefix} {component['content']}"}, True
+    children = component.get("components", [])
+    for index, child in enumerate(children):
+        changed, done = _prefix_first_text(child, prefix)
+        if done:
+            return {
+                **component,
+                "components": [*children[:index], changed, *children[index + 1 :]],
+            }, True
+    return component, False
 
 
 def _v2_message(
     containers: list[dict[str, Any]], listings: list[ListingView], options: DiscordOptions
 ) -> Message:
     silent = options.silent or all(listing.silent for listing in listings)
+    ping = options.pings_for(listings)
     components = list(containers)
-    if options.mention and not silent:
-        # Outside the card, so the card itself stays clean; inside a text display it
-        # pings exactly as allowed_mentions permits.
-        components.insert(0, _text(options.mention))
+    if ping and options.mention:
+        # In front of the first line, so the notification reads "@steals €16.45 · ..."
+        # rather than a bare role name.
+        components[0], _ = _prefix_first_text(components[0], options.mention)
     flags = IS_COMPONENTS_V2 | (SUPPRESS_NOTIFICATIONS if silent else 0)
-    payload = _envelope(options, silent=silent) | {"flags": flags, "components": components}
+    payload = _envelope(options, ping=ping) | {"flags": flags, "components": components}
     return Message(payload, [listing.outbox_id for listing in listings])
 
 
 def _fits(containers: list[dict[str, Any]], options: DiscordOptions) -> bool:
-    reserve = 1 if options.mention else 0
     return (
-        count_components(containers) + reserve <= MAX_COMPONENTS
-        and text_chars(containers) + len(options.mention or "") <= MAX_TEXT_CHARS
+        count_components(containers) <= MAX_COMPONENTS
+        and text_chars(containers) + len(options.mention or "") + 1 <= MAX_TEXT_CHARS
     )
 
 
@@ -403,18 +445,19 @@ def v2_messages(listings: list[ListingView], options: DiscordOptions) -> list[Me
     """Lay a batch out as Components V2 messages, as few as the limits allow."""
     if not listings:
         return []
-    if options.style == "compact":
-        if len(listings) == 1:
-            return [_v2_message([digest(listings, with_buttons=True)], listings, options)]
+    if options.style == "compact" and len(listings) > 1:
         return _digests(listings, options)
     if len(listings) > CARD_BATCH:
         return _digests(listings, options)
 
+    build: Callable[[ListingView], dict[str, Any]] = (
+        compact if options.style == "compact" else partial(card, photos=options.photos)
+    )
     messages: list[Message] = []
     pending: list[ListingView] = []
     containers: list[dict[str, Any]] = []
     for listing in listings:
-        built = card(listing, photos=options.photos)
+        built = build(listing)
         if containers and not _fits([*containers, built], options):
             messages.append(_v2_message(containers, pending, options))
             pending, containers = [], []
@@ -441,7 +484,7 @@ def status_v2(message: str, options: DiscordOptions) -> dict[str, Any]:
         "accent_color": STATUS_COLOUR,
         "components": [_text(f"-# {BOT_NAME}"), _text(escape(message)[: MAX_TEXT_CHARS - 50])],
     }
-    return _envelope(options, silent=True) | {"flags": IS_COMPONENTS_V2, "components": [container]}
+    return _envelope(options, ping=False) | {"flags": IS_COMPONENTS_V2, "components": [container]}
 
 
 # --- Classic embeds -------------------------------------------------------------------
@@ -463,7 +506,11 @@ def _embed_fields(listing: ListingView) -> list[dict[str, Any]]:
         {"name": "Vinted", "value": f"{listing.flag} {listing.site}".strip(), "inline": True}
     )
     fields.append(
-        {"name": labels.listed.capitalize(), "value": f"<t:{listing.listed_at}:R>", "inline": True}
+        {
+            "name": listing.time_label.capitalize(),
+            "value": f"<t:{listing.listed_at}:R>",
+            "inline": True,
+        }
     )
     return fields
 
@@ -471,23 +518,16 @@ def _embed_fields(listing: ListingView) -> list[dict[str, Any]]:
 def _embed_card(listing: ListingView, options: DiscordOptions) -> list[dict[str, Any]]:
     """One listing as a rich embed, plus image-only embeds that fold into a photo mosaic.
 
-    The extra embeds share the listing's URL on purpose: clients merge same-URL images
-    into the first embed. Only the first carries a title, so no listing ever disappears.
+    The price, badge and margin are in the message text above it (that is what a phone
+    notification shows for an embed), so the embed itself carries the rest. The extra
+    embeds share the listing's URL on purpose: clients merge same-URL images into the
+    first embed. Only the first carries a title, so no listing ever disappears.
     """
-    author = f"{listing.headline} · {listing.search_name}"
-    if listing.badge:
-        author += f" · {listing.badge}"
-    description = []
-    if listing.price:
-        line = f"## {listing.price}"
-        if listing.previous_price:
-            line += f"  ~~{listing.previous_price}~~"
-        description.append(line)
-    if listing.price_note:
-        description.append(f"-# {listing.price_note}")
-
     embed: dict[str, Any] = {
-        "author": {"name": author[:256], "icon_url": options.avatar_url},
+        "author": {
+            "name": f"{listing.headline} · {listing.search_name}"[:256],
+            "icon_url": options.avatar_url,
+        },
         "title": listing.title[:256],
         "url": listing.url,
         "color": listing.accent,
@@ -497,8 +537,8 @@ def _embed_card(listing: ListingView, options: DiscordOptions) -> list[dict[str,
     }
     if listing.search_url:
         embed["author"]["url"] = listing.search_url
-    if description:
-        embed["description"] = "\n".join(description)
+    if listing.price_note:
+        embed["description"] = f"-# {listing.price_note}"
     if listing.photos:
         embed["image"] = {"url": listing.photos[0]}
     extras = [
@@ -517,7 +557,7 @@ def _embed_row(listing: ListingView) -> dict[str, Any]:
             for p in (
                 listing.rating,
                 f"{listing.flag} {listing.site}".strip(),
-                f"<t:{listing.listed_at}:R>",
+                f"{listing.time_label} <t:{listing.listed_at}:R>",
             )
             if p
         )
@@ -527,8 +567,8 @@ def _embed_row(listing: ListingView) -> dict[str, Any]:
             f"[{listing.labels.buy}]({_link(listing.buy_url)}) · "
             f"[{listing.labels.message}]({_link(listing.message_url)})"
         )
-    if listing.badge:
-        lines.append(f"**{listing.badge}**")
+    if listing.summary:
+        lines.append(f"**{' · '.join(listing.summary)}**")
     title = f"{listing.price} · {listing.title}" if listing.price else listing.title
     embed: dict[str, Any] = {
         "title": title[:256],
@@ -542,6 +582,19 @@ def _embed_row(listing: ListingView) -> dict[str, Any]:
     return embed
 
 
+def _classic_payload(
+    listings: list[ListingView], options: DiscordOptions, content: str
+) -> dict[str, Any]:
+    silent = options.silent or all(listing.silent for listing in listings)
+    ping = options.pings_for(listings)
+    if ping and options.mention:
+        content = f"{options.mention} {content}"
+    payload = _envelope(options, ping=ping) | {"content": content[:2000]}
+    if silent:
+        payload["flags"] = SUPPRESS_NOTIFICATIONS
+    return payload
+
+
 def classic_messages(listings: list[ListingView], options: DiscordOptions) -> list[Message]:
     """Lay a batch out as embeds: one card per message, or a stack for bigger bursts.
 
@@ -551,42 +604,30 @@ def classic_messages(listings: list[ListingView], options: DiscordOptions) -> li
     if not listings:
         return []
     if len(listings) <= CARD_BATCH:
-        messages = []
-        for listing in listings:
-            silent = options.silent or listing.silent
-            payload = _envelope(options, silent=silent) | {
-                "embeds": _embed_card(listing, options),
-                "components": [_buttons(listing)],
-            }
-            if options.mention and not silent:
-                payload["content"] = options.mention
-            if silent:
-                payload["flags"] = SUPPRESS_NOTIFICATIONS
-            messages.append(Message(payload, [listing.outbox_id]))
-        return messages
+        return [
+            Message(
+                _classic_payload([listing], options, first_line(listing))
+                | {"embeds": _embed_card(listing, options), "components": [_buttons(listing)]},
+                [listing.outbox_id],
+            )
+            for listing in listings
+        ]
 
     messages = []
     for start in range(0, len(listings), MAX_EMBEDS):
         chunk = listings[start : start + MAX_EMBEDS]
-        silent = options.silent or all(listing.silent for listing in chunk)
         heading = chunk[0].labels.new_matches.format(n=len(chunk))
         if len({listing.search_name for listing in chunk}) == 1:
             heading += f" · {escape(chunk[0].search_name)}"
-        content = f"**{heading}**"
-        if options.mention and not silent:
-            content = f"{options.mention} {content}"
-        payload = _envelope(options, silent=silent) | {
-            "content": content[:2000],
+        payload = _classic_payload(chunk, options, f"**{heading}**") | {
             "embeds": [_embed_row(listing) for listing in chunk],
         }
-        if silent:
-            payload["flags"] = SUPPRESS_NOTIFICATIONS
         messages.append(Message(payload, [listing.outbox_id for listing in chunk]))
     return messages
 
 
 def status_classic(message: str, options: DiscordOptions) -> dict[str, Any]:
-    return _envelope(options, silent=True) | {"content": escape(message)[:2000]}
+    return _envelope(options, ping=False) | {"content": escape(message)[:2000]}
 
 
 # --- Sending --------------------------------------------------------------------------
