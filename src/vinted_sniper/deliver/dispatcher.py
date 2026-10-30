@@ -14,19 +14,21 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import dataclasses
 import json
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
 
 from vinted_sniper.config import Settings
 from vinted_sniper.db.repo import Destination, PendingNotification, Repo
+from vinted_sniper.deals import DEAL_PCT, STEAL_PCT, TIERS, Tier, deal_percent, tier_for
 from vinted_sniper.deliver.apprise import AppriseSender
-from vinted_sniper.deliver.base import Sender, SenderConfigError
+from vinted_sniper.deliver.base import Sender, SenderConfigError, parse_tiers
 from vinted_sniper.deliver.discord import DiscordSender
 from vinted_sniper.deliver.ntfy import NtfySender
 from vinted_sniper.deliver.ratelimit import Gate, TokenBucket
-from vinted_sniper.deliver.render import GOOD_DEAL_PCT, deal_pct
 from vinted_sniper.deliver.telegram import TelegramSender
 from vinted_sniper.deliver.webhook import WebhookSender
 from vinted_sniper.log import get_logger
@@ -51,8 +53,46 @@ def awaiting_pairing(destination: Destination) -> bool:
     return destination.kind == "telegram" and not destination.config.get("chat_id")
 
 
+@dataclass(frozen=True, slots=True)
+class Routing:
+    """Which listings a destination takes, and which of those arrive without a sound.
+
+    Configured with `tiers` (the tiers to deliver, default all three) and `silent_tiers`
+    (delivered without a sound, default none). The 1.x keys still work: `deals_only` is
+    `tiers: [steal, deal]`, and `min_deal_pct` is a custom threshold on top of the tiers.
+    """
+
+    tiers: frozenset[Tier] = frozenset(TIERS)
+    silent_tiers: frozenset[Tier] = frozenset()
+    min_deal_pct: int | None = None
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any]) -> Routing:
+        tiers = parse_tiers(config, "tiers", TIERS)
+        if config.get("deals_only"):
+            tiers -= {"normal"}
+        if not tiers:
+            raise SenderConfigError("tiers must name at least one of steal, deal, normal")
+        raw_pct = config.get("min_deal_pct")
+        try:
+            min_pct = int(raw_pct) if raw_pct is not None and raw_pct != "" else None
+        except (TypeError, ValueError) as exc:
+            raise SenderConfigError("min_deal_pct must be a whole percentage") from exc
+        return cls(
+            tiers=tiers,
+            silent_tiers=parse_tiers(config, "silent_tiers", ()),
+            min_deal_pct=min_pct,
+        )
+
+
+def _deal_pct(notification: PendingNotification) -> int | None:
+    item = notification.item
+    total = item.total_price if item.total_price is not None else item.price
+    return deal_percent(total, notification.typical_price)
+
+
 def skip_reason(notification: PendingNotification, config: dict[str, Any]) -> str | None:
-    """Why a destination that only wants deals should not get this listing, if it should not.
+    """Why this destination should not get this listing, if it should not.
 
     Decided here, at delivery, rather than when the listing is found: one listing goes to
     several destinations, and only some of them may be picky. Watch alerts (price drops,
@@ -60,19 +100,37 @@ def skip_reason(notification: PendingNotification, config: dict[str, Any]) -> st
     """
     if notification.kind != "listing":
         return None
-    threshold = config.get("min_deal_pct")
-    if threshold is None and config.get("deals_only"):
-        threshold = GOOD_DEAL_PCT
-    if threshold is None:
-        return None
-    item = notification.item
-    total = item.total_price if item.total_price is not None else item.price
-    pct = deal_pct(total, notification.typical_price)
-    if pct is None:
+    routing = Routing.from_config(config)
+    pct = _deal_pct(notification)
+    tier = tier_for(pct)
+    wants_threshold = routing.min_deal_pct is not None
+    if pct is None and (tier not in routing.tiers or wants_threshold):
         return "skipped: this destination only wants deals and there is no typical price yet"
-    if pct < int(threshold):
-        return f"skipped: {pct}% under the typical price, this destination wants {threshold}%"
+    if tier not in routing.tiers:
+        wanted = " and ".join(_TIER_NAMES[t] for t in TIERS if t in routing.tiers)
+        return (
+            f"skipped: {_distance(pct)} makes it {_TIER_NAMES[tier]}; this destination "
+            f"takes {wanted} only (a deal is {DEAL_PCT}% or more under, a steal {STEAL_PCT}%)"
+        )
+    if wants_threshold and pct is not None and pct < (routing.min_deal_pct or 0):
+        return f"skipped: {_distance(pct)}, this destination wants {routing.min_deal_pct}%"
     return None
+
+
+_TIER_NAMES: dict[Tier, str] = {"steal": "steals", "deal": "deals", "normal": "ordinary"}
+
+
+def _distance(pct: int | None) -> str:
+    if pct is not None and pct < 0:
+        return f"{-pct}% above the typical price"
+    return f"{pct}% under the typical price"
+
+
+def deliver_silently(notification: PendingNotification, routing: Routing) -> bool:
+    """Whether this destination wants this listing's tier without a sound."""
+    return notification.kind == "listing" and tier_for(_deal_pct(notification)) in (
+        routing.silent_tiers
+    )
 
 
 def build_sender(destination: Destination, settings: Settings, client: httpx.AsyncClient) -> Sender:
@@ -184,6 +242,7 @@ class Dispatcher:
 
         try:
             sender = await self._sender_for(destination)
+            routing = Routing.from_config(destination.config)
         except SenderConfigError as exc:
             await self._repo.deactivate_destination(destination_id, str(exc))
             log.error("destination.misconfigured", destination_id=destination_id, error=str(exc))
@@ -193,7 +252,7 @@ class Dispatcher:
             return 0
 
         claimed = await self._repo.claim_batch(destination_id, sender.max_batch)
-        batch = await self._drop_unwanted(claimed, destination.config)
+        batch = await self._drop_unwanted(claimed, destination.config, routing)
         if not batch:
             return 0
 
@@ -269,13 +328,16 @@ class Dispatcher:
         return sender
 
     async def _drop_unwanted(
-        self, batch: list[PendingNotification], config: dict[str, Any]
+        self, batch: list[PendingNotification], config: dict[str, Any], routing: Routing
     ) -> list[PendingNotification]:
-        """Set aside what this destination asked not to get, with the reason recorded."""
+        """Set aside what this destination asked not to get, with the reason recorded,
+        and mark what it wants to hear about quietly."""
         wanted = []
         for notification in batch:
             reason = skip_reason(notification, config)
             if reason is None:
+                if deliver_silently(notification, routing):
+                    notification = dataclasses.replace(notification, silent=True)  # noqa: PLW2901
                 wanted.append(notification)
             else:
                 # The only per-row way out of the queue the repo offers; the reason text

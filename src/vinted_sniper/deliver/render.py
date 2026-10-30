@@ -16,10 +16,17 @@ import time
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Literal
-from urllib.parse import urljoin, urlparse
+from urllib.parse import quote, quote_plus, urljoin, urlparse
 
 from vinted_sniper.db.repo import PendingNotification
-from vinted_sniper.deliver.labels import Labels, format_money, labels_for
+from vinted_sniper.deals import Tier, deal_percent, tier_for
+from vinted_sniper.deliver.labels import (
+    MINUS,
+    Labels,
+    format_money,
+    format_rough_money,
+    labels_for,
+)
 from vinted_sniper.vinted import urls
 
 BOT_NAME = "vinted-sniper"
@@ -31,11 +38,6 @@ DEAL_COLOUR = 0x28865A
 BRAND_COLOUR = 0x007782
 STATUS_COLOUR = 0x5A6566
 
-# How far under the search's typical price a listing has to be before we call it out.
-# Smaller gaps are noise: the median wobbles by that much between polls.
-STEAL_PCT = 40
-GOOD_DEAL_PCT = 20
-
 # Kinds a listing alert can be. Watches (price drops, sales) are things the user asked to
 # follow explicitly; the rest are search matches.
 KINDS = ("listing", "price_drop", "sold", "reserved", "removed", "seller_upload")
@@ -45,10 +47,31 @@ KINDS = ("listing", "price_drop", "sold", "reserved", "removed", "seller_upload"
 MAX_TITLE = 120
 MAX_SEARCH_NAME = 60
 MAX_FACT = 60
+# Searches on eBay past a dozen words find nothing; the first eighty characters of a
+# Vinted title are the brand and model, the rest is condition and size.
+MAX_QUERY = 80
 
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", "0.0.0.0"})
 
 _ISO_BY_TLD = {"co.uk": "GB", "com": "US"}
+
+# Which eBay answers "what does this actually sell for" for someone on each Vinted site.
+# Belgium's French-language eBay lives on its own host; everything unlisted gets the
+# international site.
+_EBAY_BY_TLD = {
+    "fr": "www.ebay.fr",
+    "de": "www.ebay.de",
+    "co.uk": "www.ebay.co.uk",
+    "it": "www.ebay.it",
+    "es": "www.ebay.es",
+    "nl": "www.ebay.nl",
+    "be": "www.befr.ebay.be",
+    "pl": "www.ebay.pl",
+    "at": "www.ebay.at",
+    "ie": "www.ebay.ie",
+    "com": "www.ebay.com",
+}
+_EBAY_DEFAULT = "www.ebay.com"
 
 # Markdown characters that act anywhere in a line. The ones that only matter at the start
 # of a line (#, >, -, 1.) are left alone: user text never starts one of our lines, and
@@ -56,13 +79,10 @@ _ISO_BY_TLD = {"co.uk": "GB", "com": "US"}
 # backslash would show.
 _MARKDOWN_SPECIAL = re.compile(r"([\\`*_\[\]()])")
 
-# A real minus sign: a hyphen in "-46%" reads as a dash, and wraps like one.
-MINUS = "\u2212"
-
 
 @dataclass(frozen=True, slots=True)
 class Deal:
-    tier: Literal["steal", "good"]
+    tier: Literal["steal", "deal"]
     pct: int
 
 
@@ -88,6 +108,12 @@ class ListingView:
     # Signed: negative means dearer than usual. Kept for the JSON webhook even when it
     # is too small to badge.
     deal_pct: int | None
+    # Which tier the listing falls in, for routing: "normal" when it is not notably cheap
+    # or there is no typical price to compare with.
+    tier: Tier
+    # What reselling it would leave, already written as "+€19", when the search has a
+    # resale price.
+    margin: str | None
     size: str | None
     condition: str | None
     brand: str | None
@@ -96,8 +122,12 @@ class ListingView:
     rating: str | None
     site: str
     flag: str
-    # When the listing went up, or failing that when we first saw it.
+    # When the listing went up, or failing that when we first saw it. `listed_known`
+    # says which, so the label can be honest: Vinted's search no longer says when a
+    # listing went up, and calling the moment we found it "listed" claims a speed nobody
+    # can check.
     listed_at: int
+    listed_known: bool
     search_name: str
     search_url: str | None
     dashboard_url: str | None
@@ -106,6 +136,10 @@ class ListingView:
     favourites: int
     accent: int
     silent: bool
+    item_id: int
+    seller_id: int | None
+    price_check_url: str
+    photo_search_url: str | None
 
     @property
     def headline(self) -> str:
@@ -124,6 +158,39 @@ class ListingView:
                 return labels.new_from.format(seller=self.seller_login or labels.seller)
             case _:
                 return labels.new_match
+
+    @property
+    def time_label(self) -> str:
+        """ "listed" when Vinted said when, "found" when the time is our own."""
+        return self.labels.listed if self.listed_known else self.labels.found
+
+    @property
+    def margin_text(self) -> str | None:
+        """ "margin ~+€19", or None without a resale price."""
+        return f"{self.labels.margin} ~{self.margin}" if self.margin else None
+
+    @property
+    def summary(self) -> list[str]:
+        """What follows the price on the first line: the deal badge and the margin.
+
+        The first line is the one a phone shows on the lock screen, so it carries
+        everything a buy-or-skip decision needs and nothing else.
+        """
+        return [part for part in (self.short_badge, self.margin_text) if part]
+
+    @property
+    def first_line_text(self) -> str:
+        """The first line as plain text, for push titles that take no formatting."""
+        line = " · ".join(part for part in (self.price, *self.summary, self.title) if part)
+        return f"{self.headline}: {line}" if self.kind != "listing" else line
+
+    @property
+    def short_badge(self) -> str | None:
+        """The tier and how far under typical, without the basis, for the first line."""
+        if self.deal is None:
+            return None
+        tier = self.labels.steal if self.deal.tier == "steal" else self.labels.good_deal
+        return f"{tier} {MINUS}{self.deal.pct}%"
 
     @property
     def badge(self) -> str | None:
@@ -169,21 +236,27 @@ def escape_markdown(text: str) -> str:
     return _MARKDOWN_SPECIAL.sub(r"\\\1", text).replace("<", "&lt;")
 
 
-def deal_pct(total: Decimal | None, typical: Decimal | None) -> int | None:
-    """How far under the typical price a total is, in whole percent."""
-    if total is None or typical is None or typical <= 0:
-        return None
-    return round((1 - total / typical) * 100)
-
-
 def deal_for(pct: int | None) -> Deal | None:
-    if pct is None:
+    """The badge-worthy part of a tier: None for an ordinary price."""
+    tier = tier_for(pct)
+    if pct is None or tier == "normal":
         return None
-    if pct >= STEAL_PCT:
-        return Deal("steal", pct)
-    if pct >= GOOD_DEAL_PCT:
-        return Deal("good", pct)
-    return None
+    return Deal(tier, pct)
+
+
+def price_check_url(title: str, tld: str) -> str:
+    """eBay's sold listings for this title, on the eBay that matches the Vinted site.
+
+    Sold and completed rather than live listings: what things actually went for is the
+    number a reseller checks, and asking prices are what the typical price already shows.
+    """
+    host = _EBAY_BY_TLD.get(tld, _EBAY_DEFAULT)
+    return f"https://{host}/sch/i.html?_nkw={quote_plus(title)}&LH_Sold=1&LH_Complete=1"
+
+
+def photo_search_url(photo: str) -> str:
+    """Google Lens on the listing photo: finds the model, and stolen stock photos."""
+    return f"https://lens.google.com/uploadbyurl?url={quote(photo, safe='')}"
 
 
 def reachable_dashboard(url: str | None) -> str | None:
@@ -255,7 +328,7 @@ def view(notification: PendingNotification, *, dashboard_url: str | None) -> Lis
 
     total = item.total_price if item.total_price is not None else item.price
     asking = item.price if item.total_price is not None and item.price != total else None
-    pct = deal_pct(total, notification.typical_price)
+    pct = deal_percent(total, notification.typical_price)
     deal = deal_for(pct)
     dashboard = reachable_dashboard(dashboard_url)
 
@@ -267,13 +340,15 @@ def view(notification: PendingNotification, *, dashboard_url: str | None) -> Lis
         absolute(photo, item.tld)
         for photo in (item.photo_urls or ((item.photo_url,) if item.photo_url else ()))
     )
+    title = _clip(item.title, MAX_TITLE) or f"#{item.item_id}"
+    margin = notification.margin
 
     return ListingView(
         outbox_id=notification.outbox_id,
         query_id=notification.query_id,
         kind=notification.kind if notification.kind in KINDS else "listing",
         labels=labels,
-        title=_clip(item.title, MAX_TITLE) or f"#{item.item_id}",
+        title=title,
         url=absolute(item.url, item.tld),
         photos=photos,
         price=money(total),
@@ -282,6 +357,8 @@ def view(notification: PendingNotification, *, dashboard_url: str | None) -> Lis
         typical=money(notification.typical_price),
         deal=deal,
         deal_pct=pct,
+        tier=tier_for(pct),
+        margin=format_rough_money(margin, currency, labels.locale) if margin is not None else None,
         size=_clip(item.size, MAX_FACT),
         condition=_clip(item.condition, MAX_FACT),
         brand=_clip(item.brand, MAX_FACT),
@@ -291,6 +368,7 @@ def view(notification: PendingNotification, *, dashboard_url: str | None) -> Lis
         site=f"vinted.{item.tld}",
         flag=site_flag(item.tld),
         listed_at=item.photo_ts or notification.detected_at or int(time.time()),
+        listed_known=item.photo_ts is not None,
         search_name=_clip(notification.query_name, MAX_SEARCH_NAME) or "search",
         search_url=(
             f"{dashboard}/searches/{notification.query_id}"
@@ -303,4 +381,10 @@ def view(notification: PendingNotification, *, dashboard_url: str | None) -> Lis
         favourites=item.favourite_count,
         accent=accent,
         silent=notification.silent,
+        item_id=item.item_id,
+        seller_id=item.seller_id,
+        price_check_url=price_check_url(
+            " ".join(item.title.split())[:MAX_QUERY] or title, item.tld
+        ),
+        photo_search_url=photo_search_url(photos[0]) if photos else None,
     )

@@ -47,6 +47,15 @@ async def test_ntfy_handles_accents_and_currency_signs() -> None:
     assert recorder.payload()["title"] == "16,45 £ · Très bon état"
 
 
+async def test_the_ntfy_title_is_the_whole_decision_line() -> None:
+    """The title is what the phone shows first: total, badge, margin, title."""
+    recorder = Recorder()
+
+    await ntfy(recorder).send([notification(1, typical_price=Decimal("40"), margin=Decimal("20"))])
+
+    assert recorder.payload()["title"] == "£16.45 · Steal \u221259% · margin ~+£20 · Item 1"
+
+
 async def test_ntfy_shows_the_photo_and_opens_the_listing() -> None:
     recorder = Recorder()
 
@@ -77,6 +86,14 @@ async def test_ntfy_sends_a_steal_at_top_priority() -> None:
     await ntfy(recorder).send([notification(1, typical_price=Decimal("40"))])
 
     assert recorder.payload()["priority"] == 5
+
+
+async def test_a_silenced_steal_does_not_buzz_on_ntfy() -> None:
+    recorder = Recorder()
+
+    await ntfy(recorder).send([notification(1, typical_price=Decimal("40"), silent=True)])
+
+    assert recorder.payload()["priority"] == 2
 
 
 async def test_ntfy_uses_the_configured_priority_otherwise() -> None:
@@ -184,6 +201,22 @@ async def test_the_webhook_carries_the_deal_and_the_gallery() -> None:
         "30.00",
         6,
     )
+
+
+async def test_the_webhook_names_an_ordinary_listing_s_tier() -> None:
+    recorder = Recorder()
+
+    await hook(recorder).send([notification(1, typical_price=Decimal("17"))])
+
+    assert recorder.payload()["items"][0]["deal_tier"] == "normal"
+
+
+async def test_the_webhook_carries_the_margin() -> None:
+    recorder = Recorder()
+
+    await hook(recorder).send([notification(1, margin=Decimal("19.1"))])
+
+    assert recorder.payload()["items"][0]["margin"] == "19.10"
 
 
 async def test_the_webhook_carries_the_previous_price_of_a_drop() -> None:
@@ -299,6 +332,12 @@ async def test_apprise_sends_title_and_markdown_body() -> None:
 
     assert result.delivered == [1]
     assert _received[0]["title"] == "£16.45 · Item 1"
+
+
+async def test_apprise_body_shows_the_margin() -> None:
+    await AppriseSender({"urls": ["vstest://"]}).send([notification(1, margin=Decimal("5"))])
+
+    assert "margin ~+£5" in _received[0]["body"]
 
 
 async def test_apprise_body_links_the_listing() -> None:

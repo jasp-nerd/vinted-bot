@@ -16,6 +16,12 @@ Three ways to show one listing, picked per destination with `style`:
   becomes when Telegram cannot fetch the image, since an alert without its photo is still
   worth more than no alert.
 
+Every listing leads with one line: the total, the deal badge, the margin and the title.
+That is the line the phone's notification shows, so it is the whole buy-or-skip decision.
+Under the links sit three action buttons the paired bot answers (block the seller, mute
+the search for an hour, hide the listing), which is what makes Telegram the place to
+manage alerts from a phone; see botctl.telegram_bot for the other end.
+
 Bursts fold into one digest message. Groups get that sooner than private chats, because
 Telegram allows a group only twenty messages a minute.
 """
@@ -32,8 +38,9 @@ import httpx
 
 from vinted_sniper.db.repo import PendingNotification
 from vinted_sniper.deliver.base import SenderConfigError, SendResult, require
+from vinted_sniper.deliver.labels import MINUS
 from vinted_sniper.deliver.ratelimit import TokenBucket
-from vinted_sniper.deliver.render import BOT_NAME, MINUS, ListingView, view
+from vinted_sniper.deliver.render import BOT_NAME, ListingView, view
 from vinted_sniper.log import get_logger
 
 log = get_logger(__name__)
@@ -79,6 +86,20 @@ _PHOTO_MARKERS = (
 _TAG = re.compile(r"<[^>]+>")
 
 ApiCall = tuple[str, dict[str, Any]]
+
+# Action buttons carry "a:<verb>:<id>:<site>[:<login>]" as their callback data, which
+# Telegram caps at 64 bytes. The site picks the language of the "done" label.
+ACTION_PREFIX = "a:"
+BLOCK, MUTE, HIDE = "b", "m", "h"
+MAX_CALLBACK_BYTES = 64
+
+
+def action_data(verb: str, target: int, tld: str, login: str | None = None) -> str:
+    """The callback data for one action button, with the seller's login if it fits."""
+    data = f"{ACTION_PREFIX}{verb}:{target}:{tld}"
+    if login and len(f"{data}:{login}".encode()) <= MAX_CALLBACK_BYTES:
+        data += f":{login}"
+    return data
 
 
 @dataclass(frozen=True, slots=True)
@@ -135,14 +156,21 @@ def _time(listing: ListingView) -> str:
     return f'<tg-time unix="{listing.listed_at}" format="r">{fallback}</tg-time>'
 
 
-def _price_line(listing: ListingView) -> str | None:
-    if listing.price is None:
-        return None
-    line = f"<b>{_e(listing.price)}</b>"
-    if listing.previous_price:
-        line += f" <s>{_e(listing.previous_price)}</s>"
-    if listing.badge:
-        line += f"  <i>{_e(listing.badge)}</i>"
+def first_line(listing: ListingView) -> str:
+    """Total, badge, margin and the linked title: what the notification shows."""
+    price = ""
+    if listing.price:
+        price = f"<b>{_e(listing.price)}</b>"
+        if listing.previous_price:
+            price += f" <s>{_e(listing.previous_price)}</s>"
+    parts = [
+        price,
+        *(f"<i>{_e(part)}</i>" for part in listing.summary),
+        f'<a href="{_attr(listing.url)}">{_e(listing.title)}</a>',
+    ]
+    line = " · ".join(part for part in parts if part)
+    if listing.kind != "listing":
+        line = f"<b>{_e(listing.headline)}</b>: {line}"
     return line
 
 
@@ -155,19 +183,18 @@ def _seller_line(listing: ListingView) -> str | None:
         parts.append(login)
     if listing.rating:
         parts.append(_e(listing.rating))
-    return "  ".join(parts) or None
+    if listing.favourites:
+        parts.append(f"♥ {listing.favourites}")
+    return " · ".join(parts) or None
 
 
 def caption(listing: ListingView, *, limit: int = MAX_CAPTION_CHARS) -> str:
     """The HTML under a listing photo, kept inside Telegram's caption limit."""
-    head = [f"<b>{_e(listing.headline)}</b>"] if listing.kind != "listing" else []
     lines = [
-        *head,
-        _price_line(listing),
-        f'<b><a href="{_attr(listing.url)}">{_e(listing.title)}</a></b>',
+        first_line(listing),
         " · ".join(_e(value) for _, value in listing.facts) or None,
         _seller_line(listing),
-        f"{listing.flag} {_e(listing.site)} · {_time(listing)}".strip(),
+        f"{listing.flag} {_e(listing.site)} · {_e(listing.time_label)} {_time(listing)}".strip(),
     ]
     detail = (
         f"<blockquote expandable>{_e(listing.price_note)}</blockquote>"
@@ -183,9 +210,14 @@ def caption(listing: ListingView, *, limit: int = MAX_CAPTION_CHARS) -> str:
     return text
 
 
-def keyboard(listing: ListingView) -> dict[str, Any]:
-    """Buy and message on top, open and dashboard below. Telegram colours the first of
-    each row (Bot API 9.4 `style`)."""
+def keyboard(listing: ListingView, *, actions: bool = True) -> dict[str, Any]:
+    """Buy and message, then open and the dashboard, then the price checks, then the
+    actions the bot answers. Telegram colours the first of the top two rows (Bot API 9.4
+    `style`).
+
+    Without a dashboard a phone can open, eBay's sold prices take its place, and the
+    photo search shares its row; with one, both price checks share the third row.
+    """
     labels = listing.labels
     rows: list[list[dict[str, Any]]] = []
     if listing.can_buy:
@@ -195,13 +227,38 @@ def keyboard(listing: ListingView) -> dict[str, Any]:
                 {"text": labels.message, "url": listing.message_url},
             ]
         )
+    price_check = {"text": labels.price_check, "url": listing.price_check_url}
     second: list[dict[str, Any]] = [{"text": labels.open, "url": listing.url, "style": "primary"}]
+    tools: list[dict[str, Any]] = []
     if listing.dashboard_url:
         second.append(
             {"text": labels.dashboard, "url": listing.search_url or listing.dashboard_url}
         )
+        tools.append(price_check)
+    else:
+        second.append(price_check)
+    if listing.photo_search_url:
+        tools.append({"text": labels.photo_search, "url": listing.photo_search_url})
     rows.append(second)
+    if tools:
+        rows.append(tools)
+    if actions and listing.can_buy:
+        rows.append(_actions(listing))
     return {"inline_keyboard": rows}
+
+
+def _actions(listing: ListingView) -> list[dict[str, Any]]:
+    """Block the seller, mute the search for an hour, hide the listing."""
+    labels = listing.labels
+    tld = listing.site.removeprefix("vinted.")
+    row = []
+    if listing.seller_id is not None:
+        data = action_data(BLOCK, listing.seller_id, tld, listing.seller_login)
+        row.append({"text": labels.block_seller, "callback_data": data})
+    if listing.query_id is not None:
+        row.append({"text": labels.mute, "callback_data": action_data(MUTE, listing.query_id, tld)})
+    row.append({"text": labels.hide, "callback_data": action_data(HIDE, listing.item_id, tld)})
+    return row
 
 
 def _base(options: TelegramOptions, *, silent: bool) -> dict[str, Any]:
@@ -249,8 +306,10 @@ def gallery_call(listing: ListingView, options: TelegramOptions) -> ApiCall:
         price = f"<b>{_e(listing.price)}</b>"
         if listing.previous_price:
             price += f" <s>{_e(listing.previous_price)}</s>"
-        if listing.badge:
-            price += f" <mark>{_e(listing.badge)}</mark>"
+        if listing.short_badge:
+            price += f" <mark>{_e(listing.short_badge)}</mark>"
+        if listing.margin_text:
+            price += f" · {_e(listing.margin_text)}"
         if listing.price_note:
             price += f"<br/><i>{_e(listing.price_note)}</i>"
         price = f"<p>{price}</p>"
@@ -271,7 +330,7 @@ def gallery_call(listing: ListingView, options: TelegramOptions) -> ApiCall:
         f"{price}"
         f"{f'<table>{table}</table>' if table else ''}"
         f"<footer>{_e(listing.search_name)} · {listing.flag} {_e(listing.site)} · "
-        f"{_time(listing)}</footer>"
+        f"{_e(listing.time_label)} {_time(listing)}</footer>"
     )
     return "sendRichMessage", _base(options, silent=listing.silent) | {
         # Without this, a "#tag" in a title turns into a hashtag link.
@@ -291,6 +350,8 @@ def digest_call(listings: list[ListingView], options: TelegramOptions) -> ApiCal
         parts = [f"<b>{_e(listing.price)}</b>" if listing.price else None]
         if listing.deal:
             parts.append(f"<i>{MINUS}{listing.deal.pct}%</i>")
+        if listing.margin:
+            parts.append(_e(listing.margin))
         parts.append(f'<a href="{_attr(listing.url)}">{_e(listing.title[:80])}</a>')
         parts.extend(_e(value) for label, value in listing.facts if label == listing.labels.size)
         if listing.rating:
