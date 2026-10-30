@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% macro icon(name, cls="i") %}<svg class="{{ cls }}" aria-hidden="true"><use href="{{ icons }}#i-{{ name }}"></use></svg>{% endmacro %}
-{% macro copybtn(label=None) %}<button class="copy" type="button" data-copy>{{ icon('copy') }}<span>{{ label or t.install.copy }}</span></button>{% endmacro %}
+{% macro copybtn(label=None) %}<button class="copy" type="button" data-copy>{{ icon('copy') }}<span>{{ label or t.install['copy'] }}</span></button>{% endmacro %}
 {% macro code(text) %}<div class="code"><pre><code>{{ text }}</code></pre>{{ copybtn() }}</div>{% endmacro %}
 {% block main %}
 
