@@ -22,7 +22,8 @@ import re
 from dataclasses import dataclass
 from decimal import Decimal
 
-from vinted_sniper.db.repo import Query, deal_percent
+from vinted_sniper.db.repo import Query
+from vinted_sniper.deals import deal_percent
 from vinted_sniper.engine.validation import TITLE_REGEX_FLAGS, fold
 from vinted_sniper.vinted.models import Item, SellerProfile
 
@@ -81,6 +82,7 @@ class Rules:
             _check_origin(item, blocked_sellers)
             or self._check_text(item)
             or _check_price(item, self.query)
+            or _check_margin(item, self.query)
             or self._check_condition(item)
         )
 
@@ -133,6 +135,24 @@ def _check_price(item: Item, query: Query) -> Rejection | None:
     if query.min_total_price is not None and payable < query.min_total_price:
         return Rejection("under_minimum", f"{payable} below minimum {query.min_total_price}")
     return None
+
+
+def _check_margin(item: Item, query: Query) -> Rejection | None:
+    """Skip what would not leave enough after reselling.
+
+    A margin that cannot be worked out (a listing in another site's currency) lets the
+    listing through, like every other filter that cannot be judged.
+    """
+    if query.min_margin is None:
+        return None
+    margin = query.margin_on(item)
+    if margin is None or margin >= query.min_margin:
+        return None
+    return Rejection(
+        "low_margin",
+        f"reselling at {query.resale_price} would leave about {margin} after fees and "
+        f"postage; this search wants at least {query.min_margin}",
+    )
 
 
 def check(item: Item, query: Query) -> Rejection | None:

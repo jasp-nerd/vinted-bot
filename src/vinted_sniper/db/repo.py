@@ -20,6 +20,7 @@ from zoneinfo import ZoneInfo
 import aiosqlite
 
 from vinted_sniper.db.connection import Database
+from vinted_sniper.deals import deal_percent, margin
 from vinted_sniper.engine import validation
 from vinted_sniper.vinted.models import Item, SellerProfile
 
@@ -85,6 +86,30 @@ class Query:
     notes: str | None = None
     tags: list[str] = field(default_factory=list)
     extra_tlds: list[str] = field(default_factory=list)
+    # What a find resells for, in this search's own site's currency, and what reselling
+    # costs: the selling platform's cut in percent and the postage. See migration 0005.
+    resale_price: Decimal | None = None
+    resale_fee_pct: float | None = None
+    resale_shipping: Decimal | None = None
+    # Skip anything that would leave less than this after reselling.
+    min_margin: Decimal | None = None
+    # Announce nothing until this time (unix seconds). Set from an alert's mute button,
+    # never from the edit form, so saving the form does not end or start a mute.
+    muted_until: int | None = None
+
+    def margin_on(self, item: Item) -> Decimal | None:
+        """What reselling this listing would leave, or None without a resale price."""
+        return margin(
+            item.total_price if item.total_price is not None else item.price,
+            item.currency,
+            site=self.tld,
+            resale_price=self.resale_price,
+            fee_pct=self.resale_fee_pct,
+            shipping=self.resale_shipping,
+        )
+
+    def is_muted(self, now: int) -> bool:
+        return self.muted_until is not None and now < self.muted_until
 
     @property
     def sites(self) -> list[str]:
@@ -146,13 +171,6 @@ class Destination:
     deactivated_reason: str | None = None
 
 
-def deal_percent(total: Decimal | None, typical: Decimal | None) -> int | None:
-    """How far under the typical price a listing is, in whole percent; negative if over."""
-    if total is None or typical is None or typical <= 0:
-        return None
-    return round((typical - total) / typical * 100)
-
-
 @dataclass(frozen=True, slots=True)
 class PendingNotification:
     """One queued notification, joined with what it needs to render."""
@@ -178,6 +196,8 @@ class PendingNotification:
     kind: str = "listing"
     previous_price: Decimal | None = None
     watch_id: int | None = None
+    # What reselling it would leave, from the search's resale price; None without one.
+    margin: Decimal | None = None
 
     @property
     def deal_pct(self) -> int | None:
@@ -378,6 +398,12 @@ def _validated(query: Query) -> Query:
         raise validation.InvalidInputError(
             "min_total_price", "The minimum price is above the maximum."
         )
+    resale_price = validation.parse_price(query.resale_price, field="resale_price")
+    min_margin = validation.parse_price(query.min_margin, field="min_margin")
+    if min_margin is not None and resale_price is None:
+        raise validation.InvalidInputError(
+            "min_margin", "Set what it resells for first: the margin is worked out from that."
+        )
     return replace(
         query,
         name=validation.parse_name(query.name, fallback=f"vinted.{query.tld}"),
@@ -401,6 +427,10 @@ def _validated(query: Query) -> Query:
         notes=validation.parse_notes(query.notes),
         tags=validation.parse_words(query.tags, field="tags"),
         extra_tlds=validation.parse_tlds(query.extra_tlds, primary=query.tld),
+        resale_price=resale_price,
+        resale_fee_pct=validation.parse_fee_pct(query.resale_fee_pct),
+        resale_shipping=validation.parse_price(query.resale_shipping, field="resale_shipping"),
+        min_margin=min_margin,
     )
 
 
@@ -432,6 +462,10 @@ def _query_columns(query: Query) -> dict[str, Any]:
         "notes": query.notes,
         "tags_json": json.dumps(query.tags),
         "extra_tlds_json": json.dumps(query.extra_tlds),
+        "resale_price": _real(query.resale_price),
+        "resale_fee_pct": query.resale_fee_pct,
+        "resale_shipping": _real(query.resale_shipping),
+        "min_margin": _real(query.min_margin),
     }
 
 
@@ -528,6 +562,34 @@ def _feed_item(row: aiosqlite.Row) -> FeedItem:
         typical_price=_money(row["typical_price"]),
         seller_country=row["seller_country"],
         mark=row["mark"],
+    )
+
+
+def _pending(row: aiosqlite.Row) -> PendingNotification:
+    """A claimed outbox row, joined with its listing and search, ready to render."""
+    item = _item_from_row(row)
+    return PendingNotification(
+        outbox_id=row["outbox_id"],
+        destination_id=row["destination_id"],
+        query_id=row["outbox_query_id"],
+        query_name=row["query_name"] or row["watch_label"] or "search",
+        attempts=row["attempts"],
+        item=item,
+        detected_at=row["first_seen_at"],
+        query_color=row["query_color"],
+        typical_price=_money(row["typical_price"]),
+        silent=bool(row["silent"]),
+        kind=row["outbox_kind"],
+        previous_price=_money(row["previous_price"]),
+        watch_id=row["outbox_watch_id"],
+        margin=margin(
+            item.total_price if item.total_price is not None else item.price,
+            item.currency,
+            site=row["query_tld"] or item.tld,
+            resale_price=_money(row["resale_price"]),
+            fee_pct=row["resale_fee_pct"],
+            shipping=_money(row["resale_shipping"]),
+        ),
     )
 
 
@@ -639,6 +701,10 @@ class Repo:
             notes=original.notes,
             tags=original.tags,
             extra_tlds=original.extra_tlds,
+            resale_price=original.resale_price,
+            resale_fee_pct=original.resale_fee_pct,
+            resale_shipping=original.resale_shipping,
+            min_margin=original.min_margin,
         )
         await self.set_paused(copy_id, True)
         await self._db.execute(
@@ -669,6 +735,20 @@ class Repo:
             "UPDATE queries SET paused = ?, updated_at = ? WHERE id = ?",
             (int(paused), int(time.time()), query_id),
         )
+
+    async def mute_query(self, query_id: int, until: int) -> None:
+        """Announce nothing from this search until `until`, starting with what is queued.
+
+        What is already waiting goes too: someone who mutes a search from an alert wants
+        the next hour quiet, not the backlog delivered first.
+        """
+        async with self._db.transaction() as conn:
+            await conn.execute("UPDATE queries SET muted_until = ? WHERE id = ?", (until, query_id))
+            await conn.execute(
+                "UPDATE outbox SET status = 'cancelled', last_error = 'search muted' "
+                "WHERE query_id = ? AND status = 'pending' AND kind = 'listing'",
+                (query_id,),
+            )
 
     async def delete_query(self, query_id: int) -> None:
         await self._db.execute("DELETE FROM queries WHERE id = ?", (query_id,))
@@ -702,6 +782,11 @@ class Repo:
             notes=row["notes"],
             tags=_json_list(row["tags_json"]) or [],
             extra_tlds=_json_list(row["extra_tlds_json"]) or [],
+            resale_price=_money(row["resale_price"]),
+            resale_fee_pct=row["resale_fee_pct"],
+            resale_shipping=_money(row["resale_shipping"]),
+            min_margin=_money(row["min_margin"]),
+            muted_until=row["muted_until"],
         )
 
     # --- Search state --------------------------------------------------------------
@@ -1144,6 +1229,7 @@ class Repo:
                 "SELECT o.id AS outbox_id, o.destination_id, o.query_id AS outbox_query_id, "
                 "o.watch_id AS outbox_watch_id, o.attempts, o.kind AS outbox_kind, "
                 "o.previous_price, o.silent, q.name AS query_name, q.color AS query_color, "
+                "q.tld AS query_tld, q.resale_price, q.resale_fee_pct, q.resale_shipping, "
                 "w.label AS watch_label, i.* FROM outbox o "
                 "JOIN items i ON i.item_id = o.item_id "
                 "LEFT JOIN queries q ON q.id = o.query_id "
@@ -1160,24 +1246,7 @@ class Repo:
                     [(now + lease_seconds, row["outbox_id"]) for row in rows],
                 )
 
-        return [
-            PendingNotification(
-                outbox_id=row["outbox_id"],
-                destination_id=row["destination_id"],
-                query_id=row["outbox_query_id"],
-                query_name=row["query_name"] or row["watch_label"] or "search",
-                attempts=row["attempts"],
-                item=_item_from_row(row),
-                detected_at=row["first_seen_at"],
-                query_color=row["query_color"],
-                typical_price=_money(row["typical_price"]),
-                silent=bool(row["silent"]),
-                kind=row["outbox_kind"],
-                previous_price=_money(row["previous_price"]),
-                watch_id=row["outbox_watch_id"],
-            )
-            for row in rows
-        ]
+        return [_pending(row) for row in rows]
 
     async def mark_sent(self, outbox_ids: list[int]) -> None:
         if not outbox_ids:

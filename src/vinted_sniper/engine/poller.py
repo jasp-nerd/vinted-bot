@@ -277,6 +277,7 @@ class Poller:
             else:
                 verdicts.announce.append(item)
 
+        self._apply_mute(verdicts)
         hold_until, silent = await self._apply_quiet_hours(verdicts)
         destination_ids = await self._repo.destination_ids_for_query(self.query.id)
         await self._repo.record_new_items(
@@ -348,6 +349,18 @@ class Poller:
                 hint="seller country and rating filters need seller lookups, which this "
                 "build cannot do yet; listings are passed through unjudged",
             )
+
+    def _apply_mute(self, verdicts: _Verdicts) -> None:
+        """Announce nothing while the search is muted; log what was held back and why."""
+        now = int(time.time())
+        if not verdicts.announce or not self.query.is_muted(now):
+            return
+        minutes = max(1, round(((self.query.muted_until or now) - now) / 60))
+        verdicts.rejected.extend(
+            RejectedListing(item, "muted", f"search muted for another {minutes} min", final=False)
+            for item in verdicts.announce
+        )
+        verdicts.announce = []
 
     async def _apply_quiet_hours(self, verdicts: _Verdicts) -> tuple[int | None, bool]:
         """Hold, drop or silence this check's alerts if the search is in its quiet hours."""
