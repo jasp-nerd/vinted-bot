@@ -14,16 +14,16 @@ keywords:
   - vinted bot github
 faq:
   - q: "Bestaat er een gratis Vinted bot?"
-    a: "Ja. vinted-sniper is gratis en open source (MIT-licentie), zonder betaalde versie. Het houdt je Vinted-zoekopdrachten in de gaten en stuurt nieuwe items naar Discord, Telegram, ntfy op je telefoon of een webhook. Het draait op je eigen computer, die daarvoor aan moet blijven."
+    a: "Ja. vinted-bot is gratis en open source (MIT-licentie), zonder betaalde versie. Het houdt je Vinted-zoekopdrachten in de gaten en stuurt nieuwe items naar Discord, Telegram, ntfy op je telefoon of een webhook. Het draait op je eigen computer, die daarvoor aan moet blijven."
   - q: "Heeft een Vinted bot mijn inloggegevens nodig?"
     a: "Een bot die alleen meldingen stuurt niet. Zoekresultaten kan iedereen zonder inloggen bekijken. Alleen tools die voor je kopen, berichten sturen of items opnieuw plaatsen hebben je account nodig, en juist die brengen het in gevaar."
   - q: "Is er een Vinted bot app?"
-    a: "Er zijn betaalde apps, meestal een paar euro per maand. Gratis kan ook: laat vinted-sniper op een computer draaien en ontvang de meldingen in de gratis app ntfy op je telefoon, zonder account."
+    a: "Er zijn betaalde apps, meestal een paar euro per maand. Gratis kan ook: laat vinted-bot op een computer draaien en ontvang de meldingen in de gratis app ntfy op je telefoon, zonder account."
   - q: "Kan een gratis Vinted bot automatisch kopen?"
-    a: "Deze niet. Automatisch kopen kan alleen met je ingelogde account, en daar komen accountblokkades vandaan. vinted-sniper zet in elke melding een Kopen-knop, zodat jij zelf koopt."
+    a: "Deze niet. Automatisch kopen kan alleen met je ingelogde account, en daar komen accountblokkades vandaan. vinted-bot zet in elke melding een Kopen-knop, zodat jij zelf koopt."
 ---
 
-Ja, een Vinted bot kan gratis. vinted-sniper is een gratis open-source app die je Vinted-zoekopdrachten in de gaten houdt en elk nieuw item naar Discord, Telegram of je telefoon stuurt, met de prijs die je echt betaalt. Het draait op je eigen computer in plaats van op de server van een ander bedrijf. Daarom kost het niets, en het vraagt nooit om je Vinted-login.
+Ja, een Vinted bot kan gratis. vinted-bot is een gratis open-source app die je Vinted-zoekopdrachten in de gaten houdt en elk nieuw item naar Discord, Telegram of je telefoon stuurt, met de prijs die je echt betaalt. Het draait op je eigen computer in plaats van op de server van een ander bedrijf. Daarom kost het niets, en het vraagt nooit om je Vinted-login.
 
 Hieronder: wat mensen bedoelen met "Vinted bot", welke gratis opties er zijn, hoe je in een minuut of tien begint, en de beperkingen die je moet kennen.
 
@@ -31,7 +31,7 @@ Hieronder: wat mensen bedoelen met "Vinted bot", welke gratis opties er zijn, ho
 
 Onder dat woord vallen heel verschillende tools, en het verschil bepaalt zowel de prijs als het risico.
 
-Een meldingsbot (ook monitor of sniper genoemd) houdt een zoekopdracht in de gaten en laat het weten zodra er iets nieuws verschijnt. Kopen doe je zelf. Dit is wat de meeste mensen zoeken als de meldingen van een opgeslagen zoekopdracht in Vinted niet betrouwbaar binnenkomen.
+Een meldingsbot (ook wel monitor genoemd) houdt een zoekopdracht in de gaten en laat het weten zodra er iets nieuws verschijnt. Kopen doe je zelf. Dit is wat de meeste mensen zoeken als de meldingen van een opgeslagen zoekopdracht in Vinted niet betrouwbaar binnenkomen.
 
 Een autobuy-bot logt in als jou en rekent af zodra een item past. Dat zijn de dure tools, en ze hebben je account en betaalgegevens nodig.
 
@@ -55,9 +55,9 @@ Gedeelde kanalen die items uit populaire categorieën posten. Je ziet wat iedere
 
 ### Open-source tools op je eigen computer
 
-Gratis en zonder limiet op het aantal zoekopdrachten, maar er moet een computer aan blijven. vinted-sniper is er zo een. Het is gemaakt om makkelijk te installeren en om te laten weten wanneer het niet meer werkt, de meest gehoorde klacht over gratis bots.
+Gratis en zonder limiet op het aantal zoekopdrachten, maar er moet een computer aan blijven. vinted-bot is er zo een. Het is gemaakt om makkelijk te installeren en om te laten weten wanneer het niet meer werkt, de meest gehoorde klacht over gratis bots.
 
-## Waarom vinted-sniper gratis is
+## Waarom vinted-bot gratis is
 
 Er is geen server aan onze kant. De app draait op je laptop, pc, Raspberry Pi of NAS, controleert je zoekopdrachten via je eigen internetverbinding en stuurt de meldingen van daaruit. Geen serverkosten, dus niets te rekenen. De code staat onder de MIT-licentie op GitHub, iedereen kan nalezen wat hij doet.
 
@@ -89,7 +89,7 @@ De meldingen komen van het apparaat waarop de app draait. Een laptop in slaapsta
 
 ### Direct kan niet, bij niemand
 
-Vinted zet nieuwe items pas een paar minuten na het uploaden in de zoekresultaten. Elke tool die de zoekresultaten leest, betaald of gratis, ziet ze pas dan. vinted-sniper controleert standaard elke minuut. Vaker controleren levert niets eerder op en zorgt er alleen voor dat Vinted je verbinding afremt. Tegen autobuy-bots die op goedkope consoles jagen wint geen meldingstool. Zoek je een bepaalde maat, een merk of een verzamelobject, dan is een minuut ruim voldoende.
+Vinted zet nieuwe items pas een paar minuten na het uploaden in de zoekresultaten. Elke tool die de zoekresultaten leest, betaald of gratis, ziet ze pas dan. vinted-bot controleert standaard elke minuut. Vaker controleren levert niets eerder op en zorgt er alleen voor dat Vinted je verbinding afremt. Tegen autobuy-bots die op goedkope consoles jagen wint geen meldingstool. Zoek je een bepaalde maat, een merk of een verzamelobject, dan is een minuut ruim voldoende.
 
 ### Je verbinding telt mee
 

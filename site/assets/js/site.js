@@ -1,4 +1,4 @@
-// vinted-sniper landing page: the hero demo, tabs, copy buttons and the install tab that
+// vinted-bot landing page: the hero demo, tabs, copy buttons and the install tab that
 // matches your computer. No dependencies, nothing sent anywhere.
 (() => {
   'use strict';

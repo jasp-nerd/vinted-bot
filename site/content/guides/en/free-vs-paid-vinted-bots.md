@@ -90,9 +90,9 @@ If you have nothing that stays on and don't want to install anything, a paid ale
 - Your data and links stay on your own machine.
 - With an open-source tool, you can check exactly what it does.
 
-## Where vinted-sniper fits
+## Where vinted-bot fits
 
-vinted-sniper is a free, open-source (MIT) alert bot. It does what the €5 to €30 a month alert services do:
+vinted-bot is free and open source (MIT), and it sticks to alerts. It does what the €5 to €30 a month alert services do:
 
 - Alerts on Discord, Telegram, ntfy on your phone, RSS or a webhook, with email and others through an optional add-on.
 - Price limits on the total including buyer protection, words to require and skip, seller rating, reviews and country filters, a seller blocklist and a deal badge.

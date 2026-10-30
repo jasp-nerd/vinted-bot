@@ -10,7 +10,6 @@ keywords:
   - bot vinted comment ça marche
   - bot vinted explication
   - bot vinted 0 délai
-  - logiciel sniper vinted
   - bot vinted autobuy
 faq:
   - q: "C'est quoi un bot Vinted ?"
@@ -23,11 +22,11 @@ faq:
     a: "Un bot d'alerte vaut le coup si vous cherchez des articles, des tailles ou des pièces de collection précises et que les notifications de Vinted vous déçoivent, surtout s'il est gratuit. Payer pour de l'achat automatique se justifie rarement hors revente à gros volume, et expose votre compte."
 ---
 
-Un bot Vinted, c'est un programme qui fait quelque chose sur Vinted automatiquement. La plupart du temps, on parle d'un bot d'alerte (aussi appelé moniteur ou sniper) qui surveille une recherche et vous envoie les nouvelles annonces en quelques minutes. Le terme recouvre aussi les bots d'achat automatique, qui achètent à votre place, et les bots pour vendeurs qui republient des annonces ou distribuent likes et abonnements. Ils fonctionnent très différemment et ne présentent pas du tout les mêmes risques.
+Un bot Vinted, c'est un programme qui fait quelque chose sur Vinted automatiquement. La plupart du temps, on parle d'un bot d'alerte (aussi appelé moniteur) qui surveille une recherche et vous envoie les nouvelles annonces en quelques minutes. Le terme recouvre aussi les bots d'achat automatique, qui achètent à votre place, et les bots pour vendeurs qui republient des annonces ou distribuent likes et abonnements. Ils fonctionnent très différemment et ne présentent pas du tout les mêmes risques.
 
 ## Les quatre types de bots Vinted
 
-### Les bots d'alerte, moniteurs et snipers
+### Les bots d'alerte et moniteurs
 
 Ils surveillent une ou plusieurs recherches et vous préviennent quand une nouvelle annonce apparaît, en général sur Discord ou Telegram, parfois par notification sur le téléphone. Vous ouvrez l'annonce et vous achetez vous-même. Ils n'ont pas besoin de votre compte Vinted, puisque les résultats de recherche sont publics.
 
@@ -85,7 +84,7 @@ Les serveurs communautaires gratuits publient les annonces de recherches prédé
 
 Les bots open source tournent sur une machine à vous : votre portable, un Raspberry Pi, un NAS. Ils sont gratuits, vous réglez tous les filtres, et vos recherches et liens d'alerte restent chez vous. La contrepartie : la machine doit rester allumée.
 
-vinted-sniper est de ce type. Il est gratuit et open source, ne se connecte jamais à Vinted et envoie les alertes sur Discord, Telegram, votre téléphone (via l'appli gratuite ntfy) ou un webhook. Il affiche les prix protection acheteurs comprise, permet d'exclure des mots et les vendeurs mal notés, et vous dit en clair quand une recherche ne fonctionne plus.
+vinted-bot est de ce type. Il est gratuit et open source, ne se connecte jamais à Vinted et envoie les alertes sur Discord, Telegram, votre téléphone (via l'appli gratuite ntfy) ou un webhook. Il affiche les prix protection acheteurs comprise, permet d'exclure des mots et les vendeurs mal notés, et vous dit en clair quand une recherche ne fonctionne plus.
 
 {{install}}
 

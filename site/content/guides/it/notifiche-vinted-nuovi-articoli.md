@@ -14,13 +14,13 @@ keywords:
   - vinted alert
 faq:
   - q: "Come ricevere notifiche Vinted quando qualcuno carica un articolo?"
-    a: "Per un singolo venditore, seguilo e Vinted ti avvisa quando carica. Per una ricerca, salvala nell'app, ma quegli avvisi arrivano spesso in ritardo o mai. Per avvisi affidabili usa uno strumento esterno come vinted-sniper, che controlla la ricerca ogni minuto."
+    a: "Per un singolo venditore, seguilo e Vinted ti avvisa quando carica. Per una ricerca, salvala nell'app, ma quegli avvisi arrivano spesso in ritardo o mai. Per avvisi affidabili usa uno strumento esterno come vinted-bot, che controlla la ricerca ogni minuto."
   - q: "Come ricevere notifiche Vinted su iPhone?"
     a: "In Impostazioni, Notifiche, Vinted consenti le notifiche e controlla che Full immersion e il Riepilogo programmato non le trattengano. Per le ricerche, molti preferiscono ricevere gli avvisi su Telegram, che su iPhone arrivano senza problemi."
   - q: "Come ricevere notifiche Vinted su PC?"
-    a: "Vinted non ha notifiche desktop per le ricerche salvate. Puoi usare Telegram o Discord da computer: vinted-sniper manda lì i nuovi annunci, e ha anche una dashboard nel browser con il feed in diretta."
+    a: "Vinted non ha notifiche desktop per le ricerche salvate. Puoi usare Telegram o Discord da computer: vinted-bot manda lì i nuovi annunci, e ha anche una dashboard nel browser con il feed in diretta."
   - q: "Quanto sono veloci le notifiche Vinted?"
-    a: "Vinted aggiunge gli annunci alla ricerca qualche minuto dopo il caricamento, quindi ogni avviso, ufficiale o no, arriva dopo. vinted-sniper controlla ogni minuto, quindi di solito lo sai entro pochi minuti dalla pubblicazione."
+    a: "Vinted aggiunge gli annunci alla ricerca qualche minuto dopo il caricamento, quindi ogni avviso, ufficiale o no, arriva dopo. vinted-bot controlla ogni minuto, quindi di solito lo sai entro pochi minuti dalla pubblicazione."
 ---
 
 Per ricevere una notifica quando esce un nuovo articolo su Vinted hai tre strade: salvare la ricerca nell'app Vinted, seguire i venditori che ti interessano, oppure usare uno strumento che controlla la tua ricerca e ti scrive. Le prime due sono integrate e gratuite ma limitate. La terza è l'unica affidabile per una ricerca, e può essere gratuita anche lei.
@@ -49,7 +49,7 @@ Copre però solo chi conosci già. Non ti aiuta a trovare il prossimo buon vendi
 
 Uno strumento di avvisi, spesso chiamato bot Vinted, carica i risultati più recenti della tua ricerca a intervalli regolari e ti manda tutto ciò che non ha ancora visto. Decidi tu dove arrivano i messaggi: una chat Telegram, un canale Discord, una notifica push sul telefono.
 
-I servizi a pagamento lo fanno dai loro server per circa 5-30 euro al mese (a ottobre 2026). vinted-sniper lo fa gratis dal tuo computer. La configurazione:
+I servizi a pagamento lo fanno dai loro server per circa 5-30 euro al mese (a ottobre 2026). vinted-bot lo fa gratis dal tuo computer. La configurazione:
 
 1. Installalo con il comando di una riga della homepage. La dashboard si apre nel browser.
 2. Incolla il link della tua ricerca Vinted, oppure costruisci la ricerca nella dashboard con categorie, marche e taglie di Vinted.
@@ -63,11 +63,11 @@ Ogni avviso mostra le foto, il prezzo totale, taglia, condizioni, marca, la valu
 
 ## Su iPhone, su Android o su PC
 
-Su iPhone e Android le notifiche di Telegram, Discord o ntfy funzionano come quelle di qualsiasi app: consentile nelle impostazioni del telefono e togli l'app dal risparmio batteria. Su PC Vinted non ha notifiche per le ricerche salvate, ma Telegram Desktop e Discord sì, e vinted-sniper ha una dashboard nel browser con i nuovi annunci che compaiono in diretta, anche con un suono se vuoi.
+Su iPhone e Android le notifiche di Telegram, Discord o ntfy funzionano come quelle di qualsiasi app: consentile nelle impostazioni del telefono e togli l'app dal risparmio batteria. Su PC Vinted non ha notifiche per le ricerche salvate, ma Telegram Desktop e Discord sì, e vinted-bot ha una dashboard nel browser con i nuovi annunci che compaiono in diretta, anche con un suono se vuoi.
 
 ## Quale scegliere?
 
-| | Ricerca salvata (Vinted) | Seguire un venditore | Avvisi gratis (vinted-sniper) | Servizio a pagamento |
+| | Ricerca salvata (Vinted) | Seguire un venditore | Avvisi gratis (vinted-bot) | Servizio a pagamento |
 |---|---|---|---|---|
 | Costo | Gratis | Gratis | Gratis | Circa 5-30 euro al mese |
 | Affidabilità | Spesso in ritardo o assenti | In genere buona | Controllo ogni minuto, ti avvisa se si ferma | Dipende dal servizio |
@@ -86,11 +86,11 @@ Una ricerca da sfogliare può essere ampia. Una ricerca che ti fa vibrare il tel
 
 ### "Questo o quello" invece di cinque ricerche
 
-"Levi's 501 o 505" può essere una sola ricerca: in vinted-sniper una parola obbligatoria può avere alternative, scritte `501|505`. Meno ricerche significa meno richieste a Vinted e meno rischio di essere rallentato.
+"Levi's 501 o 505" può essere una sola ricerca: in vinted-bot una parola obbligatoria può avere alternative, scritte `501|505`. Meno ricerche significa meno richieste a Vinted e meno rischio di essere rallentato.
 
 ### Più di un paese
 
-Ogni sito Vinted mostra un mix un po' diverso di venditori. Una ricerca di vinted-sniper può controllare più siti, e un annuncio visto su due siti viene segnalato una volta sola.
+Ogni sito Vinted mostra un mix un po' diverso di venditori. Una ricerca di vinted-bot può controllare più siti, e un annuncio visto su due siti viene segnalato una volta sola.
 
 ### Ore di silenzio
 

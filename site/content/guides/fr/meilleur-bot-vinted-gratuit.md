@@ -14,7 +14,7 @@ keywords:
   - logiciel bot vinted
 faq:
   - q: "Quel est le meilleur bot Vinted gratuit ?"
-    a: "Pour des alertes sur des recherches précises, un bot open source que vous faites tourner vous-même, comme vinted-sniper, fait gratuitement ce que font les services d'alerte payants. Sa contrepartie : l'ordinateur qui le fait tourner doit rester allumé."
+    a: "Pour des alertes sur des recherches précises, un bot open source que vous faites tourner vous-même, comme vinted-bot, fait gratuitement ce que font les services d'alerte payants. Sa contrepartie : l'ordinateur qui le fait tourner doit rester allumé."
   - q: "Combien coûte un bot Vinted ?"
     a: "En octobre 2026 : environ 5 à 30 € par mois pour les services d'alerte seuls, environ 15 à 50 € par mois pour les serveurs Discord avec achat automatique, 30 à 110 € par mois pour les outils d'achat automatique, avec des formules haut de gamme qui ont atteint 300 €. Les outils open source sont gratuits."
   - q: "Les bots Vinted payants sont-ils plus rapides ?"
@@ -90,9 +90,9 @@ Si rien ne reste allumé chez vous et que vous ne voulez rien installer, un serv
 - Vos données et vos liens restent sur votre machine.
 - Avec un outil open source, vous pouvez vérifier exactement ce qu'il fait.
 
-## Où se situe vinted-sniper
+## Où se situe vinted-bot
 
-vinted-sniper est un bot d'alerte gratuit et open source (licence MIT). Il fait ce que font les services d'alerte à 5 à 30 € par mois :
+vinted-bot est gratuit, open source (licence MIT) et s'en tient aux alertes. Il fait ce que font les services d'alerte à 5 à 30 € par mois :
 
 - Des alertes sur Discord, Telegram, ntfy sur votre téléphone, RSS ou webhook, avec l'e-mail et d'autres services via un module optionnel.
 - Des limites de prix sur le total protection acheteurs comprise, des mots obligatoires et à exclure, des filtres sur la note, le nombre d'avis et le pays du vendeur, une liste de vendeurs bloqués et un badge bonne affaire.

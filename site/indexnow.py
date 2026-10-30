@@ -4,7 +4,8 @@ Google doesn't use IndexNow; it reads the sitemap. Run after a deploy:
     python3 site/indexnow.py            # every URL in the built sitemap
     python3 site/indexnow.py --dry-run  # print what would be sent
 
-The key is the file site/static/<key>.txt, served at https://vinted-sniper.jaspnerd.dev/<key>.txt.
+The key is the file site/static/<key>.txt, served at https://vinted-bot.jaspnerd.dev/<key>.txt
+(the host comes from site/siteconfig.py).
 Make sure that URL answers with the key before pinging, or the ping is ignored.
 """
 
@@ -19,7 +20,9 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 SITE = Path(__file__).resolve().parent
-HOST = "vinted-sniper.jaspnerd.dev"
+sys.path.insert(0, str(SITE))
+from siteconfig import HOST  # noqa: E402
+
 ENDPOINT = "https://api.indexnow.org/IndexNow"
 
 

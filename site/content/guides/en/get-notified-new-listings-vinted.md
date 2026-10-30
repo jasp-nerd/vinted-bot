@@ -14,13 +14,13 @@ keywords:
   - vinted email alerts
 faq:
   - q: "How do I get notifications when someone uploads on Vinted?"
-    a: "For one seller, follow them and Vinted notifies you when they upload. For a search, save it in the app, but those alerts are often late or missing. For dependable alerts, use an external tool such as vinted-sniper, which checks your search every minute and messages you."
+    a: "For one seller, follow them and Vinted notifies you when they upload. For a search, save it in the app, but those alerts are often late or missing. For dependable alerts, use an external tool such as vinted-bot, which checks your search every minute and messages you."
   - q: "Can I get Vinted alerts by email?"
-    a: "Vinted doesn't offer saved-search emails you can count on. vinted-sniper can send alerts by email through its optional Apprise add-on, but most people find Discord, Telegram or a phone notification quicker."
+    a: "Vinted doesn't offer saved-search emails you can count on. vinted-bot can send alerts by email through its optional Apprise add-on, but most people find Discord, Telegram or a phone notification quicker."
   - q: "Is there a Vinted alert app?"
-    a: "There are paid alert apps, typically a few euros a month. A free alternative is to run vinted-sniper on a computer and receive its alerts in the free ntfy app on your phone, with no account needed."
+    a: "There are paid alert apps, typically a few euros a month. A free alternative is to run vinted-bot on a computer and receive its alerts in the free ntfy app on your phone, with no account needed."
   - q: "How fast are Vinted alerts?"
-    a: "Vinted adds listings to its search a few minutes after upload, so any alert, official or not, comes after that. vinted-sniper checks every minute by default, so you typically hear within a few minutes of a listing going up."
+    a: "Vinted adds listings to its search a few minutes after upload, so any alert, official or not, comes after that. vinted-bot checks every minute by default, so you typically hear within a few minutes of a listing going up."
 ---
 
 There are three ways to get notified when a new item is listed on Vinted: save the search in the Vinted app, follow the sellers you like, or use an alert tool that checks your search and messages you. The first two are built in and free but limited. The third is the only one that works reliably for a search, and it can be free too.
@@ -49,7 +49,7 @@ It only covers people you already know about, though. It won't help you find the
 
 An alert tool, often called a Vinted bot or monitor, loads your search's newest results on a schedule and sends you anything it hasn't seen before. You decide where the messages go: a Discord channel, a Telegram chat, a push notification on your phone, email.
 
-Paid services do this from their own servers for roughly €5 to €30 a month (as of October 2026). vinted-sniper does it for free from your own computer. Setting it up looks like this:
+Paid services do this from their own servers for roughly €5 to €30 a month (as of October 2026). vinted-bot does it for free from your own computer. Setting it up looks like this:
 
 1. Install it with the one-line command from the homepage. The dashboard opens in your browser.
 2. Paste your Vinted search link, or build the search in the dashboard with Vinted's categories, brands and sizes.
@@ -63,7 +63,7 @@ Each alert shows the photos, the total price, size, condition, brand, the seller
 
 ## Which one should you use?
 
-| | Saved search (Vinted) | Follow a seller | Free alert tool (vinted-sniper) | Paid alert service |
+| | Saved search (Vinted) | Follow a seller | Free alert tool (vinted-bot) | Paid alert service |
 |---|---|---|---|---|
 | Cost | Free | Free | Free | About €5 to €30 a month |
 | Reliability | Often late or missing | Generally fine | Checks every minute, tells you if it stops | Depends on the service |
@@ -82,11 +82,11 @@ A search you browse can be broad, because you skim. A search that pings your pho
 
 ### Use "this or that" instead of five searches
 
-"Levi's 501 or 505" can be one search: in vinted-sniper, a required word can have alternatives, written `501|505`. Fewer searches means fewer requests to Vinted and less chance of being slowed down.
+"Levi's 501 or 505" can be one search: in vinted-bot, a required word can have alternatives, written `501|505`. Fewer searches means fewer requests to Vinted and less chance of being slowed down.
 
 ### Cover more than one country
 
-Each Vinted country site shows a slightly different mix of sellers. One search in vinted-sniper can watch several sites, and a listing seen on two of them is only announced once.
+Each Vinted country site shows a slightly different mix of sellers. One search in vinted-bot can watch several sites, and a listing seen on two of them is only announced once.
 
 ### Set quiet hours
 
