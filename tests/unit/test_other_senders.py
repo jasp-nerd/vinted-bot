@@ -88,6 +88,14 @@ async def test_ntfy_sends_a_steal_at_top_priority() -> None:
     assert recorder.payload()["priority"] == 5
 
 
+async def test_a_silenced_steal_does_not_buzz_on_ntfy() -> None:
+    recorder = Recorder()
+
+    await ntfy(recorder).send([notification(1, typical_price=Decimal("40"), silent=True)])
+
+    assert recorder.payload()["priority"] == 2
+
+
 async def test_ntfy_uses_the_configured_priority_otherwise() -> None:
     recorder = Recorder()
 

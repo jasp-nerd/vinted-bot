@@ -117,6 +117,20 @@ def test_an_unknown_tier_is_a_configuration_error() -> None:
         Routing.from_config({"tiers": ["bargain"]})
 
 
+def test_tiers_may_be_typed_as_a_comma_separated_list() -> None:
+    assert Routing.from_config({"tiers": "Steal, deal"}).tiers == {"steal", "deal"}
+
+
+def test_tiers_that_are_not_a_list_are_a_configuration_error() -> None:
+    with pytest.raises(SenderConfigError):
+        Routing.from_config({"tiers": {"steal": True}})
+
+
+def test_a_threshold_that_is_not_a_number_is_a_configuration_error() -> None:
+    with pytest.raises(SenderConfigError):
+        Routing.from_config({"min_deal_pct": "lots"})
+
+
 def test_an_empty_tier_list_is_a_configuration_error() -> None:
     """Delivering nothing at all is what switching the destination off is for."""
     with pytest.raises(SenderConfigError):

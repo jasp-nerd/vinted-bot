@@ -50,9 +50,16 @@ def _server_and_topic(config: dict[str, Any]) -> tuple[str, str]:
 
 
 def _priority(listing: ListingView, default: int) -> int:
+    """Deals louder, quiet hours and silent tiers quieter, the destination's choice otherwise.
+
+    Silence wins over a deal: a destination that asked for its deals without a sound
+    should not get a top-priority buzz for one.
+    """
+    if listing.silent:
+        return SILENT_PRIORITY
     if listing.deal is not None:
         return STEAL_PRIORITY if listing.deal.tier == "steal" else DEAL_PRIORITY
-    return SILENT_PRIORITY if listing.silent else default
+    return default
 
 
 def push(

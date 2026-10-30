@@ -213,6 +213,15 @@ async def test_a_price_drop_strikes_through_the_old_price() -> None:
     assert first_text(recorder.payload()).startswith("Price drop: **£16.45** ~~£25.00~~")
 
 
+async def test_a_seller_s_login_in_the_first_line_has_no_backslashes() -> None:
+    """The first line is the phone notification, which shows escapes literally."""
+    recorder = Recorder()
+
+    await sender(recorder).send([notification(1, kind="seller_upload", seller_login="jo_vint")])
+
+    assert "\\" not in first_text(recorder.payload())
+
+
 async def test_a_sold_listing_has_no_buy_button() -> None:
     recorder = Recorder()
 
@@ -448,6 +457,14 @@ async def test_compact_style_shows_one_listing_as_a_thumbnail_row() -> None:
 
     container = recorder.payload()["components"][0]
     assert [c["type"] for c in container["components"]] == [9, 1]
+
+
+async def test_a_compact_row_names_its_search() -> None:
+    recorder = Recorder()
+
+    await sender(recorder, style="compact").send([notification(1, query_name="carhartt")])
+
+    assert "· carhartt" in all_text(recorder.payload())
 
 
 async def test_a_compact_row_leads_with_the_first_line() -> None:

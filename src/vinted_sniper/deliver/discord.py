@@ -252,7 +252,7 @@ def first_line(listing: ListingView, *, link_title: bool = False) -> str:
     parts = [price, *listing.summary, title]
     line = " · ".join(part for part in parts if part)
     if listing.kind != "listing":
-        line = f"{escape(listing.headline)}: {line}"
+        line = f"{link_text(listing.headline)}: {line}"
     return line
 
 
@@ -323,6 +323,7 @@ def _row_text(listing: ListingView, *, link_title: bool) -> str:
     third = [
         f"{listing.flag} {listing.site}".strip(),
         _when(listing),
+        escape(listing.search_name),
     ]
     if link_title and listing.can_buy:
         third.append(f"[{listing.labels.buy}]({_link(listing.buy_url)})")
