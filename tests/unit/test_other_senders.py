@@ -143,12 +143,50 @@ async def test_ntfy_refusing_the_topic_switches_it_off() -> None:
     assert (result.permanent_error is not None, result.retry) == (True, [])
 
 
-async def test_ntfy_out_of_allowance_waits_a_minute() -> None:
+async def test_ntfy_asking_to_slow_down_waits_a_minute() -> None:
     recorder = Recorder(httpx.Response(429))
 
     result = await ntfy(recorder).send([notification(1)])
 
-    assert (result.retry, result.retry_after_s) == ([1], 60.0)
+    assert (result.retry, result.retry_after_s, result.pause_until) == ([1], 60.0, None)
+
+
+async def test_ntfy_s_daily_limit_pauses_the_destination_until_midnight_utc() -> None:
+    recorder = Recorder(
+        httpx.Response(429, json={"code": 42908, "error": "limit reached: daily message quota"})
+    )
+
+    result = await ntfy(recorder).send([notification(1)])
+
+    assert result.pause_until is not None and result.pause_until % 86_400 == 0
+    assert result.error is not None and "daily message limit" in result.error
+
+
+async def test_several_listings_waiting_together_go_out_as_one_ntfy_push() -> None:
+    recorder = Recorder()
+
+    result = await ntfy(recorder).send([notification(n) for n in (1, 2, 3, 4)])
+
+    assert (len(recorder.requests), result.delivered) == (1, [1, 2, 3, 4])
+    assert recorder.payload()["title"] == "4 new matches · my search"
+
+
+async def test_a_couple_of_listings_still_get_a_push_each() -> None:
+    recorder = Recorder()
+
+    await ntfy(recorder).send([notification(1), notification(2)])
+
+    assert len(recorder.requests) == 2
+
+
+async def test_watch_alerts_keep_their_own_push_beside_a_digest() -> None:
+    recorder = Recorder()
+    batch = [notification(n) for n in (1, 2, 3)]
+    batch.append(notification(4, kind="price_drop", previous_price=Decimal("20")))
+
+    await ntfy(recorder).send(batch)
+
+    assert len(recorder.requests) == 2
 
 
 def test_ntfy_without_a_topic_is_a_configuration_error() -> None:
@@ -422,12 +460,13 @@ def test_a_missing_apprise_extra_says_how_to_install_it(monkeypatch: pytest.Monk
         AppriseSender({"urls": ["vstest://"]})
 
 
-async def test_ntfy_markdown_cannot_be_hijacked_by_a_seller_login() -> None:
+async def test_ntfy_sends_plain_text_so_ios_shows_no_raw_markdown() -> None:
+    """The iOS app does not render markdown; a seller's [link](...) stays inert text."""
     recorder = Recorder()
 
     await ntfy(recorder).send([notification(1, seller_login="[click](https://evil.test)")])
 
-    assert "](https://evil.test)" not in recorder.payload()["message"]
+    assert "markdown" not in recorder.payload()
 
 
 async def test_an_apprise_title_cannot_break_out_of_its_link() -> None:

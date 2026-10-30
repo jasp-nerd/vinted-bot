@@ -173,6 +173,12 @@ class Destination:
     notify_status: bool = False
     failure_count: int = 0
     deactivated_reason: str | None = None
+    # Its server asked for a break until then (unix seconds), and why; see migration 0007.
+    paused_until: int | None = None
+    paused_reason: str | None = None
+
+    def is_paused(self, now: int) -> bool:
+        return self.paused_until is not None and now < self.paused_until
 
 
 @dataclass(frozen=True, slots=True)
@@ -1039,9 +1045,30 @@ class Repo:
         )
 
     async def reset_destination_failures(self, destination_id: int) -> None:
+        """A delivery got through: the failure count and any pause are over."""
         await self._db.execute(
-            "UPDATE destinations SET failure_count = 0 WHERE id = ?", (destination_id,)
+            "UPDATE destinations SET failure_count = 0, paused_until = NULL, "
+            "paused_reason = NULL WHERE id = ?",
+            (destination_id,),
         )
+
+    async def pause_destination(self, destination_id: int, *, until: int, reason: str) -> None:
+        """Send nothing to a destination until `until`, because its server asked.
+
+        What is queued waits rather than failing; anything that would be stale by then
+        expires on its own like any undelivered alert.
+        """
+        async with self._db.transaction() as conn:
+            await conn.execute(
+                "UPDATE destinations SET paused_until = ?, paused_reason = ? WHERE id = ?",
+                (until, reason[:500], destination_id),
+            )
+            await conn.execute(
+                "UPDATE outbox SET status = 'pending', lease_expires_at = NULL, "
+                "next_attempt_at = MAX(next_attempt_at, ?), last_error = ? "
+                "WHERE destination_id = ? AND status IN ('pending', 'sending')",
+                (until, reason[:500], destination_id),
+            )
 
     @staticmethod
     def _to_destination(row: aiosqlite.Row) -> Destination:
@@ -1054,6 +1081,8 @@ class Repo:
             notify_status=bool(row["notify_status"]),
             failure_count=row["failure_count"],
             deactivated_reason=row["deactivated_reason"],
+            paused_until=row["paused_until"],
+            paused_reason=row["paused_reason"],
         )
 
     # --- Routing -------------------------------------------------------------------

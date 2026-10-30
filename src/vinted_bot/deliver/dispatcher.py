@@ -16,6 +16,7 @@ import asyncio
 import contextlib
 import dataclasses
 import json
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -241,6 +242,11 @@ class Dispatcher:
         if destination is None or not destination.active:
             return 0
 
+        if destination.is_paused(int(time.time())):
+            # Its server asked for a break (ntfy's daily allowance); the reason is on the
+            # destination for the Alerts page, and the log said it once when it began.
+            return 0
+
         if awaiting_pairing(destination):
             # Created but nobody has tapped the link yet. Waiting is not a misconfiguration,
             # so this must not switch the destination off; notifications queue until it is
@@ -279,6 +285,20 @@ class Dispatcher:
             await self._repo.reset_destination_failures(destination_id)
 
         handled = set(result.delivered)
+
+        if result.pause_until is not None:
+            reason = result.error or "the server asked for a break"
+            await self._repo.pause_destination(
+                destination_id, until=result.pause_until, reason=reason
+            )
+            log.warning(
+                "destination.paused",
+                destination_id=destination_id,
+                name=destination.name,
+                reason=reason,
+                until=result.pause_until,
+            )
+            return len(result.delivered)
 
         if result.permanent_error:
             await self._repo.deactivate_destination(destination_id, result.permanent_error)

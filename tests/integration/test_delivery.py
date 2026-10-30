@@ -313,3 +313,36 @@ async def test_asking_for_a_second_pairing_link_reuses_the_waiting_destination(
     assert len(await repo.list_destinations()) == 1
     assert await claim_pairing(repo, code, chat_id=7, thread_id=None) == first_id
     assert await repo.destination_ids_for_query(query.id) == [first_id]
+
+
+async def test_ntfy_s_daily_limit_pauses_the_destination_with_a_reason(
+    repo: Repo, settings: Settings
+) -> None:
+    query = await a_search(repo)
+    destination_id = await repo.add_destination(kind="ntfy", name="p", config={"topic": "t"})
+    await repo.record_new_items(query, [listing(1)], [destination_id])
+    quota = httpx.Response(429, json={"code": 42908, "error": "daily message quota reached"})
+    dispatcher = make_dispatcher(repo, settings, FakeEndpoint(quota))
+
+    await dispatcher.drain()
+
+    destination = await repo.get_destination(destination_id)
+    assert destination is not None and destination.is_paused(int(time.time()))
+    assert destination.paused_reason is not None and "daily" in destination.paused_reason
+
+
+async def test_a_paused_destination_is_not_sent_to_until_the_pause_ends(
+    repo: Repo, settings: Settings
+) -> None:
+    query = await a_search(repo)
+    destination_id = await repo.add_destination(kind="ntfy", name="p", config={"topic": "t"})
+    await repo.record_new_items(query, [listing(1)], [destination_id])
+    quota = httpx.Response(429, json={"code": 42908, "error": "daily message quota reached"})
+    endpoint = FakeEndpoint(quota)
+    dispatcher = make_dispatcher(repo, settings, endpoint)
+    await dispatcher.drain()
+    await repo.record_new_items(query, [listing(2)], [destination_id])
+
+    await dispatcher.drain()
+
+    assert endpoint.calls == 1
