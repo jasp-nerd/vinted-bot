@@ -237,24 +237,32 @@ def redirect(target: str, flash: str | None = None) -> RedirectResponse:
 
 
 def lan_addresses() -> list[str]:
-    """This computer's IPv4 addresses on the local network, the most likely one first.
+    """This computer's IPv4 address on the local network, or its candidates.
 
-    The first comes from asking the OS which interface it would send through (connecting
-    a UDP socket sends nothing). The others are what the computer's own name resolves
-    to, which on most systems lists every network it is on, Wi-Fi and cable alike.
-    Loopback and self-assigned (169.254) addresses are left out: a phone cannot use them.
+    Asking the OS which interface it would send through (connecting a UDP socket sends
+    nothing) gives the one address that matters. Only when that fails, as on a computer
+    with no route out, are the addresses its own name resolves to offered instead: that
+    list also holds virtual machines' and containers' networks, which a phone can't reach.
+    Loopback and self-assigned (169.254) addresses are left out either way. Public
+    addresses stay in: some networks (universities, offices) give every computer one.
     """
     found: list[str] = []
     with contextlib.suppress(OSError), socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
         probe.connect(("192.0.2.1", 9))
         found.append(probe.getsockname()[0])
-    with contextlib.suppress(OSError):
-        for *_, sockaddr in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
-            found.append(str(sockaddr[0]))
+    if not _usable(found):
+        with contextlib.suppress(OSError):
+            for *_, sockaddr in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+                found.append(str(sockaddr[0]))
+    return _usable(found)
+
+
+def _usable(addresses: list[str]) -> list[str]:
     usable: list[str] = []
-    for address in found:
+    for address in addresses:
         ip = ipaddress.ip_address(address)
-        if ip.is_private and not ip.is_loopback and not ip.is_link_local and address not in usable:
+        unusable = ip.is_loopback or ip.is_link_local or ip.is_unspecified or ip.is_multicast
+        if not unusable and address not in usable:
             usable.append(address)
     return usable
 

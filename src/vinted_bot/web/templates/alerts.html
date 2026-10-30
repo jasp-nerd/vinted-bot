@@ -74,16 +74,17 @@
     <div class="dest__head">
       <span class="dest__logo dest__logo--telegram">{{ ui.icon("send") }}</span>
       <div class="dest__name"><b id="dest-tg-bot">Telegram bot</b><small>{% if telegram.configured %}{% if telegram.bot %}@{{ telegram.bot }}{% else %}Bot{% endif %} · {{ telegram.masked }}{% else %}No bot yet{% endif %}</small></div>
-      {% if telegram.configured %}<span class="badge badge--ok">{{ ui.icon("check") }}Ready</span>{% else %}<span class="badge badge--warn">{{ ui.icon("triangle-alert") }}Needs a token</span>{% endif %}
+      {% if telegram.configured and telegram.bot %}<span class="badge badge--ok">{{ ui.icon("check") }}Ready</span>{% elif telegram.configured %}<span class="badge badge--warn">{{ ui.icon("triangle-alert") }}Not recognised</span>{% else %}<span class="badge badge--warn">{{ ui.icon("triangle-alert") }}Needs a token</span>{% endif %}
     </div>
     <div class="dest__body">
+      {% if telegram.configured and not telegram.bot %}<p class="t-sm">Telegram didn't recognise this token just now, or couldn't be reached. If alerts don't arrive, make a new token with BotFather and paste it here.</p>{% endif %}
       {% if telegram.from_env %}
       <p class="t-sm">Its token comes from <span class="code">VINTED_BOT_TELEGRAM_BOT_TOKEN</span> in this copy's environment, so it's changed there, not here.</p>
       {% else %}
       <p class="t-sm">Every Telegram place sends through this bot. {% if telegram.configured %}To use another bot, paste its token from BotFather.{% else %}Paste the token BotFather gave you: open <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a>, send <span class="code">/mybots</span>, pick your bot, then <b>API Token</b>.{% endif %}</p>
       <div class="field" data-tg-token>
         <label class="label" for="tg-token-card">{{ "New bot token" if telegram.configured else "Bot token" }}</label>
-        <div class="row" style="flex-wrap:nowrap;align-items:flex-start">
+        <div class="row token-row">
           <input class="input grow" id="tg-token-card" name="telegram_token" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="123456789:AAH4k…">
           <button class="btn btn--secondary" type="button" data-tg-token-save>Check and save</button>
         </div>

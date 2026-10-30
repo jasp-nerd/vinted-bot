@@ -196,14 +196,15 @@ async def _telegram_answer(
         try:
             await alerts.save_telegram_token(context, fields["telegram_token"])
         except InvalidInputError as exc:
-            state["dest"]["form"] = fields
             return await _alerts_page(request, state, {exc.field: exc.message})
         return await _alerts_page(request, state)
     pairing = state.get("telegram") or {}
     destination_id = int(fields.get("telegram_id") or pairing.get("id") or 0)
     destination = await context.repo.get_destination(destination_id) if destination_id else None
     if destination is None or not destination.config.get("chat_id"):
-        state["dest"] = {"kind": "telegram", "form": fields}
+        # Never the token: the answers travel in the page, and it's a secret.
+        kept = {k: v for k, v in fields.items() if k != "telegram_token"}
+        state["dest"] = {"kind": "telegram", "form": kept}
         if not await alerts.telegram_ready(context):
             problem = {"telegram_token": "Paste your bot's token from BotFather first."}
         else:

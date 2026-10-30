@@ -10,8 +10,8 @@
 {% macro token_field(E, F, label="Bot token") -%}
 <div class="field" data-tg-token>
   <label class="label" for="tg-token">{{ label }}</label>
-  <div class="row" style="flex-wrap:nowrap;align-items:flex-start">
-    <input class="input grow" id="tg-token" name="telegram_token" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="123456789:AAH4k…" value="{{ F.telegram_token or '' }}"{{ ui.invalid(E, 'telegram_token') }}>
+  <div class="row token-row">
+    <input class="input grow" id="tg-token" name="telegram_token" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="123456789:AAH4k…"{{ ui.invalid(E, 'telegram_token') }}>
     <button class="btn btn--secondary" type="button" data-tg-token-save>Check and save</button>
   </div>
   {% if E.telegram_token %}{{ ui.field_error(E, "telegram_token") }}{% else %}<p class="help" data-tg-token-help>We check it with Telegram, then keep it on this computer. Anyone with it can send messages as your bot, so keep it to yourself.</p>{% endif %}
@@ -119,7 +119,7 @@
         <div class="field"><label class="label" for="em-smtp">Outgoing mail server</label><input class="input" id="em-smtp" name="email_smtp" type="text" autocomplete="off" spellcheck="false" placeholder="smtp.example.com" value="{{ F.email_smtp or '' }}"{{ ui.invalid(E, 'email_smtp') }}>{{ ui.field_error(E, "email_smtp") }}</div>
         <div class="field"><label class="label" for="em-port">Port <small>optional</small></label><input class="input" id="em-port" name="email_port" type="text" inputmode="numeric" autocomplete="off" placeholder="587" value="{{ F.email_port or '' }}"{{ ui.invalid(E, 'email_port') }}>{{ ui.field_error(E, "email_port") }}</div>
       </div>
-      <div class="grid-2">
+      <div class="grid-2" style="align-items:start">
         <div class="field"><label class="label" for="em-sec">Encryption</label>
           <select class="select" id="em-sec" name="email_security"{{ ui.invalid(E, 'email_security') }}>{% for key, mode in security_modes.items() %}<option value="{{ key }}"{% if F.email_security == key %} selected{% endif %}>{{ mode[0] }}</option>{% endfor %}</select>{{ ui.field_error(E, "email_security") }}</div>
         <div class="field"><label class="label" for="em-user">User name <small>optional</small></label><input class="input" id="em-user" name="email_user" type="text" autocomplete="off" spellcheck="false" value="{{ F.email_user or '' }}"><p class="help">Leave it empty to sign in with the email address.</p></div>

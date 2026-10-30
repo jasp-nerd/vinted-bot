@@ -921,7 +921,7 @@
     if (!b || b.disabled) return;
     const field = b.closest("[data-tg-token]");
     const input = $("input", field);
-    $$("[data-field-error]", field).forEach((n) => n.remove());
+    $$(".help--error", field).forEach((n) => n.remove());
     input.removeAttribute("aria-invalid");
     b.disabled = true;
     let r;

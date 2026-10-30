@@ -229,3 +229,9 @@ def test_setup_with_a_good_token_moves_on_to_connecting_the_chat(client: TestCli
     page = _setup_alerts_step(client, telegram_token=GOOD).text
 
     assert '<div class="stack-lg" data-pair>' in page
+
+
+def test_setup_never_writes_a_typed_token_back_into_the_page(client: TestClient) -> None:
+    page = _setup_alerts_step(client, telegram_token=REVOKED).text
+
+    assert REVOKED.split(":")[1] not in page
