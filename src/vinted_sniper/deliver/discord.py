@@ -154,6 +154,30 @@ def escape(text: str) -> str:
     return escaped.replace("@", "@\u200b")
 
 
+# Inside a masked link's text Discord shows backslash escapes literally, and a mention
+# stops the link rendering at all (both checked against the live client). So link text
+# swaps formatting characters for lookalikes instead of escaping them.
+_LINK_TEXT = str.maketrans(
+    {
+        "[": "(",
+        "]": ")",
+        "*": "\u2217",
+        "_": "\uff3f",
+        "~": "\u223c",
+        "`": "\u02cb",
+        "|": "\u01c0",
+        "@": "\uff20",
+        "<": "\u2039",
+        ">": "\u203a",
+    }
+)
+
+
+def link_text(text: str) -> str:
+    """Make user text safe as the visible part of a markdown link."""
+    return text.translate(_LINK_TEXT)
+
+
 def _link(url: str) -> str:
     """A URL safe inside a markdown link's parentheses."""
     return url.replace("(", "%28").replace(")", "%29").replace(" ", "%20")
@@ -237,7 +261,7 @@ def card(listing: ListingView, *, photos: int = GALLERY_PHOTOS) -> dict[str, Any
     """The full listing card: one container, built from top to bottom."""
     children: list[dict[str, Any]] = [
         _text(_header(listing)),
-        _text(f"### [{escape(listing.title)}]({_link(listing.url)})"),
+        _text(f"### [{link_text(listing.title)}]({_link(listing.url)})"),
     ]
     if listing.photos:
         children.append(
@@ -260,7 +284,7 @@ def card(listing: ListingView, *, photos: int = GALLERY_PHOTOS) -> dict[str, Any
 
 def _row_text(listing: ListingView) -> str:
     """One listing as three lines of a digest."""
-    title = f"**[{escape(listing.title)}]({_link(listing.url)})**"
+    title = f"**[{link_text(listing.title)}]({_link(listing.url)})**"
     price = " ".join(
         part
         for part in (

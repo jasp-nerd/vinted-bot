@@ -17,7 +17,7 @@ from tests.unit.sending import (
     notification,
 )
 from vinted_sniper.deliver.base import SenderConfigError
-from vinted_sniper.deliver.discord import DiscordSender
+from vinted_sniper.deliver.discord import DiscordSender, link_text
 from vinted_sniper.deliver.render import MINUS
 
 HOOK = "https://discord.test/hook"
@@ -511,3 +511,20 @@ async def test_a_failure_mid_batch_hands_back_only_what_was_not_sent() -> None:
     result = await sender(recorder, style="classic").send([notification(1), notification(2)])
 
     assert (result.delivered, result.retry) == ([1], [2])
+
+
+@pytest.mark.parametrize(
+    ("title", "forbidden"),
+    [
+        ("Air Max [lot] taille 42", "["),
+        ("Jordan *rare* edition", "*"),
+        ("free for @everyone", "@"),
+        ("old_new_stock", "_"),
+        ("cheap `code` |pipe| ~~gone~~", "`"),
+    ],
+)
+def test_link_text_has_nothing_that_breaks_a_masked_link(title: str, forbidden: str) -> None:
+    # Discord prints backslash escapes literally inside link text and refuses to render
+    # a link whose text holds a mention, so these must be swapped out, not escaped.
+    assert forbidden not in link_text(title)
+    assert "\\" not in link_text(title)
