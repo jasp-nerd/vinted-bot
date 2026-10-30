@@ -89,6 +89,68 @@ async def test_every_new_field_round_trips(repo: Repo) -> None:
     )
 
 
+async def test_the_resale_fields_round_trip(repo: Repo) -> None:
+    query = await add(
+        repo,
+        resale_price="60",
+        resale_fee_pct="12,5",
+        resale_shipping=Decimal("4.5"),
+        min_margin="10",
+    )
+
+    assert (
+        query.resale_price,
+        query.resale_fee_pct,
+        query.resale_shipping,
+        query.min_margin,
+    ) == (Decimal("60.00"), 12.5, Decimal("4.50"), Decimal("10.00"))
+
+
+async def test_a_minimum_margin_needs_a_resale_price(repo: Repo) -> None:
+    with pytest.raises(InvalidInputError, match="resells for"):
+        await add(repo, min_margin="10")
+
+
+async def test_a_duplicate_keeps_the_resale_maths(repo: Repo) -> None:
+    query = await add(repo, resale_price="60", resale_fee_pct=10)
+
+    copy_id = await repo.duplicate_query(query.id)
+    assert copy_id is not None
+    copy = await repo.get_query(copy_id)
+
+    assert copy is not None and (copy.resale_price, copy.resale_fee_pct) == (Decimal("60.00"), 10)
+
+
+async def test_muting_a_search_records_until_when(repo: Repo) -> None:
+    query = await add(repo)
+
+    await repo.mute_query(query.id, 1_900_000_000)
+
+    stored = await repo.get_query(query.id)
+    assert stored is not None and stored.muted_until == 1_900_000_000
+
+
+async def test_muting_drops_what_the_search_already_queued(repo: Repo) -> None:
+    query = await add(repo)
+    destination_id = await repo.add_destination(kind="ntfy", name="n", config={"topic": "t"})
+    await repo.record_new_items(query, [listing(1)], [destination_id])
+
+    await repo.mute_query(query.id, int(time.time()) + 3600)
+
+    assert await repo.outbox_depth() == 0
+
+
+async def test_saving_the_edit_form_leaves_a_mute_alone(repo: Repo) -> None:
+    """The form never shows the mute, so a stale copy of the search must not clear it."""
+    query = await add(repo)
+    await repo.mute_query(query.id, 1_900_000_000)
+
+    await repo.update_query(replace(query, name="renamed"))
+
+    stored = await repo.get_query(query.id)
+    assert stored is not None and stored.muted_until == 1_900_000_000
+
+
 async def test_new_searches_get_colours_from_the_palette_in_turn(repo: Repo) -> None:
     first = await add(repo, "one")
     second = await add(repo, "two")
@@ -201,6 +263,31 @@ async def test_a_notification_carries_its_search_colour_typical_price_and_quiet_
         True,
     )
     assert notification.deal_pct == 18
+
+
+async def test_a_notification_carries_the_margin_its_search_works_out(repo: Repo) -> None:
+    """60 resold at 10% is 54, minus 4 postage is 50, minus 16.45 paid is 33.55."""
+    query = await add(
+        repo, resale_price=Decimal("60"), resale_fee_pct=10, resale_shipping=Decimal("4")
+    )
+    destination_id = await repo.add_destination(kind="ntfy", name="n", config={"topic": "t"})
+    await repo.record_new_items(query, [listing(1)], [destination_id])
+
+    (notification,) = await repo.claim_batch(destination_id, 10)
+
+    assert notification.margin == Decimal("33.55")
+
+
+async def test_a_notification_from_a_search_without_a_resale_price_has_no_margin(
+    repo: Repo,
+) -> None:
+    query = await add(repo)
+    destination_id = await repo.add_destination(kind="ntfy", name="n", config={"topic": "t"})
+    await repo.record_new_items(query, [listing(1)], [destination_id])
+
+    (notification,) = await repo.claim_batch(destination_id, 10)
+
+    assert notification.margin is None
 
 
 async def test_held_notifications_wait_and_do_not_expire_while_held(repo: Repo) -> None:

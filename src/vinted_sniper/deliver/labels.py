@@ -30,11 +30,24 @@ class Labels:
     condition: str
     brand: str
     seller: str
+    # The relative-time label: "listed" when Vinted said when the listing went up,
+    # "found" when all we know is when we saw it.
     listed: str
+    found: str
     buy: str
     message: str
     open: str
     dashboard: str
+    # eBay's sold listings for the title, and Google Lens on the photo.
+    price_check: str
+    photo_search: str
+    # Telegram's action buttons, and what each says once pressed.
+    block_seller: str
+    mute: str
+    hide: str
+    blocked: str
+    muted: str
+    hidden: str
     plus_protection: str
     typical: str
     vs_typical: str
@@ -43,6 +56,7 @@ class Labels:
     # "{n}" is replaced with the count.
     new_matches: str
     new_seller: str
+    margin: str
 
 
 _CATALOGUE: dict[str, Labels] = {
@@ -59,10 +73,19 @@ _CATALOGUE: dict[str, Labels] = {
         brand="Brand",
         seller="Seller",
         listed="listed",
+        found="found",
         buy="Buy",
         message="Message seller",
         open="Open on Vinted",
         dashboard="Dashboard",
+        price_check="eBay sold",
+        photo_search="Photo search",
+        block_seller="Block seller",
+        mute="Mute 1 h",
+        hide="Hide",
+        blocked="Seller blocked",
+        muted="Muted 1 h",
+        hidden="Hidden",
         plus_protection="+ buyer protection",
         typical="typical",
         vs_typical="vs typical",
@@ -70,6 +93,7 @@ _CATALOGUE: dict[str, Labels] = {
         good_deal="Good deal",
         new_matches="{n} new matches",
         new_seller="new seller",
+        margin="margin",
     ),
     "fr": Labels(
         locale="fr",
@@ -84,10 +108,19 @@ _CATALOGUE: dict[str, Labels] = {
         brand="Marque",
         seller="Vendeur",
         listed="publié",
+        found="trouvé",
         buy="Acheter",
         message="Contacter",
         open="Voir sur Vinted",
         dashboard="Tableau de bord",
+        price_check="eBay vendus",
+        photo_search="Recherche photo",
+        block_seller="Bloquer vendeur",
+        mute="Silence 1 h",
+        hide="Masquer",
+        blocked="Vendeur bloqué",
+        muted="En silence 1 h",
+        hidden="Masqué",
         plus_protection="+ protection acheteurs",
         typical="habituel",
         vs_typical="vs habituel",
@@ -95,6 +128,7 @@ _CATALOGUE: dict[str, Labels] = {
         good_deal="Bonne affaire",
         new_matches="{n} nouvelles annonces",
         new_seller="nouveau vendeur",
+        margin="marge",
     ),
     "de": Labels(
         locale="de",
@@ -109,10 +143,19 @@ _CATALOGUE: dict[str, Labels] = {
         brand="Marke",
         seller="Verkäufer",
         listed="eingestellt",
+        found="gefunden",
         buy="Kaufen",
         message="Nachricht",
         open="Auf Vinted öffnen",
         dashboard="Dashboard",
+        price_check="eBay verkauft",
+        photo_search="Bildersuche",
+        block_seller="Verkäufer sperren",
+        mute="1 Std. stumm",
+        hide="Ausblenden",
+        blocked="Verkäufer gesperrt",
+        muted="1 Std. stumm",
+        hidden="Ausgeblendet",
         plus_protection="+ Käuferschutz",
         typical="üblich",
         vs_typical="vs. üblich",
@@ -120,6 +163,7 @@ _CATALOGUE: dict[str, Labels] = {
         good_deal="Guter Deal",
         new_matches="{n} neue Treffer",
         new_seller="neuer Verkäufer",
+        margin="Marge",
     ),
     "nl": Labels(
         locale="nl",
@@ -134,10 +178,19 @@ _CATALOGUE: dict[str, Labels] = {
         brand="Merk",
         seller="Verkoper",
         listed="geplaatst",
+        found="gevonden",
         buy="Kopen",
         message="Bericht sturen",
         open="Open op Vinted",
         dashboard="Dashboard",
+        price_check="eBay verkocht",
+        photo_search="Zoek op foto",
+        block_seller="Verkoper blokkeren",
+        mute="1 uur stil",
+        hide="Verbergen",
+        blocked="Verkoper geblokkeerd",
+        muted="1 uur stil",
+        hidden="Verborgen",
         plus_protection="+ kopersbescherming",
         typical="normaal",
         vs_typical="t.o.v. normaal",
@@ -145,6 +198,7 @@ _CATALOGUE: dict[str, Labels] = {
         good_deal="Goede deal",
         new_matches="{n} nieuwe resultaten",
         new_seller="nieuwe verkoper",
+        margin="marge",
     ),
     "es": Labels(
         locale="es",
@@ -159,10 +213,19 @@ _CATALOGUE: dict[str, Labels] = {
         brand="Marca",
         seller="Vendedor",
         listed="publicado",
+        found="encontrado",
         buy="Comprar",
         message="Mensaje",
         open="Ver en Vinted",
         dashboard="Panel",
+        price_check="eBay vendidos",
+        photo_search="Buscar por foto",
+        block_seller="Bloquear vendedor",
+        mute="Silenciar 1 h",
+        hide="Ocultar",
+        blocked="Vendedor bloqueado",
+        muted="Silenciado 1 h",
+        hidden="Oculto",
         plus_protection="+ protección al comprador",
         typical="habitual",
         vs_typical="vs. habitual",
@@ -170,6 +233,7 @@ _CATALOGUE: dict[str, Labels] = {
         good_deal="Buen precio",
         new_matches="{n} nuevos resultados",
         new_seller="vendedor nuevo",
+        margin="margen",
     ),
     "it": Labels(
         locale="it",
@@ -184,10 +248,19 @@ _CATALOGUE: dict[str, Labels] = {
         brand="Brand",
         seller="Venditore",
         listed="pubblicato",
+        found="trovato",
         buy="Acquista",
         message="Messaggio",
         open="Apri su Vinted",
         dashboard="Dashboard",
+        price_check="eBay venduti",
+        photo_search="Cerca per foto",
+        block_seller="Blocca venditore",
+        mute="Silenzia 1 h",
+        hide="Nascondi",
+        blocked="Venditore bloccato",
+        muted="Silenziato 1 h",
+        hidden="Nascosto",
         plus_protection="+ protezione acquisti",
         typical="solito",
         vs_typical="vs. solito",
@@ -195,6 +268,7 @@ _CATALOGUE: dict[str, Labels] = {
         good_deal="Buon affare",
         new_matches="{n} nuovi risultati",
         new_seller="nuovo venditore",
+        margin="margine",
     ),
     "pl": Labels(
         locale="pl",
@@ -209,10 +283,19 @@ _CATALOGUE: dict[str, Labels] = {
         brand="Marka",
         seller="Sprzedający",
         listed="dodano",
+        found="znaleziono",
         buy="Kup",
         message="Napisz",
         open="Otwórz w Vinted",
         dashboard="Panel",
+        price_check="eBay sprzedane",
+        photo_search="Szukaj zdjęciem",
+        block_seller="Zablokuj sprzedającego",
+        mute="Wycisz 1 h",
+        hide="Ukryj",
+        blocked="Zablokowano",
+        muted="Wyciszono 1 h",
+        hidden="Ukryto",
         plus_protection="+ ochrona kupujących",
         typical="zwykle",
         vs_typical="vs zwykle",
@@ -220,6 +303,7 @@ _CATALOGUE: dict[str, Labels] = {
         good_deal="Dobra cena",
         new_matches="Nowe oferty: {n}",
         new_seller="nowy sprzedający",
+        margin="marża",
     ),
     "lt": Labels(
         locale="lt",
@@ -234,10 +318,19 @@ _CATALOGUE: dict[str, Labels] = {
         brand="Prekės ženklas",
         seller="Pardavėjas",
         listed="įkelta",
+        found="rasta",
         buy="Pirkti",
         message="Rašyti",
         open="Atidaryti Vinted",
         dashboard="Skydelis",
+        price_check="eBay parduota",
+        photo_search="Ieškoti pagal nuotrauką",
+        block_seller="Blokuoti pardavėją",
+        mute="Nutildyti 1 val.",
+        hide="Slėpti",
+        blocked="Užblokuota",
+        muted="Nutildyta 1 val.",
+        hidden="Paslėpta",
         plus_protection="+ pirkėjo apsauga",
         typical="įprasta",
         vs_typical="nuo įprastos",
@@ -245,6 +338,7 @@ _CATALOGUE: dict[str, Labels] = {
         good_deal="Gera kaina",
         new_matches="Nauji skelbimai: {n}",
         new_seller="naujas pardavėjas",
+        margin="marža",
     ),
     "cs": Labels(
         locale="cs",
@@ -259,10 +353,19 @@ _CATALOGUE: dict[str, Labels] = {
         brand="Značka",
         seller="Prodejce",
         listed="přidáno",
+        found="nalezeno",
         buy="Koupit",
         message="Napsat",
         open="Otevřít na Vinted",
         dashboard="Přehled",
+        price_check="eBay prodané",
+        photo_search="Hledat fotkou",
+        block_seller="Blokovat prodejce",
+        mute="Ztlumit 1 h",
+        hide="Skrýt",
+        blocked="Prodejce blokován",
+        muted="Ztlumeno 1 h",
+        hidden="Skryto",
         plus_protection="+ ochrana kupujících",
         typical="obvykle",
         vs_typical="oproti obvyklé",
@@ -270,6 +373,7 @@ _CATALOGUE: dict[str, Labels] = {
         good_deal="Dobrá cena",
         new_matches="Nové inzeráty: {n}",
         new_seller="nový prodejce",
+        margin="marže",
     ),
 }
 
@@ -307,6 +411,9 @@ _PREFIX_SYMBOLS = frozenset({"€", "£", "$"})
 
 _CENT = Decimal("0.01")
 
+# A real minus sign: a hyphen in "-46%" reads as a dash, and wraps like one.
+MINUS = "\u2212"
+
 
 def labels_for(tld: str) -> Labels:
     """The labels for a listing on vinted.<tld>."""
@@ -316,6 +423,19 @@ def labels_for(tld: str) -> Labels:
 def money_text(amount: Decimal) -> str:
     """An amount with exactly two decimals, as the JSON contract documents it ("15.00")."""
     return str(amount.quantize(_CENT, rounding=ROUND_HALF_UP))
+
+
+def format_rough_money(amount: Decimal, currency: str | None, locale: str) -> str:
+    """A signed, whole-unit estimate such as "+€19", with a real minus sign when negative.
+
+    Rounded because it is an estimate built on a guessed resale price, and cents would
+    claim a precision it does not have.
+    """
+    whole = amount.quantize(Decimal(1), rounding=ROUND_HALF_UP)
+    text = format_money(abs(whole), currency, locale)
+    for zeros in (".00", ",00"):
+        text = text.replace(zeros, "")
+    return f"{MINUS if whole < 0 else '+'}{text}"
 
 
 def format_money(amount: Decimal, currency: str | None, locale: str) -> str:

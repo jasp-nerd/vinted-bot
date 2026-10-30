@@ -227,6 +227,63 @@ async def test_quiet_hours_in_silent_mode_send_without_a_sound(
     assert notification.silent is True
 
 
+async def muted(poll: Poller, repo: Repo, until: int) -> None:
+    """Mute the search and hand the poller the stored copy, as the supervisor does."""
+    await repo.mute_query(poll.query.id, until)
+    query = await repo.get_query(poll.query.id)
+    assert query is not None
+    poll.query = query
+
+
+async def test_a_muted_search_records_but_never_sends(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    poll = await poller(transport, repo, settings, db)
+    await repo.add_destination(kind="webhook", name="w", config={"url": "x"})
+    await seed(poll, transport, make_item)
+    await muted(poll, repo, int(time.time()) + 3600)
+
+    transport.queue_catalog([make_item(200, photo_ts=int(time.time()))])
+    await poll.tick()
+
+    assert (
+        await repo.outbox_depth(),
+        [r.reason for r in await repo.rejections_for(poll.query.id)],
+    ) == (
+        0,
+        ["muted"],
+    )
+
+
+async def test_a_search_speaks_again_once_its_mute_runs_out(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    poll = await poller(transport, repo, settings, db)
+    await repo.add_destination(kind="webhook", name="w", config={"url": "x"})
+    await seed(poll, transport, make_item)
+    await muted(poll, repo, int(time.time()) - 1)
+
+    transport.queue_catalog([make_item(200, photo_ts=int(time.time()))])
+    await poll.tick()
+
+    assert await repo.outbox_depth() == 1
+
+
+async def test_a_listing_below_the_minimum_margin_is_logged_not_sent(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    poll = await poller(
+        transport, repo, settings, db, resale_price=Decimal("10"), min_margin=Decimal("5")
+    )
+    await repo.add_destination(kind="webhook", name="w", config={"url": "x"})
+    await seed(poll, transport, make_item)
+
+    transport.queue_catalog([make_item(200, photo_ts=int(time.time()))])
+    await poll.tick()
+
+    assert [r.reason for r in await repo.rejections_for(poll.query.id)] == ["low_margin"]
+
+
 async def test_a_search_on_several_sites_fetches_each_and_announces_once(
     transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
 ) -> None:

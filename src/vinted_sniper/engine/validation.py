@@ -177,6 +177,22 @@ def parse_percent(value: str | int | None, *, field: str) -> int | None:
     return whole
 
 
+def parse_fee_pct(value: str | float | None) -> float | None:
+    """The cut a resale platform keeps, in percent: "10" for eBay, "0" or blank for Vinted.
+
+    Decimals are allowed ("12,9" is a real fee); 100 is not, since nothing would be left.
+    """
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    try:
+        pct = float(str(value).strip().rstrip("%").strip().replace(",", "."))
+    except ValueError as exc:
+        raise InvalidInputError("resale_fee_pct", f"{value!r} is not a percentage.") from exc
+    if not 0 <= pct < 100:  # noqa: PLR2004 - the bounds of a percentage
+        raise InvalidInputError("resale_fee_pct", "Pick a fee from 0 up to (not including) 100%.")
+    return pct
+
+
 def parse_rating(value: str | float | None) -> float | None:
     """A minimum seller rating in stars, 0 to 5."""
     if value is None or (isinstance(value, str) and not value.strip()):

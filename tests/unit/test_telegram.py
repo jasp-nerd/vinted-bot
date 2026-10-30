@@ -10,7 +10,7 @@ import pytest
 
 from tests.unit.sending import Recorder, bare, fast_bucket, notification, telegram_length
 from vinted_sniper.deliver.base import SenderConfigError
-from vinted_sniper.deliver.render import MINUS
+from vinted_sniper.deliver.labels import MINUS
 from vinted_sniper.deliver.telegram import TelegramSender
 
 OK = httpx.Response(200, json={"ok": True})
@@ -58,7 +58,28 @@ async def test_the_caption_shows_a_deal_badge() -> None:
 
     await sender(recorder).send([notification(1, typical_price=Decimal("25.00"))])
 
-    assert f"<i>Good deal {MINUS}34% vs typical</i>" in recorder.payload()["caption"]
+    assert f"<i>Good deal {MINUS}34%</i>" in recorder.payload()["caption"]
+
+
+async def test_the_first_line_is_total_badge_margin_and_title() -> None:
+    recorder = Recorder()
+
+    await sender(recorder).send(
+        [notification(1, typical_price=Decimal("25.00"), margin=Decimal("9.40"))]
+    )
+
+    assert recorder.payload()["caption"].splitlines()[0] == (
+        f"<b>£16.45</b> · <i>Good deal {MINUS}34%</i> · <i>margin ~+£9</i> · "
+        '<a href="https://www.vinted.co.uk/items/1">Item 1</a>'
+    )
+
+
+async def test_a_time_vinted_never_gave_is_called_found() -> None:
+    recorder = Recorder()
+
+    await sender(recorder).send([bare(1)])
+
+    assert 'trouvé <tg-time unix="1760000100"' in recorder.payload()["caption"]
 
 
 async def test_the_listing_time_is_relative_and_rendered_by_the_app() -> None:
@@ -86,10 +107,11 @@ async def test_buy_is_green_and_open_is_blue() -> None:
     await sender(recorder).send([notification(1)])
 
     rows = recorder.payload()["reply_markup"]["inline_keyboard"]
-    assert [(b["text"], b.get("style")) for row in rows for b in row] == [
+    assert [(b["text"], b.get("style")) for row in rows[:2] for b in row] == [
         ("Buy", "success"),
         ("Message seller", None),
         ("Open on Vinted", "primary"),
+        ("eBay sold", None),
     ]
 
 
@@ -108,7 +130,70 @@ async def test_every_button_is_an_https_link() -> None:
     await sender(recorder, dashboard_url="https://sniper.example.net").send([bare(1)])
 
     rows = recorder.payload()["reply_markup"]["inline_keyboard"]
-    assert all(button["url"].startswith("https://") for row in rows for button in row)
+    links = [button["url"] for row in rows for button in row if "callback_data" not in button]
+    assert all(link.startswith("https://") for link in links)
+
+
+async def test_without_a_reachable_dashboard_ebay_sold_prices_take_its_place() -> None:
+    recorder = Recorder()
+
+    await sender(recorder, dashboard_url="http://127.0.0.1:8000").send([notification(1)])
+
+    second_row = recorder.payload()["reply_markup"]["inline_keyboard"][1]
+    assert second_row[1]["url"] == (
+        "https://www.ebay.co.uk/sch/i.html?_nkw=Item+1&LH_Sold=1&LH_Complete=1"
+    )
+
+
+async def test_the_photo_search_has_a_row_with_the_price_check_when_there_is_a_dashboard() -> None:
+    recorder = Recorder()
+
+    await sender(recorder, dashboard_url="https://sniper.example.net").send([notification(1)])
+
+    third_row = recorder.payload()["reply_markup"]["inline_keyboard"][2]
+    assert [b["text"] for b in third_row] == ["eBay sold", "Photo search"]
+
+
+async def test_the_photo_search_sends_lens_the_listing_photo() -> None:
+    recorder = Recorder()
+
+    await sender(recorder).send([bare(1)])
+
+    third_row = recorder.payload()["reply_markup"]["inline_keyboard"][2]
+    assert third_row[0]["url"] == (
+        "https://lens.google.com/uploadbyurl?url=https%3A%2F%2Fimages.vinted.net%2F1.jpeg"
+    )
+
+
+async def test_the_last_row_holds_the_actions_the_bot_answers() -> None:
+    recorder = Recorder()
+
+    await sender(recorder).send([notification(1, seller_login="jo")])
+
+    last_row = recorder.payload()["reply_markup"]["inline_keyboard"][-1]
+    assert [(b["text"], b["callback_data"]) for b in last_row] == [
+        ("Block seller", "a:b:12345678:co.uk:jo"),
+        ("Mute 1 h", "a:m:1:co.uk"),
+        ("Hide", "a:h:1:co.uk"),
+    ]
+
+
+async def test_a_login_too_long_for_the_button_is_left_out() -> None:
+    recorder = Recorder()
+
+    await sender(recorder).send([notification(1, seller_login="x" * 60)])
+
+    block = recorder.payload()["reply_markup"]["inline_keyboard"][-1][0]
+    assert block["callback_data"] == "a:b:12345678:co.uk"
+
+
+async def test_a_sold_listing_has_no_actions() -> None:
+    recorder = Recorder()
+
+    await sender(recorder).send([notification(1, kind="sold")])
+
+    rows = recorder.payload()["reply_markup"]["inline_keyboard"]
+    assert not any("callback_data" in button for row in rows for button in row)
 
 
 @pytest.mark.parametrize(
@@ -156,10 +241,9 @@ async def test_a_bare_listing_still_gets_a_photo_card() -> None:
 
     await sender(recorder).send([bare(1)])
 
-    assert recorder.payload()["caption"].splitlines()[:2] == [
-        "<b>15,00 €</b>",
-        '<b><a href="https://www.vinted.fr/items/1-slug">Item 1</a></b>',
-    ]
+    assert recorder.payload()["caption"].splitlines()[0] == (
+        '<b>15,00 €</b> · <a href="https://www.vinted.fr/items/1-slug">Item 1</a>'
+    )
 
 
 async def test_a_listing_without_a_photo_goes_as_text() -> None:

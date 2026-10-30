@@ -189,3 +189,44 @@ def test_without_history_nothing_is_called_a_deal() -> None:
 
 def test_searches_that_do_not_ask_for_deals_are_not_judged_on_them() -> None:
     assert filters.check_deal(item(), search(), None) is None
+
+
+# --- Margin --------------------------------------------------------------------------------
+
+
+def test_a_listing_that_leaves_too_little_after_reselling_is_skipped() -> None:
+    """Resold at 30 with 10% fees and 3 postage leaves 24, minus 20 paid is 4."""
+    rule = search(
+        resale_price=Decimal("30"),
+        resale_fee_pct=10,
+        resale_shipping=Decimal("3"),
+        min_margin=Decimal("5"),
+    )
+
+    rejection = filters.check(item(), rule)
+
+    assert rejection is not None and rejection.reason == "low_margin"
+
+
+def test_the_margin_rejection_says_what_was_left_and_what_was_wanted() -> None:
+    rule = search(resale_price=Decimal("30"), min_margin=Decimal("15"))
+
+    rejection = filters.check(item(), rule)
+
+    assert rejection is not None and rejection.detail == (
+        "reselling at 30 would leave about 10.00 after fees and postage; "
+        "this search wants at least 15"
+    )
+
+
+def test_a_listing_with_enough_margin_passes() -> None:
+    rule = search(resale_price=Decimal("30"), min_margin=Decimal("10"))
+
+    assert filters.check(item(), rule) is None
+
+
+def test_a_margin_in_another_currency_is_not_judged() -> None:
+    """A pound listing on a euro search has no margin to compare, so it is let through."""
+    rule = search(resale_price=Decimal("30"), min_margin=Decimal("15"))
+
+    assert filters.check(item(tld="co.uk", currency="GBP"), rule) is None
