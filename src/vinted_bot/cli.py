@@ -16,7 +16,7 @@ from vinted_bot import __version__, app, config, log
 from vinted_bot.config import Settings
 from vinted_bot.db import Database, apply_pending
 from vinted_bot.db import export as exporter
-from vinted_bot.db.repo import Repo
+from vinted_bot.db.repo import DuplicateSearchError, Repo
 from vinted_bot.engine import health, validation
 from vinted_bot.vinted import urls
 from vinted_bot.vinted.client import VintedClient
@@ -283,10 +283,6 @@ async def _cmd_watch(settings: Settings, args: argparse.Namespace) -> int:
         await apply_pending(db)
         repo = Repo(db)
 
-        if await repo.find_query_by_url(normalised) is not None:
-            print("That search is already being watched.", file=sys.stderr)
-            return 1
-
         known = {destination.id for destination in await repo.list_destinations()}
         if unknown := [i for i in destination_ids if i not in known]:
             print(f"No destination with id {unknown[0]}.", file=sys.stderr)
@@ -301,6 +297,9 @@ async def _cmd_watch(settings: Settings, args: argparse.Namespace) -> int:
                 poll_interval_s=interval,
                 **fields,
             )
+        except DuplicateSearchError as exc:
+            print(f"{exc.message} It is search {exc.existing.id}.", file=sys.stderr)
+            return 1
         except validation.InvalidInputError as exc:
             print(exc.message, file=sys.stderr)
             return 2

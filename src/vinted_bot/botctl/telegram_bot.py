@@ -42,7 +42,7 @@ from aiogram.types import (
 )
 
 from vinted_bot.config import MIN_POLL_INTERVAL_S
-from vinted_bot.db.repo import Repo
+from vinted_bot.db.repo import DuplicateSearchError, Repo
 from vinted_bot.deliver.labels import labels_for
 from vinted_bot.deliver.telegram import ACTION_PREFIX, BLOCK, HIDE, MUTE
 from vinted_bot.engine import health
@@ -236,17 +236,17 @@ async def add_search_text(
         params = urls.parse_search_params(normalised)
     except urls.InvalidSearchURLError as exc:
         return f"That link will not work: {html.escape(str(exc))}"
-    if await repo.find_query_by_url(normalised) is not None:
-        return "That search is already being watched."
-
     name = params.get("search_text") or f"vinted.{tld}"
-    query_id = await repo.add_query(
-        name=name,
-        url=normalised,
-        tld=tld,
-        params=params,
-        poll_interval_s=max(interval_s, MIN_POLL_INTERVAL_S),
-    )
+    try:
+        query_id = await repo.add_query(
+            name=name,
+            url=normalised,
+            tld=tld,
+            params=params,
+            poll_interval_s=max(interval_s, MIN_POLL_INTERVAL_S),
+        )
+    except DuplicateSearchError as exc:
+        return html.escape(f"{exc.message} It is search {exc.existing.id}.")
     for destination_id in await chat_destination_ids(repo, chat_id):
         await repo.route(query_id, destination_id)
     log.info("telegram.search_added", query_id=query_id, chat_id=chat_id)

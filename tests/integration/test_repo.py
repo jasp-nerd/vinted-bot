@@ -14,7 +14,7 @@ import pytest
 
 from vinted_bot.db import export
 from vinted_bot.db.connection import Database
-from vinted_bot.db.repo import PALETTE, Query, RejectedListing, Repo
+from vinted_bot.db.repo import PALETTE, DuplicateSearchError, Query, RejectedListing, Repo
 from vinted_bot.engine.validation import InvalidInputError
 from vinted_bot.vinted.models import Item, SellerProfile
 
@@ -151,6 +151,25 @@ async def test_saving_the_edit_form_leaves_a_mute_alone(repo: Repo) -> None:
 
     stored = await repo.get_query(query.id)
     assert stored is not None and stored.muted_until == 1_900_000_000
+
+
+async def test_adding_a_link_already_watched_points_at_that_search(repo: Repo) -> None:
+    """The dashboard allowed it while the CLI and Telegram refused; now all refuse."""
+    first = await add(repo, "nike")
+
+    with pytest.raises(DuplicateSearchError) as raised:
+        await add(repo, "nike")
+
+    assert (raised.value.existing.id, raised.value.field) == (first.id, "link")
+
+
+async def test_a_duplicated_search_may_keep_the_same_link(repo: Repo) -> None:
+    original = await add(repo, "nike")
+
+    copy_id = await repo.duplicate_query(original.id)
+
+    copy = await repo.get_query(copy_id or 0)
+    assert copy is not None and copy.url == original.url
 
 
 async def test_new_searches_get_colours_from_the_palette_in_turn(repo: Repo) -> None:

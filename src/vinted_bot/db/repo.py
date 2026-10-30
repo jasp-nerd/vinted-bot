@@ -55,6 +55,24 @@ Mark = Literal["saved", "hidden"]
 MarkFilter = Literal["visible", "saved", "hidden", "unmarked", "all"]
 NotificationKind = Literal["listing", "price_drop", "sold", "reserved", "removed", "seller_upload"]
 
+
+class DuplicateSearchError(validation.InvalidInputError):
+    """The link is already watched by another search, which this names.
+
+    One rule for the dashboard, the command line and the Telegram bot: adding a link
+    that is already watched is refused with a pointer to that search. They used to
+    disagree. Watching the same link with different filters is what Duplicate is for.
+    """
+
+    def __init__(self, existing: Query) -> None:
+        super().__init__(
+            "link",
+            f"You already watch this search: “{existing.name}”. Change that one, or use "
+            "Duplicate on it to watch the same link with different filters.",
+        )
+        self.existing = existing
+
+
 # --- Row types ---------------------------------------------------------------------
 
 
@@ -685,11 +703,37 @@ class Repo:
         max_total_price: Decimal | None = None,
         **filters: Any,
     ) -> int:
-        """Store a new search. Raises `InvalidInputError` for anything it cannot hold.
+        """Store a new search. Raises `InvalidInputError` for anything it cannot hold,
+        and `DuplicateSearchError` for a link another search already watches.
 
         `filters` takes any other `Query` field by name — include_terms, regex,
         quiet_start and the rest — so callers name what they set and nothing else.
         """
+        if (existing := await self.find_query_by_url(url)) is not None:
+            raise DuplicateSearchError(existing)
+        return await self._insert_query(
+            name=name,
+            url=url,
+            tld=tld,
+            params=params,
+            poll_interval_s=poll_interval_s,
+            banned_keywords=banned_keywords,
+            max_total_price=max_total_price,
+            **filters,
+        )
+
+    async def _insert_query(
+        self,
+        *,
+        name: str,
+        url: str,
+        tld: str,
+        params: dict[str, str],
+        poll_interval_s: int,
+        banned_keywords: list[str] | None = None,
+        max_total_price: Decimal | None = None,
+        **filters: Any,
+    ) -> int:
         count = int(await self._db.fetch_value("SELECT COUNT(*) FROM queries") or 0)
         filters.setdefault("color", PALETTE[count % len(PALETTE)])
         query = _validated(
@@ -761,7 +805,8 @@ class Repo:
         original = await self.get_query(query_id)
         if original is None:
             return None
-        copy_id = await self.add_query(
+        # The one way to watch a link twice: the copy is meant to get different filters.
+        copy_id = await self._insert_query(
             name=name or f"{original.name} (copy)"[: validation.MAX_NAME_LENGTH],
             url=original.url,
             tld=original.tld,

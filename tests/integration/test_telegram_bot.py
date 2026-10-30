@@ -551,3 +551,12 @@ async def test_add_with_a_listing_link_follows_the_listing(repo: Repo, bot: Bot)
     )
 
     assert [watch.target_id for watch in await repo.list_watches()] == [42]
+
+
+async def test_add_points_at_the_search_already_watching_the_link(repo: Repo) -> None:
+    await add_search_text(repo, SEARCH_URL, chat_id=PAIRED_CHAT, interval_s=60)
+
+    reply = await add_search_text(repo, SEARCH_URL, chat_id=PAIRED_CHAT, interval_s=60)
+
+    assert reply.startswith("You already watch this search: “nike air”.")
+    assert len(await repo.list_queries()) == 1

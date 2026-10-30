@@ -125,3 +125,13 @@ def test_a_bad_setting_ends_with_a_sentence_not_a_traceback(
     code = cli.main(["status"])
 
     assert (code, "VINTED_BOT_WEB_PORT is set to 'abc'" in capsys.readouterr().err) == (2, True)
+
+
+def test_watching_a_link_twice_names_the_search_that_has_it(
+    db_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run("watch", URL, "--name", "Barbour")
+
+    code = run("watch", URL)
+
+    assert (code, "“Barbour”" in capsys.readouterr().err) == (1, True)
