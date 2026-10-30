@@ -122,6 +122,9 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # Tests may use assert-heavy, longer, less-abstract code.
 "tests/**" = ["PLR2004", "ARG001", "ARG002"]
+# The landing site's build scripts are one-off tooling, not the package: build.py re-runs
+# itself through uv before its imports (E402), and page-building code is long and literal.
+"site/**" = ["E402", "E501", "E741", "PLR2004", "B905", "PLW1510", "PLW0603", "PLR0912", "PLR0915", "PLR0917", "C901", "RUF005"]
 # A route table and a command table are long and branchy by nature. Splitting them to
 # satisfy a complexity metric would scatter related handlers across files for no gain.
 "src/vinted_sniper/web/server.py" = ["C901", "PLR0915", "PLR0917", "PLR0913"]

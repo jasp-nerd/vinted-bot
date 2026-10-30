@@ -35,7 +35,12 @@ def main() -> int:
         return 1
     ns = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
     urls = [loc.text for loc in ET.parse(sitemap).getroot().findall("s:url/s:loc", ns)]
-    payload = {"host": HOST, "key": key, "keyLocation": f"https://{HOST}/{key}.txt", "urlList": urls}
+    payload = {
+        "host": HOST,
+        "key": key,
+        "keyLocation": f"https://{HOST}/{key}.txt",
+        "urlList": urls,
+    }
     if "--dry-run" in sys.argv:
         print(json.dumps(payload, indent=2))
         return 0
@@ -47,11 +52,17 @@ def main() -> int:
     if live != key:
         print(f"{payload['keyLocation']} doesn't contain the key; deploy first")
         return 1
-    req = urllib.request.Request(ENDPOINT, data=json.dumps(payload).encode(), method="POST",
-                                 headers={"Content-Type": "application/json; charset=utf-8"})
+    req = urllib.request.Request(
+        ENDPOINT,
+        data=json.dumps(payload).encode(),
+        method="POST",
+        headers={"Content-Type": "application/json; charset=utf-8"},
+    )
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
-            print(f"IndexNow answered {resp.status} for {len(urls)} URLs (200 or 202 means accepted)")
+            print(
+                f"IndexNow answered {resp.status} for {len(urls)} URLs (200 or 202 means accepted)"
+            )
             return 0
     except urllib.error.HTTPError as e:
         print(f"IndexNow answered {e.code}: {e.read().decode(errors='replace')[:300]}")

@@ -96,7 +96,11 @@ def draw(meta: dict, out: Path):
     im = Image.new("RGB", (W, H), TEAL)
     d = ImageDraw.Draw(im)
 
-    icon = Image.open(SITE / "assets/mags/mags-icon-512.png").convert("RGBA").resize((s(52), s(52)), Image.LANCZOS)
+    icon = (
+        Image.open(SITE / "assets/mags/mags-icon-512.png")
+        .convert("RGBA")
+        .resize((s(52), s(52)), Image.LANCZOS)
+    )
     im.paste(icon, (s(64), s(58)), icon)
     gab.draw(d, (s(128), s(84)), "vinted-sniper", s(32), 800, "white", anchor="lm")
 
@@ -119,7 +123,9 @@ def draw(meta: dict, out: Path):
     while sub_size > s(18) and any(inter.width(d, ln, sub_size, 450) > s(520) for ln in sub):
         sub_size -= s(1)
     for i, line in enumerate(sub):
-        inter.draw(d, (s(64), s(448) + i * int(sub_size * 1.3)), line, sub_size, 450, (230, 250, 250))
+        inter.draw(
+            d, (s(64), s(448) + i * int(sub_size * 1.3)), line, sub_size, 450, (230, 250, 250)
+        )
 
     # Listing card on the right.
     card_meta = meta["og_card"]
@@ -134,7 +140,9 @@ def draw(meta: dict, out: Path):
     pw, phh = photo.size
     ratio = cw / ph
     top = int((phh - pw / ratio) / 2)
-    card.paste(photo.crop((0, top, pw, int(top + pw / ratio))).resize((cw, ph), Image.LANCZOS), (0, 0))
+    card.paste(
+        photo.crop((0, top, pw, int(top + pw / ratio))).resize((cw, ph), Image.LANCZOS), (0, 0)
+    )
 
     def pill(x, y, text, bg, fg):
         size = s(15)
@@ -159,7 +167,9 @@ def draw(meta: dict, out: Path):
     inter.draw(cd, (end + s(8), ty + s(63)), card_meta["fees"], s(16), 420, TEAL)
 
     shadow = Image.new("L", (W, H), 0)
-    ImageDraw.Draw(shadow).rounded_rectangle((cx, cy + s(14), cx + cw, cy + card_h + s(14)), radius=s(18), fill=90)
+    ImageDraw.Draw(shadow).rounded_rectangle(
+        (cx, cy + s(14), cx + cw, cy + card_h + s(14)), radius=s(18), fill=90
+    )
     shadow = shadow.filter(ImageFilter.GaussianBlur(s(18)))
     im.paste((0, 60, 66), (0, 0), shadow)
     im.paste(card, (cx, cy), mask)
@@ -200,5 +210,7 @@ def ensure(i18n: dict[str, dict], src_dir: Path, dist_dir: Path | None = None, f
 
 
 if __name__ == "__main__":
-    data = {f.stem: json.loads(f.read_text("utf-8")) for f in sorted((SITE / "i18n").glob("*.json"))}
+    data = {
+        f.stem: json.loads(f.read_text("utf-8")) for f in sorted((SITE / "i18n").glob("*.json"))
+    }
     ensure(data, SITE / "assets/og", force=True)
