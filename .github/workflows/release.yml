@@ -94,8 +94,10 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           version="${TAG#v}"
+          # From this version's heading up to the next heading or the link list at the end.
           awk -v v="$version" '
             /^## \[/ { if (found) exit; if (index($0, "[" v "]")) { found = 1; next } }
+            /^\[[^]]+\]: / { if (found) exit }
             found { print }
           ' CHANGELOG.md > notes.md
           if [ ! -s notes.md ]; then
