@@ -95,7 +95,7 @@ DOCS = {
     },
     "legal": {
         "src": "docs/legal.md",
-        "title": "Are Vinted bots allowed? Rules and risks | vinted-sniper",
+        "title": "Rules and risks of running a Vinted bot | vinted-sniper",
         "description": "What Vinted's terms say about bots, what that means in practice, how vinted-sniper stays a polite guest, and handling other people's data. Not legal advice.",
     },
 }
@@ -545,6 +545,10 @@ class Site:
             text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
             # Drop the title and the note to maintainers above the first release.
             text = text[text.index("\n## "):]
+            # The release on PyPI is cut from "Unreleased" before CHANGELOG.md gets its heading;
+            # show it under the version people actually install.
+            if f"## [{self.version}]" not in text:
+                text = text.replace("\n## [Unreleased]", f"\n## {self.version}", 1)
             md = md_renderer()
             body = md.convert(text)
             body = self.rewrite_doc_links(body, "CHANGELOG.md")
