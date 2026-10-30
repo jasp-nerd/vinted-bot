@@ -14,5 +14,5 @@ PYPI = "https://pypi.org/project/vinted-bot/"
 GOOGLE_SITE_VERIFICATION = "yChsP16tHi1XLf1-EY9hMxyY4OE3GFXmSheJnLbx9TE"
 # Visit counts on the owner's self-hosted Umami: cookieless, no personal data. The script
 # only reports from HOST, so local builds and previews stay out of the numbers.
-UMAMI_SCRIPT = "https://stats.coursedownloader.com/script.js"
+UMAMI_SCRIPT = "https://stats.jaspnerd.dev/script.js"
 UMAMI_WEBSITE_ID = "fce710a9-c778-4686-8f07-f0c8f60fe570"
