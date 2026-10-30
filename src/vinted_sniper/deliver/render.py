@@ -38,7 +38,7 @@ GOOD_DEAL_PCT = 20
 
 # Kinds a listing alert can be. Watches (price drops, sales) are things the user asked to
 # follow explicitly; the rest are search matches.
-KINDS = ("listing", "price_drop", "sold", "reserved", "seller_upload")
+KINDS = ("listing", "price_drop", "sold", "reserved", "removed", "seller_upload")
 
 # Long titles are cut here everywhere. Vinted's own limit is about this, and anything
 # longer is keyword stuffing that pushes the price off a phone screen.
@@ -71,7 +71,8 @@ class ListingView:
     """Everything a channel shows about one listing, already decided and formatted."""
 
     outbox_id: int
-    query_id: int
+    # None for alerts from a watch rather than a search.
+    query_id: int | None
     kind: str
     labels: Labels
     title: str
@@ -117,6 +118,8 @@ class ListingView:
                 return labels.sold
             case "reserved":
                 return labels.reserved
+            case "removed":
+                return labels.removed
             case "seller_upload":
                 return labels.new_from.format(seller=self.seller_login or labels.seller)
             case _:
@@ -132,8 +135,8 @@ class ListingView:
 
     @property
     def can_buy(self) -> bool:
-        """A sold or reserved listing has nothing left to buy or ask about."""
-        return self.kind not in {"sold", "reserved"}
+        """A sold, reserved or removed listing has nothing left to buy or ask about."""
+        return self.kind not in {"sold", "reserved", "removed"}
 
     @property
     def facts(self) -> list[tuple[str, str]]:
@@ -289,7 +292,11 @@ def view(notification: PendingNotification, *, dashboard_url: str | None) -> Lis
         flag=site_flag(item.tld),
         listed_at=item.photo_ts or notification.detected_at or int(time.time()),
         search_name=_clip(notification.query_name, MAX_SEARCH_NAME) or "search",
-        search_url=f"{dashboard}/searches/{notification.query_id}" if dashboard else None,
+        search_url=(
+            f"{dashboard}/searches/{notification.query_id}"
+            if dashboard and notification.query_id is not None
+            else None
+        ),
         dashboard_url=dashboard,
         buy_url=item.buy_url,
         message_url=item.message_url,

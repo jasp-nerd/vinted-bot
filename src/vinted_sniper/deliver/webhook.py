@@ -107,7 +107,7 @@ def _seller(item: Item) -> dict[str, Any] | None:
 
 
 def _by_search(batch: list[PendingNotification]) -> list[list[PendingNotification]]:
-    groups: dict[int, list[PendingNotification]] = {}
+    groups: dict[int | None, list[PendingNotification]] = {}
     for notification in batch:
         groups.setdefault(notification.query_id, []).append(notification)
     return list(groups.values())

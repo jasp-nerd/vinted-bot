@@ -9,9 +9,11 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
+import structlog
 
 from vinted_sniper.app import Application
 from vinted_sniper.config import Settings
@@ -149,3 +151,76 @@ async def test_a_search_added_while_running_is_picked_up(offline_settings: Setti
         state = await Repo(db).get_state(query_id)
 
     assert state.last_polled_at is not None, "a search added while running should start itself"
+
+
+async def add_search(settings: Settings, text: str) -> int:
+    async with Database(settings.db_path) as db:
+        await apply_pending(db)
+        return await Repo(db).add_query(
+            name=text,
+            url=f"https://www.vinted.fr/catalog?search_text={text}",
+            tld="fr",
+            params={"search_text": text},
+            poll_interval_s=10,
+        )
+
+
+async def test_searches_started_together_are_spread_out(offline_settings: Settings) -> None:
+    """After a restart every search used to fire in the same second."""
+    for text in ("one", "two", "three"):
+        await add_search(offline_settings, text)
+
+    with structlog.testing.capture_logs() as events:
+        await run_briefly(Application(offline_settings), seconds=0.3)
+
+    delays = [e["start_in_s"] for e in events if e["event"] == "poller.started"]
+    assert delays[0] == 0, "the first search still checks straight away"
+    assert delays[1] >= 2.0
+    assert delays[2] >= 4.0
+
+
+async def test_editing_a_search_restarts_it_with_the_new_rules(
+    offline_settings: Settings,
+) -> None:
+    query_id = await add_search(offline_settings, "edited")
+    app = Application(offline_settings, supervise_interval_s=0.1)
+
+    with structlog.testing.capture_logs() as events:
+        task = asyncio.create_task(app.run())
+        await asyncio.sleep(0.3)
+        async with Database(offline_settings.db_path) as db:
+            repo = Repo(db)
+            query = await repo.get_query(query_id)
+            assert query is not None
+            await repo.update_query(replace(query, banned_keywords=["fake"]))
+        await asyncio.sleep(0.3)
+        app.request_stop()
+        await asyncio.wait_for(task, timeout=5)
+
+    starts = [e for e in events if e["event"] == "poller.started" and e["query_id"] == query_id]
+    assert len(starts) == 2
+
+
+async def test_a_search_on_two_sites_records_each_listing_once(
+    offline_settings: Settings,
+) -> None:
+    async with Database(offline_settings.db_path) as db:
+        await apply_pending(db)
+        repo = Repo(db)
+        query_id = await repo.add_query(
+            name="both",
+            url="https://www.vinted.fr/catalog?search_text=nike",
+            tld="fr",
+            params={"search_text": "nike"},
+            poll_interval_s=10,
+            extra_tlds=["be"],
+        )
+        await repo.add_destination(kind="webhook", name="sink", config={"url": "x"})
+
+    await run_briefly(Application(offline_settings))
+
+    async with Database(offline_settings.db_path) as db:
+        repo = Repo(db)
+        assert (await repo.get_state(query_id)).last_status == "ok"
+        assert await repo.seen_by_query(query_id, [1000, 1001, 1002]) == {1000, 1001, 1002}
+        assert await repo.outbox_depth() == 1, "newest mode announces one, not one per site"

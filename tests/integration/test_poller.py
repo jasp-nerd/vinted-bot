@@ -129,7 +129,8 @@ async def test_first_check_in_newest_mode_announces_exactly_one(
 
     now = int(time.time())
     # Includes listings far outside the freshness window, as a real first page does.
-    transport.queue_catalog([make_item(i, photo_ts=now - i * 3600) for i in range(1, 31)])
+    # Listing ids rise with upload time, so the highest id is the newest.
+    transport.queue_catalog([make_item(i, photo_ts=now - (31 - i) * 3600) for i in range(1, 31)])
 
     await poller.tick()
 
@@ -137,7 +138,7 @@ async def test_first_check_in_newest_mode_announces_exactly_one(
     assert len(await repo.known_item_ids(list(range(1, 31)))) == 30
 
     queued = await repo.claim_batch(destination_id, 50)
-    assert [n.item.item_id for n in queued] == [1], "the newest listing, and only that"
+    assert [n.item.item_id for n in queued] == [30], "the newest listing, and only that"
 
 
 async def test_only_listings_newer_than_the_last_check_are_announced(

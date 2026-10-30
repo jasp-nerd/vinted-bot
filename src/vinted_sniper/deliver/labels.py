@@ -23,6 +23,7 @@ class Labels:
     price_drop: str
     sold: str
     reserved: str
+    removed: str
     # "{seller}" is replaced with the seller's login.
     new_from: str
     size: str
@@ -51,6 +52,7 @@ _CATALOGUE: dict[str, Labels] = {
         price_drop="Price drop",
         sold="Sold",
         reserved="Reserved",
+        removed="No longer listed",
         new_from="New from {seller}",
         size="Size",
         condition="Condition",
@@ -75,6 +77,7 @@ _CATALOGUE: dict[str, Labels] = {
         price_drop="Baisse de prix",
         sold="Vendu",
         reserved="Réservé",
+        removed="Annonce retirée",
         new_from="Nouveau chez {seller}",
         size="Taille",
         condition="État",
@@ -99,6 +102,7 @@ _CATALOGUE: dict[str, Labels] = {
         price_drop="Preissenkung",
         sold="Verkauft",
         reserved="Reserviert",
+        removed="Nicht mehr verfügbar",
         new_from="Neu von {seller}",
         size="Größe",
         condition="Zustand",
@@ -123,6 +127,7 @@ _CATALOGUE: dict[str, Labels] = {
         price_drop="Prijsdaling",
         sold="Verkocht",
         reserved="Gereserveerd",
+        removed="Niet meer beschikbaar",
         new_from="Nieuw van {seller}",
         size="Maat",
         condition="Staat",
@@ -147,6 +152,7 @@ _CATALOGUE: dict[str, Labels] = {
         price_drop="Bajada de precio",
         sold="Vendido",
         reserved="Reservado",
+        removed="Ya no disponible",
         new_from="Nuevo de {seller}",
         size="Talla",
         condition="Estado",
@@ -171,6 +177,7 @@ _CATALOGUE: dict[str, Labels] = {
         price_drop="Prezzo ribassato",
         sold="Venduto",
         reserved="Riservato",
+        removed="Non più disponibile",
         new_from="Novità da {seller}",
         size="Taglia",
         condition="Condizioni",
@@ -195,6 +202,7 @@ _CATALOGUE: dict[str, Labels] = {
         price_drop="Obniżka ceny",
         sold="Sprzedane",
         reserved="Zarezerwowane",
+        removed="Ogłoszenie usunięte",
         new_from="Nowe od {seller}",
         size="Rozmiar",
         condition="Stan",
@@ -219,6 +227,7 @@ _CATALOGUE: dict[str, Labels] = {
         price_drop="Kaina sumažinta",
         sold="Parduota",
         reserved="Rezervuota",
+        removed="Skelbimas pašalintas",
         new_from="Nauja iš {seller}",
         size="Dydis",
         condition="Būklė",
@@ -243,6 +252,7 @@ _CATALOGUE: dict[str, Labels] = {
         price_drop="Sleva",
         sold="Prodáno",
         reserved="Rezervováno",
+        removed="Inzerát odstraněn",
         new_from="Nové od {seller}",
         size="Velikost",
         condition="Stav",
