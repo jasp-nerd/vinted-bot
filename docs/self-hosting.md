@@ -128,12 +128,18 @@ Worth a look in `docker-compose.yml`:
   a maintained fork of Watchtower that updates vinted-bot once a night. It needs the
   Docker socket, so it is off unless you ask for it.
 
-Optional settings, such as a Telegram bot token, go in a `.env` file next to the compose
-file:
+Everything else, the Telegram bot and the dashboard password included, is set up in the
+dashboard. Optional process settings (see [Configuration](configuration.md)) can go in a
+`.env` file next to the compose file:
 
 ```bash
 curl -o .env https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/.env.example
 ```
+
+To open the dashboard from your phone, set a password in Settings first, then change the
+port line in `docker-compose.yml` from `127.0.0.1:8000:8000` to `8000:8000` and run
+`docker compose up -d`. Inside Docker the port mapping decides who can connect, so the
+dashboard's phone access switch is not offered there.
 
 Check it started:
 
@@ -154,8 +160,8 @@ docker compose exec vinted-bot vinted-bot status
 - **Portainer:** Stacks, Add stack, Repository, pointing at this repository.
 
 [deploy/README.md](../deploy/README.md) has the details for each. On a NAS the dashboard is
-usually reachable from your whole network, so set `VINTED_BOT_WEB_AUTH_TOKEN` as a
-password.
+usually reachable from your whole network, so set a password in the dashboard's Settings
+(or `VINTED_BOT_WEB_AUTH_TOKEN` in the app's settings on the NAS) before anything else.
 
 ## On a VPS or a cloud host
 
@@ -179,9 +185,9 @@ reach the dashboard through an SSH tunnel:
 ssh -L 8000:localhost:8000 you@your-server
 ```
 
-Then open http://localhost:8000 on your own machine. Anything else needs
-`VINTED_BOT_WEB_AUTH_TOKEN` set *and* a reverse proxy with TLS in front, because the
-dashboard shows your webhook links.
+Then open http://localhost:8000 on your own machine. Anything else needs a password (set
+in Settings, or `VINTED_BOT_WEB_AUTH_TOKEN`) *and* a reverse proxy with TLS in front,
+because the dashboard shows your webhook links.
 
 **Platforms that run the image for you** (Render, Railway, Coolify) have templates in
 [deploy/](../deploy/README.md). All are paid for an always-on app with storage, and they send
@@ -257,7 +263,7 @@ uv sync
 uv run vinted-bot run --open
 ```
 
-No `.env` needed here either; copy `.env.example` to `.env` later for Telegram or other
-tuning. For a systemd service, point `ExecStart` at `/path/to/.venv/bin/vinted-bot run`,
+No `.env` needed here either: the Telegram bot, the password and phone access are set in
+the dashboard. Copy `.env.example` to `.env` only for tuning. For a systemd service, point `ExecStart` at `/path/to/.venv/bin/vinted-bot run`,
 set `WorkingDirectory`, and add `Restart=always`. The app handles SIGTERM itself, so the
 default `KillSignal` is correct and there is no need for a long `TimeoutStopSec`.

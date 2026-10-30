@@ -63,7 +63,7 @@ Po naszej stronie nie ma żadnego serwera. Aplikacja działa na Twoim laptopie, 
 
 Co dostajesz za darmo:
 
-- Powiadomienia na Discordzie, Telegramie, w ntfy (darmowa aplikacja z powiadomieniami na telefon, bez konta), przez RSS albo na własny webhook. E-mail i usługi takie jak Slack czy Pushover działają przez opcjonalny dodatek.
+- Powiadomienia na Discordzie, Telegramie, w ntfy (darmowa aplikacja z powiadomieniami na telefon, bez konta), przez RSS albo na własny webhook. Do tego e-mail, a także usługi takie jak Slack czy Pushover.
 - Pełną cenę w każdym powiadomieniu, z ochroną kupujących, i limity ceny liczone od tej kwoty. Filtr ceny na Vinted pomija tę opłatę.
 - Słowa, które musi zawierać tytuł, i słowa do pominięcia, żeby "na części" czy "samo pudełko" nigdy do Ciebie nie trafiały.
 - Filtry sprzedającego: minimalna ocena, minimalna liczba opinii, kraj i przycisk blokowania.

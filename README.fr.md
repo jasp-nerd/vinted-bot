@@ -153,6 +153,7 @@ Ou ouvrez-le directement : **[Ouvrir dans Claude](https://claude.ai/new?q=Aide-m
 
 - Un fil des trouvailles en direct, comme la grille de Vinted : garder, masquer, bloquer le vendeur.
 - Une mise en route au premier lancement : collez un lien ou construisez la recherche, puis envoyez une alerte de test.
+- Aucun fichier de réglages à modifier : le bot Telegram, un mot de passe et l'accès depuis votre téléphone se règlent dans le tableau de bord.
 - « Non envoyées » : chaque annonce écartée, avec la raison.
 - Une liste de suivi pour les baisses de prix et les articles vendus, et pour les nouveautés d'un vendeur.
 - Des statistiques : trouvailles par jour, heures les plus actives, délai des alertes.

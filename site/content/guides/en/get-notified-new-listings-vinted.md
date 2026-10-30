@@ -16,7 +16,7 @@ faq:
   - q: "How do I get notifications when someone uploads on Vinted?"
     a: "For one seller, follow them and Vinted notifies you when they upload. For a search, save it in the app, but those alerts are often late or missing. For dependable alerts, use an external tool such as vinted-bot, which checks your search every minute and messages you."
   - q: "Can I get Vinted alerts by email?"
-    a: "Vinted doesn't offer saved-search emails you can count on. vinted-bot can send alerts by email through its optional Apprise add-on, but most people find Discord, Telegram or a phone notification quicker."
+    a: "Vinted doesn't offer saved-search emails you can count on. vinted-bot can send alerts by email: type your address, pick your provider and paste an app password. Most people find Discord or Telegram quicker to glance at, though."
   - q: "Is there a Vinted alert app?"
     a: "There are paid alert apps, typically a few euros a month. A free alternative is to run vinted-bot on a computer and receive its alerts in the free ntfy app on your phone, with no account needed."
   - q: "How fast are Vinted alerts?"

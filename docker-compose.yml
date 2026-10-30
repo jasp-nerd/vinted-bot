@@ -26,9 +26,9 @@ services:
       # A folder next to this file instead, easier to back up (set PUID/PGID above):
       # - ./data:/data
     ports:
-      # The dashboard, reachable from this machine only. If you widen this beyond
-      # 127.0.0.1, set VINTED_BOT_WEB_AUTH_TOKEN first — the dashboard has no other
-      # lock, and it shows your webhook URLs.
+      # The dashboard, reachable from this machine only. To open it from your phone,
+      # set a password in the dashboard's Settings first (or VINTED_BOT_WEB_AUTH_TOKEN),
+      # then change this to "8000:8000". It shows your webhook URLs.
       - "127.0.0.1:8000:8000"
     # Nothing in here writes outside /data, so the rest of the filesystem can stay
     # read-only.

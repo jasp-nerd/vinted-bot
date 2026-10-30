@@ -1,13 +1,27 @@
 # Configuration
 
-Two kinds of settings, kept apart deliberately.
+Nobody needs to edit a file. Everything a normal setup needs is in the dashboard; the
+environment is for servers and Docker setups that want a value fixed in place.
 
-**Environment variables** control the process: where the database is, how often to check,
-how to log. They are read once at startup and are listed below.
+**In the dashboard**, stored in the database and changed while the app runs:
 
-**Searches and destinations** live in the database and are managed with the CLI or the
-dashboard. There is no config file listing them, so there is nothing to keep in sync and no
-question about which copy wins.
+| What | Where | Environment variable that overrides it |
+|---|---|---|
+| Searches, places for alerts, routing, watches, blocked sellers | Searches, Alerts, Watchlist | none |
+| Telegram bot token | Alerts: paste it when adding Telegram, or on the Telegram bot card | `TELEGRAM_BOT_TOKEN` |
+| Dashboard password | Settings, Password | `WEB_AUTH_TOKEN` |
+| Who can open the dashboard | Settings, "Allow my phone and other devices" | `WEB_HOST` |
+| Time zone, theme, update checks, health check link | Settings | `TIMEZONE` (the dashboard's choice wins over it) |
+
+**The environment wins when it says something.** If one of the three overridable variables
+is set, in the environment or in the `.env` file, the app uses it and the dashboard shows it
+as set by the environment, with no control to change it. A dashboard switch that quietly
+overrode a compose file or a service unit would come back wrong at the next deploy.
+
+**Everything else is environment only**: where the database is, how often to check, how to
+log, ports. Read once at startup and listed below. The dashboard lists every one of them,
+read-only, under Settings, Advanced, with its value and whether it came from the
+environment, the `.env` file or the default.
 
 ## Environment variables
 
@@ -83,15 +97,15 @@ was found, so you can see the real delay yourself.
 
 | Variable | Default | What it does |
 |---|---|---|
-| `TELEGRAM_BOT_TOKEN` | unset | From [@BotFather](https://t.me/BotFather). Enables Telegram delivery and the pairing bot. |
+| `TELEGRAM_BOT_TOKEN` | unset | Normally pasted on the dashboard's Alerts page, which checks it with Telegram and starts the bot at once. Set here, it wins over the dashboard's and cannot be changed there. From [@BotFather](https://t.me/BotFather). |
 
 ### Dashboard
 
 | Variable | Default | What it does |
 |---|---|---|
 | `WEB_ENABLED` | `true` | The dashboard. Turn it off if you only use the CLI. |
-| `WEB_AUTH_TOKEN` | unset | Optional. With no token the dashboard has no sign-in, which is fine while it listens on localhost. **Set one before exposing it further**: anyone who can open the dashboard can add, remove and reroute your alerts. Generate with `openssl rand -hex 32`. Signing in gives that browser a random session (30 days) that signing out revokes; changing the token signs every browser out. After five wrong passwords from one address, sign-in waits 15 minutes. |
-| `WEB_HOST` | `127.0.0.1` | Loopback by default. Only widen behind a reverse proxy you trust. |
+| `WEB_AUTH_TOKEN` | unset | A dashboard password fixed by the environment. Normally the password is set in Settings, Password (stored as a salted scrypt fingerprint, never the password itself), and turning on phone access asks for one. Set here, it wins over that one and Settings cannot change it. Generate with `openssl rand -hex 32`. Either way: signing in gives that browser a random session (30 days) that signing out revokes; changing the password signs every browser out; after five wrong passwords from one address, sign-in waits 15 minutes. Forgot the dashboard's own password? `vinted-bot reset-password` prints a new one. |
+| `WEB_HOST` | `127.0.0.1` | Unset, the Settings switch "Allow my phone and other devices" decides: `127.0.0.1` (this computer only) or `0.0.0.0` (every device on your network, never the internet by itself). The switch takes effect at once: the web server listens again on the new address inside the running app, no restart. It needs a password, and the password cannot be removed while it is on. Set here, it wins over the switch; widen it only behind a reverse proxy you trust. |
 | `WEB_PORT` | `8000` | |
 | `WEB_PUBLIC_URL` | unset | The address the dashboard is reachable at from wherever you read your alerts — set it when the dashboard sits behind a reverse proxy or a tunnel. It becomes the Dashboard link in Discord messages; unset, that link points at `http://<WEB_HOST>:<WEB_PORT>`. Its host name is also one the dashboard answers to (see `WEB_ALLOWED_HOSTS`). |
 | `WEB_ALLOWED_HOSTS` | unset | Extra host names the dashboard answers to, comma-separated, such as `nas.local,finds.example.org`. The dashboard always answers to `localhost`, `127.0.0.1`, `[::1]`, any IP address (so `http://192.168.1.20:8000` from a phone works) and the host of `WEB_PUBLIC_URL`. Any other name gets a 400 page that names this setting. That is what stops another website from pointing its own name at your computer and using the dashboard through your browser (DNS rebinding), and it applies however the dashboard is bound, the Docker image's `0.0.0.0` included. Add the name your reverse proxy forwards, if it does not pass the original one on. |
@@ -128,6 +142,7 @@ vinted-bot destinations             list them
 vinted-bot export [--format csv|json] [--search ID] [--output FILE]
                                        write found listings for a spreadsheet
 vinted-bot pair-telegram            print a link that connects a Telegram chat
+vinted-bot reset-password           give the dashboard a new password and print it
 vinted-bot status                   how each search is doing
 vinted-bot migrate                  create or update the database, then exit
 vinted-bot heartbeat                exit 0 if the app is alive (the health check)
@@ -177,7 +192,7 @@ Where to get each kind of target:
 | Kind | Setup |
 |---|---|
 | `discord` | In your server: Settings → Integrations → Webhooks → New Webhook → Copy URL. Nothing to invite, nothing to host. |
-| `telegram` | Create a bot with [@BotFather](https://t.me/BotFather), set `TELEGRAM_BOT_TOKEN`, then run `vinted-bot pair-telegram` and tap the link it prints. It finds your chat id for you. |
+| `telegram` | In the dashboard: Alerts, Add a place, Telegram. It walks you through making a bot with [@BotFather](https://t.me/BotFather), checks the token you paste, then gives you a link that connects your chat (no chat id to look up). From the command line, `vinted-bot pair-telegram` prints the same link. |
 | `ntfy` | Pick a topic name, install the ntfy app. No account. |
 | `webhook` | Any URL you control: n8n, Home Assistant, a script. Payload below. |
 
@@ -312,7 +327,7 @@ Each search has a feed at `/rss/<search id>.xml`, so with the defaults:
 http://localhost:8000/rss/1.xml
 ```
 
-If `WEB_AUTH_TOKEN` is set, feed readers cannot sign in, so the feed address carries a key
+If the dashboard has a password, feed readers cannot sign in, so the feed address carries a key
 instead: `/rss/1.xml?key=<feed key>`. The key is a random value of its own, not your
 password, made the first time it is needed. Copy the whole address from the "RSS feed of
 this search" link on the search's page in the dashboard. Anyone with that address can read

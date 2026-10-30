@@ -63,7 +63,7 @@ There's no server on our side. The app runs on your laptop, desktop, Raspberry P
 
 What you get for free:
 
-- Alerts on Discord, Telegram, ntfy (a free phone notification app, no account needed), RSS or your own webhook. Email and services like Slack or Pushover work through an optional add-on.
+- Alerts on Discord, Telegram, ntfy (a free phone notification app, no account needed), RSS or your own webhook. Email and services like Slack or Pushover work too.
 - The total price in every alert, buyer protection included, and price limits that use that total. Vinted's own price filter ignores the fee (more in [the buyer protection fee explained](/guides/vinted-buyer-protection-fee/)).
 - Words a title must contain and words to skip, so "for parts" or "box only" never reach you.
 - Seller filters: minimum rating, minimum number of reviews, seller country, and a block button.

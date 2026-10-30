@@ -17,8 +17,10 @@ Two things are true everywhere:
 - **The image fixes its own folder permissions.** Set `PUID` and `PGID` to whoever owns the
   data folder on the host and the container hands `/data` to that user before starting.
   The app never runs as root.
-- **Anything reachable beyond the machine itself needs a password.** Set
-  `VINTED_BOT_WEB_AUTH_TOKEN`. The dashboard shows your webhook links.
+- **Anything reachable beyond the machine itself needs a password.** On a home NAS, set
+  one in the dashboard's Settings before opening the port wider; on a host reachable from
+  the internet, set `VINTED_BOT_WEB_AUTH_TOKEN` so it is locked from the first request.
+  The dashboard shows your webhook links.
 
 ## Unraid
 

@@ -63,7 +63,7 @@ Er is geen server aan onze kant. De app draait op je laptop, pc, Raspberry Pi of
 
 Wat je krijgt:
 
-- Meldingen via Discord, Telegram, ntfy (een gratis telefoonapp zonder account), RSS of je eigen webhook. E-mail, Slack of Pushover werken via een optionele uitbreiding.
+- Meldingen via Discord, Telegram, ntfy (een gratis telefoonapp zonder account), RSS of je eigen webhook. E-mail, Slack en Pushover werken ook.
 - De totaalprijs in elke melding, kopersbescherming inbegrepen, en prijsgrenzen die met dat totaal rekenen. Het prijsfilter van Vinted negeert die toeslag.
 - Woorden die in de titel moeten staan en woorden om over te slaan, zodat "defect" of "alleen doos" je nooit bereikt.
 - Verkopersfilters: minimale beoordeling, minimaal aantal reviews, land van de verkoper en een knop om iemand te blokkeren.

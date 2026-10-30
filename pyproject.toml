@@ -1,6 +1,6 @@
 [project]
 name = "vinted-bot"
-version = "2.1.0"
+version = "2.2.0"
 description = "Free, self-hosted Vinted bot and monitor: alerts for new Vinted listings on Discord, Telegram, ntfy or email, with a web dashboard. No login, no subscription."
 readme = "README.md"
 requires-python = ">=3.13"

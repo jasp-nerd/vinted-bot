@@ -63,7 +63,7 @@ Es gibt bei uns keinen Server. Die App läuft auf deinem Laptop, PC, Raspberry P
 
 Was du bekommst:
 
-- Benachrichtigungen per Discord, Telegram, ntfy (kostenlose Handy-App ohne Konto), RSS oder eigenem Webhook. E-Mail, Slack oder Pushover gehen über eine optionale Erweiterung.
+- Benachrichtigungen per Discord, Telegram, ntfy (kostenlose Handy-App ohne Konto), RSS oder eigenem Webhook. E-Mail, Slack und Pushover gehen auch.
 - Den Endpreis in jeder Nachricht, Käuferschutz inklusive, und Preisgrenzen, die mit diesem Endpreis rechnen. Der Preisfilter von Vinted ignoriert die Gebühr.
 - Wörter, die im Titel stehen müssen, und Wörter, die rausfliegen, damit "defekt" oder "nur Karton" gar nicht erst ankommt.
 - Verkäuferfilter: Mindestbewertung, Mindestanzahl an Bewertungen, Land des Verkäufers und ein Button zum Blockieren.

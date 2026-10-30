@@ -63,7 +63,7 @@ No hay ningún servidor por nuestra parte. La app funciona en tu portátil, tu s
 
 Lo que tienes gratis:
 
-- Alertas en Telegram, Discord, ntfy (una app gratuita de notificaciones para el móvil, sin cuenta), RSS o tu propio webhook. El correo y servicios como Slack o Pushover funcionan con un complemento opcional.
+- Alertas en Telegram, Discord, ntfy (una app gratuita de notificaciones para el móvil, sin cuenta), RSS o tu propio webhook. El correo y servicios como Slack o Pushover también funcionan.
 - El precio total en cada alerta, protección al comprador incluida, y límites de precio que usan ese total. El filtro de precio de Vinted ignora la comisión.
 - Palabras que el título debe llevar y palabras que excluir, para que "para piezas" o "solo caja" no te lleguen nunca.
 - Filtros de vendedor: valoración mínima, número mínimo de opiniones, país y un botón para bloquearlo.

@@ -157,8 +157,15 @@ running at all. The log says why; see [where the logs are](#where-the-logs-are).
 
 Also worth grepping the logs for `web.no_password`: that warning means the dashboard is
 listening on an address other than localhost with no sign-in, so anyone who can reach the
-port can change your searches and where alerts go. Either set `VINTED_BOT_WEB_AUTH_TOKEN`
-or check that the published port is not public.
+port can change your searches and where alerts go. Set a password in Settings (or
+`VINTED_BOT_WEB_AUTH_TOKEN`), or check that the published port is not public.
+
+## I forgot the dashboard password
+
+On the computer running vinted-bot, run `vinted-bot reset-password` (with Docker:
+`docker compose exec vinted-bot vinted-bot reset-password`). It prints a new password and
+signs every browser out; change it to your own in Settings. If the password is
+`VINTED_BOT_WEB_AUTH_TOKEN`, it is in the environment or `.env` file instead.
 
 ## The dashboard says "Unknown address"
 

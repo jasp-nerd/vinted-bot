@@ -153,6 +153,7 @@ Or open it directly: **[Open in Claude](https://claude.ai/new?q=Please%20help%20
 
 - A live feed of finds that looks like Vinted's own grid: save, hide, block the seller.
 - Setup on first run: paste a link or build the search, then send a test alert.
+- No settings file to edit: the Telegram bot, a password and a switch to open the dashboard on your phone are all in it.
 - "Not sent": every skipped listing with the reason it was skipped.
 - A watchlist for price drops and sold items, and for new uploads from a seller.
 - Stats: finds per day, the busiest hours, how quickly alerts arrive.

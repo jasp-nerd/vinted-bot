@@ -15,8 +15,9 @@ This file is a complete guide for an AI assistant helping someone install and us
 
 - Alerts only arrive while the computer running vinted-bot is on, awake and online. A laptop that sleeps sends nothing while asleep. Always-on options: a Raspberry Pi, a NAS, a mini PC, an old laptop left plugged in, or a small rented server (a few euros a month).
 - No Vinted account is involved. It never asks for Vinted login details. Anything asking for Vinted credentials is not this app.
-- No configuration file is needed. Searches and alert destinations are added in the dashboard.
-- The dashboard is at http://localhost:8000 on the computer it runs on. It has no password unless one is set (VINTED_BOT_WEB_AUTH_TOKEN). That is fine on the person's own computer and required anywhere the dashboard can be reached from other devices.
+- No configuration file is needed, ever. Searches, alert destinations, the Telegram bot token, the dashboard password and phone access are all set in the dashboard. Never tell the person to create or edit a .env file for these.
+- The dashboard is at http://localhost:8000 on the computer it runs on. It has no password until one is set in Settings, Password. That is fine on the person's own computer. To open it on a phone: Settings, "Open on your phone", switch on "Allow my phone and other devices"; it asks for a password (it suggests one), then shows a QR code and the address to type. It only reaches devices on the same Wi-Fi or home network, not the internet. (Servers and Docker can instead fix VINTED_BOT_WEB_AUTH_TOKEN and VINTED_BOT_WEB_HOST in the environment; those win over the dashboard.)
+- Forgot the dashboard password: run `vinted-bot reset-password` on the computer running it (Docker: `docker compose exec vinted-bot vinted-bot reset-password`). It prints a new one.
 - Price limits include Vinted's buyer protection fee, so they match what the person actually pays.
 - The first check of a new search is silent on purpose, so there is no flood of old listings. Alerts start with listings that appear after that.
 - New listings usually arrive within a few minutes. Vinted itself shows new listings to its search with a delay, so nothing can be instant.
@@ -75,7 +76,7 @@ Then open http://localhost:8000 on that computer. With Docker, put `docker compo
 - CasaOS or ZimaOS: App Store, Custom Install, import https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/deploy/casaos/docker-compose.yml
 - Synology (DSM 7.2+): Container Manager, Project, Create, paste the docker-compose.yml from the Docker section.
 
-On a NAS the dashboard is reachable from the whole home network, so a dashboard password (VINTED_BOT_WEB_AUTH_TOKEN) should be set in the app's settings on the NAS.
+On a NAS the dashboard is reachable from the whole home network, so set a dashboard password first: in the dashboard, Settings, Password, Set a password.
 
 ## First use
 
@@ -100,13 +101,9 @@ The webhook link works like a password for posting into that channel. It goes on
 
 ### Telegram
 
-1. In Telegram, open @BotFather, send /newbot, choose a name and a username ending in "bot". BotFather replies with a token.
-2. Give the token to vinted-bot. <!-- TODO(web): if the dashboard gets a field for the bot token, describe it here and drop the .env route. --> Today that is a line in a file named .env in vinted-bot's data folder:
-
-        VINTED_BOT_TELEGRAM_BOT_TOKEN=the-token-from-botfather
-
-   Data folder: Windows %LOCALAPPDATA%\vinted-bot, macOS ~/Library/Application Support/vinted-bot, Linux ~/.local/share/vinted-bot, Docker a .env file next to docker-compose.yml. Then restart vinted-bot (run the install command again, or `docker compose up -d` with Docker).
-3. Connect the chat: in the dashboard, add a Telegram destination and open the link it shows, or run `vinted-bot pair-telegram --bot-username THEBOTNAME` and tap the link. The link opens the bot; press Start. For a group, add the bot to the group first and tap the link inside the group. The link expires after 30 minutes. <!-- TODO(web): exact dashboard wording for pairing. -->
+1. In Telegram, open @BotFather (blue tick), tap Start, send /newbot, choose any name, then a username ending in "bot". BotFather replies "Done! Congratulations" with a token under "Use this token to access the HTTP API". Tapping the token copies it.
+2. In the dashboard: Alerts, Add a place, Telegram (or the Telegram option in first-run setup). Paste the token in "Bot token" and press "Check and save". vinted-bot checks it with Telegram and shows the bot's @name. No restart is needed. A made-up or mistyped token gets a clear error instead.
+3. Press "Connect my chat". The "Open Telegram" button opens the bot with a one-time code; press Start. The dashboard notices within seconds and says Connected. For a group, add the bot to the group first and send the code shown inside the group. The code expires after 30 minutes. `vinted-bot pair-telegram --bot-username THEBOTNAME` prints the same link from the command line.
 
 A Telegram bot cannot message someone first; that is a Telegram rule, which is why the link step exists.
 
@@ -115,6 +112,7 @@ A Telegram bot cannot message someone first; that is a Telegram rule, which is w
 - ntfy: install the ntfy app on the phone, pick a hard-to-guess topic name, subscribe to it in the app, and add an ntfy destination with that topic in the dashboard.
 - RSS: each search has a feed at http://localhost:8000/rss/SEARCH_ID.xml.
 - Webhook: any URL that accepts a JSON POST (n8n, Home Assistant, a script).
+- Email: Alerts, Add a place, Email. Type the address, pick the provider (Gmail, Outlook, Yahoo, iCloud) and paste an app password from the provider's security settings (the normal password usually doesn't work). For any other provider pick "Another provider, or my own mail server" and fill in its outgoing (SMTP) server, port and encryption from the provider's help pages.
 
 ## Updating
 

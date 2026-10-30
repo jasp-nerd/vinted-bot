@@ -78,12 +78,17 @@ transaction with foreign keys checked before it commits, so a failed upgrade lea
 database at the last version that fully applied. `export.py` writes found listings as CSV or
 JSON for both `vinted-bot export` and the dashboard's download button.
 
-Process settings (where the database lives, intervals, the dashboard password) come from
-the environment through `config.py`. Everything a person owns lives in the database:
-searches, destinations, routes, watches, the seller blocklist, and the handful of settings
-the dashboard changes (`timezone`, `healthcheck_url`, `update_check`, `theme`, whether
-setup has run), which sit as keys in `app_state`. There is never a question of which copy of
-a setting wins.
+Process settings (where the database lives, intervals, ports, logging) come from the
+environment through `config.py`. Everything a person owns lives in the database:
+searches, destinations, routes, watches, the seller blocklist, and the settings the
+dashboard changes (`timezone`, `healthcheck_url`, `update_check`, `theme`, whether setup
+has run), which sit as keys in `app_state`. Three process settings are in both places:
+the Telegram bot's token, the dashboard password and whether other devices may connect.
+The dashboard sets them in `app_state` and the running app follows at once (`managed.py`
+restarts the bot on a new token; `web/server.py` listens again on the new address,
+inside the process). An environment variable for any of them wins, and the dashboard
+says so instead of offering a control, so there is still never a question of which copy
+wins.
 
 ## Three decisions worth explaining
 

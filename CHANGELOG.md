@@ -6,6 +6,48 @@ becomes the text of its GitHub release, so write it for the people running the a
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-30
+
+Nobody needs to edit a `.env` file any more. Everything a normal setup needs is in the
+dashboard, and takes effect without a restart.
+
+### Added
+
+- **Telegram from the dashboard.** Choose Telegram in setup or on the Alerts page and it
+  walks you through making a bot with BotFather, tap by tap. Paste the token, press "Check
+  and save": vinted-bot asks Telegram whether it's real, shows your bot's name and starts it
+  straight away, so "Connect my chat" works the moment after. A mistyped or made-up token
+  gets a clear message instead. The token is kept on your computer and only ever shown
+  masked, like `123456789:•••••abcd`. The Telegram bot card on the Alerts page replaces or
+  removes it.
+- **"Allow my phone and other devices"**, a switch in Settings, on setup's last screen and
+  in "Open on your phone". It asks for a password if there isn't one (and suggests an easy
+  to type, hard to guess one), then lets devices on your Wi-Fi or home network open the
+  dashboard and shows a code to scan and the address to type. It never opens anything to
+  the internet. vinted-bot keeps running while it switches: no restart. Switching it off
+  keeps the dashboard to this computer again. In Docker the port mapping decides, and
+  Settings explains how instead.
+- **A dashboard password in Settings**: set one, change it (with the current one), or remove
+  it while only this computer can open the page. Changing it signs every other browser out.
+  Forgot it? `vinted-bot reset-password` prints a new one.
+- **Email to any mail server.** Besides Gmail, Outlook, Yahoo and iCloud, "Another provider,
+  or my own mail server" takes the outgoing server, port, encryption and an optional user
+  name, so a provider's SMTP details or a relay on your own network work too.
+- **Settings, Advanced, "Settings from the environment"** lists every remaining setting
+  with its current value and whether it came from the environment, the `.env` file or the
+  default, so nothing that shapes the app is hidden.
+
+### Changed
+
+- **Email works out of the box**, Docker included: Apprise, which sends it, is now part of
+  every install instead of an optional extra.
+- `VINTED_BOT_TELEGRAM_BOT_TOKEN`, `VINTED_BOT_WEB_AUTH_TOKEN` and `VINTED_BOT_WEB_HOST` still
+  work, for servers and Docker setups that want a value fixed in place. When one is set it
+  wins over the dashboard, and the dashboard says it's set by the environment rather than
+  offering a control that wouldn't stick.
+- A Telegram bot whose token Telegram refuses now stops at once with a clear log line,
+  instead of failing quietly until the app shuts down.
+
 ## [2.1.0] - 2026-10-30
 
 ### Changed
@@ -176,7 +218,8 @@ First version, never tagged as a release: polling with a stale-catalog watchdog,
 the total price including buyer protection, Discord, Telegram, ntfy, RSS and webhook
 delivery through a reliable outbox, and a web dashboard.
 
-[Unreleased]: https://github.com/jasp-nerd/vinted-bot/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/jasp-nerd/vinted-bot/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/jasp-nerd/vinted-bot/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/jasp-nerd/vinted-bot/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/jasp-nerd/vinted-bot/compare/v0.1.0...v2.0.0
 [0.1.0]: https://github.com/jasp-nerd/vinted-bot/commits/v0.1.0

@@ -94,7 +94,7 @@ Si rien ne reste allumé chez vous et que vous ne voulez rien installer, un serv
 
 vinted-bot est gratuit, open source (licence MIT) et s'en tient aux alertes. Il fait ce que font les services d'alerte à 5 à 30 € par mois :
 
-- Des alertes sur Discord, Telegram, ntfy sur votre téléphone, RSS ou webhook, avec l'e-mail et d'autres services via un module optionnel.
+- Des alertes sur Discord, Telegram, ntfy sur votre téléphone, RSS ou webhook, ainsi que par e-mail et d'autres services.
 - Des limites de prix sur le total protection acheteurs comprise, des mots obligatoires et à exclure, des filtres sur la note, le nombre d'avis et le pays du vendeur, une liste de vendeurs bloqués et un badge bonne affaire.
 - Une même recherche sur plusieurs pays Vinted, des heures de silence, et des alertes de baisse de prix et de vente pour les annonces que vous surveillez.
 - Un état en clair pour chaque recherche, et un avertissement quand une recherche devient anormalement silencieuse.

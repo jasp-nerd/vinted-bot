@@ -17,7 +17,7 @@ faq:
   - q: "Existe-t-il un bot Vinted gratuit ?"
     a: "Oui. vinted-bot est gratuit et open source (licence MIT), sans formule payante. Il surveille vos recherches Vinted et envoie les nouvelles annonces sur Discord, Telegram, votre téléphone (appli ntfy) ou un webhook. Il tourne sur votre propre ordinateur, qui doit donc rester allumé."
   - q: "Un bot Vinted gratuit sans Discord, c'est possible ?"
-    a: "Oui. vinted-bot fonctionne aussi avec Telegram, avec une notification sur le téléphone via l'appli gratuite ntfy (sans compte), par flux RSS ou par webhook. L'e-mail est possible avec un module optionnel."
+    a: "Oui. vinted-bot fonctionne aussi avec Telegram, avec une notification sur le téléphone via l'appli gratuite ntfy (sans compte), par flux RSS ou par webhook. Et aussi par e-mail."
   - q: "Un bot Vinted 0 délai, ça existe ?"
     a: "Non. Vinted ajoute les nouvelles annonces à sa recherche quelques minutes après leur mise en ligne, et aucun outil, payant ou gratuit, ne les voit avant. Le « 0 délai » se mesure à partir du moment où l'annonce apparaît dans la recherche, pas de la publication."
   - q: "Un bot Vinted gratuit peut-il faire bannir mon compte ?"
@@ -64,7 +64,7 @@ Il n'y a pas de serveur de notre côté. L'application tourne sur votre PC porta
 
 Ce que vous obtenez gratuitement :
 
-- Des alertes sur Discord, Telegram, ntfy (appli de notifications gratuite, sans compte), RSS ou votre propre webhook. L'e-mail et des services comme Slack ou Pushover passent par un module optionnel.
+- Des alertes sur Discord, Telegram, ntfy (appli de notifications gratuite, sans compte), RSS ou votre propre webhook. L'e-mail et des services comme Slack ou Pushover fonctionnent aussi.
 - Le prix total dans chaque alerte, protection acheteurs comprise, et des limites de prix calculées sur ce total.
 - Des mots obligatoires dans le titre et des mots à exclure, pour ne plus voir passer « pour pièces » ou « boîte seule ».
 - Des filtres vendeur : note minimale, nombre d'avis minimum, pays du vendeur, et un bouton pour bloquer un vendeur.
