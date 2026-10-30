@@ -136,9 +136,7 @@ async def test_destination(request: Request, destination_id: int) -> JSONRespons
 async def remove_destination(request: Request, destination_id: int) -> Response:
     destination = await _destination(request, destination_id)
     await core.ctx(request).repo.deactivate_destination(destination.id, data.REMOVED)
-    response = RedirectResponse(core.url("alerts"), status_code=303)
-    response.set_cookie("vs_toast", f"Removed {destination.name}.", max_age=30, samesite="lax")
-    return response
+    return core.redirect(core.url("alerts"), f"Removed {destination.name}.")
 
 
 @router.post("/destinations/telegram/pair")

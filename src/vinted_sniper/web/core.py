@@ -22,7 +22,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 from fastapi import Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import SecretStr
 
@@ -38,6 +38,7 @@ from vinted_sniper.web.preview import PreviewService
 HERE = Path(__file__).parent
 STATIC_DIR = HERE / "static"
 SESSION_COOKIE = "vinted_sniper_session"
+FLASH_COOKIE = "vs_toast"
 RELEASES_URL = "https://github.com/jasp-nerd/vinted-sniper/releases/latest"
 TROUBLESHOOTING_URL = (
     "https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/troubleshooting.md"
@@ -182,12 +183,25 @@ async def render(
     snapshot: health.Snapshot | None = None,
 ) -> HTMLResponse:
     context = ctx(request)
-    return TEMPLATES.TemplateResponse(
+    # A confirmation from the change that redirected here, shown once.
+    flash = request.cookies.get(FLASH_COOKIE)
+    response = TEMPLATES.TemplateResponse(
         request,
         template,
-        {"app": await shell(context, snapshot), **page},
+        {"app": await shell(context, snapshot), "flash": flash, **page},
         status_code=status_code,
     )
+    if flash:
+        response.delete_cookie(FLASH_COOKIE)
+    return response
+
+
+def redirect(target: str, flash: str | None = None) -> RedirectResponse:
+    """Redirect after a change, carrying a confirmation the next page shows once."""
+    response = RedirectResponse(target, status_code=303)
+    if flash:
+        response.set_cookie(FLASH_COOKIE, flash, max_age=30, samesite="lax", httponly=True)
+    return response
 
 
 def phone_address(settings: Settings) -> str | None:

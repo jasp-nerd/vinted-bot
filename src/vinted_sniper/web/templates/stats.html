@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Stats{% endblock %}
+
+{#
+  Column chart in plain HTML so labels stay readable at any width.
+  values: numbers; labels: x labels (shown where label_every divides the index); tips: tooltip text.
+#}
+{% macro columns(values, labels, tips, ymax, ticks, label_every=1) -%}
+<div class="chart cols" role="img" aria-label="{{ caller() }}">
+  <div class="cols__plot">
+    {% for t in ticks %}<div class="cols__tick" style="bottom: {{ (t / ymax * 100)|round(2) }}%"><span>{{ t }}</span></div>{% endfor %}
+    <div class="cols__bars">
+      {% for v in values %}
+      <div class="cols__col">
+        <span class="bar cols__bar" style="height: {{ (v / ymax * 100)|round(2) }}%">{% if loop.last %}<b class="cols__end">{{ v }}</b>{% endif %}</span>
+        <span class="hit" tabindex="0" data-tip="{{ tips[loop.index0] }}" aria-label="{{ tips[loop.index0]|striptags }}"></span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="cols__x" aria-hidden="true">
+    {% for l in labels %}<span>{% if loop.index0 % label_every == 0 or loop.last %}{{ l }}{% endif %}</span>{% endfor %}
+  </div>
+</div>
+{%- endmacro %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <h1 class="t-h1">Stats</h1>
+    <p>How your searches are doing. Everything here stays on this computer.</p>
+  </div>
+  <form class="page-head__actions" method="get" action="{{ url('stats') }}">
+    <div class="seg" role="group" aria-label="Period">
+      {% for r in ranges %}<a href="?days={{ r }}{% if search is not none %}&amp;search={{ search }}{% endif %}" aria-pressed="{{ 'true' if r == days else 'false' }}"{% if r == days %} aria-current="true"{% endif %}>{{ r }} days</a>{% endfor %}
+    </div>
+    <label class="sr-only" for="stat-search">Search</label>
+    <select class="chip chip--select" id="stat-search" name="search" data-autosubmit>
+      <option value="">All searches</option>
+      {% for s in searches %}<option value="{{ s.id }}"{% if search == s.id %} selected{% endif %}>{{ s.name }}</option>{% endfor %}
+    </select>
+    <input type="hidden" name="days" value="{{ days }}">
+  </form>
+</div>
+
+<div class="kpis" style="margin-bottom:16px">
+  <div class="kpi"><span class="kpi__label">Finds, {{ days }} days</span><span class="kpi__value">{{ "{:,}".format(total) }}</span><span class="kpi__note">{% if change is not none %}{{ "+" if change > 0 else "" }}{{ change }}% vs the {{ days }} days before{% else %}Nothing to compare with yet{% endif %}</span></div>
+  <div class="kpi"><span class="kpi__label">Finds today</span><span class="kpi__value">{{ today }}</span><span class="kpi__note">Since midnight, your time</span></div>
+  <div class="kpi"><span class="kpi__label">Alerts sent</span><span class="kpi__value">{{ "{:,}".format(sent) }}</span><span class="kpi__note">Across {{ delivery|length }} {{ "place" if delivery|length == 1 else "places" }}</span></div>
+  <div class="kpi"><span class="kpi__label">Alerts delivered</span><span class="kpi__value">{% if delivered_pct is not none %}{{ delivered_pct }}%{% else %}–{% endif %}</span><span class="kpi__note">{% if failed %}{{ failed }} failed{% else %}None failed{% endif %}</span></div>
+</div>
+
+<div class="stat-grid">
+  <section class="card chart-card span-2" aria-labelledby="c1">
+    <div class="chart-card__head"><h2 class="t-h3" id="c1">Finds per day</h2><p>{{ "All searches" if search is none else "One search" }}, {{ range_text }}</p></div>
+    {% call columns(finds_per_day, day_labels, day_tips, ymax, ticks, label_every) %}Column chart of finds per day, {{ range_text }}. {{ total }} in all, highest {{ finds_per_day|max }} in one day, {{ finds_per_day[-1] }} today.{% endcall %}
+    <details class="tableview"><summary>Show as a table</summary>
+      <div class="chart-wrap"><table class="dtable"><thead><tr><th>Day</th><th class="r">Finds</th></tr></thead><tbody>{% for v in finds_per_day %}<tr><td>{{ day_tips[loop.index0]|striptags|replace(v ~ " finds", "") }}</td><td class="r">{{ v }}</td></tr>{% endfor %}</tbody></table></div>
+    </details>
+  </section>
+
+  <section class="card chart-card" aria-labelledby="c2">
+    <div class="chart-card__head"><h2 class="t-h3" id="c2">When new listings turn up</h2><p>Finds by weekday and hour, your time</p></div>
+    {% if has_heat %}
+    <div class="chart">
+      <div class="heat" role="img" aria-label="Heatmap of finds by weekday and hour. Busiest: {{ busiest }}.">
+        <span></span>{% for h in range(24) %}<span class="h">{% if h % 6 == 0 %}{{ "%02d"|format(h) }}{% endif %}</span>{% endfor %}
+        {% for row in heat %}
+        {% set day = weekdays[loop.index0] %}
+        <span class="heat__day">{{ day }}</span>
+        {% for v in row %}<span class="c" data-v="{{ v }}" style="--a: {{ (v / heat_max * 100)|round }}%" data-tip="<b>{{ v }} finds</b><br>{{ day }} {{ '%02d'|format(loop.index0) }}:00 to {{ '%02d'|format((loop.index0 + 1) % 24) }}:00"></span>{% endfor %}
+        {% endfor %}
+      </div>
+      <div class="heat__legend" aria-hidden="true"><span>Fewer</span><i style="--a:10%"></i><i style="--a:35%"></i><i style="--a:60%"></i><i style="--a:85%"></i><i style="--a:100%"></i><span>More</span></div>
+    </div>
+    <p class="t-sm">Busiest: {{ busiest }}. Checking every minute then pays off most.</p>
+    {% else %}<p class="t-sm">Shows up once there are finds in this period.</p>{% endif %}
+  </section>
+
+  <section class="card chart-card" aria-labelledby="c4">
+    <div class="chart-card__head"><h2 class="t-h3" id="c4">Typical price per search</h2><p>Middle price with fees, in each site's currency</p></div>
+    {% if prices %}
+    <div class="hbars chart">
+      {% for p in prices %}
+      <div class="hbar" tabindex="0" data-tip="<b>{{ p.label }}</b><br>{{ p.name }}">
+        <span class="hbar__name"><i class="sdot" style="--sc: {{ p.color }}"></i><span>{{ p.name }}</span></span>
+        <span class="hbar__track"><span class="hbar__fill" style="width: {{ (p.value / price_top * 100)|round(1) }}%;background: {{ p.color }}"></span></span>
+        <span class="hbar__val">{{ p.label }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="t-sm">Shows up once searches have found listings with prices.</p>{% endif %}
+  </section>
+
+  <section class="card chart-card" aria-labelledby="c5">
+    <div class="chart-card__head"><h2 class="t-h3" id="c5">Delivery</h2><p>Alerts that reached each place</p></div>
+    {% if delivery %}
+    <div class="hbars">
+      {% for d in delivery %}
+      <div class="hbar">
+        <span class="hbar__name">{{ ui.dest_icon(d.kind) }}<span>{{ d.name }}</span></span>
+        <span class="meter{% if d.pct is not none and d.pct < 90 %} meter--bad{% elif d.pct is not none and d.pct < 99.5 %} meter--warn{% endif %}"><span style="width: {{ d.pct or 0 }}%"></span></span>
+        <span class="hbar__val">{% if d.pct is not none and d.pct < 90 %}{{ ui.icon("circle-alert", "i-xs") }} {% endif %}{{ "{:,}".format(d.sent) }} of {{ "{:,}".format(d.sent + d.failed) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% if delivery|selectattr("failed")|list %}<p class="t-sm">Some alerts failed. <a href="{{ url('alerts') }}">Send a test on Alerts</a> to see why.</p>{% endif %}
+    {% else %}<p class="t-sm">Add a place for alerts to see how delivery goes.</p>{% endif %}
+  </section>
+</div>
+{% endblock %}

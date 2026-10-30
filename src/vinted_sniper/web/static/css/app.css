@@ -9,7 +9,7 @@ body {
   background: var(--c-page);
   color: var(--c-text-2);
   font: var(--fw-regular) var(--fs-body)/1.5 var(--font-ui);
-  font-feature-settings: "cv11" 1;      /* Inter's single-storey a: softer, closer to Vinted's cut */
+  font-feature-settings: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -171,7 +171,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 
 .input, .select, .textarea {
   width: 100%; min-height: 46px; padding: 0 14px; border-radius: var(--r-control);
-  border: 1px solid var(--c-control); background: var(--c-surface); color: var(--c-ink);
+  border: 1px solid var(--c-control-input); background: var(--c-surface); color: var(--c-ink);
   font-size: 16px; line-height: 1.35; transition: border-color 120ms;
 }
 .textarea { padding: 12px 14px; min-height: 88px; resize: vertical; }
@@ -286,7 +286,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .chip-label { font-size: 13px; color: var(--c-text-2); margin-right: 2px; }
 
 /* Token input: chips typed into a field */
-.tokens { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 46px; padding: 6px 8px; border-radius: var(--r-control); border: 1px solid var(--c-control); background: var(--c-surface); cursor: text; }
+.tokens { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 46px; padding: 6px 8px; border-radius: var(--r-control); border: 1px solid var(--c-control-input); background: var(--c-surface); cursor: text; }
 .tokens:focus-within { border-color: var(--c-primary); box-shadow: inset 0 0 0 1px var(--c-primary); }
 .tokens input { flex: 1; min-width: 120px; height: 32px; border: 0; background: transparent; font-size: 16px; color: var(--c-ink); padding: 0 6px; }
 .tokens input:focus { outline: none; }
@@ -767,7 +767,7 @@ dialog.modal[open] { animation: pop var(--dur) var(--ease-out); }
 .ob__nav { display: flex; align-items: center; gap: 12px; padding-bottom: 8px; flex-wrap: wrap; }
 .ob__nav .hint { font-size: 13px; color: var(--c-text-2); margin-left: 6px; }
 .ob__field { position: sticky; top: 24px; height: calc(100vh - 48px); height: calc(100dvh - 48px); min-height: 560px; display: grid; grid-template-rows: auto 1fr auto; padding: 32px; }
-.ob__field-say { display: grid; gap: 6px; max-width: 26ch; }
+.ob__field-say { display: grid; gap: 6px; max-width: 34ch; }
 .ob__field-say b { font: var(--fw-display) 30px/1.06 var(--font-display); letter-spacing: -0.02em; color: var(--field-ink); }
 .ob__field-say span { font: 700 19px/1.25 var(--font-display); color: var(--field-ink); opacity: .82; }
 .ob__field-stage { display: grid; place-items: center; min-height: 0; }
@@ -943,3 +943,98 @@ p > .i, .help > .i:only-child, li > span > .i { display: inline-block; vertical-
   .kpi { padding: 14px; }
   .kpi__value { font-size: 24px; }
 }
+
+/* ───────────────────────── Review round 1 (UX/UI + personas) ───────────────────────── */
+/* Checkboxes and radios get the input ring that passes 3:1. */
+.check input { box-shadow: inset 0 0 0 2px var(--c-control-input); }
+/* The lip only on big primary and danger buttons; small ones are flat so they never read as chips. */
+.btn--sm.btn--primary, .btn--sm.btn--danger { box-shadow: none; }
+.btn--sm.btn--primary:active, .btn--sm.btn--danger:active { transform: none; }
+.btn--secondary { box-shadow: inset 0 0 0 1.5px var(--c-control-input); font-weight: 600; }
+/* Read-only labels (where a search sends, which searches use a place): no ring, so not a control. */
+.tag { display: inline-flex; align-items: center; gap: 6px; min-height: 26px; padding: 0 10px; border-radius: var(--r-pill); background: var(--c-fill); color: var(--c-ink); font-size: 12.5px; text-decoration: none; }
+a.tag:hover { background: var(--c-line); color: var(--c-ink); }
+/* Photo buttons stay white in dark mode, like Vinted's. */
+.item__save, .item__more { color: #15191a; }
+/* List view: a real two-column body, with the deal badge kept inline. */
+.feed.is-list .item__body { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto 1fr; column-gap: 16px; }
+.feed.is-list .item__prices { grid-column: 2; grid-row: 1 / 3; text-align: right; }
+.feed.is-list .item__foot { grid-column: 1 / -1; }
+.feed.is-list .item__flags { position: static; display: flex; padding: 0; grid-column: 1; }
+.feed.is-list .item__flags .badge--new { display: none; }
+.feed.is-list .item__media .item__flags { display: none; }
+.item__inline-deal { display: none; }
+.feed.is-list .item__inline-deal { display: inline-flex; margin-top: 2px; width: max-content; }
+/* Task pages (editor, setup) hide the tab bar; sticky bars get a solid surface. */
+body.is-task .tabbar { display: none; }
+body.is-task .savebar { bottom: 0; }
+.savebar { background: var(--c-page); box-shadow: 0 -1px 0 var(--c-line); padding-inline: 12px; margin-inline: -12px; border-radius: 0; }
+@media (max-width: 760px) {
+  .savebar .btn--primary { flex: 1; }
+  .ob__nav { position: sticky; bottom: 0; z-index: 10; background: var(--c-surface); box-shadow: 0 -1px 0 var(--c-line); padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); margin-inline: -16px; }
+  .ob__nav .btn--primary { flex: 1; }
+  .watchband .healthlist { display: none; }
+  .watchband.is-open .healthlist { display: flex; }
+}
+.watchband__summary { display: none; }
+@media (max-width: 760px) { .watchband__summary { display: flex; } }
+/* Text on colour fields uses the -ink variants so it passes 4.5:1. */
+.field-panel .ok-ink { color: var(--c-success-ink); }
+.field-panel .bad-ink { color: var(--c-danger-ink); }
+.field-panel a { color: var(--field-ink, var(--c-ink)); text-decoration: underline; }
+.status--stuck::before { background: #b07600; }
+/* Collapsed editor sections show what they hold in one line. */
+details.esec-fold { padding: 0; }
+details.esec-fold > summary { list-style: none; cursor: pointer; padding: 20px 22px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; }
+details.esec-fold > summary::-webkit-details-marker { display: none; }
+details.esec-fold > summary .esec__sum { color: var(--c-text-2); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+details.esec-fold[open] > summary .esec__sum { display: none; }
+details.esec-fold > summary > .i:last-child { transition: transform var(--dur); color: var(--c-text-2); }
+details.esec-fold[open] > summary > .i:last-child { transform: rotate(90deg); }
+details.esec-fold > .esec__body { padding: 0 22px 22px; }
+/* "or" groups inside token inputs. */
+.token__or { font-size: 12px; color: var(--c-text-2); padding: 0 2px; }
+.token .token__add-or { width: auto; padding: 0 6px; border-radius: var(--r-pill); font-size: 12px; opacity: .8; }
+/* Phone access QR. */
+.qr { display: grid; place-items: center; width: 168px; height: 168px; padding: 10px; background: #fff; border-radius: 14px; box-shadow: var(--ring); }
+.qr svg, .qr img { width: 100%; height: 100%; }
+/* Field error under an input. */
+.input[aria-invalid="true"], .select[aria-invalid="true"], .tokens[aria-invalid="true"] { border-color: var(--c-danger); }
+/* Keyboard shortcuts help. */
+.kbd-list { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 0; }
+.kbd-list kbd { font: 600 12px/1 var(--font-ui); padding: 5px 8px; border-radius: 6px; background: var(--c-fill); box-shadow: var(--ring); }
+.item.is-cursor { outline: 2px solid var(--c-primary); outline-offset: 4px; border-radius: 10px; }
+.item:focus-within { outline: 2px solid var(--c-primary); outline-offset: 4px; border-radius: 10px; }
+.item:has(.item__open:focus-visible) .item__open { outline: none; }
+@media (min-width: 1600px) { .feed:not(.is-list) { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.tab:focus-visible { outline-offset: -4px; border-radius: 8px; }
+.ob__field-say span { font: 400 17px/26px var(--font-ui); max-width: 34ch; }
+.sound-label { font-size: 13px; font-weight: 500; }
+/* Native selects and popovers that sit among the filter chips. */
+select.chip, .chip--select { appearance: none; padding-right: 32px; background-image: linear-gradient(45deg, transparent 50%, var(--c-text-2) 50%), linear-gradient(135deg, var(--c-text-2) 50%, transparent 50%); background-position: calc(100% - 17px) 55%, calc(100% - 12px) 55%; background-size: 5px 5px; background-repeat: no-repeat; font: inherit; font-size: 14px; }
+.chip-pop { position: relative; }
+.chip-pop > summary { list-style: none; }
+.chip-pop > summary::-webkit-details-marker { display: none; }
+.chip-pop__panel { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; width: 260px; padding: 14px; display: grid; gap: 10px; box-shadow: var(--shadow-float), var(--ring); }
+.chips--scroll:has(.chip-pop[open]) { overflow: visible; }
+/* Row menus on the Searches list. */
+.rowmenu { position: relative; }
+.rowmenu > summary { list-style: none; }
+.rowmenu > summary::-webkit-details-marker { display: none; }
+.rowmenu__list { position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 180px; display: grid; }
+.rowmenu__list a, .rowmenu__list button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border: 0; background: none; font: inherit; font-size: 14px; color: var(--c-ink); text-decoration: none; border-radius: 8px; cursor: pointer; text-align: left; }
+.rowmenu__list a:hover, .rowmenu__list button:hover { background: var(--c-fill); }
+.rowmenu__list .is-danger { color: var(--c-danger-ink); }
+.rowmenu__list form { margin: 0; }
+.srow__actions { display: flex; gap: 2px; align-items: center; }
+.srow__actions form { margin: 0; }
+.meta > * + *::before { content: "·"; margin-right: 6px; color: var(--c-text-3); }
+@media (max-width: 720px) {
+  .srow > .check { display: none; }
+  .srow__sum { white-space: nowrap; }
+}
+.seg a { display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border-radius: var(--r-pill); color: var(--c-text-2); font-size: 14px; font-weight: var(--fw-medium); text-decoration: none; white-space: nowrap; }
+.seg a[aria-pressed="true"] { background: var(--c-surface); color: var(--c-ink); box-shadow: var(--shadow-thumb); }
+.seg--wrap { flex-wrap: wrap; border-radius: 18px; }
+@media (max-width: 480px) { .seg--wrap label { padding: 0 10px; } }
+.savebar__count { flex: 1; min-width: 0; }

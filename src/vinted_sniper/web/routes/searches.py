@@ -12,23 +12,14 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import Response
 
 from vinted_sniper.db.repo import Query
 from vinted_sniper.engine import health
 from vinted_sniper.engine.validation import InvalidInputError
-from vinted_sniper.vinted import urls
 from vinted_sniper.web import core, data, forms, views
 
 router = APIRouter()
-
-
-def _back(target: str, toast: str | None = None) -> RedirectResponse:
-    """Redirect after a change, carrying a confirmation the next page shows once."""
-    response = RedirectResponse(target, status_code=303)
-    if toast:
-        response.set_cookie("vs_toast", toast, max_age=30, samesite="lax", httponly=False)
-    return response
 
 
 async def _query(request: Request, query_id: int) -> Query:
@@ -154,7 +145,7 @@ async def create_search(request: Request) -> Response:
             request, values, query=None, errors={exc.field: exc.message}, status_code=400
         )
     await context.repo.set_routes(query_id, parsed.destination_ids)
-    return _back(
+    return core.redirect(
         core.url("search_detail", id=query_id),
         "Watching it now. The first check skips what's already there, so only new "
         "listings alert you.",
@@ -195,7 +186,7 @@ async def update_search(request: Request, query_id: int) -> Response:
             request, values, query=query, errors={exc.field: exc.message}, status_code=400
         )
     await context.repo.set_routes(query_id, parsed.destination_ids)
-    return _back(
+    return core.redirect(
         core.url("search_detail", id=query_id),
         "Changes saved. They apply from the next check.",
     )
@@ -365,7 +356,9 @@ async def pause(request: Request, query_id: int) -> Response:
         if paused
         else "Watching again. First check in a few seconds."
     )
-    return _back(str(form.get("back") or core.url("searches")), toast)
+    back = str(form.get("back") or "")
+    target = back if back.startswith("/") and not back.startswith("//") else core.url("searches")
+    return core.redirect(target, toast)
 
 
 @router.post("/searches/{query_id}/duplicate")
@@ -373,7 +366,7 @@ async def duplicate(request: Request, query_id: int) -> Response:
     copy_id = await core.ctx(request).repo.duplicate_query(query_id)
     if copy_id is None:
         raise HTTPException(status_code=404, detail="No such search.")
-    return _back(
+    return core.redirect(
         core.url("search_edit", id=copy_id),
         "Copied. The copy is paused until you save it the way you want.",
     )
@@ -383,7 +376,7 @@ async def duplicate(request: Request, query_id: int) -> Response:
 async def delete(request: Request, query_id: int) -> Response:
     query = await _query(request, query_id)
     await core.ctx(request).repo.delete_query(query_id)
-    return _back(core.url("searches"), f'Deleted "{query.name}".')
+    return core.redirect(core.url("searches"), f'Deleted "{query.name}".')
 
 
 @router.post("/searches/{query_id}/routes")
@@ -392,7 +385,7 @@ async def set_routes(request: Request, query_id: int) -> Response:
     form = await request.form()
     ids = [int(v) for v in form.getlist("dest") if str(v).isdigit()]
     await core.ctx(request).repo.set_routes(query_id, ids)
-    return _back(core.url("searches"), "Saved where alerts go.")
+    return core.redirect(core.url("searches"), "Saved where alerts go.")
 
 
 @router.post("/searches/bulk")
@@ -418,8 +411,5 @@ async def bulk(request: Request) -> Response:
     words = {"pause": "Paused", "resume": "Resumed", "delete": "Deleted", "routes": "Rerouted"}
     count = len(chosen)
     noun = "search" if count == 1 else "searches"
-    return _back(core.url("searches"), f"{words.get(action, 'Changed')} {count} {noun}.")
+    return core.redirect(core.url("searches"), f"{words.get(action, 'Changed')} {count} {noun}.")
 
-
-# Kept beside the editor: a pasted search link is judged the same way everywhere.
-KNOWN_TLDS = urls.KNOWN_TLDS

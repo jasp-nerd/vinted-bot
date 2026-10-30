@@ -10,11 +10,20 @@
  */
 
 @font-face {
-  font-family: "Inter";
+  font-family: "Figtree";
   font-style: normal;
-  font-weight: 100 900;
+  font-weight: 300 900;
   font-display: swap;
-  src: url("../fonts/InterVariable.woff2") format("woff2");
+  src: url("../fonts/Figtree-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Figtree";
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url("../fonts/Figtree-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 @font-face {
   font-family: "Gabarito";
@@ -51,7 +60,8 @@
   --c-ink-rgb: 21, 25, 26;
   --c-text-2: #5a6566;           /* body, meta: 6.1:1 */
   --c-text-3: #7b8687;           /* hints only, 3.9:1, never for body text */
-  --c-control: #b6bebf;          /* input borders */
+  --c-control: #b6bebf;          /* chip and secondary-button rings: the label names the control */
+  --c-control-input: #858f90;    /* input, select, token and checkbox borders: 3.3:1 */
   --c-control-strong: #7b8687;   /* checkbox / switch off: 3.9:1 */
   --c-line: #e1e6e6;
   --c-fill: #edf2f2;             /* search bar, placeholders, tracks */
@@ -101,8 +111,8 @@
   --st-blocked: #c23a4a;
 
   /* ── Type ── */
-  --font-ui: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-display: "Gabarito", "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-ui: "Figtree", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Gabarito", "Figtree", "Helvetica Neue", Arial, sans-serif;
   --fw-regular: 400;
   --fw-medium: 500;
   --fw-semibold: 580;            /* Vinted's semibold */
@@ -157,7 +167,7 @@
     --c-primary: #4aa6b2;
     --c-primary-rgb: 74, 166, 178;
     --c-primary-hover: #66b8c3;
-    --c-primary-lip: #1e6670;
+    --c-primary-lip: #164c53;
     --c-on-primary: #0d1314;
     --c-primary-medium: #1e6670;
     --c-primary-light: #134a52;
@@ -167,6 +177,7 @@
     --c-text-2: #a9b3b4;
     --c-text-3: #869192;
     --c-control: #4a5556;
+    --c-control-input: #667273;
     --c-control-strong: #869192;
     --c-line: #2a3233;
     --c-fill: #232a2b;
@@ -176,7 +187,7 @@
     --c-border: rgba(238, 242, 242, .12);
     --c-border-faint: rgba(238, 242, 242, .07);
     --c-scrim: rgba(5, 8, 8, .66);
-    --c-on-photo: #171d1e;
+    --c-on-photo: #ffffff;
     --c-success: #43b883;
     --c-success-ink: #6fd0a2;
     --c-success-tint: #142a1f;
@@ -211,7 +222,7 @@
   --c-primary: #4aa6b2;
   --c-primary-rgb: 74, 166, 178;
   --c-primary-hover: #66b8c3;
-  --c-primary-lip: #1e6670;
+  --c-primary-lip: #164c53;
   --c-on-primary: #0d1314;
   --c-primary-medium: #1e6670;
   --c-primary-light: #134a52;
@@ -221,6 +232,7 @@
   --c-text-2: #a9b3b4;
   --c-text-3: #869192;
   --c-control: #4a5556;
+  --c-control-input: #667273;
   --c-control-strong: #869192;
   --c-line: #2a3233;
   --c-fill: #232a2b;
@@ -230,7 +242,7 @@
   --c-border: rgba(238, 242, 242, .12);
   --c-border-faint: rgba(238, 242, 242, .07);
   --c-scrim: rgba(5, 8, 8, .66);
-  --c-on-photo: #171d1e;
+  --c-on-photo: #ffffff;
   --c-success: #43b883;
   --c-success-ink: #6fd0a2;
   --c-success-tint: #142a1f;

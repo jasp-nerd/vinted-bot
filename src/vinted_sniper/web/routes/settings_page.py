@@ -13,7 +13,7 @@ from typing import Any
 from zoneinfo import ZoneInfo, available_timezones
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.responses import JSONResponse, Response
 
 from vinted_sniper.engine import health
 from vinted_sniper.engine.validation import InvalidInputError
@@ -141,6 +141,4 @@ async def save_setting(request: Request) -> Response:
 @router.post("/settings/blocked/{seller_id}/unblock")
 async def unblock(request: Request, seller_id: int) -> Response:
     await core.ctx(request).repo.unblock_seller(seller_id)
-    response = RedirectResponse("/settings#blocked", status_code=303)
-    response.set_cookie("vs_toast", "Unblocked. Their listings can alert you again.", max_age=30)
-    return response
+    return core.redirect("/settings#blocked", "Unblocked. Their listings can alert you again.")

@@ -1,0 +1,83 @@
+{% extends "ob_base.html" %}
+{% block title %}Your first search{% endblock %}
+{% block action %}/welcome/search{% endblock %}
+{% set E = errors %}
+{% block question %}
+<h1 class="t-display" tabindex="-1" data-autofocus>What are you looking for?</h1>
+<p class="t-lead">Copy a search from Vinted, or build one here. You can add more searches later.</p>
+<div data-editor data-tld="{{ f.tld }}" data-builder="{{ 1 if builder else 0 }}" data-previews="{{ 1 if previews else 0 }}" class="stack-lg">
+<input type="hidden" name="tld" value="{{ f.tld }}">
+<input type="hidden" name="labels" value="{{ f.labels }}" data-labels>
+<input type="hidden" name="extra_params" value="{{ f.extra_params }}">
+<fieldset class="choices choices--2" style="border:0;padding:0;margin:0">
+  <legend class="sr-only">How do you want to start?</legend>
+  <label class="choice choice--compact">
+    <input type="radio" name="mode" value="paste" data-reveal="paste-panel"{% if mode != "build" %} checked{% endif %}>
+    <span class="choice__icon">{{ ui.icon("link") }}</span>
+    <span class="choice__text"><span class="choice__title">Copy a search from the Vinted app</span><span class="choice__desc">Search in Vinted like you always do, tap Share, then Copy, and paste it here</span></span>
+    <span class="choice__tick">{{ ui.icon("check") }}</span>
+  </label>
+  <label class="choice choice--compact">
+    <input type="radio" name="mode" value="build" data-reveal="build-panel"{% if mode == "build" %} checked{% endif %}>
+    <span class="choice__icon">{{ ui.icon("sliders-horizontal") }}</span>
+    <span class="choice__text"><span class="choice__title">Build one here</span><span class="choice__desc">Pick words, category, brand and price</span></span>
+    <span class="choice__tick">{{ ui.icon("check") }}</span>
+  </label>
+</fieldset>
+
+<div class="stack-lg" id="paste-panel"{% if mode == "build" %} hidden{% endif %}>
+  <div class="field">
+    <label class="label" for="link">Vinted search link</label>
+    <input class="input" id="link" name="link" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="vinted.{{ f.tld }}/catalog?search_text=regenjas" value="{{ f.link }}"{{ ui.invalid(E, 'link') }}>
+    {{ ui.field_error(E, "link") }}
+    <p class="help">In the app: search, set your filters, tap Share, then Copy. On a computer: copy the address bar once results show. It works without https:// and with the text the Share button adds.</p>
+  </div>
+</div>
+
+<div class="stack-lg" id="build-panel"{% if mode != "build" %} hidden{% endif %}>
+  <div class="field">
+    <label class="label" for="words">Words in the title</label>
+    <input class="input" id="words" name="search_text" type="text" value="{{ f.search_text }}" placeholder="e.g. regenjas" autocomplete="off"{{ ui.invalid(E, 'search_text') }}>
+    {{ ui.field_error(E, "search_text") }}
+  </div>
+  <div class="field">
+    <span class="label" id="cat-label">Category</span>
+    <div class="cattree" data-cattree aria-labelledby="cat-label">
+      <input type="hidden" name="catalog_ids" value="{{ f.catalog_ids }}" data-ids>
+      <p class="t-sm" data-cattree-status>Any category.</p>
+    </div>
+  </div>
+  <div class="field combo" data-combo data-brands>
+    <label class="label" for="brand-in">Brand</label>
+    <div class="tokens" data-tokens="brand">
+      <input type="hidden" name="brand_ids" value="{{ f.brand_ids }}" data-token-value>
+      <input id="brand-in" type="text" placeholder="Add a brand" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="brand-list" aria-autocomplete="list">
+    </div>
+    <ul class="combo__list" id="brand-list" role="listbox" hidden></ul>
+  </div>
+  <div class="field" style="max-width:280px">
+    <label class="label" for="maxp">Most you'd pay</label>
+    <div class="affix"><span class="affix__pre">{{ currency }}</span><input class="input num" id="maxp" name="max_total_price" type="text" inputmode="decimal" value="{{ f.max_total_price }}" data-money{{ ui.invalid(E, 'max_total_price') }}></div>
+    {{ ui.field_error(E, "max_total_price") }}
+    <p class="help" data-money-help>Including Vinted's buyer protection fee, before shipping.</p>
+  </div>
+</div>
+</div>
+<p class="livecount" aria-live="polite" data-livecount>{% if previews %}Paste a link or type some words to see what matches right now.{% endif %}</p>
+{% endblock %}
+{% block back %}{% with back_to="/welcome/country" %}{% include "partials/ob_back.html" %}{% endwith %}{% endblock %}
+{% block hint %}You can change all of this later{% endblock %}
+{% block field_class %}field-panel--sun{% endblock %}
+{% block field %}
+<div class="preview" style="padding:0;align-content:start" data-preview>
+  <div class="preview__count" aria-live="polite">
+    <b class="num" data-preview-count>–</b>
+    <span data-preview-label>{% if previews %}listings match right now{% else %}Previews work while the app runs{% endif %}</span>
+  </div>
+  <p style="margin-top:-6px">You won't get alerts for these, only for new ones from now on.</p>
+  <div class="preview__thumbs" data-preview-thumbs></div>
+  <div class="receipt" aria-label="What the filters did" data-preview-receipt></div>
+</div>
+<div></div>
+{{ ui.mags("think", "ob__mags ob__mags--corner") }}
+{% endblock %}

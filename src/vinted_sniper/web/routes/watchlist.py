@@ -7,7 +7,7 @@ import time
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import Response
 
 from vinted_sniper.engine.validation import InvalidInputError
 from vinted_sniper.vinted import urls
@@ -45,12 +45,6 @@ def parse_watch_link(text: str) -> tuple[Literal["item", "seller"], str, int, st
         "That's a Vinted link, but not to a listing or a member. Open the listing (or the "
         "seller's page) and copy its address.",
     )
-
-
-def _toast(target: str, message: str) -> RedirectResponse:
-    response = RedirectResponse(target, status_code=303)
-    response.set_cookie("vs_toast", message, max_age=30, samesite="lax")
-    return response
 
 
 @router.get("/watchlist")
@@ -125,7 +119,7 @@ async def add(request: Request) -> Response:
         page.status_code = 400
         return page
     noun = "listing" if kind == "item" else "seller"
-    return _toast(core.url("watchlist"), f"Watching this {noun} now. First look within a minute.")
+    return core.redirect(core.url("watchlist"), f"Watching this {noun} now. First look within a minute.")
 
 
 async def _watch_or_404(request: Request, watch_id: int) -> Any:
@@ -139,11 +133,11 @@ async def _watch_or_404(request: Request, watch_id: int) -> Any:
 async def toggle(request: Request, watch_id: int) -> Response:
     watch = await _watch_or_404(request, watch_id)
     await core.ctx(request).repo.update_watch(watch_id, label=watch.label, active=not watch.active)
-    return _toast(core.url("watchlist"), "Alerts on." if not watch.active else "Alerts off.")
+    return core.redirect(core.url("watchlist"), "Alerts on." if not watch.active else "Alerts off.")
 
 
 @router.post("/watchlist/{watch_id}/delete")
 async def delete(request: Request, watch_id: int) -> Response:
     watch = await _watch_or_404(request, watch_id)
     await core.ctx(request).repo.delete_watch(watch_id)
-    return _toast(core.url("watchlist"), f"Stopped watching {watch.label}.")
+    return core.redirect(core.url("watchlist"), f"Stopped watching {watch.label}.")

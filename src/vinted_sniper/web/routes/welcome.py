@@ -23,6 +23,11 @@ from vinted_sniper.web.routes import alerts
 router = APIRouter()
 
 
+def _submitted(form: Any) -> bool:
+    """Whether a step's form was sent forward, rather than reached by Back or from before."""
+    return form is not None and bool(form.get("submitted")) and not form.get("back")
+
+
 def _state(raw: Any) -> dict[str, Any]:
     try:
         value = json.loads(str(raw or "{}"))
@@ -83,14 +88,14 @@ async def search(request: Request) -> Response:
     context = core.ctx(request)
     form = await request.form() if request.method == "POST" else None
     state = _state(form.get("state") if form else None)
-    if form is not None and form.get("tld"):
+    if form is not None and form.get("tld") and not form.get("back"):
         tld = str(form.get("tld")).removeprefix("vinted.")
         state["tld"] = tld if tld in urls.KNOWN_TLDS else "nl"
     tld = state.get("tld") or views.guess_tld(request.headers.get("accept-language"))
     state["tld"] = tld
     interval = max(context.settings.poll_default_interval_s, 60)
     errors: dict[str, str] = {}
-    if form is not None and form.get("submitted"):
+    if _submitted(form):
         values = forms.values_from_form(form)
         values["tld"] = tld
         values["interval"] = str(interval)
@@ -147,7 +152,7 @@ async def where(request: Request) -> Response:
     context = core.ctx(request)
     form = await request.form() if request.method == "POST" else None
     state = _state(form.get("state") if form else None)
-    if form is None or not form.get("submitted"):
+    if not _submitted(form):
         return await _alerts_page(request, state)
     kind = str(form.get("kind") or "")
     fields = {k: str(v) for k, v in form.items() if k not in {"state", "submitted"}}
@@ -297,14 +302,11 @@ async def finish(request: Request) -> Response:
     )
     await repo.set_routes(query_id, route)
     await repo.set_onboarded(True)
-    response = RedirectResponse("/", status_code=303)
-    response.set_cookie(
-        "vs_toast",
-        "You're set. The first check skips what's already on Vinted, so only new listings alert you.",
-        max_age=30,
-        samesite="lax",
+    return core.redirect(
+        "/",
+        "You're set. The first check skips what's already on Vinted, so only new "
+        "listings alert you.",
     )
-    return response
 
 
 @router.post("/welcome/skip")
