@@ -60,8 +60,9 @@ class ScriptedTransport:
         self.requests.append({"url": url, "headers": headers, "cookies": cookies, "params": params})
 
         # Homepage requests succeed with a session cookie unless a test says otherwise, so
-        # that tests about the catalog do not have to set one up.
-        if "/api/v2/" not in url:
+        # that tests about the catalog do not have to set one up. API calls are the
+        # site's own /api/v2 and the svc-* services on the api. host.
+        if "/api/v2/" not in url and "/svc-" not in url:
             if self.root_responses:
                 return self.root_responses.pop(0)
             return Response(

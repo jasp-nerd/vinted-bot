@@ -1,11 +1,20 @@
 from __future__ import annotations
 
+import json
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import pytest
 
-from vinted_sniper.vinted.models import ParseError, parse_item
+from vinted_sniper.vinted.models import ParseError, parse_item, parse_seller
+
+FIXTURES = Path(__file__).parent.parent / "fixtures" / "vinted"
+
+
+def recorded(name: str) -> Any:
+    """A real response, recorded live and anonymised (sellers renamed)."""
+    return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
 
 
 def catalog_entry(**overrides: Any) -> dict[str, Any]:
@@ -165,3 +174,104 @@ def test_action_links_follow_the_country_site() -> None:
 
     assert item.message_url.startswith("https://www.vinted.co.uk/")
     assert item.buy_url.startswith("https://www.vinted.co.uk/")
+
+
+# --- Recorded svc-catalogue responses (October 2026) ----------------------------------
+
+
+def search_entry(item_id: int) -> dict[str, Any]:
+    entries = recorded("catalogue_fr.json")["items"]
+    return next(entry for entry in entries if entry["id"] == item_id)
+
+
+def test_every_recorded_search_result_parses() -> None:
+    entries = recorded("catalogue_fr.json")["items"]
+
+    items = [parse_item(entry, "fr") for entry in entries]
+
+    assert [item.item_id for item in items] == [entry["id"] for entry in entries]
+
+
+def test_a_relative_listing_path_becomes_a_link_on_the_right_site() -> None:
+    item = parse_item(search_entry(10590400585), "fr")
+
+    assert item.url == "https://www.vinted.fr/items/10590400585-nike-black-airforces"
+
+
+def test_brand_size_and_condition_are_read_back_from_the_display_lines() -> None:
+    item = parse_item(search_entry(10590400585), "fr")
+
+    assert (item.brand, item.size, item.condition) == ("Nike", "38", "Très bon état")
+
+
+def test_a_listing_without_a_size_keeps_its_brand_and_condition() -> None:
+    item = parse_item(search_entry(10590422667), "fr")
+
+    assert (item.brand, item.size, item.condition) == ("Valentino Rossi", None, "Très bon état")
+
+
+def test_a_listing_without_a_brand_does_not_take_its_title_as_one() -> None:
+    item = parse_item(search_entry(10590423322), "fr")
+
+    assert item.brand is None
+
+
+def test_display_keys_vinted_left_untranslated_read_as_absent() -> None:
+    entry = search_entry(10590400585)
+    entry["item_box"]["second_line"] = "size.776.title · status.6.title"
+
+    item = parse_item(entry, "bg")
+
+    assert (item.size, item.condition) == (None, None)
+
+
+def test_search_results_carry_the_total_price_with_buyer_protection() -> None:
+    item = parse_item(search_entry(10590400585), "fr")
+
+    assert (item.price, item.total_price, item.currency) == (
+        Decimal("39.99"),
+        Decimal("42.69"),
+        "EUR",
+    )
+
+
+def test_search_results_no_longer_say_when_a_listing_was_posted() -> None:
+    item = parse_item(search_entry(10590400585), "fr")
+
+    assert item.photo_ts is None
+
+
+def test_a_wardrobe_listing_reads_its_plain_fields() -> None:
+    entry = recorded("wardrobe_fr.json")["items"][0]
+
+    item = parse_item(entry, "fr")
+
+    assert (item.brand, item.size, item.condition) == ("Nike", "38", "Très bon état")
+
+
+def test_a_wardrobe_listing_still_has_its_photo_time_and_gallery() -> None:
+    entry = recorded("wardrobe_fr.json")["items"][0]
+
+    item = parse_item(entry, "fr")
+
+    assert (item.photo_ts, len(item.photo_urls)) == (1793318885, 6)
+
+
+# --- Members --------------------------------------------------------------------------
+
+
+def test_a_member_profile_gives_country_stars_and_review_count() -> None:
+    seller = parse_seller(recorded("user_fr.json")["user"], "fr")
+
+    assert (seller.country_code, seller.rating, seller.feedback_count) == ("IE", 5.0, 14)
+
+
+def test_a_member_without_reviews_has_no_rating_rather_than_zero_stars() -> None:
+    user = recorded("user_fr.json")["user"] | {"feedback_reputation": 0, "feedback_count": 0}
+
+    assert parse_seller(user, "fr").rating is None
+
+
+def test_a_member_without_an_id_is_rejected() -> None:
+    with pytest.raises(ParseError):
+        parse_seller({"login": "nobody"}, "fr")

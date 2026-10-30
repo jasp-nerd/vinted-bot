@@ -1,0 +1,23 @@
+{
+ "user": {
+  "id": 1000001,
+  "login": "seller_1000001",
+  "country_id": 31,
+  "country_code": "IE",
+  "country_iso_code": "IE",
+  "country_title": "Irlande",
+  "feedback_count": 14,
+  "feedback_reputation": 1.0,
+  "positive_feedback_count": 14,
+  "neutral_feedback_count": 0,
+  "negative_feedback_count": 0,
+  "business": false,
+  "item_count": 29,
+  "is_on_holiday": false,
+  "currency": "EUR",
+  "expose_location": true,
+  "can_view_profile": true,
+  "is_deleted": false
+ },
+ "code": 0
+}

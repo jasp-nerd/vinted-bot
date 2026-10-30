@@ -1,9 +1,10 @@
 """The data behind the advanced-search picker: categories, brands, filter options.
 
 Vinted retired the JSON endpoints that used to serve its category tree, so the tree now
-comes from where the site itself gets it — embedded in the search page's HTML. That page
-also carries the CSRF token that the filter endpoints ask for, which makes one document
-fetch per country site enough to unlock everything here.
+comes from where the site itself gets it — embedded in the search page's HTML. Filter
+options (condition, colour, size, material) and category-scoped brand search come from the
+same `svc-filters` service the search page calls on the `api.` host since September 2026;
+unlike the `/api/v2/catalog/filters` endpoints they replaced, those need no CSRF token.
 
 The tree changes rarely and weighs a few hundred kilobytes, so it is cached in the
 database for a week. Brand autocomplete and filter options are live lookups: they answer
@@ -14,7 +15,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import re
 import time
 from collections.abc import Callable
 from http import HTTPStatus
@@ -42,24 +42,6 @@ _MAX_BRANDS: Final = 15
 
 # The tree JSON inside the page is ~1MB before compaction; this bounds the bracket walk.
 _TREE_SEGMENT_LIMIT: Final = 4_000_000
-
-_CSRF_PATTERNS: Final = (
-    re.compile(r'CSRF_TOKEN\\":\s*\\"([^"\\]+)'),
-    re.compile(r'"CSRF_TOKEN":\s*"([^"\\]+)"'),
-    re.compile(r'<meta name="csrf-token" content="([^"]+)"'),
-)
-
-
-def extract_csrf(html: str) -> str | None:
-    """Pull the CSRF token out of a Vinted page.
-
-    It appears inside the Next.js flight payload (with escaped quotes) and sometimes as a
-    plain meta tag; both are tried because Vinted has moved it before.
-    """
-    for pattern in _CSRF_PATTERNS:
-        if match := pattern.search(html):
-            return match.group(1)
-    return None
 
 
 def extract_catalog_tree(html: str) -> list[dict[str, Any]]:
@@ -197,7 +179,6 @@ class Taxonomy:
         self._repo = repo
         self._tree_ttl_s = tree_ttl_s
         self._clock = clock
-        self._csrf: dict[str, str] = {}
         self._locks: dict[str, asyncio.Lock] = {}
 
     def _lock(self, tld: str) -> asyncio.Lock:
@@ -234,7 +215,7 @@ class Taxonomy:
         return tree
 
     async def _refresh_from_page(self, tld: str) -> list[dict[str, Any]]:
-        """Fetch the search page and bank both things it contains: tree and CSRF token."""
+        """Fetch the search page and bank the category tree it carries."""
         session = await self._sessions.get(tld)
         transport = self._sessions.transport_for(session)
         try:
@@ -249,9 +230,6 @@ class Taxonomy:
 
         raise_for_status(response, tld)
         await self._sessions.merge_cookies(session, response.cookies)
-
-        if csrf := extract_csrf(response.text):
-            self._csrf[tld] = csrf
 
         tree = extract_catalog_tree(response.text)
         await self._repo.set_state_value(
@@ -276,15 +254,15 @@ class Taxonomy:
                 {
                     "filter_search_code": "brand",
                     "filter_search_text": query,
-                    "catalog_ids": catalog_ids,
+                    "attribute_ids[catalog]": catalog_ids,
                 },
-                with_csrf=True,
+                on_api_host=True,
             )
             raw = payload.get("options") if isinstance(payload, dict) else None
             return flatten_options(raw or [])[:_MAX_BRANDS]
 
         payload = await self._api_get(
-            tld, urls.brands_endpoint(tld), {"keyword": query}, with_csrf=False
+            tld, urls.brands_endpoint(tld), {"keyword": query}, on_api_host=False
         )
         raw = payload.get("brands") if isinstance(payload, dict) else None
         brands: list[dict[str, Any]] = []
@@ -311,9 +289,9 @@ class Taxonomy:
             raise ValueError(f"{code!r} is not a filter this app knows how to ask for")
         params = {"filter_code": code}
         if catalog_ids:
-            params["catalog_ids"] = catalog_ids
+            params["attribute_ids[catalog]"] = catalog_ids
         payload = await self._api_get(
-            tld, urls.filters_facets_endpoint(tld), params, with_csrf=True
+            tld, urls.filters_facets_endpoint(tld), params, on_api_host=True
         )
         raw = payload.get("options") if isinstance(payload, dict) else None
         return flatten_options(raw or [])
@@ -326,16 +304,17 @@ class Taxonomy:
         url: str,
         params: dict[str, str],
         *,
-        with_csrf: bool,
+        on_api_host: bool,
         _retry: bool = True,
     ) -> Any:
         session = await self._sessions.get(tld)
         transport = self._sessions.transport_for(session)
-        headers = hdr.api_headers(tld, session.identity)
-        if with_csrf:
-            headers["X-Csrf-Token"] = await self._ensure_csrf(tld)
-            if anon_id := session.cookies.get("anon_id"):
-                headers["X-Anon-Id"] = anon_id
+        if on_api_host:
+            headers = hdr.catalogue_headers(
+                tld, session.identity, locale=session.locale, anon_id=session.anon_id
+            )
+        else:
+            headers = hdr.api_headers(tld, session.identity)
 
         try:
             response = await transport.get(
@@ -348,12 +327,11 @@ class Taxonomy:
             raise NetworkError(str(exc)) from exc
 
         if response.status_code == HTTPStatus.UNAUTHORIZED and _retry:
-            # Either the anonymous token or the CSRF token aged out. Both come from the
-            # same place, so start a fresh session, re-read the page, and try once more.
+            # The anonymous token aged out. Start a fresh session and try once more.
             log.info("taxonomy.reauth", tld=tld, url=url)
-            self._csrf.pop(tld, None)
+            session.failed = True
             await self._sessions.rotate(tld)
-            return await self._api_get(tld, url, params, with_csrf=with_csrf, _retry=False)
+            return await self._api_get(tld, url, params, on_api_host=on_api_host, _retry=False)
 
         raise_for_status(response, tld)
         await self._sessions.merge_cookies(session, response.cookies)
@@ -363,14 +341,3 @@ class Taxonomy:
         except ValueError as exc:
             preview = response.text[:200].replace("\n", " ")
             raise MalformedResponseError(f"vinted.{tld} did not return JSON: {preview!r}") from exc
-
-    async def _ensure_csrf(self, tld: str) -> str:
-        if token := self._csrf.get(tld):
-            return token
-        async with self._lock(tld):
-            if token := self._csrf.get(tld):
-                return token
-            await self._refresh_from_page(tld)
-        if token := self._csrf.get(tld):
-            return token
-        raise MalformedResponseError(f"the vinted.{tld} search page carried no CSRF token")

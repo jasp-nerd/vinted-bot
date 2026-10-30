@@ -1,6 +1,12 @@
 # Vinted changes its API without telling anyone, and the usual way a tool in this space
 # dies is quietly: it keeps running, stops finding anything, and nobody notices for weeks.
-# This makes one real request a week so that we hear about it before users do.
+# This makes a handful of real requests a week so that we hear about it before users do.
+#
+# A search that answers is not enough. In September 2026 Vinted moved search to
+# svc-catalogue; the old filter names kept answering 200 with the filter silently ignored,
+# and brand, size and seller rating disappeared from listings. The second command checks
+# for exactly that kind of drift: that a brand filter narrows the results, that the fields
+# the app shows are present, and that member and item page lookups still parse.
 #
 # Kept in its own workflow on purpose. Badges are per-workflow, so a blocked runner here
 # can never turn the CI badge red — and a red CI badge should only ever mean the code is
@@ -43,10 +49,11 @@ jobs:
 
       # A single runner address getting challenged is not the same as a broken API, so
       # one refusal is not worth waking anyone up for. Three tries, spaced out.
-      - name: Fetch one real search
+      - name: Search, filter and read listings for real
         run: |
           for attempt in 1 2 3; do
-            if uv run vinted-sniper check --url "https://www.vinted.com/catalog?search_text=nike"; then
+            if uv run vinted-sniper check --url "https://www.vinted.com/catalog?search_text=nike" \
+              && uv run python -m vinted_sniper.vinted.canary com; then
               exit 0
             fi
             echo "::warning::attempt $attempt failed, retrying"
@@ -76,7 +83,8 @@ jobs:
               labels: ["canary"],
               body: [
                 "The weekly live check failed three times in a row. Either Vinted changed",
-                "something, or this runner's address is being challenged.",
+                "something (the log lists what drifted), or this runner's address is being",
+                "challenged.",
                 "",
                 `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
                 "",
