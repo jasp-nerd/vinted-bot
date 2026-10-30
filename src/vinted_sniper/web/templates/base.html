@@ -14,7 +14,7 @@
 {% import "partials/banners.html" as bn with context %}
 <div id="banners">
 {% if app %}
-  {% if app.blocked %}{{ bn.blocked(app.blocked) }}{% elif app.update %}{{ bn.update(app.update) }}{% endif %}
+  {% if app.blocked %}{{ bn.blocked(app.blocked) }}{% elif app.new_version %}{{ bn.update(app.new_version) }}{% endif %}
   {% if app.exposed %}{{ bn.exposed() }}{% endif %}
 {% endif %}
 </div>

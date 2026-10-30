@@ -981,7 +981,7 @@ body.is-task .savebar { bottom: 0; }
 /* Text on colour fields uses the -ink variants so it passes 4.5:1. */
 .field-panel .ok-ink { color: var(--c-success-ink); }
 .field-panel .bad-ink { color: var(--c-danger-ink); }
-.field-panel a { color: var(--field-ink, var(--c-ink)); text-decoration: underline; }
+.field-panel p a { color: var(--field-ink, var(--c-ink)); text-decoration: underline; }
 .status--stuck::before { background: #b07600; }
 /* Collapsed editor sections show what they hold in one line. */
 details.esec-fold { padding: 0; }
@@ -1038,3 +1038,5 @@ select.chip, .chip--select { appearance: none; padding-right: 32px; background-i
 .seg--wrap { flex-wrap: wrap; border-radius: 18px; }
 @media (max-width: 480px) { .seg--wrap label { padding: 0 10px; } }
 .savebar__count { flex: 1; min-width: 0; }
+
+select.chip { width: auto; max-width: 220px; }

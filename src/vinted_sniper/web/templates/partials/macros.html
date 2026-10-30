@@ -46,7 +46,7 @@
     <a class="item__open" href="{{ it.url }}" target="_blank" rel="noopener" data-quickview aria-label="{{ it.title }}, {{ it.total }} including fees. Show details"></a>
     <div class="item__flags">
       {% if it.is_new %}<span class="badge badge--new">New</span>{% endif %}
-      {% if it.deal_pct %}<span class="badge badge--deal">{{ icon("trending-down") }}{{ it.deal_pct }}% under typical</span>{% endif %}
+      {% if it.deal_pct %}<span class="badge badge--deal" title="{{ it.deal_pct }}% under the typical price{% if it.typical %} of {{ it.typical }}{% endif %}">{{ icon("trending-down") }}<span class="hide-sm">{{ it.deal_pct }}% under typical</span><span class="show-sm">&minus;{{ it.deal_pct }}%</span></span>{% endif %}
     </div>
     <button class="item__more" type="button" aria-label="More for {{ it.title }}" aria-haspopup="menu" aria-expanded="false" data-menu="item-menu">{{ icon("ellipsis") }}</button>
     <button class="item__save" type="button" aria-label="Save {{ it.title }}" aria-pressed="{{ 'true' if it.saved else 'false' }}" data-toggle-save>{{ icon("heart") }}</button>

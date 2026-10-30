@@ -10,7 +10,7 @@
       <p>{% if last_check_s is not none %}Last check <time data-ago="{{ last_check_s }}">{{ "just now" if last_check_s < 45 else (last_check_s // 60) ~ " min ago" }}</time>. {% endif %}Vinted shows new listings in search a few minutes late, so we see them then too.</p>
     </div>
     <button class="watchband__summary btn btn--ghost btn--sm" type="button" data-band-toggle aria-expanded="false">
-      {{ app.searches_active }} running{% if waiting %} · {{ waiting }} waiting{% endif %}{% if paused %} · {{ paused }} paused{% endif %}{{ ui.icon("chevron-down", "i-sm") }}
+      {{ app.searches_active - waiting }} running{% if waiting %} · {{ waiting }} waiting{% endif %}{% if paused %} · {{ paused }} paused{% endif %}{{ ui.icon("chevron-down", "i-sm") }}
     </button>
     <ul class="healthlist" aria-label="Your searches">
       {% for key in ["blocked", "stuck", "quiet", "watching", "paused"] %}

@@ -163,7 +163,7 @@ async def shell(context: WebContext, snapshot: health.Snapshot | None = None) ->
         "tick": round(1 - (next_check or 0) / interval, 3) if next_check is not None else 1,
         "alive": snapshot.alive,
         "blocked": blocked,
-        "update": update,
+        "new_version": update,
         "theme": prefs.theme,
         "auth": context.settings.web_auth_token is not None,
         "exposed": context.settings.web_is_exposed_without_a_password,

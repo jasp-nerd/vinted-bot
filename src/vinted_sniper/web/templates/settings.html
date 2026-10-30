@@ -89,7 +89,7 @@
       <p>You're on version {{ app.version }}.</p>
       <div class="card">
         <div class="set"><div class="set__text"><span class="t-h3">Tell me when there's a new version</span><span class="t-sm">Looks at GitHub once a day. Sends nothing about you.</span></div><label class="switch"><input type="checkbox" data-setting="update_check"{% if prefs.update_check %} checked{% endif %} aria-label="Check for updates"></label></div>
-        {% if app.update %}<div class="set"><div class="set__text"><span class="t-h3">Version {{ app.update.version }} is out</span><span class="t-sm">Updating keeps your searches and finds.</span></div><a class="btn btn--secondary btn--sm" href="{{ app.update.url }}" target="_blank" rel="noopener">How to update</a></div>{% endif %}
+        {% if app.new_version %}<div class="set"><div class="set__text"><span class="t-h3">Version {{ app.new_version.version }} is out</span><span class="t-sm">Updating keeps your searches and finds.</span></div><a class="btn btn--secondary btn--sm" href="{{ app.new_version.url }}" target="_blank" rel="noopener">How to update</a></div>{% endif %}
       </div>
     </section>
 
