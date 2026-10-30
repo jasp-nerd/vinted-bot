@@ -195,11 +195,11 @@ Ou ouvrez-le directement : **[Ouvrir dans Claude](https://claude.ai/new?q=Aide-m
 
 ## Mettre à jour
 
-- **Installateur :** relancez la commande d'installation. Vos recherches sont conservées.
+- **Installateur :** cliquez sur **Update now** quand le tableau de bord annonce une nouvelle version, ou relancez la commande d'installation. Dans Settings, Updates, il peut aussi installer les nouvelles versions tout seul, la nuit.
 - **Docker :** `docker compose pull && docker compose up -d`
 - **Magasins d'applications des NAS :** le bouton de mise à jour du magasin.
 
-Le tableau de bord vous signale une nouvelle version. Les changements de base de données s'appliquent tout seuls au démarrage. Le détail est dans le [journal des modifications](https://github.com/jasp-nerd/vinted-sniper/blob/main/CHANGELOG.md).
+Vos recherches sont conservées, et les changements de base de données s'appliquent tout seuls au démarrage. Le détail est dans le [journal des modifications](https://github.com/jasp-nerd/vinted-sniper/blob/main/CHANGELOG.md).
 
 ## Questions fréquentes
 

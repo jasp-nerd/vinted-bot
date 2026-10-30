@@ -179,6 +179,20 @@ expires after thirty minutes.
 For a group, add the bot to the group first. For a forum topic, tap the link inside that
 topic.
 
+## The update button didn't work
+
+The message under Settings, Updates says what happened, and uv's own output is underneath
+it (on Windows it is in the log file instead). The two usual causes:
+
+- **"Nothing newer was installed."** A release reaches GitHub a few minutes before PyPI, where
+  updates are downloaded from. Try again later.
+- **"uv stopped with an error."** Often no internet, or a full disk. vinted-sniper keeps running
+  the version it was on.
+
+On Windows, if vinted-sniper comes back still on the old version, the upgrade that runs
+while it is closed failed, and the log file says why. Running the install command again does
+the same update by hand, on any system.
+
 ## Everything is broken after an update
 
 Go back to the previous release and open an issue. With Docker, pin its tag in

@@ -105,6 +105,14 @@ and destinations carry over: the database upgrades itself on the first start.
 - Export found listings as CSV or JSON, from the dashboard or `vinted-sniper export`.
 - A notice in the dashboard when a newer version is out (one request to GitHub a day, can be
   turned off), and an optional uptime ping to a service such as healthchecks.io.
+- **Update from the dashboard.** Where the installer set vinted-sniper up to start by itself,
+  "Update now" installs the new version and restarts into it, and "Install updates by
+  itself" (off unless you turn it on) does that between 4 and 5 at night, never while an
+  alert is on its way out, then says so in your status alerts. Installed with uv or pipx but
+  started by hand, the button installs it and tells you how to restart. Docker and source
+  installs are shown the command to run. Updates only ever come from PyPI through uv or
+  pipx, and only when GitHub has a newer release; a failed update leaves the running version
+  alone and says what went wrong.
 - `vinted-sniper run --open` opens the dashboard once it is ready.
 - One-line installers for Windows (`install.ps1`) and macOS and Linux (`install.sh`), with
   optional start at login, no Docker and no admin rights.
@@ -120,6 +128,9 @@ and destinations carry over: the database upgrades itself on the first start.
 
 - The `latest` image tag now means the newest release. Builds of the main branch are tagged
   `edge`.
+- The installers' start-at-login entries now tell the app they restart it
+  (`VINTED_SNIPER_SUPERVISED`), and the Windows launcher stays running in the background so it
+  can install an update while the app is closed. Run the installer once more to get this.
 - The dashboard is part of every install. `vinted-sniper[web]` still works but is no longer
   needed.
 - Outside a container, the database lives in your user data folder (unless `./data/app.db`

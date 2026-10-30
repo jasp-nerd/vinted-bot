@@ -193,11 +193,11 @@ Or open it directly: **[Open in Claude](https://claude.ai/new?q=Please%20help%20
 
 ## Updating
 
-- **Installer:** run the install command again. Your searches are kept.
+- **Installer:** click **Update now** when the dashboard says a new version is out, or run the install command again. Settings, Updates can also install new versions by itself at night.
 - **Docker:** `docker compose pull && docker compose up -d`
 - **NAS app stores:** the store's update button.
 
-The dashboard tells you when a new version is out. Database changes apply by themselves at startup. What changed is in the [changelog](https://github.com/jasp-nerd/vinted-sniper/blob/main/CHANGELOG.md).
+Your searches are kept, and database changes apply by themselves at startup. What changed is in the [changelog](https://github.com/jasp-nerd/vinted-sniper/blob/main/CHANGELOG.md).
 
 ## FAQ
 
