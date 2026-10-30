@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Mags reduced to what survives at 16px: teal tile, dark head, two eyes, a beak. -->
+  <rect width="32" height="32" rx="7" fill="#007782"/>
+  <circle cx="16" cy="18" r="12" fill="#18263a"/>
+  <path d="M7 19a9 7 0 0 1 18 0v3H7z" fill="#2b3e55"/>
+  <circle cx="11.5" cy="17.5" r="3" fill="#0e1622"/>
+  <circle cx="20.5" cy="17.5" r="3" fill="#0e1622"/>
+  <circle cx="12.4" cy="16.6" r="1" fill="#fff"/>
+  <circle cx="21.4" cy="16.6" r="1" fill="#fff"/>
+  <path d="M13.6 20.4h4.8L16 23.6z" fill="#5d6673"/>
+  <circle cx="9" cy="21.6" r="1.4" fill="#f26b5b"/>
+  <circle cx="23" cy="21.6" r="1.4" fill="#f26b5b"/>
+</svg>
