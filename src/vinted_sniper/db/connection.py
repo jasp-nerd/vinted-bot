@@ -21,7 +21,9 @@ _PRAGMAS = (
     "PRAGMA journal_mode=WAL",
     "PRAGMA synchronous=NORMAL",
     "PRAGMA foreign_keys=ON",
-    "PRAGMA busy_timeout=5000",
+    # Long enough to ride out a backup tool or the CLI writing while the app runs. Past
+    # it, callers get "database is locked" and the background loops log it and carry on.
+    "PRAGMA busy_timeout=15000",
 )
 
 
