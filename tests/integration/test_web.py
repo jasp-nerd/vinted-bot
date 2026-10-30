@@ -9,6 +9,7 @@ transport and outgoing alerts go to an httpx mock, so nothing reaches the networ
 from __future__ import annotations
 
 import json
+import re
 import time
 from collections.abc import Callable, Iterator
 from decimal import Decimal
@@ -30,7 +31,7 @@ from vinted_sniper.vinted.models import Item
 from vinted_sniper.vinted.session import SessionManager
 from vinted_sniper.vinted.taxonomy import Taxonomy
 from vinted_sniper.vinted.transport import Response
-from vinted_sniper.web import core, preview
+from vinted_sniper.web import core, preview, security
 from vinted_sniper.web.routes import finds
 from vinted_sniper.web.server import SESSION_COOKIE, create_app
 
@@ -82,7 +83,7 @@ def make_client(
         opened.append(client)
         token = settings_kw.get("web_auth_token")
         if signed_in and token is not None:
-            client.cookies.set(SESSION_COOKIE, core.session_value(token))
+            client.post("/login", data={"password": token.get_secret_value()})
         return client
 
     yield build
@@ -177,11 +178,59 @@ def test_the_wrong_password_is_refused_on_the_page(locked: TestClient) -> None:
     assert "didn&#39;t match" in response.text
 
 
-def test_signing_in_stores_a_derived_value_not_the_password(locked: TestClient) -> None:
+def test_signing_in_never_puts_the_password_in_the_cookie(locked: TestClient) -> None:
     response = locked.post("/login", data={"password": TOKEN}, follow_redirects=False)
 
-    assert response.cookies[SESSION_COOKIE] == core.session_value(SecretStr(TOKEN))
+    assert response.cookies[SESSION_COOKIE]
     assert TOKEN not in response.headers["set-cookie"]
+
+
+def test_each_sign_in_gets_its_own_session(locked: TestClient) -> None:
+    first = locked.post("/login", data={"password": TOKEN}, follow_redirects=False)
+    second = locked.post("/login", data={"password": TOKEN}, follow_redirects=False)
+
+    assert first.cookies[SESSION_COOKIE] != second.cookies[SESSION_COOKIE]
+
+
+def test_signing_out_revokes_the_session_on_the_server(locked: TestClient) -> None:
+    """A copied cookie stops working once its owner signs out."""
+    locked.post("/login", data={"password": TOKEN})
+    stolen = locked.cookies[SESSION_COOKIE]
+    locked.post("/logout", headers={"Origin": BASE})
+    locked.cookies.set(SESSION_COOKIE, stolen)
+
+    assert locked.get("/api/health").status_code == 401
+
+
+async def test_changing_the_password_signs_everyone_out(
+    make_client: Callable[..., TestClient],
+) -> None:
+    before = make_client(web_auth_token=SecretStr(TOKEN))
+    cookie = before.cookies[SESSION_COOKIE]
+    after = make_client(web_auth_token=SecretStr("a-new-password"), signed_in=False)
+    after.cookies.set(SESSION_COOKIE, cookie)
+
+    assert after.get("/api/health").status_code == 401
+
+
+def test_restarting_with_the_same_password_keeps_people_signed_in(
+    make_client: Callable[..., TestClient],
+) -> None:
+    before = make_client(web_auth_token=SecretStr(TOKEN))
+    cookie = before.cookies[SESSION_COOKIE]
+    after = make_client(web_auth_token=SecretStr(TOKEN), signed_in=False)
+    after.cookies.set(SESSION_COOKIE, cookie)
+
+    assert after.get("/api/health").status_code == 200
+
+
+def test_guessing_passwords_is_slowed_down(locked: TestClient) -> None:
+    for _ in range(5):
+        locked.post("/login", data={"password": "guess"})
+
+    response = locked.post("/login", data={"password": TOKEN}, follow_redirects=False)
+
+    assert response.status_code == 429
 
 
 def test_signing_in_never_redirects_to_another_site(locked: TestClient) -> None:
@@ -228,6 +277,83 @@ def test_the_public_url_host_is_allowed(make_client: Callable[..., TestClient]) 
     proxied = make_client(web_public_url="https://finds.example.org")
 
     assert proxied.get("/healthz", headers={"Host": "finds.example.org"}).status_code != 400
+
+
+REBIND = "rebind.attacker.example:8000"
+
+
+def test_a_rebinding_page_cannot_read_a_wildcard_bound_dashboard(
+    make_client: Callable[..., TestClient],
+) -> None:
+    """The Docker image binds 0.0.0.0; that must not switch the Host check off."""
+    docker = make_client(web_host="0.0.0.0")
+
+    assert docker.get("/alerts", headers={"Host": REBIND}).status_code == 400
+
+
+async def test_a_rebinding_page_cannot_add_a_destination(
+    make_client: Callable[..., TestClient], repo: Repo
+) -> None:
+    """Host and Origin both carry the attacker's name, so matching them proves nothing."""
+    docker = make_client(web_host="0.0.0.0")
+
+    docker.post(
+        "/destinations",
+        data={"kind": "webhook", "webhook_url": "https://attacker.example/collect"},
+        headers={"Host": REBIND, "Origin": f"http://{REBIND}", "Accept": "application/json"},
+    )
+
+    assert await repo.list_destinations() == []
+
+
+def test_the_unknown_host_page_names_the_setting_to_use(
+    make_client: Callable[..., TestClient],
+) -> None:
+    docker = make_client(web_host="0.0.0.0")
+
+    page = docker.get("/", headers={"Host": "nas.local:8000"})
+
+    assert "VINTED_SNIPER_WEB_ALLOWED_HOSTS" in page.text
+
+
+def test_an_ip_address_always_reaches_the_dashboard(
+    make_client: Callable[..., TestClient],
+) -> None:
+    """Opening it from a phone by the computer's address keeps working."""
+    docker = make_client(web_host="0.0.0.0")
+
+    assert docker.get("/searches", headers={"Host": "192.168.1.20:8000"}).status_code == 200
+
+
+def test_names_in_allowed_hosts_reach_the_dashboard(
+    make_client: Callable[..., TestClient],
+) -> None:
+    docker = make_client(web_host="0.0.0.0", web_allowed_hosts="nas.local, finds.example.org")
+
+    assert docker.get("/searches", headers={"Host": "nas.local:8000"}).status_code == 200
+
+
+def test_a_change_from_a_site_served_by_ip_address_is_refused(client: TestClient) -> None:
+    """Any IP may open the dashboard, but only the dashboard's own address may change it."""
+    response = client.post(
+        "/settings",
+        data={"key": "theme", "value": "dark"},
+        headers={"Origin": "http://203.0.113.5"},
+    )
+
+    assert response.status_code == 403
+
+
+def test_a_change_from_an_allowed_name_is_accepted(make_client: Callable[..., TestClient]) -> None:
+    named = make_client(web_allowed_hosts="nas.local")
+
+    response = named.post(
+        "/settings",
+        data={"key": "theme", "value": "dark"},
+        headers={"Host": "nas.local:8000", "Origin": "http://nas.local:8000"},
+    )
+
+    assert response.json() == {"ok": True}
 
 
 def test_an_exposed_dashboard_without_a_password_says_so(
@@ -844,14 +970,36 @@ async def test_finds_download_as_json(client: TestClient, repo: Repo) -> None:
     assert {row["item_id"] for row in rows} == {1, 2}
 
 
-async def test_a_feed_reader_needs_the_password_as_a_key(
+async def test_a_feed_reader_needs_the_feed_key(
     make_client: Callable[..., TestClient], repo: Repo
 ) -> None:
     query_id = await _seed(repo)
     reader = make_client(web_auth_token=SecretStr(TOKEN), signed_in=False)
+    key = await security.feed_key(repo)
 
     assert reader.get(f"/rss/{query_id}.xml").status_code == 401
-    assert reader.get(f"/rss/{query_id}.xml", params={"key": TOKEN}).status_code == 200
+    assert reader.get(f"/rss/{query_id}.xml", params={"key": key}).status_code == 200
+
+
+async def test_the_password_is_not_a_feed_key(
+    make_client: Callable[..., TestClient], repo: Repo
+) -> None:
+    """Feed addresses end up in reader settings and proxy logs; the password must not."""
+    query_id = await _seed(repo)
+    reader = make_client(web_auth_token=SecretStr(TOKEN), signed_in=False)
+
+    assert reader.get(f"/rss/{query_id}.xml", params={"key": TOKEN}).status_code == 401
+
+
+async def test_a_search_page_links_its_feed_with_the_key(
+    make_client: Callable[..., TestClient], repo: Repo
+) -> None:
+    query_id = await _seed(repo)
+    owner = make_client(web_auth_token=SecretStr(TOKEN))
+
+    page = owner.get(f"/searches/{query_id}").text
+
+    assert f"/rss/{query_id}.xml?key={await security.feed_key(repo)}" in page
 
 
 async def test_a_feed_lists_only_its_own_search(client: TestClient, repo: Repo) -> None:
@@ -1084,3 +1232,17 @@ def test_a_refusal_from_vinted_surfaces_as_a_502_with_the_reason(
     response = builder_client.get("/api/filters/fr/facets/status")
 
     assert response.status_code == 502
+
+
+# --- Script safety ---------------------------------------------------------------------
+
+
+def test_chart_tooltips_never_parse_page_data_as_markup() -> None:
+    """Stored XSS: a tooltip carries a search name, and a name is whatever was pasted.
+
+    The browser decodes a data attribute's escaping before the script reads it, so
+    anything read from `dataset` and handed to innerHTML runs as markup.
+    """
+    script = (core.STATIC_DIR / "js" / "app.js").read_text(encoding="utf-8")
+
+    assert not re.search(r"innerHTML\s*=[^;]*dataset", script)

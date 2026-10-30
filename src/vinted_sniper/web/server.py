@@ -3,18 +3,18 @@
 On by default, bound to localhost unless you say otherwise. It exists because editing a
 config file is where most people give up: pasting a Vinted link into a box is not.
 
-Three guards sit in front of every route, because the database behind it holds webhook
-addresses and chat ids:
+Three guards sit in front of every route, because the dashboard can add, remove and
+reroute alerts. The rules themselves live in web/security.py:
 
-* Sign-in, when VINTED_SNIPER_WEB_AUTH_TOKEN is set. The cookie holds a value derived
-  from the password, not the password.
+* A Host check, however the server is bound, so a DNS-rebinding page cannot read the
+  dashboard or post to it. Behind a reverse proxy or under a name on your network,
+  VINTED_SNIPER_WEB_PUBLIC_URL or VINTED_SNIPER_WEB_ALLOWED_HOSTS names the address.
 * A same-origin check on every change (POST, PUT, DELETE). Browsers always say where a
   cross-site request came from, so a page elsewhere cannot add, delete or reroute your
   searches through your browser, password or not. This is the CSRF defence: SameSite
   cookies plus the Origin check, no tokens in forms to forget.
-* A Host check while the dashboard listens on loopback, so a DNS-rebinding page cannot
-  read it either. Behind a reverse proxy, VINTED_SNIPER_WEB_PUBLIC_URL names the
-  address it is reached by.
+* Sign-in, when VINTED_SNIPER_WEB_AUTH_TOKEN is set. The cookie holds a random session
+  token that signing out, or changing the password, revokes.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ import asyncio
 import contextlib
 import sqlite3
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
-from urllib.parse import quote, urlparse
+from urllib.parse import quote
 
 import httpx
 import uvicorn
@@ -37,7 +37,7 @@ from vinted_sniper.db.repo import Repo
 from vinted_sniper.log import get_logger
 from vinted_sniper.vinted.client import VintedClient
 from vinted_sniper.vinted.taxonomy import Taxonomy
-from vinted_sniper.web import core
+from vinted_sniper.web import core, security
 from vinted_sniper.web.preview import PreviewService
 from vinted_sniper.web.routes import (
     alerts,
@@ -60,43 +60,6 @@ SESSION_COOKIE = core.SESSION_COOKIE
 _PUBLIC_PREFIXES = ("/static/", "/rss/")
 _PUBLIC_PATHS = {"/login", "/healthz", "/manifest.webmanifest", "/favicon.ico"}
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
-_LOOPBACK_NAMES = {"localhost", "127.0.0.1", "::1", "[::1]"}
-
-
-def _allowed_hosts(settings: Settings) -> set[str] | None:
-    """Host names the dashboard answers to, or None when any will do."""
-    if not settings.web_is_loopback:
-        # Listening beyond this machine is a decision someone made; the password is
-        # the guard there, and the names it is reached by are not ours to guess.
-        return None
-    hosts = {*_LOOPBACK_NAMES, settings.web_host}
-    if settings.web_public_url:
-        hosts.add((urlparse(settings.web_public_url).hostname or "").lower())
-    return hosts
-
-
-def _host_name(host_header: str) -> str:
-    host = host_header.strip().lower()
-    if host.startswith("["):
-        return host.split("]")[0] + "]"
-    return host.rsplit(":", 1)[0] if host.count(":") == 1 else host
-
-
-def _same_origin(request: Request, settings: Settings) -> bool:
-    """Whether a state-changing request came from a page of this dashboard.
-
-    Browsers send Origin on every cross-site POST, and Referer when Origin is absent.
-    A request with neither did not come from a web page (curl, a script) and cannot be a
-    forged browser request.
-    """
-    source = request.headers.get("origin") or request.headers.get("referer")
-    if not source or source == "null":
-        return source is None
-    origin_host = (urlparse(source).netloc or "").lower()
-    own = {request.headers.get("host", "").lower()}
-    if settings.web_public_url:
-        own.add(urlparse(settings.web_public_url).netloc.lower())
-    return origin_host in own
 
 
 def _wants_html(request: Request) -> bool:
@@ -129,10 +92,11 @@ def create_app(
         previews=PreviewService(client) if client is not None else None,
     )
     token = settings.web_auth_token
-    allowed_hosts = _allowed_hosts(settings)
+    allowed_hosts = security.allowed_hosts(settings)
 
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        await security.sync_password(repo, token)
         context.http = http or httpx.AsyncClient(timeout=20.0)
         try:
             yield
@@ -149,22 +113,22 @@ def create_app(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         path = request.url.path
-        if allowed_hosts is not None:
-            host = _host_name(request.headers.get("host", ""))
-            if host and host not in allowed_hosts:
-                return Response(
-                    f"This dashboard does not answer to {host!r}. If you reach it through a "
-                    "reverse proxy or tunnel, set VINTED_SNIPER_WEB_PUBLIC_URL to that address.",
-                    status_code=400,
-                    media_type="text/plain",
-                )
-        if request.method not in _SAFE_METHODS and not _same_origin(request, settings):
+        host = security.host_name(request.headers.get("host", ""))
+        if host and not security.host_allowed(host, allowed_hosts):
+            return _unknown_host(request, host)
+        if request.method not in _SAFE_METHODS and not security.same_origin(
+            request, settings, allowed_hosts
+        ):
             return JSONResponse(
                 {"error": "This change did not come from the dashboard, so it was refused."},
                 status_code=403,
             )
         public = path in _PUBLIC_PATHS or path.startswith(_PUBLIC_PREFIXES)
-        if not public and not core.signed_in(request, token):
+        if (
+            not public
+            and token is not None
+            and not await security.session_valid(repo, request.cookies.get(SESSION_COOKIE))
+        ):
             if request.method == "GET" and _wants_html(request):
                 target = path + (f"?{request.url.query}" if request.url.query else "")
                 return RedirectResponse(f"/login?next={quote(target, safe='/')}", status_code=303)
@@ -217,6 +181,28 @@ def create_app(
         )
 
     return app
+
+
+def _unknown_host(request: Request, host: str) -> Response:
+    """The 400 for a host name the dashboard was not told about, saying how to allow it.
+
+    No page shell: the shell reads the database, and this request is not trusted to.
+    """
+    message = (
+        f"This dashboard does not answer to the name {host!r}, which protects it from web "
+        "pages that point their own name at your computer (DNS rebinding). If that is "
+        "really how you reach it, add the name to VINTED_SNIPER_WEB_ALLOWED_HOSTS "
+        "(comma-separated), or set VINTED_SNIPER_WEB_PUBLIC_URL to the full address, and "
+        "restart. Opening it by IP address, such as http://192.168.1.20:8000, always works."
+    )
+    if not _wants_html(request):
+        return JSONResponse({"error": message}, status_code=400)
+    return core.TEMPLATES.TemplateResponse(
+        request,
+        "error.html",
+        {"title": "Unknown address", "message": message, "app": None},
+        status_code=400,
+    )
 
 
 async def _problem(
@@ -274,8 +260,8 @@ async def serve(
         log.warning(
             "web.no_password",
             host=settings.web_host,
-            hint="the dashboard shows your webhook URLs; keep the published port on "
-            "127.0.0.1 or set VINTED_SNIPER_WEB_AUTH_TOKEN",
+            hint="anyone who can open the dashboard can change your alerts; keep the "
+            "published port on 127.0.0.1 or set VINTED_SNIPER_WEB_AUTH_TOKEN",
         )
     await stop.wait()
     server.should_exit = True

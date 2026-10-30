@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import hashlib
-import hmac
 import json
 import socket
 import time
@@ -24,7 +23,6 @@ import httpx
 from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import SecretStr
 
 from vinted_sniper import __version__
 from vinted_sniper.config import Settings
@@ -34,6 +32,7 @@ from vinted_sniper.vinted.client import VintedClient
 from vinted_sniper.vinted.taxonomy import Taxonomy
 from vinted_sniper.web import views
 from vinted_sniper.web.preview import PreviewService
+from vinted_sniper.web.security import LoginThrottle
 
 HERE = Path(__file__).parent
 STATIC_DIR = HERE / "static"
@@ -59,25 +58,12 @@ class WebContext:
     http: httpx.AsyncClient | None = None
     bot_username: str | None = None
     bot_checked: bool = False
+    login_throttle: LoginThrottle = field(default_factory=LoginThrottle)
 
 
 def ctx(request: Request) -> WebContext:
     context: WebContext = request.app.state.ctx
     return context
-
-
-def session_value(token: SecretStr) -> str:
-    """What the sign-in cookie holds: derived from the password, never the password itself."""
-    return hmac.new(
-        token.get_secret_value().encode(), b"vinted-sniper dashboard session", hashlib.sha256
-    ).hexdigest()
-
-
-def signed_in(request: Request, token: SecretStr | None) -> bool:
-    if token is None:
-        return True
-    supplied = request.cookies.get(SESSION_COOKIE) or ""
-    return hmac.compare_digest(supplied, session_value(token))
 
 
 # --- Templates ---------------------------------------------------------------------

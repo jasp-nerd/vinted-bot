@@ -19,6 +19,7 @@ from vinted_sniper.app import Application
 from vinted_sniper.config import Settings
 from vinted_sniper.db import Database, apply_pending
 from vinted_sniper.db.repo import Repo
+from vinted_sniper.engine.poller import Poller
 
 
 def write_scenario(directory: Path, *, item_count: int = 3) -> None:
@@ -177,6 +178,24 @@ async def test_searches_started_together_are_spread_out(offline_settings: Settin
     assert delays[0] == 0, "the first search still checks straight away"
     assert delays[1] >= 2.0
     assert delays[2] >= 4.0
+
+
+async def test_a_search_that_keeps_crashing_is_restarted_with_backoff(
+    offline_settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Restarting a crashed search at once would hammer Vinted every supervisor pass."""
+    query_id = await add_search(offline_settings, "crashy")
+
+    async def crash(self: Poller) -> float:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(Poller, "tick", crash)
+
+    with structlog.testing.capture_logs() as events:
+        await run_briefly(Application(offline_settings, supervise_interval_s=0.05), seconds=0.4)
+
+    starts = [e for e in events if e["event"] == "poller.started" and e["query_id"] == query_id]
+    assert [e["start_in_s"] >= 10 for e in starts] == [False, True]
 
 
 async def test_editing_a_search_restarts_it_with_the_new_rules(

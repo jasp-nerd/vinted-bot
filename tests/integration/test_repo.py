@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import time
 from dataclasses import replace
 from decimal import Decimal
@@ -290,6 +292,36 @@ async def test_a_notification_from_a_search_without_a_resale_price_has_no_margin
     assert notification.margin is None
 
 
+async def test_a_second_search_alerts_with_its_own_typical_price(repo: Repo) -> None:
+    """A broad search stored the listing first; the narrow one judges it by its own median."""
+    broad = await add(repo, "nike")
+    narrow = await add(repo, "airmax90")
+    destination_id = await repo.add_destination(kind="ntfy", name="n", config={"topic": "t"})
+    item = listing(77, total_price=Decimal("40.00"))
+    await repo.record_new_items(
+        broad, [item], [destination_id], notify=[], typical_prices={"EUR": Decimal("25.00")}
+    )
+
+    await repo.record_new_items(
+        narrow, [item], [destination_id], typical_prices={"EUR": Decimal("80.00")}
+    )
+
+    [pending] = await repo.claim_batch(destination_id, 5)
+    assert pending.typical_price == Decimal("80.00")
+
+
+async def test_a_second_search_fills_in_the_seller_country(repo: Repo) -> None:
+    first = await add(repo, "nike")
+    second = await add(repo, "airmax90", countries=["FR"])
+    item = listing(77, seller_id=5)
+    await repo.record_new_items(first, [item], [])
+
+    await repo.record_new_items(second, [item], [], seller_countries={5: "FR"})
+
+    [entry] = await repo.items_feed()
+    assert entry.seller_country == "FR"
+
+
 async def test_held_notifications_wait_and_do_not_expire_while_held(repo: Repo) -> None:
     query = await add(repo)
     destination_id = await repo.add_destination(kind="ntfy", name="n", config={"topic": "t"})
@@ -441,6 +473,21 @@ async def test_a_live_feed_picks_up_from_its_cursor(repo: Repo) -> None:
     assert [e.item.item_id for e in await repo.items_after(cursor)] == [2, 3]
 
 
+async def test_the_feed_cursor_keeps_rising_after_everything_is_pruned(
+    repo: Repo, db: Database
+) -> None:
+    """An open tab resumes from its last cursor; numbering must not restart below it."""
+    query = await add(repo)
+    await repo.record_new_items(query, [listing(1), listing(2)], [])
+    await db.execute("UPDATE items SET first_seen_at = first_seen_at - 31 * 86400")
+    await repo.prune_items(30)
+
+    await repo.record_new_items(query, [listing(3)], [])
+
+    [entry] = await repo.items_feed()
+    assert entry.seq == 3
+
+
 async def test_blocking_a_seller_is_listed_and_reversible(repo: Repo) -> None:
     await repo.block_seller(42, login="spammer", tld="fr", reason="fakes")
 
@@ -509,6 +556,18 @@ async def test_export_as_csv_keeps_prices_exact(repo: Repo) -> None:
     header, row = rendered.splitlines()
     assert header.startswith("item_id,site,title")
     assert ",15.00,16.45,EUR," in row
+
+
+@pytest.mark.parametrize("title", ['=HYPERLINK("http://x")', "+1", "-1+1", "@SUM(A1)", "\tx"])
+async def test_export_as_csv_never_hands_a_spreadsheet_a_formula(repo: Repo, title: str) -> None:
+    """Titles are whatever a seller typed; a spreadsheet must show them, not run them."""
+    query = await add(repo)
+    await repo.record_new_items(query, [listing(1, title=title)], [])
+
+    rendered = export.render(await repo.all_found(), "csv")
+
+    [row] = list(csv.DictReader(io.StringIO(rendered)))
+    assert row["title"] == "'" + title
 
 
 async def test_export_as_json(repo: Repo) -> None:

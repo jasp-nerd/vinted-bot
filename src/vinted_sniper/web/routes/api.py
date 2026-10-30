@@ -23,7 +23,7 @@ from vinted_sniper.engine import health
 from vinted_sniper.vinted import urls
 from vinted_sniper.vinted.errors import VintedError
 from vinted_sniper.vinted.taxonomy import FACET_CODES, Taxonomy
-from vinted_sniper.web import core, forms, views
+from vinted_sniper.web import core, forms, security, views
 from vinted_sniper.web.preview import TooSoonError, judge
 
 router = APIRouter()
@@ -201,10 +201,13 @@ async def rss(request: Request, query_id: int, key: str = "") -> Response:
     """A search's finds for a feed reader. Feed readers cannot sign in, so the key is in the URL."""
     context = core.ctx(request)
     token = context.settings.web_auth_token
-    if token is not None and not (
-        key and hmac.compare_digest(key.encode(), token.get_secret_value().encode())
-    ):
-        return Response("Add ?key=<your dashboard password> to the feed address.", 401)
+    feed_key = await security.feed_key(context.repo) if token is not None else ""
+    if token is not None and not (key and hmac.compare_digest(key.encode(), feed_key.encode())):
+        return Response(
+            "This feed needs its key. Copy the feed address from the search's page in the "
+            "dashboard: it ends in ?key=...",
+            401,
+        )
     query = await context.repo.get_query(query_id)
     if query is None:
         raise HTTPException(status_code=404, detail="No such search.")
