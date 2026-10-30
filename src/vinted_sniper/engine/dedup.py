@@ -11,16 +11,25 @@ listing id, which Vinted hands out in upload order across the whole platform. Th
   pulled up by a deletion, not a new upload. A listing that turns up late but inside the
   range we have been watching is still announced — dropping those forever was the old
   mark's flaw.
-* A freshness window, when a listing does carry a photo time, so a restart or a slow first
-  check cannot replay yesterday's catalog.
+* A freshness window. A listing is too old when it carries a photo time before the window,
+  or when the app already saw a newer listing id before the window (`listed_by`): ids
+  are handed out in upload order, so that listing was on Vinted by then. This is what
+  skips a month-old listing that a price cut has just brought into a search's range.
 
 A search's first ever check is special: it records the page and tells you about none of it
 (or exactly one, in 'newest' mode). Being greeted by ninety-six notifications is how people
 conclude a tool is broken.
+
+So is the first check after a gap longer than the window: the app was off, asleep or
+blocked. Whatever was uploaded in the meantime is above the floor and newer than anything
+the app has seen, so nothing can tell a listing from five minutes ago from one from
+yesterday. The check catches up: it records the page quietly, like a first check, and
+moves the floor up to it, instead of announcing a page of old listings as new.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Literal
 
@@ -48,6 +57,11 @@ def newest_timestamp(items: list[Item]) -> int | None:
     return max(stamps) if stamps else None
 
 
+def needs_catch_up(last_success_at: int | None, *, now: int, gap_s: int) -> bool:
+    """Whether the last good check was so long ago that this one should record quietly."""
+    return last_success_at is not None and now - last_success_at > gap_s
+
+
 def select(
     *,
     items: list[Item],
@@ -57,14 +71,18 @@ def select(
     freshness_window_s: int,
     is_first_run: bool,
     page_is_full: bool = False,
+    listed_by: Mapping[int, int] | None = None,
 ) -> Selection:
     """Work out which of a search's raw results are new enough to judge.
 
     `items` is everything the search returned, on every site it runs on. `page_is_full`
     says whether every site returned a whole page; only then is there anything "below the
-    page" for the floor to keep out. On a first check
+    page" for the floor to keep out. On a first check (or a catch-up after a gap)
     `new` is the whole unseen page — the caller records it as seeded — and the floor jumps
     to the newest id, so nothing already on the shelf is ever judged as new later.
+
+    `listed_by` maps listing ids to the earliest moment each is known to have existed;
+    see `Repo.listed_by`.
     """
     ids = [item.item_id for item in items]
     newest_raw_id = max(ids) if ids else None
@@ -74,21 +92,24 @@ def select(
     )
 
     if is_first_run:
+        candidates = [value for value in (floor_item_id, newest_raw_id) if value is not None]
         return Selection(
             new=unseen,
             newest_raw_id=newest_raw_id,
             newest_raw_ts=raw_ts,
-            floor_item_id=newest_raw_id,
+            floor_item_id=max(candidates) if candidates else None,
         )
 
     cutoff = now - freshness_window_s
+    known = listed_by or {}
     new: list[Item] = []
     stale = 0
     for item in unseen:
         if floor_item_id is not None and item.item_id <= floor_item_id:
             stale += 1
             continue
-        if item.photo_ts is not None and item.photo_ts < cutoff:
+        listed = item.photo_ts if item.photo_ts is not None else known.get(item.item_id)
+        if listed is not None and listed < cutoff:
             stale += 1
             continue
         new.append(item)

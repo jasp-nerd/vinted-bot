@@ -182,6 +182,38 @@ async def test_skipped_listings_never_reach_the_destination(repo: Repo, settings
     assert (len(endpoint.requests), await repo.outbox_depth()) == (0, 0)
 
 
+async def test_a_listing_a_destination_did_not_want_is_not_counted_as_a_failure(
+    repo: Repo, settings: Settings
+) -> None:
+    """A steals-only destination skipping a normal listing is working as asked."""
+    query_id = await repo.add_query(
+        name="test", url="https://www.vinted.fr/catalog?search_text=x", tld="fr", params={},
+        poll_interval_s=60,
+    )  # fmt: skip
+    query = await repo.get_query(query_id)
+    assert query is not None
+    destination_id = await repo.add_destination(
+        kind="webhook", name="steals", config={"url": "https://example.test", "tiers": ["steal"]}
+    )
+    item = Item(
+        item_id=1, tld="fr", title="x", url="https://www.vinted.fr/items/1",
+        price=Decimal("10"), currency="EUR", photo_ts=int(time.time()),
+    )  # fmt: skip
+    await repo.record_new_items(query, [item], [destination_id])
+    dispatcher = Dispatcher(
+        repo=repo,
+        settings=settings,
+        stop=asyncio.Event(),
+        work_available=asyncio.Event(),
+        client=Endpoint().client(),
+    )
+
+    await dispatcher.drain()
+
+    [counts] = await repo.delivery_counts()
+    assert counts.failed == 0
+
+
 async def test_a_silent_tier_reaches_the_destination_without_a_sound(
     repo: Repo, settings: Settings
 ) -> None:

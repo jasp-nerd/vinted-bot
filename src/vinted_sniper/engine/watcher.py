@@ -161,16 +161,25 @@ class Watcher:
             return
         listings = await self._seller_items(watch.tld, watch.target_id)
         known = await self._repo.known_item_ids([item.item_id for item in listings])
+        # Above the watch's high-water id and not stored for another reason. The stored
+        # copies are pruned after a while; the high-water id is not, so a listing that
+        # stays for sale for months is still only announced once.
+        floor = watch.seen_up_to or 0
         new = sorted(
-            (item for item in listings if item.item_id not in known), key=lambda item: item.item_id
+            (item for item in listings if item.item_id not in known and item.item_id > floor),
+            key=lambda item: item.item_id,
         )
         # The first look records what the seller already has, like a search's first check.
-        notify = [] if watch.is_first_check else new[-_MAX_UPLOADS_ANNOUNCED:]
+        # So does a watch with no high-water id yet (one from before it existed).
+        first_look = watch.is_first_check or watch.seen_up_to is None
+        notify = [] if first_look else new[-_MAX_UPLOADS_ANNOUNCED:]
         await self._repo.record_seller_uploads(
             watch,
             new,
             notify=notify,
             destination_ids=await self._repo.destination_ids_for_watch(watch.id),
+            # Zero for an empty wardrobe, so its first upload is not taken for a first look.
+            seen_up_to=max((item.item_id for item in listings), default=0),
         )
         if notify:
             self._announce()

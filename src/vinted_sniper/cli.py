@@ -81,7 +81,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--deal", default="", help="Only alert at least this many percent under typical."
     )
     watch.add_argument(
-        "--max-age", default="", help="Ignore listings older than this many minutes."
+        "--max-age",
+        default="",
+        help="Ignore listings the app can tell were on Vinted longer ago than this many minutes.",
     )
     watch.add_argument("--quiet", default="", help="Quiet hours, e.g. 23:00-07:00.")
     watch.add_argument(

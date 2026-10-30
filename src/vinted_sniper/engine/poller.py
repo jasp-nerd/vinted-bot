@@ -55,6 +55,19 @@ SELLER_CACHE_S = 7 * 86_400
 # when a burst arrives, and the rest wait for the next check rather than hammering the site.
 _MAX_LOOKUPS_PER_CHECK = 10
 
+# How long seller lookups stop after Vinted refuses one (403), or answers 429 without
+# saying how long to wait. The catalog itself keeps being checked meanwhile.
+_LOOKUP_PAUSE_S = 600.0
+
+# A rejected token is normally fixed by one homepage load. If fresh tokens keep being
+# rejected this many times in a row, something else is wrong, and retrying every few
+# seconds is just hammering: from here on a 401 backs off like any other refusal.
+_AUTH_FAILURES_BEFORE_BACKOFF = 3
+
+# A gap since the last good check longer than this many check intervals (or than the
+# freshness window, whichever is longer) means the app was off or blocked; see dedup.
+_CATCH_UP_INTERVALS = 3
+
 
 @dataclass(slots=True)
 class _Verdicts:
@@ -98,6 +111,12 @@ class Poller:
         self._rng = rng or random.Random()
         self._rules = filters.Rules(query)
         self._consecutive_errors = 0
+        self._consecutive_auth_failures = 0
+        # Seller lookups are off until then after Vinted refused one (epoch seconds).
+        self._lookups_paused_until = 0.0
+        # Completed checks, so the supervisor can tell a poller that crashed straight away
+        # from one that ran for a while first.
+        self.successes = 0
         # The site being fetched when an error escapes, so the right session is replaced.
         self._site = query.tld
         self._warned_no_lookup = False
@@ -115,17 +134,16 @@ class Poller:
         try:
             await self._check()
         except AuthExpiredError as exc:
-            # The anonymous token aged out. A new one costs a single page load.
-            self._log.info("poll.session_expired", site=self._site, error=str(exc))
-            await self._repo.record_failure(self.query.id, "http_401", str(exc))
-            await self._sessions.invalidate(self._site)
-            return min(5.0, float(self.query.poll_interval_s))
+            return await self._auth_expired(exc)
         except BlockedError as exc:
             # Vinted is refusing this client. A fresh cookie will not change that, so back
-            # off hard and come back with a different session.
+            # off hard and come back with a different session. The session is only
+            # dropped here: minting the replacement is the next check's first step, so a
+            # homepage that refuses us too is one more refusal on this same ladder rather
+            # than an error escaping the loop.
             self._consecutive_errors += 1
             await self._repo.record_failure(self.query.id, "http_403", str(exc))
-            await self._sessions.rotate(self._site, blocked=True)
+            await self._sessions.discard(self._site, blocked=True)
             delay = self._backoff()
             self._log.warning(
                 "poll.blocked", site=self._site, error=str(exc), retry_in_s=round(delay)
@@ -154,7 +172,29 @@ class Poller:
             return delay
 
         self._consecutive_errors = 0
+        self._consecutive_auth_failures = 0
+        self.successes += 1
         return self._interval()
+
+    async def _auth_expired(self, exc: AuthExpiredError) -> float:
+        """A rejected token: retried promptly at first, on the backoff ladder if it persists."""
+        # The anonymous token aged out. A new one costs a single page load.
+        self._consecutive_auth_failures += 1
+        await self._repo.record_failure(self.query.id, "http_401", str(exc))
+        await self._sessions.invalidate(self._site)
+        if self._consecutive_auth_failures < _AUTH_FAILURES_BEFORE_BACKOFF:
+            self._log.info("poll.session_expired", site=self._site, error=str(exc))
+            return min(5.0, float(self.query.poll_interval_s))
+        self._consecutive_errors += 1
+        delay = self._backoff()
+        self._log.warning(
+            "poll.auth_keeps_failing",
+            site=self._site,
+            error=str(exc),
+            in_a_row=self._consecutive_auth_failures,
+            retry_in_s=round(delay),
+        )
+        return delay
 
     async def _fetch(self) -> tuple[list[Item], bool]:
         """Every site's first page, in order, and whether each page was full.
@@ -174,20 +214,29 @@ class Poller:
     async def _check(self) -> None:
         items, page_is_full = await self._fetch()
         state = await self._repo.get_state(self.query.id)
-        seen = await self._repo.seen_by_query(self.query.id, [item.item_id for item in items])
-        window_min = self.query.max_age_min or self._settings.freshness_window_min
+        ids = [item.item_id for item in items]
+        seen = await self._repo.seen_by_query(self.query.id, ids)
+        window_s = (self.query.max_age_min or self._settings.freshness_window_min) * 60
+        now = int(time.time())
+        catching_up = dedup.needs_catch_up(
+            state.last_success_at,
+            now=now,
+            gap_s=max(window_s, _CATCH_UP_INTERVALS * self.query.poll_interval_s),
+        )
+        quiet = state.is_first_run or catching_up
         selection = dedup.select(
             items=items,
             seen_ids=seen,
             floor_item_id=state.floor_item_id,
-            now=int(time.time()),
-            freshness_window_s=window_min * 60,
-            is_first_run=state.is_first_run,
+            now=now,
+            freshness_window_s=window_s,
+            is_first_run=quiet,
             page_is_full=page_is_full,
+            listed_by=await self._repo.listed_by([i for i in ids if i not in seen]),
         )
 
-        if state.is_first_run:
-            announced = await self._seed(selection.new)
+        if quiet:
+            announced = await self._seed(selection.new, announce=state.is_first_run)
         else:
             announced = await self._judge(selection.new)
 
@@ -211,6 +260,13 @@ class Poller:
                 announced=announced,
                 mode=self._settings.first_run_mode,
             )
+        elif catching_up:
+            self._log.info(
+                "poll.caught_up",
+                recorded=len(selection.new),
+                offline_min=round((now - (state.last_success_at or now)) / 60),
+                hint="listings from while the app was not checking are recorded, not announced",
+            )
         elif announced:
             self._log.info("poll.new_items", count=announced, returned=len(items))
         else:
@@ -225,16 +281,17 @@ class Poller:
             return state.stale_cycles + 1
         return 0
 
-    async def _seed(self, unseen: list[Item]) -> int:
-        """Record a new search's page without shouting about it. Returns how many announced.
+    async def _seed(self, unseen: list[Item], *, announce: bool = True) -> int:
+        """Record a page without shouting about it. Returns how many announced.
 
-        Only listings passing the cheap rules are kept, so the typical price is built from
-        what the search actually wants. No seller lookups: nothing here is announced except
-        perhaps one, and a first page of ninety-six would be ninety-six requests.
+        For a new search's first check, and with `announce` off for a catch-up after a
+        gap. Only listings passing the cheap rules are kept, so the typical price is built
+        from what the search actually wants. No seller lookups: nothing here is announced
+        except perhaps one, and a first page of ninety-six would be ninety-six requests.
         """
         blocked = frozenset(await self._repo.blocked_seller_ids())
         keep = [item for item in unseen if self._rules.check(item, blocked_sellers=blocked) is None]
-        pick = dedup.first_run_pick(keep, self._settings.first_run_mode)
+        pick = dedup.first_run_pick(keep, self._settings.first_run_mode) if announce else []
         if not keep:
             return 0
         destination_ids = await self._repo.destination_ids_for_query(self.query.id)
@@ -308,9 +365,14 @@ class Poller:
                 profile = await self._seller_profile(item, verdicts)
                 if profile is None:
                     # Not final: a lookup that failed this time may work next time.
-                    return filters.Rejection(
-                        "seller_unknown", "could not look up the seller just now"
-                    ), False
+                    paused = time.time() < self._lookups_paused_until
+                    detail = (
+                        "seller lookups are paused because Vinted refused them; "
+                        "tried again on a later check"
+                        if paused
+                        else "could not look up the seller just now"
+                    )
+                    return filters.Rejection("seller_unknown", detail), False
                 if profile.country_code:
                     verdicts.seller_countries[profile.seller_id] = profile.country_code
         return filters.check_seller(item, self.query, profile), True
@@ -328,12 +390,28 @@ class Poller:
             return cached
         if verdicts.lookups_made >= _MAX_LOOKUPS_PER_CHECK:
             return None
+        if time.time() < self._lookups_paused_until:
+            return None
         verdicts.lookups_made += 1
         try:
             profile = await self._seller_lookup(item.tld, seller_id)
+        except (BlockedError, RateLimitedError) as exc:
+            # Vinted is refusing these lookups. Asking again for the next listing in the
+            # same check would only add to the refusals: stop until the pause is over,
+            # honouring Retry-After when given. The listings wait, logged as undecided.
+            retry_after = exc.retry_after if isinstance(exc, RateLimitedError) else None
+            pause = float(retry_after or _LOOKUP_PAUSE_S)
+            self._lookups_paused_until = time.time() + pause
+            self._log.warning(
+                "poll.seller_lookups_paused",
+                seller_id=seller_id,
+                error=str(exc),
+                retry_in_s=round(pause),
+            )
+            profile = None
         except VintedError as exc:
             # The listing is logged as undecided and judged again next check, by which
-            # time the session or the rate limit has usually sorted itself out.
+            # time the session has usually sorted itself out.
             self._log.info("poll.seller_lookup_failed", seller_id=seller_id, error=str(exc))
             profile = None
         verdicts.profiles[seller_id] = profile
