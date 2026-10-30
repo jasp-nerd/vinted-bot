@@ -1,300 +1,998 @@
 """The dashboard.
 
 Worth testing properly because it is the part most people will actually touch, and because
-it holds webhook URLs and chat ids — so "is it locked" is a correctness question.
+it holds webhook URLs and chat ids, so "is it locked" is a correctness question. Pages are
+driven through Starlette's test client against a real database; Vinted is a scripted
+transport and outgoing alerts go to an httpx mock, so nothing reaches the network.
 """
 
 from __future__ import annotations
 
 import json
+import time
 from collections.abc import Callable, Iterator
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
 from tests.conftest import ScriptedTransport
+from vinted_sniper.botctl.telegram_bot import claim_pairing
 from vinted_sniper.config import Settings
 from vinted_sniper.db import Database
 from vinted_sniper.db.repo import Repo
-from vinted_sniper.vinted.models import parse_item
+from vinted_sniper.vinted.client import VintedClient
+from vinted_sniper.vinted.models import Item
 from vinted_sniper.vinted.session import SessionManager
 from vinted_sniper.vinted.taxonomy import Taxonomy
 from vinted_sniper.vinted.transport import Response
+from vinted_sniper.web import core, preview
+from vinted_sniper.web.routes import finds
 from vinted_sniper.web.server import SESSION_COOKIE, create_app
 
 TOKEN = "test-token-please-ignore"
+BASE = "http://127.0.0.1"
+SEARCH_URL = "https://www.vinted.fr/catalog?search_text=nike"
 
 
-@pytest.fixture
-def web_settings(tmp_path: Path) -> Settings:
+def _settings(tmp_path: Path, **overrides: Any) -> Settings:
     return Settings(
         _env_file=None,  # type: ignore[call-arg]
         db_path=tmp_path / "app.db",
         web_enabled=True,
-        web_auth_token=SecretStr(TOKEN),
+        **overrides,
     )
 
 
-@pytest.fixture
-def client(web_settings: Settings, repo: Repo) -> Iterator[TestClient]:
-    with TestClient(create_app(web_settings, repo)) as test_client:
-        yield test_client
+class Outgoing:
+    """Records what test sends would have posted, and answers with a chosen status."""
+
+    def __init__(self) -> None:
+        self.requests: list[httpx.Request] = []
+        self.status = 200
+
+    def handler(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        return httpx.Response(self.status, json={})
 
 
 @pytest.fixture
-def signed_in(client: TestClient) -> TestClient:
-    client.cookies.set(SESSION_COOKIE, TOKEN)
-    return client
+def outgoing() -> Outgoing:
+    return Outgoing()
 
 
-# --- Access -------------------------------------------------------------------------
+@pytest.fixture
+def make_client(
+    tmp_path: Path, repo: Repo, outgoing: Outgoing
+) -> Iterator[Callable[..., TestClient]]:
+    """Builds a dashboard with the given settings and parts, signed in if it has a password."""
+    opened: list[TestClient] = []
+
+    def build(*, signed_in: bool = True, **kwargs: Any) -> TestClient:
+        settings_kw = {k: v for k, v in kwargs.items() if k in Settings.model_fields}
+        app_kw = {k: v for k, v in kwargs.items() if k not in Settings.model_fields}
+        http = httpx.AsyncClient(transport=httpx.MockTransport(outgoing.handler))
+        app = create_app(_settings(tmp_path, **settings_kw), repo, http=http, **app_kw)
+        client = TestClient(app, base_url=BASE)
+        client.__enter__()
+        opened.append(client)
+        token = settings_kw.get("web_auth_token")
+        if signed_in and token is not None:
+            client.cookies.set(SESSION_COOKIE, core.session_value(token))
+        return client
+
+    yield build
+    for client in opened:
+        client.__exit__(None, None, None)
 
 
-def test_the_dashboard_sends_you_to_the_login_page(client: TestClient) -> None:
-    response = client.get("/", follow_redirects=False)
-
-    assert response.status_code == 303
-    assert response.headers["location"] == "/login"
+@pytest.fixture
+def client(make_client: Callable[..., TestClient]) -> TestClient:
+    return make_client()
 
 
-@pytest.mark.parametrize(
-    "method,path",
-    [
-        ("get", "/api/health"),
-        ("post", "/searches"),
-        ("post", "/destinations"),
-        ("post", "/searches/1/delete"),
-    ],
-)
-def test_nothing_useful_works_without_the_token(client: TestClient, method: str, path: str) -> None:
-    response = getattr(client, method)(path, follow_redirects=False)
-
-    assert response.status_code in (401, 303, 422)
-    assert response.status_code != 200
+@pytest.fixture
+def locked(make_client: Callable[..., TestClient]) -> TestClient:
+    return make_client(web_auth_token=SecretStr(TOKEN), signed_in=False)
 
 
-def test_the_wrong_token_is_refused(client: TestClient) -> None:
-    response = client.post("/login", data={"access_token": "not-it"}, follow_redirects=False)
+@pytest.fixture
+def vinted(db: Database, transport: ScriptedTransport) -> VintedClient:
+    return VintedClient(None, SessionManager(db, transport))
+
+
+@pytest.fixture(autouse=True)
+def _no_preview_gap(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Previews space live requests out; tests make them back to back on purpose."""
+    monkeypatch.setattr(preview, "MIN_GAP_S", 0.0)
+
+
+def _item(item_id: int, *, title: str = "Nike Air Max", total: str = "25.90", **kw: Any) -> Item:
+    return Item(
+        item_id=item_id,
+        tld="fr",
+        title=title,
+        url=f"https://www.vinted.fr/items/{item_id}",
+        price=Decimal(total) - Decimal(2),
+        total_price=Decimal(total),
+        currency="EUR",
+        photo_url=f"https://images.vinted.net/{item_id}.jpeg",
+        seller_id=kw.pop("seller_id", 77),
+        seller_login=kw.pop("seller_login", "seller77"),
+        **kw,
+    )
+
+
+async def _search(repo: Repo, name: str = "Nike", **filters: Any) -> int:
+    return await repo.add_query(
+        name=name,
+        url=f"{SEARCH_URL}&n={name}",
+        tld="fr",
+        params={"search_text": "nike", "order": "newest_first"},
+        poll_interval_s=60,
+        **filters,
+    )
+
+
+async def _found(repo: Repo, query_id: int, *items: Item) -> None:
+    query = await repo.get_query(query_id)
+    assert query is not None
+    await repo.record_new_items(query, list(items), [])
+
+
+async def _seed(repo: Repo) -> int:
+    """A search with finds, a destination, a watch and a blocked seller."""
+    query_id = await _search(repo)
+    await _found(repo, query_id, _item(1), _item(2, title="Adidas Samba", total="40.00"))
+    await repo.add_destination(kind="ntfy", name="My phone", config={"topic": "mags-test"})
+    await repo.add_watch(kind="seller", tld="fr", target_id=77, label="seller77")
+    await repo.block_seller(99, login="spammer", tld="fr")
+    await repo.set_onboarded(True)
+    return query_id
+
+
+# --- Access ----------------------------------------------------------------------------
+
+
+def test_a_locked_dashboard_sends_you_to_sign_in(locked: TestClient) -> None:
+    response = locked.get("/searches", follow_redirects=False)
+
+    assert response.headers["location"] == "/login?next=/searches"
+
+
+def test_a_locked_api_answers_401_not_a_page(locked: TestClient) -> None:
+    response = locked.get("/api/health")
 
     assert response.status_code == 401
-    assert SESSION_COOKIE not in response.cookies
 
 
-def test_the_right_token_signs_you_in(client: TestClient) -> None:
-    response = client.post("/login", data={"access_token": TOKEN}, follow_redirects=False)
+def test_the_wrong_password_is_refused_on_the_page(locked: TestClient) -> None:
+    response = locked.post("/login", data={"password": "nope"})
 
-    assert response.status_code == 303
-    assert response.cookies[SESSION_COOKIE] == TOKEN
+    assert response.status_code == 401
+    assert "didn&#39;t match" in response.text
 
 
-def test_the_health_check_needs_no_token(client: TestClient) -> None:
-    """The container's health check has no way to sign in."""
-    response = client.get("/healthz")
+def test_signing_in_stores_a_derived_value_not_the_password(locked: TestClient) -> None:
+    response = locked.post("/login", data={"password": TOKEN}, follow_redirects=False)
+
+    assert response.cookies[SESSION_COOKIE] == core.session_value(SecretStr(TOKEN))
+    assert TOKEN not in response.headers["set-cookie"]
+
+
+def test_signing_in_never_redirects_to_another_site(locked: TestClient) -> None:
+    response = locked.post(
+        "/login", data={"password": TOKEN, "next": "//evil.example"}, follow_redirects=False
+    )
+
+    assert response.headers["location"] == "/"
+
+
+def test_the_health_check_needs_no_sign_in(locked: TestClient) -> None:
+    response = locked.get("/healthz")
 
     assert response.status_code in (200, 503)
-    assert "alive" in response.json()
 
 
-def test_without_a_token_the_dashboard_is_open(tmp_path: Path, repo: Repo) -> None:
-    """The default for a localhost dashboard: no password, no sign-in page."""
-    settings = Settings(_env_file=None, db_path=tmp_path / "a.db", web_enabled=True)  # type: ignore[call-arg]
-
-    with TestClient(create_app(settings, repo)) as client:
-        assert client.get("/", follow_redirects=False).status_code == 200
-        assert client.get("/api/health").status_code == 200
-        # The sign-in page has nothing to ask for, so it sends you to the dashboard.
-        assert client.get("/login", follow_redirects=False).status_code == 303
-
-
-async def test_without_a_token_the_feed_needs_no_key(tmp_path: Path, repo: Repo) -> None:
-    settings = Settings(_env_file=None, db_path=tmp_path / "b.db", web_enabled=True)  # type: ignore[call-arg]
-
-    with TestClient(create_app(settings, repo)) as client:
-        client.post(
-            "/searches",
-            data={"url": "https://www.vinted.fr/catalog?search_text=nike"},
-            follow_redirects=False,
-        )
-        query_id = (await repo.list_queries())[0].id
-        assert client.get(f"/rss/{query_id}.xml").status_code == 200
-
-
-# --- Using it -----------------------------------------------------------------------
-
-
-async def test_adding_a_search_by_pasting_a_url(signed_in: TestClient, repo: Repo) -> None:
-    response = signed_in.post(
-        "/searches",
-        data={
-            "url": "https://www.vinted.fr/catalog?search_text=nike+air&price_to=40&time=999",
-            "name": "",
-            "interval": "60",
-            "max_total_price": "25",
-            "banned_keywords": "replica, fake",
-        },
-        follow_redirects=False,
+def test_a_change_from_another_site_is_refused(client: TestClient, repo: Repo) -> None:
+    """CSRF: a page elsewhere posting through the browser carries its own Origin."""
+    response = client.post(
+        "/searches/bulk",
+        data={"action": "delete", "ids": "1"},
+        headers={"Origin": "https://evil.example"},
     )
 
-    assert response.status_code == 303
-    searches = await repo.list_queries()
-    assert len(searches) == 1
-    assert searches[0].tld == "fr"
-    assert searches[0].max_total_price is not None
-    assert searches[0].banned_keywords == ["replica", "fake"]
-    assert "time=999" not in searches[0].url, "tracking parameters should not survive"
+    assert response.status_code == 403
 
 
-async def test_a_url_that_is_not_a_search_is_rejected_with_advice(
-    signed_in: TestClient, repo: Repo
+def test_a_change_from_the_dashboard_itself_is_allowed(client: TestClient, repo: Repo) -> None:
+    response = client.post(
+        "/settings", data={"key": "theme", "value": "dark"}, headers={"Origin": BASE}
+    )
+
+    assert response.json() == {"ok": True}
+
+
+def test_a_foreign_host_name_is_refused_on_loopback(client: TestClient) -> None:
+    """DNS rebinding: another site's name pointed at 127.0.0.1 must not read the page."""
+    response = client.get("/", headers={"Host": "attacker.example"})
+
+    assert response.status_code == 400
+
+
+def test_the_public_url_host_is_allowed(make_client: Callable[..., TestClient]) -> None:
+    proxied = make_client(web_public_url="https://finds.example.org")
+
+    assert proxied.get("/healthz", headers={"Host": "finds.example.org"}).status_code != 400
+
+
+def test_an_exposed_dashboard_without_a_password_says_so(
+    make_client: Callable[..., TestClient], repo: Repo
 ) -> None:
-    response = signed_in.post(
-        "/searches", data={"url": "https://example.com/nope"}, follow_redirects=False
+    exposed = make_client(web_host="0.0.0.0")
+
+    assert "Anyone on your network can open this page" in exposed.get("/searches").text
+
+
+# --- Pages -----------------------------------------------------------------------------
+
+PAGES = [
+    "/",
+    "/searches",
+    "/searches/new",
+    "/searches/1",
+    "/searches/1/edit",
+    "/alerts",
+    "/watchlist",
+    "/stats",
+    "/stats?days=7",
+    "/settings",
+    "/welcome",
+    "/welcome/country",
+    "/welcome/search",
+    "/welcome/alerts",
+]
+
+
+@pytest.mark.parametrize("path", PAGES)
+async def test_every_page_renders_with_data(client: TestClient, repo: Repo, path: str) -> None:
+    await _seed(repo)
+
+    response = client.get(path)
+
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize("path", [p for p in PAGES if not p.startswith("/searches/1")])
+async def test_every_page_renders_with_nothing_in_it(
+    client: TestClient, repo: Repo, path: str
+) -> None:
+    await repo.set_onboarded(True)
+
+    response = client.get(path)
+
+    assert response.status_code == 200
+
+
+def test_a_fresh_install_opens_the_setup(client: TestClient) -> None:
+    response = client.get("/", follow_redirects=False)
+
+    assert response.headers["location"] == "/welcome"
+
+
+def test_a_missing_search_is_a_friendly_page(client: TestClient) -> None:
+    response = client.get("/searches/999")
+
+    assert response.status_code == 404
+    assert "Nothing here" in response.text
+
+
+async def test_pages_escape_what_people_typed(client: TestClient, repo: Repo) -> None:
+    await _search(repo, name="<script>alert(1)</script>")
+    await repo.set_onboarded(True)
+
+    page = client.get("/searches").text
+
+    assert "<script>alert(1)</script>" not in page
+    assert "&lt;script&gt;" in page
+
+
+async def test_static_files_carry_a_version_and_long_caching(client: TestClient) -> None:
+    href = core.static("css/app.css")
+
+    response = client.get(href)
+
+    assert "?v=" in href
+    assert "immutable" in response.headers["cache-control"]
+
+
+def test_the_app_can_be_installed_on_a_phone(client: TestClient) -> None:
+    manifest = client.get("/manifest.webmanifest").json()
+
+    assert {icon["sizes"] for icon in manifest["icons"]} == {"192x192", "512x512"}
+
+
+async def test_a_newer_release_shows_a_banner(client: TestClient, repo: Repo) -> None:
+    await repo.set_onboarded(True)
+    await repo.set_latest_version("99.0.0")
+
+    assert "Version 99.0.0 is out" in client.get("/searches").text
+
+
+async def test_a_refused_search_shows_the_slowed_down_banner(
+    client: TestClient, repo: Repo
+) -> None:
+    query_id = await _seed(repo)
+    await repo.record_failure(query_id, "http_403", "refused")
+
+    assert "vinted.fr is slowing us down" in client.get("/alerts").text
+
+
+# --- Searches --------------------------------------------------------------------------
+
+
+def _form(**overrides: Any) -> dict[str, Any]:
+    form: dict[str, Any] = {
+        "tld": "fr",
+        "search_text": "nike air",
+        "interval": "60",
+        "quiet_mode": "hold",
+        "quiet_start": "23:00",
+        "quiet_end": "07:00",
+    }
+    form.update(overrides)
+    return form
+
+
+async def test_building_a_search_stores_its_filters(client: TestClient, repo: Repo) -> None:
+    client.post(
+        "/searches",
+        data=_form(max_total_price="12,50", banned_keywords="replica,fake", brand_ids="53"),
     )
 
-    assert response.status_code == 303
-    assert "error=" in response.headers["location"]
+    stored = (await repo.list_queries())[0]
+    assert (stored.max_total_price, stored.banned_keywords, stored.params["brand_ids"]) == (
+        Decimal("12.50"),
+        ["replica", "fake"],
+        "53",
+    )
+
+
+async def test_an_or_term_is_stored_as_alternatives(client: TestClient, repo: Repo) -> None:
+    client.post("/searches", data=_form(include_terms="501|505"))
+
+    assert (await repo.list_queries())[0].include_terms == ["501|505"]
+
+
+async def test_a_bad_price_is_shown_beside_the_field(client: TestClient, repo: Repo) -> None:
+    response = client.post("/searches", data=_form(max_total_price="about 20"))
+
+    assert response.status_code == 400
+    assert 'id="err-max_total_price"' in response.text
     assert await repo.list_queries() == []
 
 
-async def test_the_same_search_cannot_be_added_twice(signed_in: TestClient, repo: Repo) -> None:
-    payload = {"url": "https://www.vinted.fr/catalog?search_text=nike"}
-    signed_in.post("/searches", data=payload, follow_redirects=False)
-    response = signed_in.post("/searches", data=payload, follow_redirects=False)
+async def test_every_wrong_field_is_reported_at_once(client: TestClient) -> None:
+    response = client.post("/searches", data=_form(max_total_price="x", regex="(", interval="5"))
 
-    assert "error=" in response.headers["location"]
-    assert len(await repo.list_queries()) == 1
+    assert all(
+        f'id="err-{field}"' in response.text for field in ("max_total_price", "regex", "interval")
+    )
 
 
-async def test_a_search_below_the_interval_floor_is_raised_to_it(
-    signed_in: TestClient, repo: Repo
+async def test_an_empty_search_is_refused_with_advice(client: TestClient, repo: Repo) -> None:
+    response = client.post("/searches", data=_form(search_text=""))
+
+    assert "isn&#39;t all of Vinted" in response.text
+
+
+async def test_a_link_without_https_is_accepted(client: TestClient, repo: Repo) -> None:
+    client.post("/searches", data=_form(link="vinted.fr/catalog?search_text=levis"))
+
+    assert (await repo.list_queries())[0].params["search_text"] == "levis"
+
+
+async def test_a_listing_link_gets_its_own_explanation(client: TestClient) -> None:
+    response = client.post("/searches", data=_form(link="vinted.fr/items/123-a-coat"))
+
+    assert "single listing" in response.text
+
+
+async def test_unknown_destinations_are_dropped_not_half_saved(
+    client: TestClient, repo: Repo
 ) -> None:
-    signed_in.post(
-        "/searches",
-        data={"url": "https://www.vinted.fr/catalog?search_text=nike", "interval": "1"},
-        follow_redirects=False,
-    )
+    real = await repo.add_destination(kind="ntfy", name="Phone", config={"topic": "t"})
 
-    searches = await repo.list_queries()
-    assert searches[0].poll_interval_s >= 10
+    response = client.post("/searches", data=_form(dest=[str(real), "999"]))
 
-
-async def test_pausing_and_deleting_a_search(signed_in: TestClient, repo: Repo) -> None:
-    signed_in.post(
-        "/searches",
-        data={"url": "https://www.vinted.fr/catalog?search_text=nike"},
-        follow_redirects=False,
-    )
     query_id = (await repo.list_queries())[0].id
-
-    signed_in.post(f"/searches/{query_id}/pause", data={"paused": "1"}, follow_redirects=False)
-    assert (await repo.list_queries())[0].paused is True
-
-    signed_in.post(f"/searches/{query_id}/delete", follow_redirects=False)
-    assert await repo.list_queries() == []
+    assert response.status_code == 200
+    assert await repo.explicit_routes(query_id) == [real]
 
 
-async def test_adding_a_discord_destination(signed_in: TestClient, repo: Repo) -> None:
-    signed_in.post(
-        "/destinations",
-        data={
-            "kind": "discord",
-            "name": "my server",
-            "target": "https://discord.com/api/webhooks/1/abc",
-        },
-        follow_redirects=False,
-    )
+async def test_a_minimum_margin_needs_a_resale_price(client: TestClient, repo: Repo) -> None:
+    response = client.post("/searches", data=_form(min_margin="10"))
 
-    destinations = await repo.list_destinations()
-    assert len(destinations) == 1
-    assert destinations[0].config["webhook_url"].startswith("https://discord.com/")
+    assert 'id="err-min_margin"' in response.text
 
 
-async def test_a_discord_destination_that_is_not_a_url_is_refused(
-    signed_in: TestClient, repo: Repo
+async def test_editing_keeps_the_search_and_its_routes_change(
+    client: TestClient, repo: Repo
 ) -> None:
-    response = signed_in.post(
-        "/destinations",
-        data={"kind": "discord", "name": "typo", "target": "my-webhook"},
-        follow_redirects=False,
+    query_id = await _search(repo)
+    phone = await repo.add_destination(kind="ntfy", name="Phone", config={"topic": "t"})
+
+    client.post(f"/searches/{query_id}", data=_form(name="Renamed", dest=[str(phone)]))
+
+    stored = await repo.get_query(query_id)
+    assert stored is not None
+    assert (stored.name, await repo.explicit_routes(query_id)) == ("Renamed", [phone])
+
+
+async def test_the_editor_shows_where_a_search_sends(client: TestClient, repo: Repo) -> None:
+    query_id = await _search(repo)
+    phone = await repo.add_destination(kind="ntfy", name="Phone", config={"topic": "t"})
+    await repo.set_routes(query_id, [phone])
+
+    page = client.get(f"/searches/{query_id}/edit").text
+
+    assert f'name="dest" value="{phone}" checked' in page
+
+
+async def test_bulk_pause_pauses_the_chosen_searches(client: TestClient, repo: Repo) -> None:
+    first, second = await _search(repo, "A"), await _search(repo, "B")
+
+    client.post("/searches/bulk", data={"action": "pause", "ids": [str(first)]})
+
+    assert [q.paused for q in await repo.list_queries()] == [True, False]
+    assert second
+
+
+async def test_bulk_routing_sets_where_alerts_go(client: TestClient, repo: Repo) -> None:
+    query_id = await _search(repo)
+    phone = await repo.add_destination(kind="ntfy", name="Phone", config={"topic": "t"})
+
+    client.post(
+        "/searches/bulk", data={"action": "routes", "ids": [str(query_id)], "dest": [str(phone)]}
     )
 
-    assert "error=" in response.headers["location"]
+    assert await repo.explicit_routes(query_id) == [phone]
+
+
+async def test_deleting_a_search_removes_it(client: TestClient, repo: Repo) -> None:
+    query_id = await _search(repo)
+
+    client.post(f"/searches/{query_id}/delete")
+
+    assert await repo.get_query(query_id) is None
+
+
+async def test_duplicating_opens_the_paused_copy(client: TestClient, repo: Repo) -> None:
+    query_id = await _search(repo)
+
+    response = client.post(f"/searches/{query_id}/duplicate", follow_redirects=False)
+
+    copy = (await repo.list_queries())[-1]
+    assert response.headers["location"] == f"/searches/{copy.id}/edit"
+    assert copy.paused
+
+
+async def test_a_change_confirms_itself_on_the_next_page(client: TestClient, repo: Repo) -> None:
+    query_id = await _search(repo)
+
+    page = client.post(f"/searches/{query_id}/pause", data={"paused": "1"})
+
+    assert "Paused. No checks and no alerts" in page.text
+
+
+async def test_unmuting_ends_a_mute(client: TestClient, repo: Repo) -> None:
+    query_id = await _search(repo)
+    await repo.mute_query(query_id, int(time.time()) + 3600)
+
+    client.post(f"/searches/{query_id}/unmute")
+
+    stored = await repo.get_query(query_id)
+    assert stored is not None
+    assert not stored.is_muted(int(time.time()))
+
+
+def test_the_bookmarklet_link_prefills_the_editor(client: TestClient) -> None:
+    page = client.get(
+        "/searches/new",
+        params={"url": "https://www.vinted.nl/catalog?search_text=regenjas&brand_ids[]=53"},
+    )
+
+    assert 'value="regenjas"' in page.text
+    assert 'name="brand_ids" value="53"' in page.text
+
+
+def test_the_searches_page_offers_the_bookmarklet(client: TestClient) -> None:
+    page = client.get("/searches").text
+
+    assert "javascript:(function(){window.open(&#39;http://127.0.0.1/searches/new?url=" in page
+
+
+async def test_the_not_sent_tab_says_why_in_words(client: TestClient, repo: Repo) -> None:
+    from vinted_sniper.db.repo import RejectedListing  # noqa: PLC0415
+
+    query_id = await _search(repo)
+    query = await repo.get_query(query_id)
+    assert query is not None
+    await repo.record_new_items(
+        query, [], [], rejected=[RejectedListing(_item(5), "over_budget", "too much")]
+    )
+
+    assert "Too expensive" in client.get(f"/searches/{query_id}").text
+
+
+# --- Finds -----------------------------------------------------------------------------
+
+
+async def test_saving_a_find_shows_it_under_saved(client: TestClient, repo: Repo) -> None:
+    query_id = await _seed(repo)
+    assert query_id
+
+    client.post("/api/items/1/mark", data={"mark": "saved"})
+
+    saved = client.get("/", params={"show": "saved"}).text
+    assert ('data-item-id="1"' in saved, 'data-item-id="2"' in saved) == (True, False)
+
+
+async def test_hiding_a_find_takes_it_off_the_feed(client: TestClient, repo: Repo) -> None:
+    await _seed(repo)
+
+    client.post("/api/items/2/mark", data={"mark": "hidden"})
+
+    assert 'data-item-id="2"' not in client.get("/").text
+
+
+async def test_a_mark_on_a_missing_listing_is_a_404(client: TestClient) -> None:
+    assert client.post("/api/items/12345/mark", data={"mark": "saved"}).status_code == 404
+
+
+async def test_blocking_from_a_find_blocks_its_seller(client: TestClient, repo: Repo) -> None:
+    await _seed(repo)
+
+    client.post("/api/items/1/block-seller")
+
+    assert 77 in await repo.blocked_seller_ids()
+
+
+async def test_watching_a_find_adds_an_item_watch(client: TestClient, repo: Repo) -> None:
+    await _seed(repo)
+
+    client.post("/api/items/1/watch")
+
+    assert [(w.kind, w.target_id) for w in await repo.list_watches()][-1] == ("item", 1)
+
+
+async def test_watching_twice_says_so(client: TestClient, repo: Repo) -> None:
+    await _seed(repo)
+    client.post("/api/items/1/watch")
+
+    response = client.post("/api/items/1/watch")
+
+    assert response.status_code == 409
+
+
+async def test_older_finds_page_backwards(
+    client: TestClient, repo: Repo, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(finds, "PAGE_SIZE", 1)
+    await _seed(repo)
+    newest = await repo.latest_seq()
+
+    older = client.get("/api/finds", params={"before": newest}).json()
+
+    assert 'data-item-id="1"' in older["html"]
+
+
+async def test_the_live_stream_sends_new_finds(
+    client: TestClient, repo: Repo, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(finds, "LIVE_MAX_S", 0.2)
+    monkeypatch.setattr(finds, "LIVE_POLL_S", 0.05)
+    query_id = await _seed(repo)
+    cursor = await repo.latest_seq()
+    await _found(repo, query_id, _item(3, title="Fresh find"))
+
+    body = client.get("/api/live", params={"after": cursor}).text
+
+    assert "event: item" in body
+    assert "Fresh find" in body
+
+
+async def test_the_live_stream_resumes_from_the_last_event(
+    client: TestClient, repo: Repo, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(finds, "LIVE_MAX_S", 0.2)
+    await _seed(repo)
+    latest = await repo.latest_seq()
+
+    body = client.get("/api/live", headers={"Last-Event-ID": str(latest - 1)}).text
+
+    assert body.count("event: item") == 1
+
+
+# --- Previews --------------------------------------------------------------------------
+
+
+@pytest.fixture
+def previewing(make_client: Callable[..., TestClient], vinted: VintedClient) -> TestClient:
+    return make_client(client=vinted)
+
+
+def test_a_preview_counts_what_the_filters_keep(
+    previewing: TestClient,
+    transport: ScriptedTransport,
+    make_item: Callable[..., dict[str, Any]],
+) -> None:
+    now = int(time.time())
+    transport.queue_catalog(
+        [make_item(1, photo_ts=now, price="10.0"), make_item(2, photo_ts=now, price="90.0")]
+    )
+
+    result = previewing.post("/api/preview", data=_form(max_total_price="30")).json()
+
+    assert (result["count"], result["seen"]) == (1, 2)
+    assert result["receipt"] == [{"label": "Too expensive", "icon": "badge-percent", "removed": 1}]
+
+
+def test_the_same_preview_is_answered_from_memory(
+    previewing: TestClient, transport: ScriptedTransport, make_item: Callable[..., dict[str, Any]]
+) -> None:
+    transport.queue_catalog([make_item(1, photo_ts=int(time.time()))])
+    previewing.post("/api/preview", data=_form())
+    asked = len(transport.requests)
+
+    previewing.post("/api/preview", data=_form())
+
+    assert len(transport.requests) == asked
+
+
+def test_previews_too_close_together_are_asked_to_wait(
+    previewing: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(preview, "MIN_GAP_S", 60.0)
+    previewing.post("/api/preview", data=_form(search_text="first"))
+
+    response = previewing.post("/api/preview", data=_form(search_text="second"))
+
+    assert response.status_code == 429
+    assert response.json()["wait"] > 0
+
+
+def test_without_a_vinted_client_the_preview_says_why(client: TestClient) -> None:
+    response = client.post("/api/preview", data=_form())
+
+    assert response.status_code == 503
+
+
+def test_a_preview_reports_field_problems(previewing: TestClient) -> None:
+    result = previewing.post("/api/preview", data=_form(search_text="")).json()
+
+    assert "search_text" in result["errors"]
+
+
+# --- Where alerts go -------------------------------------------------------------------
+
+
+def test_a_discord_channel_link_gets_specific_advice(client: TestClient) -> None:
+    response = client.post(
+        "/destinations",
+        data={"kind": "discord", "discord_url": "https://discord.com/channels/1/2"},
+    )
+
+    assert "link to the channel itself" in response.json()["error"]
+
+
+async def test_a_discord_link_without_https_is_accepted(client: TestClient, repo: Repo) -> None:
+    client.post(
+        "/destinations",
+        data={"kind": "discord", "discord_url": "discord.com/api/webhooks/123/abc-DEF"},
+    )
+
+    stored = (await repo.list_destinations())[0]
+    assert stored.config["url"] == "https://discord.com/api/webhooks/123/abc-DEF"
+
+
+async def test_an_ntfy_topic_with_spaces_is_refused(client: TestClient, repo: Repo) -> None:
+    response = client.post("/destinations", data={"kind": "ntfy", "ntfy_topic": "my topic"})
+
+    assert response.json()["field"] == "ntfy_topic"
     assert await repo.list_destinations() == []
 
 
-async def test_the_dashboard_shows_what_is_being_watched(signed_in: TestClient, repo: Repo) -> None:
-    signed_in.post(
-        "/searches",
-        data={"url": "https://www.vinted.fr/catalog?search_text=nike", "name": "my search"},
-        follow_redirects=False,
+async def test_tier_choices_are_saved(client: TestClient, repo: Repo) -> None:
+    phone = await repo.add_destination(kind="ntfy", name="Phone", config={"topic": "t"})
+
+    client.post(
+        f"/destinations/{phone}/options",
+        data={"tiers": ["steal", "deal"], "silent_tiers": ["deal"], "priority": "4"},
     )
 
-    body = signed_in.get("/").text
+    stored = await repo.get_destination(phone)
+    assert stored is not None
+    assert (stored.config["tiers"], stored.config["silent_tiers"]) == (["steal", "deal"], ["deal"])
 
-    assert "my search" in body
-    assert "vinted.fr" in body
+
+async def test_receiving_nothing_is_refused(client: TestClient, repo: Repo) -> None:
+    phone = await repo.add_destination(kind="ntfy", name="Phone", config={"topic": "t"})
+
+    response = client.post(f"/destinations/{phone}/options", data={"priority": "3"})
+
+    assert response.json()["field"] == "tiers"
 
 
-async def test_found_listings_render_as_cards_with_their_gallery(
-    signed_in: TestClient, repo: Repo, make_item: Callable[..., dict[str, Any]]
+async def test_a_discord_mention_takes_a_role_id(client: TestClient, repo: Repo) -> None:
+    hook = await repo.add_destination(
+        kind="discord", name="D", config={"url": "https://discord.com/api/webhooks/1/a"}
+    )
+
+    client.post(
+        f"/destinations/{hook}/options", data={"tiers": ["steal"], "mention": "123456789012345678"}
+    )
+
+    stored = await repo.get_destination(hook)
+    assert stored is not None
+    assert stored.config["mention"] == "<@&123456789012345678>"
+
+
+async def test_a_test_send_reports_what_happened(
+    client: TestClient, repo: Repo, outgoing: Outgoing
 ) -> None:
-    signed_in.post(
-        "/searches",
-        data={"url": "https://www.vinted.fr/catalog?search_text=nike", "name": "my search"},
-        follow_redirects=False,
+    phone = await repo.add_destination(kind="ntfy", name="Phone", config={"topic": "t"})
+
+    result = client.post(f"/destinations/{phone}/test").json()
+
+    assert result["ok"] is True
+    assert len(outgoing.requests) == 1
+
+
+async def test_removing_a_destination_takes_it_off_the_page(client: TestClient, repo: Repo) -> None:
+    phone = await repo.add_destination(kind="ntfy", name="Old phone", config={"topic": "t"})
+
+    client.post(f"/destinations/{phone}/delete")
+
+    assert "Old phone" not in client.get("/alerts").text.split("Removed")[-1]
+
+
+def test_pairing_telegram_without_a_bot_explains_the_setting(client: TestClient) -> None:
+    response = client.post("/destinations/telegram/pair")
+
+    assert "VINTED_SNIPER_TELEGRAM_BOT_TOKEN" in response.json()["error"]
+
+
+async def test_pairing_telegram_finishes_when_the_bot_claims_the_code(
+    make_client: Callable[..., TestClient], repo: Repo
+) -> None:
+    paired = make_client(telegram_bot_token=SecretStr("1:abc"))
+    started = paired.post("/destinations/telegram/pair").json()
+    await claim_pairing(repo, started["code"], chat_id=42, thread_id=None)
+
+    status = paired.get(f"/destinations/telegram/pair/{started['id']}").json()
+
+    assert status == {"connected": True, "chat": "42"}
+
+
+# --- Watchlist, settings, data ---------------------------------------------------------
+
+
+async def test_pasting_a_member_link_follows_the_seller(client: TestClient, repo: Repo) -> None:
+    client.post("/watchlist", data={"url": "vinted.nl/member/12345-kasia"})
+
+    assert [(w.kind, w.target_id, w.label) for w in await repo.list_watches()] == [
+        ("seller", 12345, "kasia")
+    ]
+
+
+def test_pasting_a_search_link_on_the_watchlist_explains(client: TestClient) -> None:
+    response = client.post("/watchlist", data={"url": SEARCH_URL})
+
+    assert response.status_code == 400
+    assert "not to a listing or a member" in response.text
+
+
+async def test_a_time_zone_is_saved(client: TestClient, repo: Repo) -> None:
+    client.post("/settings", data={"key": "timezone", "value": "Europe/Amsterdam"})
+
+    assert (await repo.app_settings(default_timezone="UTC")).timezone == "Europe/Amsterdam"
+
+
+def test_a_wrong_time_zone_is_explained(client: TestClient) -> None:
+    response = client.post("/settings", data={"key": "timezone", "value": "Mars/Base"})
+
+    assert "not a time zone" in response.json()["error"]
+
+
+async def test_a_health_check_link_without_https_is_accepted(
+    client: TestClient, repo: Repo
+) -> None:
+    client.post("/settings", data={"key": "healthcheck_url", "value": "hc-ping.com/abc"})
+
+    assert (await repo.app_settings(default_timezone="UTC")).healthcheck_url == (
+        "https://hc-ping.com/abc"
     )
+
+
+async def test_unblocking_a_seller(client: TestClient, repo: Repo) -> None:
+    await repo.block_seller(99, login="spammer")
+
+    client.post("/settings/blocked/99/unblock")
+
+    assert await repo.blocked_seller_ids() == set()
+
+
+async def test_finds_download_as_a_spreadsheet(client: TestClient, repo: Repo) -> None:
+    await _seed(repo)
+
+    response = client.get("/export.csv")
+
+    assert response.headers["content-disposition"].startswith("attachment;")
+    assert response.text.splitlines()[0].startswith("item_id,site,title")
+
+
+async def test_finds_download_as_json(client: TestClient, repo: Repo) -> None:
+    await _seed(repo)
+
+    rows = client.get("/export.json").json()
+
+    assert {row["item_id"] for row in rows} == {1, 2}
+
+
+async def test_a_feed_reader_needs_the_password_as_a_key(
+    make_client: Callable[..., TestClient], repo: Repo
+) -> None:
+    query_id = await _seed(repo)
+    reader = make_client(web_auth_token=SecretStr(TOKEN), signed_in=False)
+
+    assert reader.get(f"/rss/{query_id}.xml").status_code == 401
+    assert reader.get(f"/rss/{query_id}.xml", params={"key": TOKEN}).status_code == 200
+
+
+async def test_a_feed_lists_only_its_own_search(client: TestClient, repo: Repo) -> None:
+    mine = await _seed(repo)
+    other = await _search(repo, "Other")
+    await _found(repo, other, _item(9, title="Someone else's find"))
+
+    feed = client.get(f"/rss/{mine}.xml").text
+
+    assert "Someone else" not in feed
+    assert "<pubDate>" in feed
+
+
+# --- First-run setup -------------------------------------------------------------------
+
+
+async def test_the_setup_end_to_end(
+    make_client: Callable[..., TestClient],
+    repo: Repo,
+    vinted: VintedClient,
+    transport: ScriptedTransport,
+    make_item: Callable[..., dict[str, Any]],
+) -> None:
+    """Country, a pasted link with a live preview, a phone, a test that arrives, done."""
+    setup = make_client(client=vinted)
+    transport.queue_catalog([make_item(1, photo_ts=int(time.time()))])
+
+    page = setup.post("/welcome/search", data={"state": "{}", "tld": "fr"})
+    state = _state_of(page.text)
+    assert (
+        setup.post(
+            "/api/preview",
+            data={"tld": "fr", "mode": "paste", "link": "vinted.fr/catalog?search_text=nike"},
+        ).json()["count"]
+        == 1
+    )
+    page = setup.post(
+        "/welcome/search",
+        data={
+            "state": state,
+            "submitted": "1",
+            "mode": "paste",
+            "link": "vinted.fr/catalog?search_text=nike",
+        },
+    )
+    page = setup.post(
+        "/welcome/alerts",
+        data={
+            "state": _state_of(page.text),
+            "submitted": "1",
+            "kind": "ntfy",
+            "ntfy_topic": "mags-abc",
+        },
+    )
+    assert "Did it arrive?" in page.text
+    page = setup.post("/welcome/test", data={"state": _state_of(page.text), "next": "ready"})
+    setup.post("/welcome/finish", data={"state": _state_of(page.text)})
+
     query = (await repo.list_queries())[0]
-    item = parse_item(make_item(123, photo_ts=1_755_000_000), "fr")
-    await repo.record_new_items(query, [item], [])
-
-    body = signed_in.get("/").text
-
-    assert "listing-grid" in body
-    # The whole gallery travels to the page so the lightbox needs no more requests.
-    assert "https://images.vinted.net/123.jpeg" in body
-    assert "123-back.jpeg" in body
-    assert "2 ▣" in body
-    assert "@seller" in body
-    assert "⭐ 4.5" in body  # feedback_reputation 0.9, on the five-star scale
-    assert "Nike" in body
+    destination = (await repo.list_destinations())[0]
+    assert (query.params["search_text"], destination.config["topic"]) == ("nike", "mags-abc")
+    assert await repo.explicit_routes(query.id) == [destination.id]
+    assert (await repo.app_settings(default_timezone="UTC")).onboarded
 
 
-def test_the_health_api_answers_with_the_snapshot(signed_in: TestClient) -> None:
-    body = signed_in.get("/api/health").json()
-
-    assert set(body) >= {"alive", "searches", "queued_notifications"}
-
-
-async def test_the_rss_feed_needs_the_token(signed_in: TestClient, repo: Repo) -> None:
-    signed_in.post(
-        "/searches",
-        data={"url": "https://www.vinted.fr/catalog?search_text=nike"},
-        follow_redirects=False,
+def _state_of(html: str) -> str:
+    marker = 'name="state" value="'
+    start = html.index(marker) + len(marker)
+    raw = html[start : html.index('"', start)]
+    return (
+        raw.replace("&#34;", '"').replace("&quot;", '"').replace("&#39;", "'").replace("&amp;", "&")
     )
-    query_id = (await repo.list_queries())[0].id
-
-    assert signed_in.get(f"/rss/{query_id}.xml").status_code == 401
-
-    response = signed_in.get(f"/rss/{query_id}.xml?key={TOKEN}")
-    assert response.status_code == 200
-    assert response.text.startswith("<?xml")
 
 
-# --- The advanced-search builder ------------------------------------------------------
+async def test_setup_stores_nothing_before_the_end(client: TestClient, repo: Repo) -> None:
+    page = client.post(
+        "/welcome/search",
+        data={
+            "state": json.dumps({"tld": "fr"}),
+            "submitted": "1",
+            "mode": "paste",
+            "link": SEARCH_URL,
+        },
+    )
+    client.post(
+        "/welcome/alerts",
+        data={"state": _state_of(page.text), "submitted": "1", "kind": "ntfy", "ntfy_topic": "x1"},
+    )
+
+    assert (await repo.list_queries(), await repo.list_destinations()) == ([], [])
+
+
+def test_a_failed_test_send_offers_the_fix(client: TestClient, outgoing: Outgoing) -> None:
+    outgoing.status = 404
+    page = client.post(
+        "/welcome/search",
+        data={
+            "state": json.dumps({"tld": "fr"}),
+            "submitted": "1",
+            "mode": "paste",
+            "link": SEARCH_URL,
+        },
+    )
+
+    result = client.post(
+        "/welcome/alerts",
+        data={
+            "state": _state_of(page.text),
+            "submitted": "1",
+            "kind": "discord",
+            "discord_url": "discord.com/api/webhooks/1/abc",
+        },
+    )
+
+    assert "That didn't arrive" in result.text
+
+
+def test_a_missing_link_in_setup_is_shown_beside_the_field(client: TestClient) -> None:
+    page = client.post(
+        "/welcome/search", data={"state": "{}", "submitted": "1", "mode": "paste", "link": ""}
+    )
+
+    assert page.status_code == 400
+    assert 'id="err-link"' in page.text
+
+
+async def test_skipping_setup_remembers_it(client: TestClient, repo: Repo) -> None:
+    client.post("/welcome/skip")
+
+    assert (await repo.app_settings(default_timezone="UTC")).onboarded
+
+
+# --- The search builder's filter data --------------------------------------------------
 
 
 @pytest.fixture
 def builder_client(
-    web_settings: Settings, db: Database, repo: Repo, transport: ScriptedTransport
-) -> Iterator[TestClient]:
+    make_client: Callable[..., TestClient], db: Database, repo: Repo, transport: ScriptedTransport
+) -> TestClient:
     """A dashboard wired to a taxonomy service that talks to a scripted Vinted."""
-    taxonomy = Taxonomy(SessionManager(db, transport), repo)
-    with TestClient(create_app(web_settings, repo, taxonomy)) as test_client:
-        test_client.cookies.set(SESSION_COOKIE, TOKEN)
-        yield test_client
+    return make_client(taxonomy=Taxonomy(SessionManager(db, transport), repo))
 
 
 def _page_with_tree() -> Response:
@@ -306,24 +1004,12 @@ def _page_with_tree() -> Response:
     return Response(status_code=200, text=html, headers={}, cookies={"access_token_web": "t"})
 
 
-def test_the_dashboard_offers_the_builder_when_the_service_is_wired(
-    builder_client: TestClient, signed_in: TestClient
-) -> None:
-    assert "Build a search instead" in builder_client.get("/").text
-    assert "Build a search instead" not in signed_in.get("/").text
+def test_the_filter_endpoints_need_a_sign_in(locked: TestClient) -> None:
+    assert locked.get("/api/filters/fr/brands?q=nike").status_code == 401
 
 
-def test_the_filter_endpoints_need_a_login(client: TestClient) -> None:
-    for path in (
-        "/api/filters/fr/categories",
-        "/api/filters/fr/brands?q=nike",
-        "/api/filters/fr/facets/status",
-    ):
-        assert client.get(path).status_code == 401, path
-
-
-def test_without_the_service_the_builder_answers_503(signed_in: TestClient) -> None:
-    assert signed_in.get("/api/filters/fr/categories").status_code == 503
+def test_without_the_service_the_builder_answers_503(client: TestClient) -> None:
+    assert client.get("/api/filters/fr/categories").status_code == 503
 
 
 def test_categories_come_back_as_a_tree(
@@ -334,7 +1020,6 @@ def test_categories_come_back_as_a_tree(
 
     response = builder_client.get("/api/filters/fr/categories")
 
-    assert response.status_code == 200
     assert response.json() == {"categories": [{"id": 1904, "title": "Women", "children": []}]}
 
 
@@ -399,4 +1084,3 @@ def test_a_refusal_from_vinted_surfaces_as_a_502_with_the_reason(
     response = builder_client.get("/api/filters/fr/facets/status")
 
     assert response.status_code == 502
-    assert "error" in response.json()

@@ -100,9 +100,8 @@ def _same_origin(request: Request, settings: Settings) -> bool:
 
 
 def _wants_html(request: Request) -> bool:
-    return not request.url.path.startswith("/api/") and "text/html" in request.headers.get(
-        "accept", "text/html"
-    )
+    accept = request.headers.get("accept", "")
+    return not request.url.path.startswith("/api/") and "application/json" not in accept
 
 
 def create_app(
@@ -113,8 +112,13 @@ def create_app(
     client: VintedClient | None = None,
     watch_kinds: frozenset[str] = frozenset(),
     stop: asyncio.Event | None = None,
+    http: httpx.AsyncClient | None = None,
 ) -> FastAPI:
-    """The dashboard. `client` enables live previews and the reachability check."""
+    """The dashboard. `client` enables live previews and the reachability check.
+
+    `http` is used for test sends and the Telegram lookup; one is opened with the app
+    when not given.
+    """
     context = core.WebContext(
         settings=settings,
         repo=repo,
@@ -129,12 +133,13 @@ def create_app(
 
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-        context.http = httpx.AsyncClient(timeout=20.0)
+        context.http = http or httpx.AsyncClient(timeout=20.0)
         try:
             yield
         finally:
             context.stop.set()
-            await context.http.aclose()
+            if http is None:
+                await context.http.aclose()
 
     app = FastAPI(title="vinted-sniper", docs_url=None, redoc_url=None, lifespan=lifespan)
     app.state.ctx = context

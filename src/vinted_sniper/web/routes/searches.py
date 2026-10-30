@@ -152,6 +152,32 @@ async def create_search(request: Request) -> Response:
     )
 
 
+@router.post("/searches/bulk")
+async def bulk(request: Request) -> Response:
+    """Pause, resume, delete or reroute several searches at once."""
+    repo = core.ctx(request).repo
+    form = await request.form()
+    ids = [int(str(v)) for v in form.getlist("ids") if str(v).isdigit()]
+    known = {query.id for query in await repo.list_queries()}
+    chosen = [query_id for query_id in ids if query_id in known]
+    action = str(form.get("action") or "")
+    dests = [int(str(v)) for v in form.getlist("dest") if str(v).isdigit()]
+    for query_id in chosen:
+        match action:
+            case "pause":
+                await repo.set_paused(query_id, True)
+            case "resume":
+                await repo.set_paused(query_id, False)
+            case "delete":
+                await repo.delete_query(query_id)
+            case "routes":
+                await repo.set_routes(query_id, dests)
+    words = {"pause": "Paused", "resume": "Resumed", "delete": "Deleted", "routes": "Rerouted"}
+    count = len(chosen)
+    noun = "search" if count == 1 else "searches"
+    return core.redirect(core.url("searches"), f"{words.get(action, 'Changed')} {count} {noun}.")
+
+
 @router.get("/searches/{query_id}/edit")
 async def edit_search(request: Request, query_id: int) -> Response:
     query = await _query(request, query_id)
@@ -394,29 +420,3 @@ async def set_routes(request: Request, query_id: int) -> Response:
     ids = [int(str(v)) for v in form.getlist("dest") if str(v).isdigit()]
     await core.ctx(request).repo.set_routes(query_id, ids)
     return core.redirect(core.url("searches"), "Saved where alerts go.")
-
-
-@router.post("/searches/bulk")
-async def bulk(request: Request) -> Response:
-    """Pause, resume, delete or reroute several searches at once."""
-    repo = core.ctx(request).repo
-    form = await request.form()
-    ids = [int(str(v)) for v in form.getlist("ids") if str(v).isdigit()]
-    known = {query.id for query in await repo.list_queries()}
-    chosen = [query_id for query_id in ids if query_id in known]
-    action = str(form.get("action") or "")
-    dests = [int(str(v)) for v in form.getlist("dest") if str(v).isdigit()]
-    for query_id in chosen:
-        match action:
-            case "pause":
-                await repo.set_paused(query_id, True)
-            case "resume":
-                await repo.set_paused(query_id, False)
-            case "delete":
-                await repo.delete_query(query_id)
-            case "routes":
-                await repo.set_routes(query_id, dests)
-    words = {"pause": "Paused", "resume": "Resumed", "delete": "Deleted", "routes": "Rerouted"}
-    count = len(chosen)
-    noun = "search" if count == 1 else "searches"
-    return core.redirect(core.url("searches"), f"{words.get(action, 'Changed')} {count} {noun}.")
