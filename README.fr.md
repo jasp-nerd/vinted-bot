@@ -7,10 +7,13 @@
   <img src="https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/817aafe56c2093f4b45c8d4492f258ce06a569d3/docs/media/banner.png" alt="vinted-sniper : des alertes pour vos recherches Vinted" width="820">
 </picture>
 
-### Vinted ne vous prévient pas quand votre recherche enregistrée a du nouveau. Cet outil, si.
+# Bot Vinted gratuit : alertes pour les nouvelles annonces
+
+**Vinted ne vous prévient pas quand votre recherche enregistrée a du nouveau. Cet outil, si.**
 
 Collez une recherche Vinted, choisissez où recevoir les alertes, et recevez un message avec les photos<br>
-et le prix que vous paierez vraiment dès qu'une nouvelle annonce apparaît. Gratuit, sur votre ordinateur, sans compte Vinted.
+et le prix que vous paierez vraiment dès qu'une nouvelle annonce apparaît. Gratuit pour toujours, open source,<br>
+sur votre ordinateur, sans compte Vinted ni abonnement, là où les bots Vinted payants coûtent de 5 à 300 € par mois.
 
 [![CI](https://github.com/jasp-nerd/vinted-sniper/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/jasp-nerd/vinted-sniper/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/github/v/release/jasp-nerd/vinted-sniper?color=007782&label=version)](https://github.com/jasp-nerd/vinted-sniper/releases)
