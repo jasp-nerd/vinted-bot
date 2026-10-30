@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block main %}
+<article class="article">
+  <div class="wrap wrap--text">
+    {% include "_crumbs.html" %}
+    <header class="article__head">
+      <h1 class="h1 h1--page">{{ doc.h1 }}</h1>
+      {%- if doc.lead %}
+      <p class="lead">{{ doc.lead }}</p>
+      {%- endif %}
+      {%- if doc.meta %}
+      <p class="article__meta">{{ doc.meta }}</p>
+      {%- endif %}
+    </header>
+    {%- if doc.note %}
+    <p class="note">{{ doc.note }}</p>
+    {%- endif %}
+    <div class="prose">
+      {{ doc.html }}
+    </div>
+    {%- if doc.cta %}
+    {% include "_install_cta.html" %}
+    {%- endif %}
+  </div>
+</article>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block main %}
+<div class="wrap" style="padding-block: 48px 96px;">
+  <div class="field field--teal closer" style="max-width: 760px; margin-inline: auto;">
+    <div class="closer__text">
+      <h1 class="h2">{{ t.notfound.h1 }}</h1>
+      <p class="lead" style="color: var(--field-ink)">{{ t.notfound.text }}</p>
+      <div class="btn-row">
+        <a class="btn btn--primary" href="{{ prefix }}">{{ t.notfound.back }}</a>
+        {%- if guides_url %}
+        <a class="btn btn--secondary" href="{{ guides_url }}">{{ t.footer.guides }}</a>
+        {%- endif %}
+      </div>
+    </div>
+    <img src="/assets/img/mags-wave.webp" width="287" height="400" alt="" style="width: 160px;">
+  </div>
+</div>
+{% endblock %}

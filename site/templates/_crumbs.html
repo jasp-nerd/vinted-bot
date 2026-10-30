@@ -1,0 +1,9 @@
+{%- if crumbs %}
+<nav class="crumbs" aria-label="{{ t.guides.breadcrumb|a }}">
+  <ol>
+    {%- for c in crumbs %}
+    <li>{% if not loop.last %}<a href="{{ c.path }}">{{ c.name }}</a>{% else %}<span aria-current="page">{{ c.name }}</span>{% endif %}</li>
+    {%- endfor %}
+  </ol>
+</nav>
+{%- endif %}

@@ -4,21 +4,29 @@
   'use strict';
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const FR = document.documentElement.lang === 'fr';
-  const T = FR ? {
-    copied: 'Copié', copyFail: 'Sélectionnez et copiez', copiedSr: 'Copié dans le presse-papiers',
-    copyFailSr: 'La copie a échoué. Sélectionnez le texte et copiez-le vous-même.',
-    pause: 'Mettre en pause', play: 'Relancer la démo', match: 'Nouvelle annonce',
-    fees: 'frais compris', under: (n) => `${n} % sous l'habituel`, isNew: 'Nouveau',
-    ages: ["à l'instant", 'il y a 2 min', 'il y a 4 min', 'il y a 6 min', 'il y a 9 min', 'il y a 12 min'],
-  } : {
-    copied: 'Copied', copyFail: 'Select and copy', copiedSr: 'Copied to the clipboard',
-    copyFailSr: 'Could not copy. Select the text and copy it yourself.',
-    pause: 'Pause demo', play: 'Play demo', match: 'New match',
-    fees: 'incl. fees', under: (n) => `${n}% under typical`, isNew: 'New',
-    ages: ['just now', '2 min ago', '4 min ago', '6 min ago', '9 min ago', '12 min ago'],
+  // Words for this page's language come from the page itself (see build.py), so the script
+  // is the same file in every language. English is the fallback.
+  let S = {};
+  try { S = JSON.parse(document.getElementById('site-i18n').textContent); } catch { S = {}; }
+  const T = {
+    copied: S.copied || 'Copied', copyFail: S.copy_fail || 'Select and copy',
+    copiedSr: S.copied_sr || 'Copied to the clipboard',
+    copyFailSr: S.copy_fail_sr || 'Could not copy. Select the text and copy it yourself.',
+    pause: S.pause || 'Pause demo', play: S.play || 'Play demo', match: S.match || 'New match',
+    fees: S.fees || 'incl. fees', isNew: S.new || 'New',
+    under: (n) => (S.under || '{n}% under typical').replace('{n}', n),
+    ages: S.ages || ['just now', '2 min ago', '4 min ago', '6 min ago', '9 min ago', '12 min ago'],
   };
-  const ICONS = '/assets/icons.svg';
+  const ICONS = document.documentElement.dataset.icons || '/assets/icons.svg';
+
+  /* ───────── Language menu: close on outside click or Escape ───────── */
+  const langMenu = document.querySelector('[data-lang]');
+  if (langMenu) {
+    document.addEventListener('click', (e) => { if (langMenu.open && !langMenu.contains(e.target)) langMenu.open = false; });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && langMenu.open) { langMenu.open = false; langMenu.querySelector('summary').focus(); }
+    });
+  }
 
   /* ───────── Sticky nav gets a hairline once you scroll ───────── */
   const nav = document.querySelector('[data-nav]');
@@ -127,37 +135,9 @@
   const toggle = stage.querySelector('[data-stage-toggle]');
 
   // Invented listings, in the order they "arrive". The first six are already on the page.
-  const L = [
-    { img: 'straight-leg-jeans', title: "Levi's 501 straight jeans", meta: 'W31 L32 · Very good', total: '€23.80', s: 1, search: "Levi's under €35", deal: 24 },
-    { img: 'wool-coat', title: 'Long camel wool coat', meta: 'Mango · 38 · Very good', total: '€47.95', s: 2, search: 'Coats under €60', deal: 33 },
-    { img: 'vintage-windbreaker', title: '90s colour-block windbreaker', meta: 'L · Good', total: '€20.65', s: 3, search: 'Jackets under €40' },
-    { img: 'denim-jacket', title: "Levi's trucker jacket", meta: 'M · Good', total: '€30.10', s: 1, search: "Levi's under €35" },
-    { img: 'cable-knit-sweater', title: 'Cream cable-knit jumper', meta: 'M · Very good', total: '€19.60', s: 2, search: 'Coats under €60', deal: 27 },
-    { img: 'trench-coat', title: 'Classic beige trench coat', meta: 'S · Very good', total: '€40.60', s: 2, search: 'Coats under €60' },
-    { img: 'kids-raincoat', title: 'Yellow kids raincoat, 104', meta: 'Petit Bateau · Very good', total: '€13.30', s: 4, search: 'Kids raincoats 98 to 110', deal: 31 },
-    { img: 'knitted-beanie', title: 'Mustard ribbed beanie', meta: 'New without tags', total: '€7.00', s: 2, search: 'Coats under €60' },
-    { img: 'leather-jacket', title: 'Black leather biker jacket', meta: 'M · Good', total: '€36.40', s: 3, search: 'Jackets under €40', deal: 24 },
-    { img: 'puffer-jacket', title: 'Black puffer jacket', meta: 'Uniqlo · M · Very good', total: '€34.30', s: 3, search: 'Jackets under €40' },
-    { img: 'breton-top', title: 'Striped Breton top', meta: 'Petit Bateau · S · Very good', total: '€10.15', s: 2, search: 'Coats under €60' },
-    { img: 'suede-boots', title: 'Tan suede ankle boots', meta: '38 · Good', total: '€32.20', s: 3, search: 'Jackets under €40' },
-  ];
+  const L = S.items || [];
+  if (L.length <= 6) return;
   const AGES = T.ages;
-  // On the French page the same invented listings read as they would on vinted.fr.
-  const L_FR = [
-    ["Jean Levi's 501 coupe droite", 'W31 L32 · Très bon état', '23,80 €', 'Levi\'s à moins de 35 €'],
-    ['Long manteau en laine camel', 'Mango · 38 · Très bon état', '47,95 €', 'Manteaux à moins de 60 €'],
-    ['Coupe-vent colour block années 90', 'L · Bon état', '20,65 €', 'Vestes à moins de 40 €'],
-    ["Veste en jean Levi's", 'M · Bon état', '30,10 €', 'Levi\'s à moins de 35 €'],
-    ['Pull torsadé crème', 'M · Très bon état', '19,60 €', 'Manteaux à moins de 60 €'],
-    ['Trench beige classique', 'S · Très bon état', '40,60 €', 'Manteaux à moins de 60 €'],
-    ['Ciré jaune enfant, 104', 'Petit Bateau · Très bon état', '13,30 €', 'Cirés enfant 98 à 110'],
-    ['Bonnet côtelé moutarde', 'Neuf sans étiquette', '7,00 €', 'Manteaux à moins de 60 €'],
-    ['Perfecto en cuir noir', 'M · Bon état', '36,40 €', 'Vestes à moins de 40 €'],
-    ['Doudoune noire', 'Uniqlo · M · Très bon état', '34,30 €', 'Vestes à moins de 40 €'],
-    ['Marinière rayée', 'Petit Bateau · S · Très bon état', '10,15 €', 'Manteaux à moins de 60 €'],
-    ['Bottines en daim camel', '38 · Bon état', '32,20 €', 'Vestes à moins de 40 €'],
-  ];
-  if (FR) L.forEach((item, i) => { [item.title, item.meta, item.total, item.search] = L_FR[i]; });
   const SHOWN = 6;
   let shown = [0, 1, 2, 3, 4, 5];
   let nextIndex = 6;
