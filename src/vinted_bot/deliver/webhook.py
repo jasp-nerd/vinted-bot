@@ -74,6 +74,9 @@ def item_json(notification: PendingNotification) -> dict[str, Any]:
         "margin": _money(notification.margin),
         "favourites": item.favourite_count,
         "seller_profile": _seller(item, notification.seller_country),
+        # Quiet hours in silent mode, or a tier the destination takes without a sound: a
+        # receiver that makes noise should not for this one.
+        "silent": notification.silent,
     }
 
 

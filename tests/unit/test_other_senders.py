@@ -15,7 +15,7 @@ import pytest
 from apprise.decorators import notify
 
 from tests.unit.sending import Recorder, bare, fast_bucket, notification
-from vinted_bot.deliver.apprise import AppriseSender
+from vinted_bot.deliver.apprise import AppriseSender, quiet_url
 from vinted_bot.deliver.base import SenderConfigError
 from vinted_bot.deliver.ntfy import NtfySender
 from vinted_bot.deliver.webhook import WebhookSender
@@ -285,6 +285,14 @@ async def test_the_webhook_names_the_seller_s_country_when_a_lookup_found_it() -
     assert recorder.payload()["items"][0]["seller_profile"]["country"] == "BE"
 
 
+async def test_a_silent_alert_says_so_in_the_webhook_payload() -> None:
+    recorder = Recorder()
+
+    await hook(recorder).send([notification(1, silent=True)])
+
+    assert recorder.payload()["items"][0]["silent"] is True
+
+
 async def test_webhook_prices_always_have_two_decimals() -> None:
     recorder = Recorder()
 
@@ -483,3 +491,22 @@ async def test_an_apprise_title_cannot_inject_html_into_an_email() -> None:
     )
 
     assert "<img" not in _received[0]["body"]
+
+
+@pytest.mark.parametrize(
+    ("url", "quiet"),
+    [
+        ("tgram://123:abc/456", "tgram://123:abc/456?silent=yes"),
+        ("pover://user@token?priority=high", "pover://user@token?priority=low"),
+        ("ntfys://ntfy.sh/topic?tags=x", "ntfys://ntfy.sh/topic?tags=x&priority=low"),
+        ("mailtos://me:pw@gmail.com", "mailtos://me:pw@gmail.com"),
+    ],
+)
+def test_a_silent_apprise_alert_asks_each_service_for_no_sound(url: str, quiet: str) -> None:
+    assert quiet_url(url) == quiet
+
+
+async def test_a_silent_apprise_alert_is_still_delivered() -> None:
+    result = await AppriseSender({"urls": ["vstest://"]}).send([notification(1, silent=True)])
+
+    assert (result.delivered, len(_received)) == ([1], 1)
