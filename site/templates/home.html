@@ -233,7 +233,7 @@
       <p class="lead">{{ t.features.lead }}</p>
     </div>
     <ul class="features">
-      {%- for item, ic in zip(t.features.items, ['shield-check', 'heart-pulse', 'lock', 'trending-down', 'filter', 'user-x', 'moon', 'eye', 'globe', 'send', 'layout-grid', 'circle-help']) %}
+      {%- for item, ic in zip(t.features['items'], ['shield-check', 'heart-pulse', 'lock', 'trending-down', 'filter', 'user-x', 'moon', 'eye', 'globe', 'send', 'layout-grid', 'circle-help']) %}
       <li class="feature"><span class="feature__icon" aria-hidden="true"><svg class="i"><use href="{{ icons }}#i-{{ ic }}"></use></svg></span><div><h3>{{ item.title }}</h3><p>{{ item.text }}</p></div></li>
       {%- endfor %}
     </ul>
@@ -403,7 +403,7 @@ docker compose up -d</code></pre>{{ copybtn() }}</div></li>
       <p class="lead">{{ t.faq.lead }}</p>
     </div>
     <div class="faq__list">
-      {%- for item in t.faq.items %}
+      {%- for item in t.faq['items'] %}
       <details{% if loop.first %} open{% endif %}>
         <summary>{{ item.q }}{{ icon('chevron-down') }}</summary>
         <div class="faq__body">{{ item.a }}</div>

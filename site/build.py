@@ -47,8 +47,9 @@ import urllib.parse
 from pathlib import Path
 
 import markdown
+import markdown.extensions.toc
 import yaml
-from jinja2 import Environment, FileSystemLoader, StrictUndefined
+from jinja2 import Environment, FileSystemLoader
 from markupsafe import Markup, escape
 
 SITE = Path(__file__).resolve().parent
@@ -166,6 +167,16 @@ def load_i18n() -> dict[str, dict]:
             continue
         raw = f.read_text("utf-8").replace("{p}", prefix(lang))
         out[lang] = json.loads(raw)
+    # Every language must have exactly the keys (and list lengths) English has.
+    def shape(o):
+        if isinstance(o, dict):
+            return {k: shape(v) for k, v in o.items()}
+        if isinstance(o, list):
+            return [shape(v) for v in o]
+        return type(o).__name__
+    for lang, d in out.items():
+        if shape(d) != shape(out["en"]):
+            raise SystemExit(f"site/i18n/{lang}.json doesn't have the same keys as en.json")
     return out
 
 
@@ -233,8 +244,7 @@ class Site:
         self.assets = Assets()
         self.pages: list[dict] = []
         self.guides: dict[str, list[dict]] = {}  # lang -> guides, newest first
-        self.env = Environment(loader=FileSystemLoader(SITE / "templates"), autoescape=True,
-                               undefined=StrictUndefined, trim_blocks=False, lstrip_blocks=False)
+        self.env = Environment(loader=FileSystemLoader(SITE / "templates"), autoescape=True)
         self.env.filters["a"] = lambda s: escape(str(s))
         self.env.filters["q"] = lambda s: urllib.parse.quote(str(s), safe="")
         self.env.globals["zip"] = zip
@@ -300,7 +310,9 @@ class Site:
             if gm:
                 target = self.guide_link(lang, gm.group(1))
                 if target is None:
-                    print(f"  ! {source}: link to a guide that doesn't exist: {href}")
+                    print(f"  ! {source}: links to a guide that doesn't exist yet ({href}); "
+                          f"pointing it at the guides list for now")
+                    new = f"{pfx}guides/" if self.guides.get(lang) else "/guides/"
                 else:
                     new = target + (gm.group(2) or "")
             elif re.match(r"^/(?:[a-z]{2}/)?guides/?$", href):
