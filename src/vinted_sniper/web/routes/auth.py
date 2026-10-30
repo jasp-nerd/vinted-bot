@@ -8,12 +8,9 @@ from typing import Annotated
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse, Response
 
-from vinted_sniper.web import core
+from vinted_sniper.web import core, security
 
 router = APIRouter()
-
-# Thirty days: a password is asked for once per browser, not once per visit.
-SESSION_MAX_AGE_S = 30 * 86_400
 
 
 def _safe_next(target: str | None) -> str:
@@ -38,10 +35,25 @@ async def login(
     password: Annotated[str, Form()] = "",
     next: Annotated[str, Form()] = "/",
 ) -> Response:
-    token = core.ctx(request).settings.web_auth_token
+    context = core.ctx(request)
+    token = context.settings.web_auth_token
     if token is None:
         return RedirectResponse("/", status_code=303)
+    address = request.client.host if request.client else "unknown"
+    if wait_s := context.login_throttle.wait_s(address):
+        minutes = max(1, round(wait_s / 60))
+        return core.TEMPLATES.TemplateResponse(
+            request,
+            "login.html",
+            {
+                "error": f"Too many wrong passwords. Wait {minutes} min and try again.",
+                "next": _safe_next(next),
+            },
+            status_code=429,
+            headers={"Retry-After": str(wait_s)},
+        )
     if not hmac.compare_digest(password.encode(), token.get_secret_value().encode()):
+        context.login_throttle.failed(address)
         return core.TEMPLATES.TemplateResponse(
             request,
             "login.html",
@@ -51,20 +63,23 @@ async def login(
             },
             status_code=401,
         )
+    context.login_throttle.succeeded(address)
     response = RedirectResponse(_safe_next(next), status_code=303)
     response.set_cookie(
         core.SESSION_COOKIE,
-        core.session_value(token),
+        await security.start_session(context.repo),
         httponly=True,
         samesite="lax",
         secure=request.url.scheme == "https",
-        max_age=SESSION_MAX_AGE_S,
+        max_age=security.SESSION_MAX_AGE_S,
     )
     return response
 
 
 @router.post("/logout")
-async def logout() -> Response:
+async def logout(request: Request) -> Response:
+    """Sign out, revoking the session on the server too, not just in this browser."""
+    await security.end_session(core.ctx(request).repo, request.cookies.get(core.SESSION_COOKIE))
     response = RedirectResponse("/login", status_code=303)
     response.delete_cookie(core.SESSION_COOKIE)
     return response
