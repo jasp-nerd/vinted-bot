@@ -31,6 +31,9 @@ services:
       # one up; find it under Environment in the Render dashboard and use it to sign in.
       - key: VINTED_BOT_WEB_AUTH_TOKEN
         generateValue: true
+      # And it is meant to be reachable from anywhere, not just a private network.
+      - key: VINTED_BOT_WEB_ALLOW_PUBLIC
+        value: "true"
       # Render sends traffic to port 10000 unless told otherwise.
       - key: VINTED_BOT_WEB_PORT
         value: "10000"

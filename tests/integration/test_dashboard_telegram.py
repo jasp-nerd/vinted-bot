@@ -16,6 +16,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
+from tests.conftest import LOCAL_CLIENT
 from vinted_bot import managed
 from vinted_bot.config import Settings
 from vinted_bot.db.repo import Repo
@@ -66,7 +67,7 @@ def make_client(
         )
         http = httpx.AsyncClient(transport=httpx.MockTransport(telegram.handler))
         app = create_app(settings, repo, http=http, telegram_token_changed=changed)
-        client = TestClient(app, base_url=BASE)
+        client = TestClient(app, base_url=BASE, client=LOCAL_CLIENT)
         client.__enter__()
         opened.append(client)
         return client

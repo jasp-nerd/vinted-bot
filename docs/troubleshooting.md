@@ -206,13 +206,28 @@ signs every browser out; change it to your own in Settings. If the password is
 
 It only answers to names it was told about, so that another website cannot point its own
 name at your computer and use the dashboard through your browser. Localhost, any IP
-address, names ending in `.local` (such as `nas.local` or `umbrel.local`) and one-word
-names (such as `nas`) always work, since those only exist on your own network. If you
+address, one-word names (such as `nas`) and the names routers and VPNs hand out (`.local`,
+`.lan`, `.home`, `.home.arpa`, `.internal`, `fritz.box`, Tailscale's `.ts.net`) always
+work, since those only exist on your own network. If you
 reach it by any other name (a reverse proxy, a tunnel), add that name to
 `VINTED_BOT_WEB_ALLOWED_HOSTS`, or set `VINTED_BOT_WEB_PUBLIC_URL` to the full address,
 and restart it (with Docker, `docker compose up -d`: a plain restart keeps the old
 settings). Behind a reverse proxy that does not pass the original
 `Host` on, add the name it forwards instead (often the container's name).
+
+## The dashboard says "Not on this network"
+
+With phone access on (or `VINTED_BOT_WEB_HOST` set), the dashboard only opens for this
+computer and devices on a private network: your home or office Wi-Fi, a LAN, Tailscale.
+The page names the address it saw. If that is a public internet address, your phone is
+on mobile data or another network: join the same Wi-Fi, or use Tailscale. If you put the
+dashboard on the internet on purpose behind a reverse proxy, set
+`VINTED_BOT_WEB_PUBLIC_URL` to its public address (or `VINTED_BOT_WEB_ALLOW_PUBLIC=true`)
+and start it again.
+
+The Settings switch itself refuses to turn on when the network gives this computer only a
+public address (some universities and offices do): phone access there would put the
+sign-in page on the internet.
 
 ## Telegram never connects
 

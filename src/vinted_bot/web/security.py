@@ -1,17 +1,31 @@
-"""Who may use the dashboard: the names it answers to, where changes may come from,
-sign-in sessions, wrong-password pacing and the feed key.
+"""Who may use the dashboard: the devices it lets in, the names it answers to, where
+changes may come from, sign-in sessions, wrong-password pacing and the feed key.
 
 Kept apart from the routes because each of these is a rule worth reading in one place.
+
+**Devices (who connects).** Phone access listens on every network interface, and some
+networks (universities, offices, a laptop plugged straight into a modem) give a computer
+a public internet address: then anyone on the internet could reach the sign-in page.
+So whenever the server listens beyond this computer, a request is only served when it
+comes from this computer or a private network: home and office ranges (RFC 1918),
+self-assigned addresses, Tailscale's 100.64.0.0/10 and their IPv6 counterparts. Docker's
+port mapping hands requests on from its bridge, a private address, so LAN access to a
+container still works. Putting the dashboard on the internet on purpose, behind a
+reverse proxy, is said with VINTED_BOT_WEB_PUBLIC_URL or VINTED_BOT_WEB_ALLOWED_HOSTS
+naming a public host, or VINTED_BOT_WEB_ALLOW_PUBLIC=true. A proxy on the same machine or
+network needs none of these, since its own address is the one seen here.
 
 **Host names (DNS rebinding).** A web page elsewhere can point its own name at
 127.0.0.1, and the browser then treats the dashboard as that page's own site: the page can
 read it and post to it. The Host header is what gives that away, so the dashboard only
 answers to names it was told about: loopback, the host of VINTED_BOT_WEB_PUBLIC_URL,
 VINTED_BOT_WEB_ALLOWED_HOSTS, and names no public DNS can hand out: any bare IP address,
-`*.local` and single-label names such as `nas` (a rebinding page always arrives under a
-public name, so opening it as http://192.168.1.20:8000 or http://umbrel.local from a phone
-stays possible). This holds however the server is bound, the Docker image's 0.0.0.0
-included, because the port mapping that decides who can connect is invisible from here.
+single-label names such as `nas` and the private-use suffixes routers and VPNs hand out
+(`.local`, `.lan`, `.home`, `.home.arpa`, `.internal`, `.fritz.box`, Tailscale's
+`.ts.net`). A rebinding page always arrives under a public name, so opening it as
+http://192.168.1.20:8000 or http://umbrel.local from a phone stays possible. This holds
+however the server is bound, the Docker image's 0.0.0.0 included, because the port
+mapping that decides who can connect is invisible from here.
 
 **Origins (CSRF).** A change (POST and the like) must come from a page of this dashboard:
 its Origin, or Referer when Origin is missing, must be the very address the request was
@@ -74,7 +88,7 @@ _ENV_PASSWORD_KEY = "web_password_check"
 _PASSWORD_KEY = "web_password"
 _FEED_KEY = "rss_key"
 
-MIN_PASSWORD_LENGTH = 8
+MIN_PASSWORD_LENGTH = 10
 MAX_PASSWORD_LENGTH = 200
 # Suggested passwords skip letters that read alike (l, 1, o, 0, i) so they can be typed
 # from a phone screen. Twelve of these is about 59 bits: far beyond guessing at five
@@ -83,6 +97,71 @@ _FRIENDLY = "abcdefghjkmnpqrstuvwxyz23456789"
 
 # scrypt cost: about 50 ms, paid once per start, not per request.
 _SCRYPT = {"n": 2**14, "r": 8, "p": 1}
+
+
+# --- Devices --------------------------------------------------------------------------
+
+# This computer, private networks, self-assigned addresses and Tailscale (CGNAT), in both
+# IP versions. Spelled out rather than ipaddress's is_private, which also counts
+# documentation and benchmarking ranges and leaves 100.64.0.0/10 out.
+_LOCAL_NETWORKS = tuple(
+    ipaddress.ip_network(network)
+    for network in (
+        "127.0.0.0/8",
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "169.254.0.0/16",
+        "100.64.0.0/10",
+        "::1/128",
+        "fc00::/7",
+        "fe80::/10",
+    )
+)
+
+
+def is_local_address(address: str) -> bool:
+    """Whether a client address is this computer or a private network (see above).
+
+    Anything that is not an IP address at all counts as not local, so an odd transport
+    fails closed.
+    """
+    try:
+        ip = ipaddress.ip_address(address.split("%", 1)[0].strip("[]"))
+    except ValueError:
+        return False
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
+    return any(ip in network for network in _LOCAL_NETWORKS)
+
+
+def public_allowed(settings: Settings) -> bool:
+    """Whether the operator put the dashboard on the internet on purpose.
+
+    Naming a public host as its address says so as clearly as the switch made for it:
+    nobody types finds.example.org into VINTED_BOT_WEB_PUBLIC_URL by accident.
+    """
+    if settings.web_allow_public:
+        return True
+    names = list(settings.allowed_host_names)
+    if settings.web_public_url:
+        names.append((urlparse(settings.web_public_url).hostname or "").lower())
+    return any(_is_public_name(name) for name in names if name)
+
+
+def _is_public_name(name: str) -> bool:
+    if name in LOOPBACK_NAMES:
+        return False
+    if _is_ip_address(name):
+        return not is_local_address(name)
+    return not _is_local_name(name)
+
+
+def client_allowed(settings: Settings, listening_beyond_loopback: bool, client: str) -> bool:
+    """Whether a request from `client` may be served at all (see "Devices" above)."""
+    if not listening_beyond_loopback:
+        return True
+    return is_local_address(client) or public_allowed(settings)
 
 
 # --- Host names and origins ---------------------------------------------------------
@@ -116,16 +195,34 @@ def _is_ip_address(host: str) -> bool:
     return True
 
 
-def _is_local_name(host: str) -> bool:
-    """A name only this network can resolve: `nas.local` (mDNS) or a bare `nas`.
+# Names only a home network, a router or a VPN hands out: mDNS, the suffixes routers use
+# (RFC 8375's home.arpa, the reserved .internal, and the common .lan, .home and FRITZ!Box
+# ones) and Tailscale's MagicDNS.
+_PRIVATE_SUFFIXES = (
+    ".local",
+    ".lan",
+    ".home",
+    ".home.arpa",
+    ".internal",
+    ".fritz.box",
+    ".ts.net",
+)
 
-    A rebinding page needs a name the attacker controls in public DNS, and neither kind
-    can be one: .local never leaves the network, and public names always have a dot. NAS
-    boxes are opened exactly this way (umbrel.local, nas), and got a 400 until someone
-    found VINTED_BOT_WEB_ALLOWED_HOSTS.
+
+def _is_local_name(host: str) -> bool:
+    """A name only this network can resolve: `nas.local`, `nas.lan` or a bare `nas`.
+
+    A rebinding page needs a name the attacker controls in public DNS, and none of these
+    can be one: the private-use suffixes never leave the network (or, for .ts.net, are
+    handed out only by Tailscale), and public names always have a dot. NAS boxes and
+    routers are opened exactly this way (umbrel.local, nas, fritz.box), and got a 400
+    until someone found VINTED_BOT_WEB_ALLOWED_HOSTS.
     """
     name = host.rstrip(".")
-    return bool(name) and (name.endswith(".local") or "." not in name) and ":" not in name
+    if not name or ":" in name:
+        return False
+    # The leading dot lets the router's own name, fritz.box, count as well as its devices.
+    return "." not in name or f".{name}".endswith(_PRIVATE_SUFFIXES)
 
 
 def host_allowed(host: str, allowed: frozenset[str]) -> bool:

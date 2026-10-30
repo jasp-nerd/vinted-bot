@@ -3,12 +3,19 @@
 On by default, bound to localhost unless you say otherwise. It exists because editing a
 config file is where most people give up: pasting a Vinted link into a box is not.
 
-Three guards sit in front of every route, because the dashboard can add, remove and
+Four guards sit in front of every route, because the dashboard can add, remove and
 reroute alerts. The rules themselves live in web/security.py:
 
+* A device check while the server listens beyond this computer: only this computer and
+  private networks (home, office, Tailscale) are served, unless the operator put the
+  dashboard on the internet on purpose (VINTED_BOT_WEB_ALLOW_PUBLIC, or a public
+  VINTED_BOT_WEB_PUBLIC_URL). Phone access on a network that hands out public addresses
+  must not mean the sign-in page is on the internet.
 * A Host check, however the server is bound, so a DNS-rebinding page cannot read the
-  dashboard or post to it. Behind a reverse proxy or under a name on your network,
-  VINTED_BOT_WEB_PUBLIC_URL or VINTED_BOT_WEB_ALLOWED_HOSTS names the address.
+  dashboard or post to it. The static files (styles, icons) are exempt: they are public
+  anyway, and the page explaining a refused name needs them to look like the rest.
+  Behind a reverse proxy or under a name on your network, VINTED_BOT_WEB_PUBLIC_URL or
+  VINTED_BOT_WEB_ALLOWED_HOSTS names the address.
 * A same-origin check on every change (POST, PUT, DELETE). Browsers always say where a
   cross-site request came from, so a page elsewhere cannot add, delete or reroute your
   searches through your browser, password or not. This is the CSRF defence: SameSite
@@ -21,6 +28,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import html
 import socket
 import sqlite3
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
@@ -30,7 +38,7 @@ import httpx
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from vinted_bot import managed
@@ -124,8 +132,16 @@ def create_app(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         path = request.url.path
+        client = request.client.host if request.client else ""
+        if not security.client_allowed(settings, await _beyond_loopback(context), client):
+            log.info("web.refused_client", client=client, path=path)
+            return _refused_client(request, client)
         host = security.host_name(request.headers.get("host", ""))
-        if host and not security.host_allowed(host, allowed_hosts):
+        if (
+            host
+            and not path.startswith("/static/")
+            and not security.host_allowed(host, allowed_hosts)
+        ):
             return _unknown_host(request, host)
         if request.method not in _SAFE_METHODS and not security.same_origin(
             request, settings, allowed_hosts
@@ -217,6 +233,46 @@ def create_app(
         )
 
     return app
+
+
+async def _beyond_loopback(context: core.WebContext) -> bool:
+    """Whether other machines can connect: the server listens, or is about to listen,
+    somewhere other than loopback.
+
+    Both are asked so that the moment between turning phone access off and the server
+    moving back is guarded too.
+    """
+    listening = context.listening_on
+    if listening is not None and listening not in security.LOOPBACK_HOSTS:
+        return True
+    wanted = await managed.web_host(context.settings, context.repo)
+    return wanted not in security.LOOPBACK_HOSTS
+
+
+_REFUSED_PAGE = """<!doctype html><html lang="en"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Not on this network</title>
+<body style="font:16px/1.5 system-ui,sans-serif;max-width:36rem;margin:3rem auto;padding:0 1rem">
+<h1 style="font-size:1.4rem">Not on this network</h1>
+<p>{message}</p></body></html>"""
+
+
+def _refused_client(request: Request, client: str) -> Response:
+    """The 403 for a visitor from outside this computer's networks.
+
+    Plain on purpose: nothing about the dashboard, its styles included, is served to the
+    internet, and the page reads no database.
+    """
+    message = (
+        f"This dashboard only opens for this computer and devices on its own home or office "
+        f"network (or Tailscale). Your address, {client or 'unknown'}, is not one of those. "
+        "If you run this dashboard and meant to put it on the internet, set "
+        "VINTED_BOT_WEB_PUBLIC_URL to its public address, or VINTED_BOT_WEB_ALLOW_PUBLIC=true, "
+        "and start it again."
+    )
+    if not _wants_html(request):
+        return JSONResponse({"error": message}, status_code=403)
+    return HTMLResponse(_REFUSED_PAGE.format(message=html.escape(message)), status_code=403)
 
 
 def _unknown_host(request: Request, host: str) -> Response:

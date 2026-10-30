@@ -18,6 +18,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
+from tests.conftest import LOCAL_CLIENT
 from vinted_bot import cli, managed
 from vinted_bot.config import DASHBOARD_MANAGED, Settings
 from vinted_bot.db import Database
@@ -29,6 +30,12 @@ BASE = "http://127.0.0.1"
 PASSWORD = "plum-tree-42"
 
 
+@pytest.fixture(autouse=True)
+def home_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    """This computer is on a home network, whatever network the test runs on."""
+    monkeypatch.setattr("vinted_bot.web.core.lan_addresses", lambda: ["192.168.1.20"])
+
+
 @pytest.fixture
 def changed() -> asyncio.Event:
     return asyncio.Event()
@@ -38,13 +45,13 @@ def changed() -> asyncio.Event:
 def make_client(tmp_path: Path, repo: Repo) -> Iterator[Callable[..., TestClient]]:
     opened: list[TestClient] = []
 
-    def build(**overrides: Any) -> TestClient:
+    def build(*, address: str = LOCAL_CLIENT[0], **overrides: Any) -> TestClient:
         settings = Settings(
             _env_file=None,  # type: ignore[call-arg]
             db_path=tmp_path / "app.db",
             **overrides,
         )
-        client = TestClient(create_app(settings, repo), base_url=BASE)
+        client = TestClient(create_app(settings, repo), base_url=BASE, client=(address, 50000))
         client.__enter__()
         opened.append(client)
         return client
@@ -179,6 +186,54 @@ def test_wrong_current_passwords_count_towards_the_sign_in_limit(client: TestCli
     assert _set(client, "another-one-9", current=PASSWORD).status_code == 403
 
 
+def test_a_nine_character_password_is_too_short(client: TestClient) -> None:
+    assert _set(client, "plum-tree").status_code == 400
+
+
+def test_five_wrong_passwords_make_sign_in_wait(
+    make_client: Callable[..., TestClient], client: TestClient
+) -> None:
+    _set(client, PASSWORD)
+    visitor = make_client()
+    for _ in range(security.LOGIN_ATTEMPTS):
+        visitor.post("/login", data={"password": "wrong-guess"})
+
+    # Even the right one waits now, for the rest of the quarter hour.
+    answer = visitor.post("/login", data={"password": PASSWORD}, follow_redirects=False)
+
+    assert (answer.status_code, int(answer.headers["retry-after"]) > 14 * 60) == (429, True)
+
+
+def _from(client: TestClient, address: str) -> TestClient:
+    """Another device talking to the same running dashboard."""
+    return TestClient(client.app, base_url=BASE, client=(address, 50000))
+
+
+def test_wrong_passwords_when_removing_count_towards_the_sign_in_limit(
+    client: TestClient,
+) -> None:
+    _set(client, PASSWORD)
+    for _ in range(security.LOGIN_ATTEMPTS):
+        client.post("/settings/password/remove", data={"current_password": "wrong-guess"})
+
+    answer = client.post("/login", data={"password": PASSWORD}, follow_redirects=False)
+
+    assert answer.status_code == 429
+
+
+def test_the_sign_in_limit_is_per_address(client: TestClient) -> None:
+    _set(client, PASSWORD)
+    guesser = _from(client, "192.168.1.66")
+    for _ in range(security.LOGIN_ATTEMPTS):
+        guesser.post("/login", data={"password": "wrong-guess"})
+
+    answer = _from(client, "192.168.1.67").post(
+        "/login", data={"password": PASSWORD}, follow_redirects=False
+    )
+
+    assert answer.status_code == 303
+
+
 def test_a_suggested_password_is_long_enough_and_easy_to_type() -> None:
     suggestion = security.suggest_password()
 
@@ -281,6 +336,135 @@ def test_settings_show_where_the_phone_can_open_it(
     _phone(client, True, new_password=PASSWORD)
 
     assert 'data-qr="http://192.168.1.20:8000"' in client.get("/settings").text
+
+
+def test_phone_access_is_refused_on_a_network_with_only_a_public_address(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A university network gave a tester's laptop 130.37.84.245, and the switch offered it."""
+    monkeypatch.setattr("vinted_bot.web.core.lan_addresses", lambda: [])
+
+    answer = _phone(client, True, new_password=PASSWORD)
+
+    assert (answer.status_code, "Tailscale" in answer.json()["error"]) == (400, True)
+
+
+async def test_a_refused_switch_stays_off(
+    client: TestClient, repo: Repo, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("vinted_bot.web.core.lan_addresses", lambda: [])
+
+    _phone(client, True, new_password=PASSWORD)
+
+    assert not await managed.phone_access(repo)
+
+
+def test_turning_phone_access_off_works_without_a_private_address(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _phone(client, True, new_password=PASSWORD)
+    monkeypatch.setattr("vinted_bot.web.core.lan_addresses", lambda: [])
+
+    assert _phone(client, False).status_code == 200
+
+
+# --- Who can connect --------------------------------------------------------------------
+
+
+async def test_with_phone_access_on_a_visitor_from_the_internet_is_refused(
+    make_client: Callable[..., TestClient], client: TestClient
+) -> None:
+    _phone(client, True, new_password=PASSWORD)
+
+    answer = make_client(address="130.37.84.245").get("/login")
+
+    assert (answer.status_code, "Not on this network" in answer.text) == (403, True)
+
+
+def test_with_phone_access_on_a_phone_on_the_wifi_gets_the_sign_in_page(
+    make_client: Callable[..., TestClient], client: TestClient
+) -> None:
+    _phone(client, True, new_password=PASSWORD)
+
+    assert make_client(address="192.168.1.30").get("/login").status_code == 200
+
+
+def test_with_phone_access_on_the_internet_cannot_guess_passwords(
+    make_client: Callable[..., TestClient], client: TestClient
+) -> None:
+    _phone(client, True, new_password=PASSWORD)
+
+    answer = make_client(address="130.37.84.245").post("/login", data={"password": PASSWORD})
+
+    assert answer.status_code == 403
+
+
+def test_with_phone_access_on_the_internet_does_not_even_get_the_styles(
+    make_client: Callable[..., TestClient], client: TestClient
+) -> None:
+    _phone(client, True, new_password=PASSWORD)
+
+    assert make_client(address="130.37.84.245").get("/static/css/app.css").status_code == 403
+
+
+def test_a_host_from_the_environment_refuses_the_internet_too(
+    make_client: Callable[..., TestClient],
+) -> None:
+    visitor = make_client(address="130.37.84.245", web_host="0.0.0.0")
+
+    assert visitor.get("/healthz").status_code == 403
+
+
+def test_in_docker_requests_from_the_bridge_are_served(
+    make_client: Callable[..., TestClient],
+) -> None:
+    """Port-mapped requests reach the container from Docker's bridge gateway."""
+    visitor = make_client(address="172.17.0.1", web_host="0.0.0.0")
+
+    assert visitor.get("/manifest.webmanifest").status_code == 200
+
+
+def test_tailscale_devices_are_served(make_client: Callable[..., TestClient]) -> None:
+    visitor = make_client(address="100.101.102.103", web_host="0.0.0.0")
+
+    assert visitor.get("/manifest.webmanifest").status_code == 200
+
+
+def test_a_public_proxy_address_lets_the_internet_in(
+    make_client: Callable[..., TestClient],
+) -> None:
+    visitor = make_client(
+        address="130.37.84.245",
+        web_host="0.0.0.0",
+        web_public_url="https://finds.example.org",
+    )
+
+    answer = visitor.get("/manifest.webmanifest", headers={"host": "finds.example.org"})
+
+    assert answer.status_code == 200
+
+
+def test_allowing_the_internet_lets_it_in(make_client: Callable[..., TestClient]) -> None:
+    visitor = make_client(address="130.37.84.245", web_host="0.0.0.0", web_allow_public=True)
+
+    assert visitor.get("/manifest.webmanifest").status_code == 200
+
+
+def test_on_loopback_the_client_address_is_not_judged(
+    make_client: Callable[..., TestClient],
+) -> None:
+    """Only this computer can connect then; a local proxy may still name the visitor."""
+    assert make_client(address="130.37.84.245").get("/manifest.webmanifest").status_code == 200
+
+
+async def test_the_moment_before_the_server_moves_back_is_guarded(
+    make_client: Callable[..., TestClient], client: TestClient, repo: Repo
+) -> None:
+    """Phone access off, but the server still listens everywhere until it has moved."""
+    visitor = make_client(address="130.37.84.245")
+    visitor.app.state.ctx.listening_on = "0.0.0.0"  # type: ignore[attr-defined]
+
+    assert visitor.get("/healthz").status_code == 403
 
 
 # --- Forgotten passwords -------------------------------------------------------------------

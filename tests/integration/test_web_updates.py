@@ -11,6 +11,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.conftest import LOCAL_CLIENT
 from vinted_bot import __version__
 from vinted_bot.config import Settings
 from vinted_bot.db.repo import Repo
@@ -35,7 +36,11 @@ def dashboard(tmp_path: Path, repo: Repo) -> Iterator[Callable[[Install], TestCl
         settings = Settings(_env_file=None, db_path=tmp_path / "app.db")  # type: ignore[call-arg]
         updater = Updater(settings, repo, asyncio.Event(), install, restart_grace_s=0)
         http = httpx.AsyncClient(transport=httpx.MockTransport(lambda _: httpx.Response(200)))
-        client = TestClient(create_app(settings, repo, http=http, updater=updater), base_url=BASE)
+        client = TestClient(
+            create_app(settings, repo, http=http, updater=updater),
+            base_url=BASE,
+            client=LOCAL_CLIENT,
+        )
         client.__enter__()
         opened.append((client, updater))
         return client

@@ -99,6 +99,15 @@ async def remove_password(request: Request) -> Response:
     return response
 
 
+_NO_PRIVATE_NETWORK = (
+    "This computer isn't on a home or office network right now: the network it's on gives "
+    "it a public internet address (common at universities and offices), or none at all. "
+    "Phone access there would put this page on the internet, so it stays off. Try again "
+    "on your home Wi-Fi, or install Tailscale (free) on this computer and your phone to "
+    "reach it from anywhere."
+)
+
+
 @router.post("/settings/phone")
 async def phone_access(request: Request) -> Response:
     """Let other devices in, or keep the dashboard to this computer.
@@ -122,6 +131,8 @@ async def phone_access(request: Request) -> Response:
         )
     form = await request.form()
     allow = form.get("allow") == "1"
+    if allow and not context.settings.web_public_url and not core.lan_addresses():
+        return _refused("phone", _NO_PRIVATE_NETWORK)
     response = JSONResponse({"ok": True})
     if allow and not access.password:
         try:

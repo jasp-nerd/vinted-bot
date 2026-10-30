@@ -18,6 +18,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.conftest import LOCAL_CLIENT
 from tests.integration.test_web import SEARCH_URL, Outgoing, _found, _item, _search, _state_of
 from vinted_bot.config import Settings
 from vinted_bot.db.repo import Query, Repo
@@ -52,6 +53,7 @@ def make_client(
         client = TestClient(
             create_app(settings, repo, http=http),
             base_url="http://127.0.0.1",
+            client=LOCAL_CLIENT,
             raise_server_exceptions=raise_errors,
         )
         client.__enter__()

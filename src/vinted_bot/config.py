@@ -244,9 +244,20 @@ class Settings(BaseSettings):
     web_allowed_hosts: str | None = Field(
         default=None,
         description="Extra host names the dashboard answers to, comma-separated, such as "
-        "'nas.local,finds.example.org'. Loopback names, any IP address and the host of "
-        "web_public_url are always allowed; every other name gets a 400, which is what "
-        "stops a DNS-rebinding web page from reading or changing the dashboard.",
+        "'finds.example.org'. Always allowed without it: loopback, any IP address, the host "
+        "of web_public_url, single-word names such as 'nas', and the names routers and VPNs "
+        "hand out (.local, .lan, .home, .home.arpa, .internal, .fritz.box, .ts.net). Any "
+        "other name is refused, which is what stops a DNS-rebinding web page from reading "
+        "or changing the dashboard. Naming a public host here also lets visitors from the "
+        "internet in, as web_allow_public does.",
+    )
+    web_allow_public: bool = Field(
+        default=False,
+        description="Let devices on the internet open the dashboard when it listens beyond "
+        "this computer. Off, only this computer and private networks (home and office "
+        "ranges, Tailscale) are served, whatever web_host says. Not needed behind a reverse "
+        "proxy that only serves your network, or when web_public_url or web_allowed_hosts "
+        "already name a public host.",
     )
 
     def source(self, name: str) -> Literal["environment", "env file", "default"]:

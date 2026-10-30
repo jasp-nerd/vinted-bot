@@ -46,9 +46,10 @@ def test_addresses_a_phone_cannot_use_are_left_out() -> None:
     assert offered == ["192.168.1.20"]
 
 
-def test_a_public_address_on_the_local_network_is_kept() -> None:
-    """Universities and offices often give every computer a public address."""
-    assert core._usable(["130.37.84.245"]) == ["130.37.84.245"]
+def test_a_public_address_is_never_offered() -> None:
+    """Universities and offices often give every computer a public address. Offering it
+    put the dashboard on the internet; a Tailscale address next to it is fine."""
+    assert core._usable(["130.37.84.245", "100.101.1.2"]) == ["100.101.1.2"]
 
 
 def test_the_same_address_is_offered_once() -> None:

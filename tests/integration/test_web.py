@@ -21,7 +21,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
-from tests.conftest import ScriptedTransport
+from tests.conftest import LOCAL_CLIENT, ScriptedTransport
 from vinted_bot.botctl.telegram_bot import claim_pairing
 from vinted_bot.config import Settings
 from vinted_bot.db import Database
@@ -78,7 +78,7 @@ def make_client(
         app_kw = {k: v for k, v in kwargs.items() if k not in Settings.model_fields}
         http = httpx.AsyncClient(transport=httpx.MockTransport(outgoing.handler))
         app = create_app(_settings(tmp_path, **settings_kw), repo, http=http, **app_kw)
-        client = TestClient(app, base_url=BASE)
+        client = TestClient(app, base_url=BASE, client=LOCAL_CLIENT)
         client.__enter__()
         opened.append(client)
         token = settings_kw.get("web_auth_token")
@@ -314,6 +314,16 @@ def test_the_unknown_host_page_names_the_setting_to_use(
     page = docker.get("/", headers={"Host": "finds.example.net:8000"})
 
     assert "VINTED_BOT_WEB_ALLOWED_HOSTS" in page.text
+
+
+def test_the_unknown_host_page_gets_its_styles(make_client: Callable[..., TestClient]) -> None:
+    """Its stylesheet was refused by the same check, so it showed as bare text."""
+    docker = make_client(web_host="0.0.0.0")
+
+    page = docker.get("/", headers={"Host": "finds.example.net:8000"}).text
+    stylesheet = page.split('rel="stylesheet" href="', 1)[1].split('"', 1)[0]
+
+    assert docker.get(stylesheet, headers={"Host": "finds.example.net:8000"}).status_code == 200
 
 
 def test_an_ip_address_always_reaches_the_dashboard(
