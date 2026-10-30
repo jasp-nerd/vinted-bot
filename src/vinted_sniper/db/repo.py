@@ -35,6 +35,23 @@ class Query:
     max_total_price: Decimal | None = None
     conditions: list[str] | None = None
     countries: list[str] | None = None
+    # Every term must appear in the title; a term may offer alternatives as "a|b".
+    include_terms: list[str] = field(default_factory=list)
+    regex: str | None = None
+    min_total_price: Decimal | None = None
+    seller_min_rating: float | None = None
+    seller_min_reviews: int | None = None
+    skip_unrated_sellers: bool = False
+    # Only alert when the total is at least this many percent under the typical price.
+    deal_only_pct: int | None = None
+    max_age_min: int | None = None
+    color: str | None = None
+    quiet_start: str | None = None
+    quiet_end: str | None = None
+    quiet_mode: str = "hold"
+    notes: str | None = None
+    tags: list[str] = field(default_factory=list)
+    extra_tlds: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +102,15 @@ class PendingNotification:
     # When the poller first saw the listing, which is the honest "found it" moment even
     # if delivery retries push the message out later.
     detected_at: int | None = None
+    query_color: str | None = None
+    # The search's median total price when this listing was recorded; None until there
+    # is enough history for a median to mean anything.
+    typical_price: Decimal | None = None
+    # Deliver without a sound: quiet hours in 'silent' mode.
+    silent: bool = False
+    # 'listing', 'price_drop', 'sold' or 'seller_upload'.
+    kind: str = "listing"
+    previous_price: Decimal | None = None
 
 
 def _json_list(raw: str | None) -> list[str] | None:
