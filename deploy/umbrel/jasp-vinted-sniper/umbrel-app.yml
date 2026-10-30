@@ -1,0 +1,35 @@
+manifestVersion: 1
+id: jasp-vinted-sniper
+category: utilities
+name: vinted-sniper
+version: "2.0.0"
+tagline: Get a message the moment a new Vinted listing matches
+icon: https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docs/media/icon.png
+description: >-
+  Watch your Vinted searches and get a message on Discord, Telegram, ntfy or another
+  app as soon as a new listing matches.
+
+
+  Paste a Vinted search into the dashboard, or build one there. Filters on the price
+  you actually pay, buyer protection included, notices when a search goes quiet, and
+  never logs in to Vinted, so there is no account to put at risk.
+
+
+  Not affiliated with Vinted.
+developer: jasp-nerd
+website: https://github.com/jasp-nerd/vinted-sniper
+submitter: jasp-nerd
+submission: https://github.com/jasp-nerd/vinted-sniper
+repo: https://github.com/jasp-nerd/vinted-sniper
+support: https://github.com/jasp-nerd/vinted-sniper/issues
+port: 8765
+gallery:
+  - https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docs/media/builder.png
+  - https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docs/media/discord.png
+  - https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docs/media/telegram.png
+releaseNotes: >-
+  See https://github.com/jasp-nerd/vinted-sniper/blob/main/CHANGELOG.md
+dependencies: []
+path: ""
+defaultUsername: ""
+defaultPassword: ""

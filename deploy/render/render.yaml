@@ -1,0 +1,42 @@
+# Render Blueprint for vinted-sniper. In the Render dashboard: New, Blueprint, connect a fork
+# of this repository and set "Blueprint Path" to deploy/render/render.yaml.
+#
+# This is a paid setup. A persistent disk, which holds your searches, only attaches to a
+# paid instance, and free instances also go to sleep when nobody visits the dashboard.
+# Expect the smallest paid instance plus a little per GB of disk; see render.com/pricing.
+#
+# Before paying for anything, check Vinted answers Render's addresses: see "Vinted
+# reachable from this machine" in docs/troubleshooting.md. Datacenter addresses are
+# refused more often than home connections.
+services:
+  - type: web
+    name: vinted-sniper
+    runtime: image
+    image:
+      url: ghcr.io/jasp-nerd/vinted-sniper:latest
+    # Render's smallest paid instance; the app needs well under 512 MB.
+    plan: 0.5c-512mb
+    # Closest to most Vinted country sites.
+    region: frankfurt
+    healthCheckPath: /healthz
+    # A service with a disk runs exactly one instance, which is also what the app expects:
+    # two copies would send every alert twice.
+    numInstances: 1
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      # The dashboard is on the public internet here, so it gets a password. Render makes
+      # one up; find it under Environment in the Render dashboard and use it to sign in.
+      - key: VINTED_SNIPER_WEB_AUTH_TOKEN
+        generateValue: true
+      # Render sends traffic to port 10000 unless told otherwise.
+      - key: VINTED_SNIPER_WEB_PORT
+        value: "10000"
+      - key: TZ
+        value: Europe/Paris
+      # Your https://<name>.onrender.com address, so links in alerts lead back to the
+      # dashboard. Render asks for it when the Blueprint is first created.
+      - key: VINTED_SNIPER_WEB_PUBLIC_URL
+        sync: false
