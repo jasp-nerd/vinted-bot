@@ -52,9 +52,20 @@ _NETWORK_BACKOFF_CAP_S = 120.0
 # Member pages change slowly; a week-old country is still the right country.
 SELLER_CACHE_S = 7 * 86_400
 
-# Seller lookups per check. A normal check has a handful of new listings; this only bites
-# when a burst arrives, and the rest wait for the next check rather than hammering the site.
-_MAX_LOOKUPS_PER_CHECK = 10
+# Seller lookups per check. A normal check has a handful of new listings and needs a few.
+# A busy search starts at the low figure and doubles each check that used every lookup
+# without Vinted objecting, up to the high one; a refusal drops it back to the start.
+# Repeat sellers come from the cache and cost nothing either way.
+_LOOKUPS_PER_CHECK_MIN = 10
+_LOOKUPS_PER_CHECK_MAX = 40
+
+# Listings still waiting on a seller lookup, kept between checks. A listing used to be
+# judged only while it was on the first page, so on a busy search most dropped off the
+# page undecided and were never judged at all. They wait at most the search's freshness
+# window (an alert later than that is not news), and at most this many at once.
+_UNDECIDED_MAX = 300
+# Marks a listing left waiting by the budget, worded once the check knows how many were.
+_BUDGET = "budget"
 
 # How long seller lookups stop after Vinted refuses one (403), or answers 429 without
 # saying how long to wait. The catalog itself keeps being checked meanwhile.
@@ -81,6 +92,9 @@ class _Verdicts:
     # Seller profiles fetched or read from the cache during this check, by seller id.
     profiles: dict[int, SellerProfile | None] = field(default_factory=dict)
     lookups_made: int = 0
+    # Listings whose seller could not be looked up this check, and why not.
+    waiting: list[tuple[Item, str]] = field(default_factory=list)
+    refused: bool = False
 
 
 class Poller:
@@ -121,6 +135,9 @@ class Poller:
         # The site being fetched when an error escapes, so the right session is replaced.
         self._site = query.tld
         self._warned_no_lookup = False
+        self._lookup_budget = _LOOKUPS_PER_CHECK_MIN
+        # Listing id -> (listing, when it first waited on its seller); see _UNDECIDED_MAX.
+        self._undecided: dict[int, tuple[Item, int]] = {}
         # Euro exchange rates, read each check, for a search whose sites price in more
         # than one currency; see engine/rates.py.
         self._rates: dict[str, Decimal] = {}
@@ -245,7 +262,10 @@ class Poller:
             announced = await self._seed(selection.new, announce=state.is_first_run)
         else:
             announced = await self._judge(
-                selection.new, too_old=self._too_old(selection.too_old, now=now, window_s=window_s)
+                selection.new,
+                too_old=self._too_old(selection.too_old, now=now, window_s=window_s),
+                now=now,
+                window_s=window_s,
             )
 
         if announced and self._work_available is not None:
@@ -334,13 +354,24 @@ class Poller:
             rejected.append(RejectedListing(item, "too_old", detail))
         return rejected
 
-    async def _judge(self, new: list[Item], *, too_old: list[RejectedListing]) -> int:
-        """Filter what is new, record the verdicts, queue the alerts. Returns how many queued."""
-        if not new and not too_old:
+    async def _judge(
+        self, new: list[Item], *, too_old: list[RejectedListing], now: int, window_s: int
+    ) -> int:
+        """Filter what is new, record the verdicts, queue the alerts. Returns how many queued.
+
+        Listings still waiting on their seller from earlier checks are judged again after
+        the new ones, which get the lookups first: they are the freshest news.
+        """
+        fresh_ids = {item.item_id for item in new}
+        carried = [
+            item for item_id, (item, _) in self._undecided.items() if item_id not in fresh_ids
+        ]
+        candidates = [*new, *carried]
+        if not candidates and not too_old:
             return 0
         verdicts = _Verdicts(rejected=list(too_old))
         blocked = frozenset(await self._repo.blocked_seller_ids())
-        for item in new:
+        for item in candidates:
             rejection = self._rules.check(item, blocked_sellers=blocked, rates=self._rates)
             if rejection is None:
                 rejection, final = await self._judge_seller(item, verdicts)
@@ -348,10 +379,10 @@ class Poller:
                 final = True
             if rejection is None:
                 verdicts.matched.append(item)
-            else:
-                verdicts.rejected.append(
-                    RejectedListing(item, rejection.reason, rejection.detail, final=final)
-                )
+            elif final:
+                verdicts.rejected.append(RejectedListing(item, rejection.reason, rejection.detail))
+        self._settle_undecided(verdicts, now=now, window_s=window_s)
+        verdicts.matched.sort(key=lambda item: item.item_id)
 
         typical = await self._repo.typical_prices(self.query.id)
         for item in verdicts.matched:
@@ -382,7 +413,11 @@ class Poller:
     async def _judge_seller(
         self, item: Item, verdicts: _Verdicts
     ) -> tuple[filters.Rejection | None, bool]:
-        """The seller checks for one listing: (rejection or None, whether it is final)."""
+        """The seller checks for one listing: (rejection or None, whether it is final).
+
+        A listing whose seller could not be looked up is not final: it goes into
+        `verdicts.waiting` and `_settle_undecided` decides what becomes of it.
+        """
         if not self.query.needs_seller_profile:
             return None, True
         profile: SellerProfile | None = None
@@ -392,15 +427,7 @@ class Poller:
             else:
                 profile = await self._seller_profile(item, verdicts)
                 if profile is None:
-                    # Not final: a lookup that failed this time may work next time.
-                    paused = time.time() < self._lookups_paused_until
-                    detail = (
-                        "seller lookups are paused because Vinted refused them; "
-                        "tried again on a later check"
-                        if paused
-                        else "could not look up the seller just now"
-                    )
-                    return filters.Rejection("seller_unknown", detail), False
+                    return filters.Rejection("seller_unknown", ""), False
                 if profile.country_code:
                     verdicts.seller_countries[profile.seller_id] = profile.country_code
         return filters.check_seller(item, self.query, profile), True
@@ -409,20 +436,25 @@ class Poller:
         """A seller's member page, from this check's memo, the cache, or one request."""
         seller_id = item.seller_id
         if seller_id is None or self._seller_lookup is None:
+            verdicts.waiting.append((item, "the listing does not say who the seller is"))
             return None
         if seller_id in verdicts.profiles:
-            return verdicts.profiles[seller_id]
+            profile = verdicts.profiles[seller_id]
+            if profile is None:
+                verdicts.waiting.append((item, "the lookup of this seller failed this check"))
+            return profile
         cached = await self._repo.cached_seller(seller_id, max_age_s=SELLER_CACHE_S)
         if cached is not None:
             verdicts.profiles[seller_id] = cached
             return cached
-        if verdicts.lookups_made >= _MAX_LOOKUPS_PER_CHECK:
-            return None
-        if time.time() < self._lookups_paused_until:
+        if (held_back := self._held_back(verdicts)) is not None:
+            verdicts.waiting.append((item, held_back))
             return None
         verdicts.lookups_made += 1
         try:
             profile = await self._seller_lookup(item.tld, seller_id)
+            if profile is None:
+                verdicts.waiting.append((item, "Vinted has no public profile for this seller"))
         except (BlockedError, RateLimitedError) as exc:
             # Vinted is refusing these lookups. Asking again for the next listing in the
             # same check would only add to the refusals: stop until the pause is over,
@@ -430,6 +462,8 @@ class Poller:
             retry_after = exc.retry_after if isinstance(exc, RateLimitedError) else None
             pause = float(retry_after or _LOOKUP_PAUSE_S)
             self._lookups_paused_until = time.time() + pause
+            verdicts.refused = True
+            verdicts.waiting.append((item, f"Vinted refused the seller lookup ({exc})"))
             self._log.warning(
                 "poll.seller_lookups_paused",
                 seller_id=seller_id,
@@ -441,11 +475,67 @@ class Poller:
             # The listing is logged as undecided and judged again next check, by which
             # time the session has usually sorted itself out.
             self._log.info("poll.seller_lookup_failed", seller_id=seller_id, error=str(exc))
+            verdicts.waiting.append((item, f"the seller lookup failed ({exc})"))
             profile = None
         verdicts.profiles[seller_id] = profile
         if profile is not None:
             await self._repo.cache_seller(profile)
         return profile
+
+    def _held_back(self, verdicts: _Verdicts) -> str | None:
+        """Why no lookup may be made right now, or None if one may."""
+        if time.time() < self._lookups_paused_until:
+            resume = datetime.fromtimestamp(self._lookups_paused_until).astimezone()
+            return f"seller lookups are paused until {resume:%H:%M} because Vinted refused one"
+        if verdicts.lookups_made >= self._lookup_budget:
+            return _BUDGET
+        return None
+
+    def _settle_undecided(self, verdicts: _Verdicts, *, now: int, window_s: int) -> None:
+        """Carry listings still waiting on their seller to the next check, or give up.
+
+        Each is logged in "Not sent" with the precise reason it is waiting, and replaced
+        by its verdict once one is reached. Also adjusts the lookup budget for next time.
+        """
+        exhausted = verdicts.lookups_made >= self._lookup_budget
+        if verdicts.refused:
+            self._lookup_budget = _LOOKUPS_PER_CHECK_MIN
+        elif exhausted:
+            self._lookup_budget = min(self._lookup_budget * 2, _LOOKUPS_PER_CHECK_MAX)
+
+        waiting_ids = {item.item_id for item, _ in verdicts.waiting}
+        for item_id in list(self._undecided):
+            if item_id not in waiting_ids:
+                del self._undecided[item_id]
+        in_line = sum(1 for _, why in verdicts.waiting if why == _BUDGET)
+        budget_reason = (
+            f"waiting for a seller lookup: {in_line} listings were still waiting after "
+            f"this check's {verdicts.lookups_made} lookups"
+        )
+        for item, held_back in verdicts.waiting:
+            since = self._undecided.get(item.item_id, (item, now))[1]
+            why = budget_reason if held_back == _BUDGET else held_back
+            full = item.item_id not in self._undecided and len(self._undecided) >= _UNDECIDED_MAX
+            if full or now - since >= window_s:
+                self._undecided.pop(item.item_id, None)
+                verdicts.rejected.append(
+                    RejectedListing(
+                        item,
+                        "seller_unknown",
+                        f"gave up after {round((now - since) / 60)} min without the seller's "
+                        f"details; last reason: {why}",
+                    )
+                )
+                continue
+            self._undecided[item.item_id] = (item, since)
+            verdicts.rejected.append(
+                RejectedListing(
+                    item,
+                    "seller_unknown",
+                    f"{why}; tried again on the next check, for up to {window_s // 60} min",
+                    final=False,
+                )
+            )
 
     def _warn_no_lookup(self) -> None:
         if not self._warned_no_lookup:
