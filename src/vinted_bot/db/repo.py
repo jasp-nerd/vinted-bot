@@ -2141,5 +2141,8 @@ class Repo:
         value = await self._db.fetch_value("SELECT value FROM app_state WHERE key = ?", (key,))
         return str(value) if value is not None else None
 
+    async def delete_state_value(self, key: str) -> None:
+        await self._db.execute("DELETE FROM app_state WHERE key = ?", (key,))
+
     async def heartbeat(self) -> None:
         await self.set_state_value("heartbeat_at", str(int(time.time())))

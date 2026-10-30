@@ -58,8 +58,10 @@ class WebContext:
     previews: PreviewService | None = None
     # For test sends and the Telegram bot's name; opened with the app, closed with it.
     http: httpx.AsyncClient | None = None
-    bot_username: str | None = None
-    bot_checked: bool = False
+    # Each token's bot @name, as Telegram told us, or None when it couldn't say.
+    bot_names: dict[str, str | None] = field(default_factory=dict)
+    # Set when the bot's token changes, for the running app to restart the bot on it.
+    telegram_token_changed: asyncio.Event = field(default_factory=asyncio.Event)
     login_throttle: LoginThrottle = field(default_factory=LoginThrottle)
 
 

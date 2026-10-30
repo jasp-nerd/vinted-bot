@@ -72,6 +72,8 @@ class Application:
         self._open_browser = open_browser
         self._stop = asyncio.Event()
         self._work_available = asyncio.Event()
+        # Set by the dashboard when the Telegram bot's token is added, replaced or removed.
+        self._telegram_token_changed = asyncio.Event()
         self._rng = random.Random()
         self._poller_tasks: dict[int, asyncio.Task[None]] = {}
         # The search as its poller was started with it. Any edit makes it unequal, and
@@ -160,8 +162,7 @@ class Application:
                             self._supervise(tg, repo, client, sessions), name="supervisor"
                         )
 
-                        if settings.telegram_bot_token is not None:
-                            tg.create_task(self._run_telegram_bot(repo), name="telegram-bot")
+                        tg.create_task(self._run_telegram_bot(repo), name="telegram-bot")
                         if settings.web_enabled:
                             taxonomy = Taxonomy(sessions, repo)
                             tg.create_task(
@@ -323,15 +324,14 @@ class Application:
             log.warning("update.report_failed", error=str(exc))
 
     async def _run_telegram_bot(self, repo: Repo) -> None:
-        from vinted_bot.botctl.telegram_bot import run_bot  # noqa: PLC0415
+        from vinted_bot.botctl.telegram_bot import keep_running  # noqa: PLC0415
 
-        token = self._settings.telegram_bot_token
-        if token is None:  # pragma: no cover - guarded by the caller
-            return
-        try:
-            await run_bot(token.get_secret_value(), repo=repo, stop=self._stop)
-        except Exception as exc:
-            log.exception("telegram_bot.failed", error=str(exc))
+        await keep_running(
+            self._settings,
+            repo,
+            stop=self._stop,
+            token_changed=self._telegram_token_changed,
+        )
 
     async def _run_web(
         self,
@@ -353,6 +353,7 @@ class Application:
                 client=client,
                 watch_kinds=watch_kinds,
                 updater=updater,
+                telegram_token_changed=self._telegram_token_changed,
             )
         except Exception as exc:
             log.exception("web.failed", error=str(exc))

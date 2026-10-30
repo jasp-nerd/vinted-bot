@@ -1,8 +1,10 @@
 """Where alerts go: the destination cards, adding one, testing one, Telegram pairing.
 
-Telegram is connected from here, with no command line: the dashboard creates a pairing
-code, the person sends `/start <code>` to their bot (a link does it in one tap), and the
-running bot claims the code and records the chat. The page polls until it has.
+Telegram is connected from here, with no command line and no settings file: the person
+pastes the token BotFather gave them (checked with Telegram before it is kept), the
+dashboard creates a pairing code, the person sends `/start <code>` to their bot (a link
+does it in one tap), and the running bot claims the code and records the chat. The page
+polls until it has.
 """
 
 from __future__ import annotations
@@ -13,6 +15,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 
+from vinted_bot import managed
 from vinted_bot.botctl.telegram_bot import create_pairing
 from vinted_bot.db.repo import Destination
 from vinted_bot.deliver import send_test
@@ -26,34 +29,100 @@ router = APIRouter()
 _TELEGRAM_API = "https://api.telegram.org"
 
 
+async def telegram_bot_name(http: httpx.AsyncClient, token: str) -> str:
+    """Ask Telegram which bot a token belongs to. Raises InvalidInputError saying why not.
+
+    The request URL holds the token, so neither it nor httpx's message about it (which
+    quotes the URL) is ever logged: only the kind of error.
+    """
+    try:
+        response = await http.get(f"{_TELEGRAM_API}/bot{token}/getMe", timeout=10.0)
+    except httpx.HTTPError as exc:
+        log.info("telegram.getme_failed", error=type(exc).__name__)
+        raise InvalidInputError(
+            "telegram_token",
+            "Couldn't reach Telegram to check the token. Is this computer online? Try "
+            "again in a moment.",
+        ) from exc
+    # 401 for a token that was never valid or was revoked, 404 for one that is mangled.
+    if response.status_code in {401, 404}:
+        raise InvalidInputError(
+            "telegram_token",
+            "Telegram says that token isn't valid. Copy it again from BotFather: it's the "
+            'line under "Use this token to access the HTTP API". If you made a new token '
+            "since, the old one stopped working.",
+        )
+    try:
+        username = (response.json().get("result") or {}).get("username")
+    except (ValueError, AttributeError):
+        username = None
+    if response.status_code != 200 or not isinstance(username, str):  # noqa: PLR2004
+        log.info("telegram.getme_failed", status=response.status_code)
+        raise InvalidInputError(
+            "telegram_token",
+            f"Telegram didn't answer as expected (status {response.status_code}). Try "
+            "again in a moment.",
+        )
+    return username
+
+
 async def bot_username(context: core.WebContext) -> str | None:
-    """The configured bot's @name, asked of Telegram once and remembered.
+    """The bot's @name, asked of Telegram once per token and remembered.
 
     Shown so people know which bot to message. A failed lookup is remembered too: the
     pairing still works with the code alone, so there is no reason to keep asking.
     """
-    token = context.settings.telegram_bot_token
+    token = await managed.telegram_token(context.settings, context.repo)
     if token is None or context.http is None:
         return None
-    if not context.bot_checked:
-        context.bot_checked = True
+    if token not in context.bot_names:
         try:
-            response = await context.http.get(
-                f"{_TELEGRAM_API}/bot{token.get_secret_value()}/getMe", timeout=10.0
-            )
-            result = response.json().get("result") or {}
-            context.bot_username = result.get("username")
-        except (httpx.HTTPError, ValueError, AttributeError) as exc:
-            # Never log the URL: it contains the bot token.
-            log.info("telegram.getme_failed", error=type(exc).__name__)
-    return context.bot_username
+            context.bot_names[token] = await telegram_bot_name(context.http, token)
+        except InvalidInputError:
+            context.bot_names[token] = None
+    return context.bot_names[token]
+
+
+async def telegram_ready(context: core.WebContext) -> bool:
+    return await managed.telegram_token(context.settings, context.repo) is not None
 
 
 async def telegram_setup(context: core.WebContext) -> dict[str, Any]:
+    """What the Telegram choice and the bot card show. The token itself only masked."""
+    token = await managed.telegram_token(context.settings, context.repo)
     return {
-        "configured": context.settings.telegram_bot_token is not None,
+        "configured": token is not None,
+        "from_env": managed.telegram_token_from_env(context.settings),
+        "masked": managed.mask_token(token) if token else None,
         "bot": await bot_username(context),
     }
+
+
+async def save_telegram_token(context: core.WebContext, raw: str) -> str:
+    """Check a pasted token with Telegram and keep it. Returns the bot's @name.
+
+    The running bot is told at once, so the pairing link works straight after.
+    """
+    assert context.http is not None  # opened by the app's lifespan
+    if managed.telegram_token_from_env(context.settings):
+        raise InvalidInputError(
+            "telegram_token",
+            "This copy's bot token comes from VINTED_BOT_TELEGRAM_BOT_TOKEN in its "
+            "environment, so it's changed there.",
+        )
+    token = managed.find_telegram_token(raw)
+    if token is None:
+        raise InvalidInputError(
+            "telegram_token",
+            "That isn't a bot token. It's a number, a colon, then a long code, like "
+            "123456789:AAH4k... BotFather sends it right after you name your bot.",
+        )
+    name = await telegram_bot_name(context.http, token)
+    await managed.set_telegram_token(context.repo, token)
+    context.bot_names[token] = name
+    context.telegram_token_changed.set()
+    log.info("telegram.token_saved", bot=name)
+    return name
 
 
 @router.get("/alerts")
@@ -152,6 +221,7 @@ async def test_destination(request: Request, destination_id: int) -> JSONRespons
     result = await send_test(
         destination,
         settings=context.settings,
+        telegram_token=await managed.telegram_token(context.settings, context.repo),
         tld=queries[0].tld if queries else "ie",
         client=context.http,
     )
@@ -168,15 +238,38 @@ async def remove_destination(request: Request, destination_id: int) -> Response:
     return core.redirect(core.url("alerts"), f"Removed {destination.name}.")
 
 
+@router.post("/destinations/telegram/token")
+async def set_telegram_token(request: Request) -> JSONResponse:
+    context = core.ctx(request)
+    form = await request.form()
+    try:
+        name = await save_telegram_token(context, str(form.get("telegram_token") or ""))
+    except InvalidInputError as exc:
+        return JSONResponse({"ok": False, "field": exc.field, "error": exc.message}, 400)
+    return JSONResponse({"ok": True, **await telegram_setup(context), "bot": name})
+
+
+@router.post("/destinations/telegram/token/remove")
+async def remove_telegram_token(request: Request) -> Response:
+    context = core.ctx(request)
+    if managed.telegram_token_from_env(context.settings):
+        raise HTTPException(
+            status_code=400,
+            detail="The bot token comes from VINTED_BOT_TELEGRAM_BOT_TOKEN in this copy's "
+            "environment, so it's removed there.",
+        )
+    await managed.set_telegram_token(context.repo, None)
+    context.telegram_token_changed.set()
+    log.info("telegram.token_removed")
+    return core.redirect(core.url("alerts"), "Removed the Telegram bot.")
+
+
 @router.post("/destinations/telegram/pair")
 async def start_pairing(request: Request) -> JSONResponse:
     context = core.ctx(request)
-    if context.settings.telegram_bot_token is None:
+    if await managed.telegram_token(context.settings, context.repo) is None:
         return JSONResponse(
-            {
-                "error": "Telegram needs a bot first. Add VINTED_BOT_TELEGRAM_BOT_TOKEN "
-                "to the settings file and restart vinted-bot."
-            },
+            {"error": "Telegram needs a bot first. Paste the token BotFather gave you."},
             status_code=400,
         )
     destination_id, code = await create_pairing(context.repo, "Telegram")
@@ -204,5 +297,11 @@ async def test_unsaved(
 ) -> dict[str, Any]:
     """Send a sample through a destination that is not stored yet (the setup's test step)."""
     destination = Destination(id=0, kind=kind, name=name, config=config)
-    result = await send_test(destination, settings=context.settings, tld=tld, client=context.http)
+    result = await send_test(
+        destination,
+        settings=context.settings,
+        telegram_token=await managed.telegram_token(context.settings, context.repo),
+        tld=tld,
+        client=context.http,
+    )
     return {"ok": result.ok, "message": result.message, "detail": result.detail}

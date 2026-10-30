@@ -173,18 +173,7 @@ async def where(request: Request) -> Response:
         state["dest"] = {"kind": "skip"}
         return await _ready(request, state)
     if kind == "telegram":
-        pairing = state.get("telegram") or {}
-        destination_id = int(fields.get("telegram_id") or pairing.get("id") or 0)
-        destination = await context.repo.get_destination(destination_id) if destination_id else None
-        if destination is None or not destination.config.get("chat_id"):
-            state["dest"] = {"kind": "telegram", "form": fields}
-            return await _alerts_page(
-                request,
-                state,
-                {"telegram": "Send the code to your bot first, then press Continue."},
-            )
-        state["dest"] = {"kind": "telegram", "id": destination_id, "name": destination.name}
-        return await _test(request, state)
+        return await _telegram_answer(request, state, fields)
     assert context.http is not None
     try:
         name, config = destinations.build(kind, fields)
@@ -193,6 +182,34 @@ async def where(request: Request) -> Response:
         state["dest"] = {"kind": kind, "form": fields}
         return await _alerts_page(request, state, {exc.field: exc.message})
     state["dest"] = {"kind": kind, "name": name, "config": config, "form": fields}
+    return await _test(request, state)
+
+
+async def _telegram_answer(
+    request: Request, state: dict[str, Any], fields: dict[str, str]
+) -> Response:
+    """Continue with Telegram picked: check a pasted token, else the chat must be connected."""
+    context = core.ctx(request)
+    if fields.get("telegram_token") and not await alerts.telegram_ready(context):
+        # A token pasted, then Continue instead of "Check and save": check it now.
+        state["dest"] = {"kind": "telegram", "form": {}}
+        try:
+            await alerts.save_telegram_token(context, fields["telegram_token"])
+        except InvalidInputError as exc:
+            state["dest"]["form"] = fields
+            return await _alerts_page(request, state, {exc.field: exc.message})
+        return await _alerts_page(request, state)
+    pairing = state.get("telegram") or {}
+    destination_id = int(fields.get("telegram_id") or pairing.get("id") or 0)
+    destination = await context.repo.get_destination(destination_id) if destination_id else None
+    if destination is None or not destination.config.get("chat_id"):
+        state["dest"] = {"kind": "telegram", "form": fields}
+        if not await alerts.telegram_ready(context):
+            problem = {"telegram_token": "Paste your bot's token from BotFather first."}
+        else:
+            problem = {"telegram": "Send the code to your bot first, then press Continue."}
+        return await _alerts_page(request, state, problem)
+    state["dest"] = {"kind": "telegram", "id": destination_id, "name": destination.name}
     return await _test(request, state)
 
 

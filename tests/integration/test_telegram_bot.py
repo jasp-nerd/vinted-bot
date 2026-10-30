@@ -3,8 +3,9 @@ links, and the buttons on every alert."""
 
 from __future__ import annotations
 
+import asyncio
 import time
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -30,6 +31,7 @@ from aiogram.types import (
     User,
 )
 
+from vinted_bot import managed
 from vinted_bot.botctl.telegram_bot import (
     add_link_text,
     add_search_text,
@@ -38,10 +40,12 @@ from vinted_bot.botctl.telegram_bot import (
     chat_destination_ids,
     confirm_remove_text,
     done_markup,
+    keep_running,
     list_text,
     remove_prompt,
     set_paused_text,
 )
+from vinted_bot.config import Settings
 from vinted_bot.db.repo import Repo
 from vinted_bot.vinted.models import Item
 
@@ -551,3 +555,111 @@ async def test_add_with_a_listing_link_follows_the_listing(repo: Repo, bot: Bot)
     )
 
     assert [watch.target_id for watch in await repo.list_watches()] == [42]
+
+
+# --- Following the token the dashboard sets -----------------------------------------------
+
+TOKEN_A = "111111:" + "a" * 35
+TOKEN_B = "222222:" + "b" * 35
+
+
+class Bots:
+    """Stands in for run_bot: records which tokens a bot ran on and which are still up."""
+
+    def __init__(self) -> None:
+        self.started: list[str] = []
+        self.running: set[str] = set()
+        self.changed = asyncio.Event()
+
+    async def run(self, token: str, stop: asyncio.Event) -> None:
+        self.started.append(token)
+        self.running.add(token)
+        self.changed.set()
+        try:
+            await stop.wait()
+        finally:
+            self.running.discard(token)
+            self.changed.set()
+
+
+@pytest.fixture
+async def following(repo: Repo, settings: Settings) -> AsyncGenerator[tuple[Bots, asyncio.Event]]:
+    bots = Bots()
+    stop, token_changed = asyncio.Event(), asyncio.Event()
+    task = asyncio.create_task(
+        keep_running(settings, repo, stop=stop, token_changed=token_changed, run=bots.run)
+    )
+    yield bots, token_changed
+    stop.set()
+    await task
+
+
+async def _settle(bots: Bots, until: Callable[[], bool]) -> None:
+    async with asyncio.timeout(2):
+        while not until():
+            bots.changed.clear()
+            await bots.changed.wait()
+
+
+async def test_no_token_means_no_bot(following: tuple[Bots, asyncio.Event]) -> None:
+    bots, _ = following
+    await asyncio.sleep(0.05)
+
+    assert bots.started == []
+
+
+async def test_a_token_saved_in_the_dashboard_starts_the_bot(
+    repo: Repo, following: tuple[Bots, asyncio.Event]
+) -> None:
+    bots, token_changed = following
+    await managed.set_telegram_token(repo, TOKEN_A)
+    token_changed.set()
+
+    await _settle(bots, lambda: TOKEN_A in bots.running)
+
+    assert bots.started == [TOKEN_A]
+
+
+async def test_a_new_token_replaces_the_running_bot(
+    repo: Repo, following: tuple[Bots, asyncio.Event]
+) -> None:
+    bots, token_changed = following
+    await managed.set_telegram_token(repo, TOKEN_A)
+    token_changed.set()
+    await _settle(bots, lambda: TOKEN_A in bots.running)
+
+    await managed.set_telegram_token(repo, TOKEN_B)
+    token_changed.set()
+    await _settle(bots, lambda: bots.running == {TOKEN_B})
+
+    assert bots.started == [TOKEN_A, TOKEN_B]
+
+
+async def test_removing_the_token_stops_the_bot(
+    repo: Repo, following: tuple[Bots, asyncio.Event]
+) -> None:
+    bots, token_changed = following
+    await managed.set_telegram_token(repo, TOKEN_A)
+    token_changed.set()
+    await _settle(bots, lambda: TOKEN_A in bots.running)
+
+    await managed.set_telegram_token(repo, None)
+    token_changed.set()
+    await _settle(bots, lambda: not bots.running)
+
+    assert bots.started == [TOKEN_A]
+
+
+async def test_shutting_down_stops_the_bot(repo: Repo, settings: Settings) -> None:
+    bots = Bots()
+    stop, token_changed = asyncio.Event(), asyncio.Event()
+    await managed.set_telegram_token(repo, TOKEN_A)
+    task = asyncio.create_task(
+        keep_running(settings, repo, stop=stop, token_changed=token_changed, run=bots.run)
+    )
+    await _settle(bots, lambda: TOKEN_A in bots.running)
+
+    stop.set()
+    await asyncio.wait_for(task, 2)
+
+    assert bots.running == set()

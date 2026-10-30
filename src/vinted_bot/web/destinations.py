@@ -232,6 +232,11 @@ def check(kind: str, config: dict[str, Any], settings: Settings, http: httpx.Asy
     if kind == "telegram":
         return
     try:
-        build_sender(Destination(id=0, kind=kind, name=kind, config=config), settings, http)
+        build_sender(
+            Destination(id=0, kind=kind, name=kind, config=config),
+            settings,
+            http,
+            telegram_token=None,
+        )
     except SenderConfigError as exc:
         raise InvalidInputError("config", f"That won't work: {exc}.") from exc

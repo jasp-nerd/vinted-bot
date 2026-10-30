@@ -27,7 +27,7 @@
       {% if dd.status == "failing" %}
       <div class="notice notice--danger" style="margin-bottom:6px">{{ ui.icon("circle-alert") }}<div><p><strong>{{ dd.detail }}</strong></p><p>Send a test to see what's wrong. If it keeps failing, remove it and add it again, or use a notification on your phone instead.</p></div></div>
       {% elif dd.status == "warn" %}
-      <div class="notice notice--sun" style="margin-bottom:6px">{{ ui.icon("triangle-alert") }}<div><p><strong>{{ dd.detail }}</strong></p><p>The line is <span class="code">VINTED_BOT_TELEGRAM_BOT_TOKEN=</span> followed by the code BotFather gave you. Settings, "Open on your phone", says where the settings file is.</p></div></div>
+      <div class="notice notice--sun" style="margin-bottom:6px">{{ ui.icon("triangle-alert") }}<div><p><strong>{{ dd.detail }}</strong></p><p><a href="#telegram-bot" style="color:inherit">Add the token</a>, then send a test.</p></div></div>
       {% else %}
       <p class="t-sm" style="padding-bottom:4px">{{ dd.detail }}</p>
       {% endif %}
@@ -68,6 +68,37 @@
     </div>
   </article>
   {% endfor %}
+
+  {% if telegram.configured or dests|selectattr("kind", "equalto", "telegram")|list %}
+  <article class="card dest" id="telegram-bot" aria-labelledby="dest-tg-bot">
+    <div class="dest__head">
+      <span class="dest__logo dest__logo--telegram">{{ ui.icon("send") }}</span>
+      <div class="dest__name"><b id="dest-tg-bot">Telegram bot</b><small>{% if telegram.configured %}{% if telegram.bot %}@{{ telegram.bot }}{% else %}Bot{% endif %} · {{ telegram.masked }}{% else %}No bot yet{% endif %}</small></div>
+      {% if telegram.configured %}<span class="badge badge--ok">{{ ui.icon("check") }}Ready</span>{% else %}<span class="badge badge--warn">{{ ui.icon("triangle-alert") }}Needs a token</span>{% endif %}
+    </div>
+    <div class="dest__body">
+      {% if telegram.from_env %}
+      <p class="t-sm">Its token comes from <span class="code">VINTED_BOT_TELEGRAM_BOT_TOKEN</span> in this copy's environment, so it's changed there, not here.</p>
+      {% else %}
+      <p class="t-sm">Every Telegram place sends through this bot. {% if telegram.configured %}To use another bot, paste its token from BotFather.{% else %}Paste the token BotFather gave you: open <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a>, send <span class="code">/mybots</span>, pick your bot, then <b>API Token</b>.{% endif %}</p>
+      <div class="field" data-tg-token>
+        <label class="label" for="tg-token-card">{{ "New bot token" if telegram.configured else "Bot token" }}</label>
+        <div class="row" style="flex-wrap:nowrap;align-items:flex-start">
+          <input class="input grow" id="tg-token-card" name="telegram_token" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="123456789:AAH4k…">
+          <button class="btn btn--secondary" type="button" data-tg-token-save>Check and save</button>
+        </div>
+        <p class="help" data-tg-token-help>We check it with Telegram, then keep it on this computer.</p>
+      </div>
+      {% endif %}
+    </div>
+    {% if telegram.configured and not telegram.from_env %}
+    <div class="dest__foot">
+      <span class="grow"></span>
+      <button class="btn btn--ghost btn--sm" type="button" data-confirm="remove-bot" data-action="/destinations/telegram/token/remove">{{ ui.icon("trash-2", "i-sm") }}Remove the bot</button>
+    </div>
+    {% endif %}
+  </article>
+  {% endif %}
 
   <article class="card dest" aria-labelledby="dest-browser" data-browser-card>
     <div class="dest__head">
@@ -118,6 +149,13 @@
       <p class="help help--error" data-add-error hidden></p>
     </div>
     <div class="modal__foot"><button class="btn btn--secondary" type="button" data-close>Cancel</button><button class="btn btn--primary" type="submit">Save and send a test</button></div>
+  </form>
+</dialog>
+<dialog class="modal" id="remove-bot" aria-labelledby="rb-title">
+  <form method="post" data-confirm-form>
+    <div class="modal__head"><h2 class="t-h2" id="rb-title">Remove the Telegram bot?</h2><button class="btn btn--icon" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button></div>
+    <div class="modal__body"><p>vinted-bot forgets its token. Telegram places stop getting alerts until you add a bot again. The bot itself stays in Telegram; BotFather can delete it.</p></div>
+    <div class="modal__foot"><button class="btn btn--secondary" type="button" data-close>Keep it</button><button class="btn btn--danger" type="submit">Remove</button></div>
   </form>
 </dialog>
 <dialog class="modal" id="delete-dest" aria-labelledby="dd-title">

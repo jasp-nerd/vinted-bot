@@ -887,10 +887,10 @@ async def test_removing_a_destination_takes_it_off_the_page(client: TestClient, 
     assert "Old phone" not in client.get("/alerts").text.split("Removed")[-1]
 
 
-def test_pairing_telegram_without_a_bot_explains_the_setting(client: TestClient) -> None:
+def test_pairing_telegram_without_a_bot_asks_for_its_token(client: TestClient) -> None:
     response = client.post("/destinations/telegram/pair")
 
-    assert "VINTED_BOT_TELEGRAM_BOT_TOKEN" in response.json()["error"]
+    assert "Paste the token BotFather gave you" in response.json()["error"]
 
 
 async def test_pairing_telegram_finishes_when_the_bot_claims_the_code(

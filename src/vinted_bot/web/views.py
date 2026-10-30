@@ -572,8 +572,8 @@ def _cannot_send(
         return (
             "warn",
             "Needs the bot token",
-            "Telegram can't send anything until the bot's token is in the settings file "
-            "and vinted-bot is restarted.",
+            "Telegram can't send anything until it knows your bot. Paste the token "
+            "BotFather gave you in the Telegram bot card below.",
         )
     if destination.kind == "telegram" and not destination.config.get("chat_id"):
         return (

@@ -6,6 +6,17 @@
   person can set up from a phone in a minute.
 #}
 {% set E = errors or {} %}
+{# The BotFather token, checked with Telegram by "Check and save" (or by Continue in setup). #}
+{% macro token_field(E, F, label="Bot token") -%}
+<div class="field" data-tg-token>
+  <label class="label" for="tg-token">{{ label }}</label>
+  <div class="row" style="flex-wrap:nowrap;align-items:flex-start">
+    <input class="input grow" id="tg-token" name="telegram_token" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="123456789:AAH4k…" value="{{ F.telegram_token or '' }}"{{ ui.invalid(E, 'telegram_token') }}>
+    <button class="btn btn--secondary" type="button" data-tg-token-save>Check and save</button>
+  </div>
+  {% if E.telegram_token %}{{ ui.field_error(E, "telegram_token") }}{% else %}<p class="help" data-tg-token-help>We check it with Telegram, then keep it on this computer. Anyone with it can send messages as your bot, so keep it to yourself.</p>{% endif %}
+</div>
+{%- endmacro %}
 {% set F = form or {} %}
 {% macro choice(k, title, desc, icon_name, checked) -%}
 <div class="choice choice--group">
@@ -38,31 +49,38 @@
 {% endcall %}
 
 {% call choice("telegram", "Telegram", "A chat message in Telegram. You make a small private bot first (about 3 minutes).", "send", kind == "telegram") %}
-  {% if telegram.configured %}
-  <div class="stack-lg" data-pair style="padding:6px 2px 4px">
-    <ol class="steps-list">
-      <li><span>Tap <b>Connect my chat</b>. We make a one-time code.</span></li>
-      <li><span>Send it to {% if telegram.bot %}your bot <b>@{{ telegram.bot }}</b>{% else %}your bot{% endif %} in Telegram. The button opens the chat with the code ready; just press Start.</span></li>
-    </ol>
-    <div data-pair-step="start"><button class="btn btn--secondary" type="button" data-pair-start>{{ ui.icon("link") }}Connect my chat</button></div>
-    <div class="pair-code" data-pair-step="wait" hidden>
-      <span class="t-sm">Send this to your bot:</span>
-      <b class="code" data-pair-command></b>
-      <a class="btn btn--primary btn--sm" data-pair-link href="#" target="_blank" rel="noopener" hidden>{{ ui.icon("send", "i-sm") }}Open Telegram</a>
-      <span class="row t-sm" style="gap:8px"><span class="spinner"></span>Waiting for your message</span>
+  <div class="stack-lg" style="padding:6px 2px 4px" data-tg-choice>
+    {% if not telegram.configured %}
+    <div class="stack" data-tg-setup>
+      <p class="t-sm">A Telegram bot is a free chat account that only sends you what you ask for. BotFather, Telegram's own tool, makes one for you:</p>
+      <ol class="steps-list">
+        <li><span>Open <a href="https://t.me/BotFather" target="_blank" rel="noopener"><b>@BotFather</b></a> in Telegram (it has a blue tick), or search for it, then tap <b>Start</b>.</span></li>
+        <li><span>Send <span class="code">/newbot</span>.</span></li>
+        <li><span>When it asks for a name, type anything, like <b>My Vinted alerts</b>.</span></li>
+        <li><span>When it asks for a username, type one that ends in <b>bot</b>, like <b>mags_vinted_bot</b>. If it's taken, add a few numbers.</span></li>
+        <li><span>BotFather answers <b>Done! Congratulations</b>. Under <b>Use this token to access the HTTP API</b> is a long code: tap it once to copy it, then paste it here.</span></li>
+      </ol>
+      {{ token_field(E, F) }}
     </div>
-    <div class="notice notice--ok" data-pair-step="done" hidden>{{ ui.icon("circle-check-big") }}<span><strong>Connected.</strong> Alerts will arrive in that chat.</span></div>
-    <input type="hidden" name="telegram_id" value="{{ F.telegram_id or '' }}" data-pair-id>
+    {% endif %}
+    <div class="stack-lg" data-pair{% if not telegram.configured %} hidden{% endif %}>
+      <p class="t-sm" data-tg-bot-line>Your bot: <b>{% if telegram.bot %}@<span data-tg-bot>{{ telegram.bot }}</span>{% else %}<span data-tg-bot>{{ telegram.masked or "" }}</span>{% endif %}</b>{% if telegram.from_env %} (from VINTED_BOT_TELEGRAM_BOT_TOKEN){% endif %}</p>
+      <ol class="steps-list">
+        <li><span>Tap <b>Connect my chat</b>. We make a one-time code.</span></li>
+        <li><span>The button opens your bot in Telegram with the code ready: press <b>Start</b>. In a group, send the code shown instead.</span></li>
+      </ol>
+      <div data-pair-step="start"><button class="btn btn--secondary" type="button" data-pair-start>{{ ui.icon("link") }}Connect my chat</button></div>
+      <div class="pair-code" data-pair-step="wait" hidden>
+        <span class="t-sm">Send this to your bot:</span>
+        <b class="code" data-pair-command></b>
+        <a class="btn btn--primary btn--sm" data-pair-link href="#" target="_blank" rel="noopener" hidden>{{ ui.icon("send", "i-sm") }}Open Telegram</a>
+        <span class="row t-sm" style="gap:8px"><span class="spinner"></span>Waiting for your message</span>
+      </div>
+      <div class="notice notice--ok" data-pair-step="done" hidden>{{ ui.icon("circle-check-big") }}<span><strong>Connected.</strong> Alerts will arrive in that chat.</span></div>
+      <input type="hidden" name="telegram_id" value="{{ F.telegram_id or '' }}" data-pair-id>
+    </div>
     {{ ui.field_error(E, "telegram") }}
   </div>
-  {% else %}
-  <ol class="steps-list" style="padding-top:6px">
-    <li><span>In Telegram, search for <b>BotFather</b> (it has a blue tick). It's Telegram's official tool for making bots. Send it <span class="code">/newbot</span> and pick any name.</span></li>
-    <li><span>BotFather sends a long code that starts with numbers, then a colon. On the computer running vinted-bot, add it to the settings file as <span class="code">VINTED_BOT_TELEGRAM_BOT_TOKEN=that-code</span> and restart vinted-bot.</span></li>
-    <li><span>Come back here and choose Telegram again: you'll get a button that connects your chat.</span></li>
-  </ol>
-  {{ ui.field_error(E, "telegram") }}
-  {% endif %}
 {% endcall %}
 
 {% call choice("discord", "Discord", "A message in a Discord channel. You need your own server (free, 30 seconds).", "message-circle", kind == "discord") %}

@@ -168,13 +168,15 @@ async def send_test(
     destination: Destination,
     *,
     settings: Settings,
+    telegram_token: str | None,
     tld: str = DEFAULT_SAMPLE_TLD,
     client: httpx.AsyncClient | None = None,
 ) -> TestResult:
     """Send one sample listing through a destination and say plainly how it went.
 
-    `tld` picks the site the sample pretends to be from, which sets its language and
-    currency. `client` lets a caller that already holds a connection pool reuse it.
+    `telegram_token` is the bot's current token (managed.telegram_token). `tld` picks the
+    site the sample pretends to be from, which sets its language and currency. `client`
+    lets a caller that already holds a connection pool reuse it.
     """
     if awaiting_pairing(destination):
         return TestResult(
@@ -187,7 +189,7 @@ async def send_test(
         if client is None:
             client = await stack.enter_async_context(httpx.AsyncClient(timeout=20.0))
         try:
-            sender = build_sender(destination, settings, client)
+            sender = build_sender(destination, settings, client, telegram_token=telegram_token)
         except SenderConfigError as exc:
             return TestResult(
                 ok=False, message="This destination is not set up correctly.", detail=str(exc)

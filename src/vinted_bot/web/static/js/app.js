@@ -839,6 +839,39 @@
   const picked = $("[data-kind-pick]:checked");
   if (picked) $$("[data-preview-for]").forEach((p) => { p.hidden = !p.dataset.previewFor.split(" ").includes(picked.value); });
 
+  /* ── Telegram bot token: checked with Telegram, then kept ── */
+  /* In the add-a-place choice (setup and the Alerts page) a good token swaps the
+   * BotFather steps for the pairing button; on the bot card it reloads the page. */
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-tg-token-save]");
+    if (!b || b.disabled) return;
+    const field = b.closest("[data-tg-token]");
+    const input = $("input", field);
+    $$("[data-field-error]", field).forEach((n) => n.remove());
+    input.removeAttribute("aria-invalid");
+    b.disabled = true;
+    let r;
+    try { r = await post("/destinations/telegram/token", { telegram_token: input.value }); }
+    catch (err) { r = { ok: false, error: "Couldn't reach vinted-bot. Is it still running?" }; }
+    finally { b.disabled = false; }
+    if (!r.ok) {
+      input.setAttribute("aria-invalid", "true");
+      const help = $("[data-tg-token-help]", field); if (help) help.hidden = true;
+      const p = document.createElement("p"); p.className = "help help--error"; p.dataset.fieldError = "";
+      p.innerHTML = icon("circle-alert") + `<span>${esc(r.error || "That didn't work.")}</span>`;
+      field.appendChild(p); input.focus();
+      return;
+    }
+    const choice = b.closest("[data-tg-choice]");
+    if (!choice) { sessionStorage.setItem("vs-after", JSON.stringify({ text: `Saved. vinted-bot now sends through @${r.bot}.` })); location.reload(); return; }
+    input.value = "";
+    const setup = $("[data-tg-setup]", choice); if (setup) setup.hidden = true;
+    $$("[data-tg-bot]", choice).forEach((n) => { n.textContent = r.bot; });
+    const line = $("[data-tg-bot-line] b", choice); if (line) line.textContent = "@" + r.bot;
+    $("[data-pair]", choice).hidden = false;
+    toast(`Found your bot, @${r.bot}. Now connect your chat.`, { ok: true, icon: "send" });
+  });
+
   /* ── Telegram pairing: code, then wait for the bot to claim it ── */
   document.addEventListener("click", async (e) => {
     const b = e.target.closest("[data-pair-start]");

@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from vinted_bot import __version__, app, log
+from vinted_bot import __version__, app, log, managed
 from vinted_bot.config import Settings
 from vinted_bot.db import Database, apply_pending
 from vinted_bot.db import export as exporter
@@ -389,19 +389,20 @@ async def _cmd_destinations(settings: Settings) -> int:
 
 
 async def _cmd_pair_telegram(settings: Settings, args: argparse.Namespace) -> int:
-    if settings.telegram_bot_token is None:
-        print(
-            "Set VINTED_BOT_TELEGRAM_BOT_TOKEN first. Talk to @BotFather on Telegram to "
-            "create a bot and get one.",
-            file=sys.stderr,
-        )
-        return 2
-
     from vinted_bot.botctl.telegram_bot import create_pairing  # noqa: PLC0415
 
     async with Database(settings.db_path) as db:
         await apply_pending(db)
-        _, code = await create_pairing(Repo(db), args.name)
+        repo = Repo(db)
+        if await managed.telegram_token(settings, repo) is None:
+            print(
+                "Add your bot's token first: in the dashboard, Alerts, Add a place, Telegram "
+                "(or set VINTED_BOT_TELEGRAM_BOT_TOKEN). Talk to @BotFather on Telegram to "
+                "create a bot and get one.",
+                file=sys.stderr,
+            )
+            return 2
+        _, code = await create_pairing(repo, args.name)
 
     username = args.bot_username.lstrip("@")
     print("Open this link in Telegram, in the chat or group you want alerts in:\n")

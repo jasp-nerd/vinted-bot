@@ -9,7 +9,9 @@ from typing import Any
 
 import httpx
 import pytest
+from pydantic import SecretStr
 
+from vinted_bot import managed
 from vinted_bot.botctl.telegram_bot import claim_pairing, create_pairing
 from vinted_bot.config import Settings
 from vinted_bot.db.repo import Query, Repo
@@ -313,3 +315,56 @@ async def test_asking_for_a_second_pairing_link_reuses_the_waiting_destination(
     assert len(await repo.list_destinations()) == 1
     assert await claim_pairing(repo, code, chat_id=7, thread_id=None) == first_id
     assert await repo.destination_ids_for_query(query.id) == [first_id]
+
+
+class RecordingEndpoint(FakeEndpoint):
+    def __init__(self) -> None:
+        super().__init__()
+        self.paths: list[str] = []
+
+    def handler(self, request: httpx.Request) -> httpx.Response:
+        self.paths.append(request.url.path)
+        return super().handler(request)
+
+
+async def test_telegram_sends_with_the_token_saved_in_the_dashboard(
+    repo: Repo, settings: Settings
+) -> None:
+    query = await a_search(repo)
+    destination_id = await repo.add_destination(
+        kind="telegram", name="test", config={"chat_id": "123"}
+    )
+    await managed.set_telegram_token(repo, "111111:" + "a" * 35)
+    await repo.record_new_items(query, [listing(1)], [destination_id])
+
+    endpoint = RecordingEndpoint()
+    await make_dispatcher(repo, settings, endpoint).drain()
+
+    assert endpoint.paths[0].startswith("/bot111111:")
+
+
+async def test_a_replaced_token_is_used_from_the_next_send(repo: Repo, settings: Settings) -> None:
+    query = await a_search(repo)
+    destination_id = await repo.add_destination(
+        kind="telegram", name="test", config={"chat_id": "123"}
+    )
+    await managed.set_telegram_token(repo, "111111:" + "a" * 35)
+    endpoint = RecordingEndpoint()
+    dispatcher = make_dispatcher(repo, settings, endpoint)
+    await repo.record_new_items(query, [listing(1)], [destination_id])
+    await dispatcher.drain()
+
+    await managed.set_telegram_token(repo, "222222:" + "b" * 35)
+    await repo.record_new_items(query, [listing(2)], [destination_id])
+    await dispatcher.drain()
+
+    assert endpoint.paths[-1].startswith("/bot222222:")
+
+
+async def test_the_environment_token_wins_over_the_dashboard_one(
+    repo: Repo, settings: Settings
+) -> None:
+    pinned = settings.model_copy(update={"telegram_bot_token": SecretStr("333333:" + "c" * 35)})
+    await managed.set_telegram_token(repo, "111111:" + "a" * 35)
+
+    assert await managed.telegram_token(pinned, repo) == "333333:" + "c" * 35

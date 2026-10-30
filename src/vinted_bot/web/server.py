@@ -79,12 +79,14 @@ def create_app(
     stop: asyncio.Event | None = None,
     http: httpx.AsyncClient | None = None,
     updater: Updater | None = None,
+    telegram_token_changed: asyncio.Event | None = None,
 ) -> FastAPI:
     """The dashboard. `client` enables live previews and the reachability check.
 
     `http` is used for test sends and the Telegram lookup; one is opened with the app
     when not given. `updater` is the running app's; a dashboard on its own gets one that
-    stops only itself.
+    stops only itself. `telegram_token_changed` is set when the bot's token changes, so
+    the running app can restart the bot on it.
     """
     stop = stop or asyncio.Event()
     context = core.WebContext(
@@ -96,6 +98,7 @@ def create_app(
         watch_kinds=watch_kinds,
         stop=stop,
         previews=PreviewService(client) if client is not None else None,
+        telegram_token_changed=telegram_token_changed or asyncio.Event(),
     )
     token = settings.web_auth_token
     allowed_hosts = security.allowed_hosts(settings)
@@ -273,6 +276,7 @@ async def serve(
     client: VintedClient | None = None,
     watch_kinds: frozenset[str] = frozenset(),
     updater: Updater | None = None,
+    telegram_token_changed: asyncio.Event | None = None,
 ) -> None:
     """Run the web UI until the app shuts down."""
     app = create_app(
@@ -283,6 +287,7 @@ async def serve(
         watch_kinds=watch_kinds,
         stop=stop,
         updater=updater,
+        telegram_token_changed=telegram_token_changed,
     )
     config = uvicorn.Config(
         app,

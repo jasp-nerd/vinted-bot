@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from vinted_bot import managed
 from vinted_bot.db.repo import Destination, Query, Repo
 from vinted_bot.engine import health
 from vinted_bot.web import views
@@ -98,6 +99,7 @@ async def destinations(
     queries = queries if queries is not None else await repo.list_queries()
     counts = {row.destination_id: row for row in await repo.delivery_counts()}
     routes = {query.id: await repo.explicit_routes(query.id) for query in queries}
+    telegram_ready = await managed.telegram_token(context.settings, repo) is not None
     found: list[Destination] = await repo.list_destinations()
     cards = []
     for destination in found:
@@ -116,7 +118,7 @@ async def destinations(
                 failed=delivery.failed if delivery else 0,
                 searches=used_by,
                 last_test=await last_test(repo, destination.id),
-                telegram_ready=context.settings.telegram_bot_token is not None,
+                telegram_ready=telegram_ready,
                 tz=tz,
             )
         )

@@ -21,6 +21,7 @@ from typing import Any
 
 import httpx
 
+from vinted_bot import managed
 from vinted_bot.config import Settings
 from vinted_bot.db.repo import Destination, PendingNotification, Repo
 from vinted_bot.deals import DEAL_PCT, STEAL_PCT, TIERS, Tier, deal_percent, tier_for
@@ -133,21 +134,31 @@ def deliver_silently(notification: PendingNotification, routing: Routing) -> boo
     )
 
 
-def build_sender(destination: Destination, settings: Settings, client: httpx.AsyncClient) -> Sender:
-    """The sender for a destination, or SenderConfigError saying what is missing."""
+def build_sender(
+    destination: Destination,
+    settings: Settings,
+    client: httpx.AsyncClient,
+    *,
+    telegram_token: str | None,
+) -> Sender:
+    """The sender for a destination, or SenderConfigError saying what is missing.
+
+    `telegram_token` is the bot's token as it is now (managed.telegram_token): it can be
+    set or changed from the dashboard while the app runs, so it is not read from settings.
+    """
     config: dict[str, Any] = destination.config
     match destination.kind:
         case "discord":
             return DiscordSender(config, dashboard_url=settings.dashboard_url, client=client)
         case "telegram":
-            token = settings.telegram_bot_token
-            if token is None:
+            if telegram_token is None:
                 raise SenderConfigError(
-                    "a Telegram destination exists but VINTED_BOT_TELEGRAM_BOT_TOKEN is not set"
+                    "a Telegram destination exists but no bot token is set; add it on the "
+                    "Alerts page"
                 )
             return TelegramSender(
                 config,
-                bot_token=token.get_secret_value(),
+                bot_token=telegram_token,
                 dashboard_url=settings.dashboard_url,
                 client=client,
             )
@@ -314,15 +325,19 @@ class Dispatcher:
 
     async def _sender_for(self, destination: Destination) -> Sender:
         # Keyed on the settings too: pairing a Telegram chat rewrites them, and a sender
-        # built from the old ones would keep sending nowhere.
-        signature = json.dumps(destination.config, sort_keys=True)
+        # built from the old ones would keep sending nowhere. And on the bot's token,
+        # which the dashboard can replace while this runs.
+        token = None
+        if destination.kind == "telegram":
+            token = await managed.telegram_token(self._settings, self._repo)
+        signature = json.dumps([destination.config, token], sort_keys=True)
         cached = self._senders.get(destination.id)
         if cached is not None and self._signatures.get(destination.id) == signature:
             return cached
         if cached is not None:
             await self._drop_sender(destination.id)
 
-        sender = build_sender(destination, self._settings, self._client)
+        sender = build_sender(destination, self._settings, self._client, telegram_token=token)
         self._senders[destination.id] = sender
         self._signatures[destination.id] = signature
         return sender

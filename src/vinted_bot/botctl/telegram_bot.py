@@ -23,8 +23,9 @@ import contextlib
 import html
 import re
 import secrets
+import sqlite3
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Coroutine
 from dataclasses import dataclass
 from typing import Any, Literal
 from urllib.parse import urlparse
@@ -41,7 +42,8 @@ from aiogram.types import (
     TelegramObject,
 )
 
-from vinted_bot.config import MIN_POLL_INTERVAL_S
+from vinted_bot import managed
+from vinted_bot.config import MIN_POLL_INTERVAL_S, Settings
 from vinted_bot.db.repo import Repo
 from vinted_bot.deliver.labels import labels_for
 from vinted_bot.deliver.telegram import ACTION_PREFIX, BLOCK, HIDE, MUTE
@@ -563,20 +565,104 @@ def build_dispatcher(repo: Repo, *, default_interval_s: int = 60) -> Dispatcher:
 async def run_bot(
     token: str, *, repo: Repo, stop: asyncio.Event, default_interval_s: int = 60
 ) -> None:
-    """Poll Telegram for commands until the app shuts down.
+    """Poll Telegram for commands until `stop` is set, or polling itself gives up.
 
     `default_interval_s` is how often a search added with /add is checked; pass the
-    configured VINTED_BOT_POLL_DEFAULT_INTERVAL_S.
+    configured VINTED_BOT_POLL_DEFAULT_INTERVAL_S. Polling gives up at once on a token
+    Telegram refuses, and that error is raised here rather than at shutdown.
     """
     bot = Bot(token=token)
     dispatcher = build_dispatcher(repo, default_interval_s=default_interval_s)
 
     polling = asyncio.create_task(dispatcher.start_polling(bot, handle_signals=False))
+    stopping = asyncio.create_task(stop.wait())
     try:
-        await stop.wait()
+        await asyncio.wait({polling, stopping}, return_when=asyncio.FIRST_COMPLETED)
     finally:
-        await dispatcher.stop_polling()
+        stopping.cancel()
+        if not polling.done():
+            await dispatcher.stop_polling()
         polling.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await polling
         await bot.session.close()
+
+
+# Runs the bot on one token until the event is set: run_bot with the rest filled in.
+BotRunner = Callable[[str, asyncio.Event], Coroutine[Any, Any, None]]
+
+# How often to look at the token without being told it changed: only matters when the
+# database was locked at the moment the dashboard announced a change.
+RECHECK_TOKEN_S = 30.0
+
+
+async def keep_running(
+    settings: Settings,
+    repo: Repo,
+    *,
+    stop: asyncio.Event,
+    token_changed: asyncio.Event,
+    run: BotRunner | None = None,
+) -> None:
+    """Run the bot on whichever token is set, following it as it changes.
+
+    The token can be added, replaced or removed from the dashboard at any moment. The
+    dashboard sets `token_changed`; this then stops the bot on the old token and starts
+    it on the new one, so pairing works straight after the token is pasted. With no
+    token there is no bot. A bot that stopped by itself (a token Telegram has since
+    revoked) is not restarted on the same token: only a different one would help.
+    """
+
+    async def run_logged(token: str, bot_stop: asyncio.Event) -> None:
+        try:
+            await run_bot(
+                token,
+                repo=repo,
+                stop=bot_stop,
+                default_interval_s=settings.poll_default_interval_s,
+            )
+        except Exception as exc:
+            # The message never holds the token: aiogram puts the method name in it.
+            log.exception("telegram_bot.failed", error=str(exc))
+
+    start = run or run_logged
+    current: str | None = None
+    bot: asyncio.Task[None] | None = None
+    bot_stop = asyncio.Event()
+    try:
+        while not stop.is_set():
+            token_changed.clear()
+            try:
+                token = await managed.telegram_token(settings, repo)
+            except sqlite3.OperationalError as exc:
+                log.warning("telegram_bot.token_unreadable", error=str(exc))
+                token = current
+            if token != current:
+                if bot is not None:
+                    bot_stop.set()
+                    await bot
+                    bot = None
+                    log.info("telegram_bot.stopped")
+                if token is not None:
+                    bot_stop = asyncio.Event()
+                    bot = asyncio.create_task(start(token, bot_stop), name="telegram-bot")
+                    log.info("telegram_bot.started")
+                current = token
+            with contextlib.suppress(TimeoutError):
+                async with asyncio.timeout(RECHECK_TOKEN_S):
+                    await _either(stop, token_changed)
+    finally:
+        if bot is not None:
+            bot_stop.set()
+            await bot
+
+
+async def _either(first: asyncio.Event, second: asyncio.Event) -> None:
+    """Return when either event is set."""
+    waits = [asyncio.create_task(first.wait()), asyncio.create_task(second.wait())]
+    try:
+        await asyncio.wait(waits, return_when=asyncio.FIRST_COMPLETED)
+    finally:
+        for wait in waits:
+            wait.cancel()
+        await asyncio.gather(*waits, return_exceptions=True)
