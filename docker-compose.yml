@@ -7,15 +7,20 @@ services:
     # build: .
     container_name: vinted-bot
     restart: unless-stopped
-    # Optional: everything runs on defaults without one. Grab .env.example if you want
-    # Telegram or any tuning.
-    env_file:
-      - path: .env
-        required: false
     environment:
-      # Times in the dashboard and quiet hours use this. Pick yours from
+      # Times in the dashboard, quiet hours and the log use this. Pick yours from
       # https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
       TZ: Europe/Paris
+      # Everything else runs on defaults. To change a setting, uncomment its line, then
+      # run `docker compose up -d` (a plain restart does not pick up changes). Every
+      # setting is listed in docs/configuration.md. A few you may want:
+      # VINTED_BOT_TELEGRAM_BOT_TOKEN: "123456:your-token-from-BotFather"
+      # A password for the dashboard. Needed before you open it to other devices:
+      # VINTED_BOT_WEB_AUTH_TOKEN: "something-long-and-random"
+      # Where the dashboard is reached from elsewhere; it becomes the link in alerts:
+      # VINTED_BOT_WEB_PUBLIC_URL: "https://finds.example.org"
+      # Extra names the dashboard answers to, besides IP addresses and nas.local-style names:
+      # VINTED_BOT_WEB_ALLOWED_HOSTS: "finds.example.org"
       # Who owns the files in /data. Leave these alone with the named volume below. If you
       # swap it for a folder on your disk, set them to that folder's owner: run `id` on
       # the host to see yours (Unraid: 99 and 100, Synology: usually 1026 and 100).

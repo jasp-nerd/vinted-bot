@@ -22,6 +22,9 @@ if [ "$(id -u)" != "0" ]; then
         echo "vinted-bot: $DATA is not writable by user $(id -u):$(id -g)." >&2
         echo "  Make that folder writable by this user, or start the container as root and" >&2
         echo "  set PUID/PGID so it can fix the ownership itself." >&2
+        # Stop here: starting the app anyway only adds a long traceback under the hint,
+        # on every restart. 73 is EX_CANTCREAT.
+        exit 73
     fi
     exec "$APP" "$@"
 fi
@@ -43,6 +46,12 @@ if [ -d "$DATA" ] && [ -n "$(find "$DATA" -xdev \( ! -user "$PUID" -o ! -group "
         echo "  Some network shares (NFS with root squash, for one) refuse this. Set PUID and" >&2
         echo "  PGID to the user that already owns the folder instead." >&2
     fi
+fi
+# The chown can fail and the folder still be usable (a share writable by everyone), so
+# what decides is whether the app's user can write there, not whether the chown worked.
+if [ -d "$DATA" ] && ! setpriv --reuid="$PUID" --regid="$PGID" --clear-groups -- test -w "$DATA"; then
+    echo "vinted-bot: $DATA is not writable by $PUID:$PGID, so the app can't keep its data." >&2
+    exit 73
 fi
 
 # HOME would otherwise stay /root, which the app's user cannot read. Nothing is meant to
