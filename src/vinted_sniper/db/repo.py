@@ -872,6 +872,26 @@ class Repo:
             (query_id, destination_id),
         )
 
+    async def set_routes(self, query_id: int, destination_ids: Iterable[int]) -> list[int]:
+        """Replace a search's routes in one go; empty means "every destination".
+
+        Ids that name no destination are dropped rather than failing halfway through,
+        which used to leave a search half-routed after a stale form was submitted.
+        Returns the routes as stored.
+        """
+        wanted = sorted(set(destination_ids))
+        async with self._db.transaction() as conn:
+            await conn.execute("DELETE FROM query_destinations WHERE query_id = ?", (query_id,))
+            if wanted:
+                placeholders = ",".join("?" * len(wanted))
+                await conn.execute(
+                    "INSERT INTO query_destinations (query_id, destination_id) "
+                    f"SELECT ?, id FROM destinations WHERE id IN ({placeholders}) "
+                    "AND EXISTS (SELECT 1 FROM queries WHERE id = ?)",
+                    (query_id, *wanted, query_id),
+                )
+        return await self.explicit_routes(query_id)
+
     async def explicit_routes(self, query_id: int) -> list[int]:
         """The destinations someone picked for a search; empty means "all of them"."""
         rows = await self._db.fetch_all(
@@ -1455,6 +1475,35 @@ class Repo:
             (cursor, limit),
         )
         return [_feed_item(row) for row in rows]
+
+    async def feed_item(self, item_id: int) -> FeedItem | None:
+        """One stored listing as the feed shows it, for the dashboard's per-card actions."""
+        row = await self._db.fetch_one(f"{_FEED_SELECT} WHERE i.item_id = ?", (item_id,))
+        return _feed_item(row) if row else None
+
+    async def newest_find_at(self) -> dict[int, int]:
+        """When each search last matched something, for "quiet for five hours"."""
+        rows = await self._db.fetch_all(
+            "SELECT query_id, MAX(first_seen_at) AS newest FROM query_items "
+            "WHERE status = 'matched' GROUP BY query_id"
+        )
+        return {row["query_id"]: row["newest"] for row in rows}
+
+    async def delivery_for_query(self, query_id: int) -> DeliveryCounts:
+        """Sent, failed and waiting alerts for one search, across its destinations."""
+        row = await self._db.fetch_one(
+            "SELECT SUM(status = 'sent') AS sent, SUM(status = 'failed') AS failed, "
+            "SUM(status IN ('pending', 'sending')) AS pending FROM outbox WHERE query_id = ?",
+            (query_id,),
+        )
+        return DeliveryCounts(
+            destination_id=0,
+            name="",
+            kind="",
+            sent=(row["sent"] if row else 0) or 0,
+            failed=(row["failed"] if row else 0) or 0,
+            pending=(row["pending"] if row else 0) or 0,
+        )
 
     async def latest_seq(self) -> int:
         return int(await self._db.fetch_value("SELECT COALESCE(MAX(seq), 0) FROM items") or 0)
