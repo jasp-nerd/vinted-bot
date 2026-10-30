@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="fr" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vinted-sniper : des alertes gratuites pour vos recherches Vinted</title>
+<meta name="description" content="Vinted ne vous prévient pas quand votre recherche trouve du nouveau. vinted-sniper, si : des alertes gratuites et open source sur Discord, Telegram ou votre téléphone, avec le prix que vous paierez vraiment. Tourne sur votre ordinateur, sans connexion à Vinted.">
+<link rel="canonical" href="https://vinted-sniper.jaspnerd.dev/fr/">
+<link rel="alternate" hreflang="en" href="https://vinted-sniper.jaspnerd.dev/">
+<link rel="alternate" hreflang="fr" href="https://vinted-sniper.jaspnerd.dev/fr/">
+<link rel="alternate" hreflang="x-default" href="https://vinted-sniper.jaspnerd.dev/">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101515" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="vinted-sniper">
+<meta property="og:url" content="https://vinted-sniper.jaspnerd.dev/fr/">
+<meta property="og:title" content="Vinted ne vous prévient pas quand votre recherche trouve du nouveau. Lui, si.">
+<meta property="og:description" content="Des alertes gratuites et open source pour vos recherches Vinted, sur Discord, Telegram ou votre téléphone. Tourne sur votre ordinateur, sans connexion à Vinted.">
+<meta property="og:image" content="https://vinted-sniper.jaspnerd.dev/assets/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="vinted-sniper : une annonce Vinted avec son prix frais compris, et Mags la pie qui tient un téléphone avec une nouvelle alerte">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:locale:alternate" content="en_GB">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Vinted ne vous prévient pas quand votre recherche trouve du nouveau. Lui, si.">
+<meta name="twitter:description" content="Des alertes gratuites et open source pour vos recherches Vinted, sur Discord, Telegram ou votre téléphone. Tourne sur votre ordinateur, sans connexion à Vinted.">
+<meta name="twitter:image" content="https://vinted-sniper.jaspnerd.dev/assets/og.jpg">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preload" href="/assets/fonts/Inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/Gabarito-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/css/site.css">
+<script>document.documentElement.classList.replace('no-js', 'js');</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "vinted-sniper",
+  "description": "Application gratuite et open source qui surveille vos recherches Vinted et envoie les nouvelles annonces sur Discord, Telegram, ntfy, par e-mail et ailleurs. Tourne sur votre ordinateur et ne se connecte jamais à Vinted. Sans lien avec Vinted.",
+  "url": "https://vinted-sniper.jaspnerd.dev/fr/",
+  "inLanguage": "fr",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Windows, macOS, Linux, Raspberry Pi OS, Docker",
+  "license": "https://opensource.org/licenses/MIT",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+  "codeRepository": "https://github.com/jasp-nerd/vinted-sniper"
+}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Aller au contenu</a>
+
+<header class="nav" data-nav>
+  <div class="wrap nav__row">
+    <a class="brand" href="/fr/" aria-label="vinted-sniper, accueil">
+      <img src="/assets/img/icon-96.webp" width="34" height="34" alt="">
+      <span>vinted-sniper</span>
+    </a>
+    <nav aria-label="Principal">
+      <ul class="nav__links">
+        <li><a href="#how">Comment ça marche</a></li>
+        <li><a href="#features">Fonctions</a></li>
+        <li><a href="#compare">Gratuit ou payant</a></li>
+        <li><a href="#faq">Questions</a></li>
+      </ul>
+    </nav>
+    <div class="nav__end">
+      <a class="btn btn--ghost nav__gh" href="https://github.com/jasp-nerd/vinted-sniper" aria-label="vinted-sniper sur GitHub"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-github"></use></svg></a>
+      <a class="btn btn--primary btn--sm" href="#install">Installer</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="hero" aria-labelledby="hero-title">
+  <div class="wrap hero__grid">
+    <div class="hero__text">
+      <h1 class="h1" id="hero-title">Vinted ne vous prévient pas quand votre recherche trouve du nouveau. <span>Lui, si.</span></h1>
+      <p class="lead">vinted-sniper surveille vos recherches Vinted et envoie chaque nouvelle annonce sur Discord, Telegram ou votre téléphone, avec le prix que vous paierez vraiment. C'est gratuit, open source, et ça tourne sur votre propre ordinateur.</p>
+      <div class="btn-row">
+        <a class="btn btn--primary btn--lg" href="#install"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-arrow-right"></use></svg>Installer gratuitement</a>
+        <a class="btn btn--secondary btn--lg" href="https://github.com/jasp-nerd/vinted-sniper"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-github"></use></svg>Voir sur GitHub</a>
+      </div>
+      <p class="hero__note">Windows, Mac, Linux, Raspberry Pi, Docker ou un NAS.</p>
+      <ul class="trust" aria-label="En bref">
+        <li><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-check"></use></svg>Aucune connexion à Vinted</li>
+        <li><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-check"></use></svg>Rien à payer, jamais</li>
+        <li><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-check"></use></svg>Aucun pistage</li>
+      </ul>
+    </div>
+
+    <figure class="stage" data-stage>
+      <figcaption class="sr-only">Une démo du tableau de bord : les nouvelles annonces Vinted apparaissent en haut de la grille, et une notification arrive pour chacune.</figcaption>
+      <div class="push" data-push aria-hidden="true">
+        <img class="push__icon" src="/assets/img/icon-96.webp" width="38" height="38" alt="">
+        <div class="push__body">
+          <div class="push__top"><span class="push__app">vinted-sniper</span><span>maintenant</span></div>
+          <div class="push__title" data-push-title>Nouvelle annonce · Levi's à moins de 35 €</div>
+          <div class="push__text" data-push-text>Jean Levi's 501 coupe droite · 23,80 € frais compris · 24 % sous l'habituel</div>
+        </div>
+        <img class="push__thumb" data-push-img src="/assets/img/demo/straight-leg-jeans.webp" width="46" height="58" alt="">
+      </div>
+      <div class="stage__app" aria-hidden="true">
+        <div class="stage__bar">
+          <img src="/assets/img/icon-96.webp" width="24" height="24" alt="">
+          <span class="stage__title">Trouvailles</span>
+          <span class="stage__live"><i class="pulse"></i><span><b>4 recherches</b> <span class="long">surveillées</span></span></span>
+        </div>
+        <div class="mini-grid" data-grid>
+          <div class="mini is-new">
+            <div class="mini__media"><img src="/assets/img/demo/straight-leg-jeans.webp" width="240" height="360" alt=""><div class="mini__flags"><span class="badge badge--new">Nouveau</span><span class="badge badge--deal">24 % sous l'habituel</span></div></div>
+            <div><div class="mini__title">Jean Levi's 501 coupe droite</div><div class="mini__meta">W31 L32 · Très bon état</div><div class="mini__total">23,80 € <small>frais compris</small></div><div class="mini__foot"><span><i class="sdot" style="--sc: var(--s-1)"></i>Levi's à moins de 35 €</span><time>à l'instant</time></div></div>
+          </div>
+          <div class="mini">
+            <div class="mini__media"><img src="/assets/img/demo/wool-coat.webp" width="240" height="360" alt=""><div class="mini__flags"><span class="badge badge--deal">33 % sous l'habituel</span></div></div>
+            <div><div class="mini__title">Long manteau en laine camel</div><div class="mini__meta">Mango · 38 · Très bon état</div><div class="mini__total">47,95 € <small>frais compris</small></div><div class="mini__foot"><span><i class="sdot" style="--sc: var(--s-2)"></i>Manteaux à moins de 60 €</span><time>il y a 4 min</time></div></div>
+          </div>
+          <div class="mini">
+            <div class="mini__media"><img src="/assets/img/demo/vintage-windbreaker.webp" width="240" height="360" alt=""></div>
+            <div><div class="mini__title">Coupe-vent colour block années 90</div><div class="mini__meta">L · Bon état</div><div class="mini__total">20,65 € <small>frais compris</small></div><div class="mini__foot"><span><i class="sdot" style="--sc: var(--s-3)"></i>Vestes à moins de 40 €</span><time>il y a 6 min</time></div></div>
+          </div>
+          <div class="mini">
+            <div class="mini__media"><img src="/assets/img/demo/denim-jacket.webp" width="240" height="360" alt=""></div>
+            <div><div class="mini__title">Veste en jean Levi's</div><div class="mini__meta">M · Bon état</div><div class="mini__total">30,10 € <small>frais compris</small></div><div class="mini__foot"><span><i class="sdot" style="--sc: var(--s-1)"></i>Levi's à moins de 35 €</span><time>il y a 9 min</time></div></div>
+          </div>
+          <div class="mini">
+            <div class="mini__media"><img src="/assets/img/demo/cable-knit-sweater.webp" width="240" height="360" alt=""><div class="mini__flags"><span class="badge badge--deal">27 % sous l'habituel</span></div></div>
+            <div><div class="mini__title">Pull torsadé crème</div><div class="mini__meta">M · Très bon état</div><div class="mini__total">19,60 € <small>frais compris</small></div><div class="mini__foot"><span><i class="sdot" style="--sc: var(--s-2)"></i>Manteaux à moins de 60 €</span><time>il y a 12 min</time></div></div>
+          </div>
+          <div class="mini">
+            <div class="mini__media"><img src="/assets/img/demo/trench-coat.webp" width="240" height="360" alt=""></div>
+            <div><div class="mini__title">Trench beige classique</div><div class="mini__meta">S · Très bon état</div><div class="mini__total">40,60 € <small>frais compris</small></div><div class="mini__foot"><span><i class="sdot" style="--sc: var(--s-2)"></i>Manteaux à moins de 60 €</span><time>il y a 14 min</time></div></div>
+          </div>
+        </div>
+      </div>
+      <img class="stage__mags" src="/assets/img/mags-watch.webp" width="308" height="400" alt="">
+      <div class="stage__ctl" data-stage-ctl hidden>
+        <button type="button" data-stage-toggle aria-pressed="false"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-pause"></use></svg><span>Mettre en pause</span></button>
+      </div>
+    </figure>
+  </div>
+</section>
+
+<section class="section" id="how" aria-labelledby="how-title">
+  <div class="wrap">
+    <div class="head">
+      <h2 class="h2" id="how-title">Réglez-le une fois, puis vivez votre vie</h2>
+      <p class="lead">Vous continuez à chercher sur Vinted comme d'habitude. vinted-sniper continue de chercher une fois l'appli fermée.</p>
+    </div>
+    <ol class="steps">
+      <li class="step">
+        <div class="step__demo" aria-hidden="true">
+          <div class="fake-input"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-link"></use></svg><span>vinted.fr/catalog?search_text=levi's 501&amp;size_ids[]=…</span></div>
+          <div class="read">
+            <span class="pill">vinted.fr</span><span class="pill">levi's 501</span><span class="pill">W31</span><span class="pill">jusqu'à 35 € frais compris</span>
+          </div>
+          <div class="okline"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-circle-check-big"></use></svg>23 annonces correspondent en ce moment</div>
+        </div>
+        <div class="step__text">
+          <p class="step__when">D'abord</p>
+          <h3 class="h3">Collez une recherche Vinted</h3>
+          <p>Cherchez sur Vinted avec vos tailles, marques et prix, puis copiez le lien dans le tableau de bord. Ou créez la recherche directement là, avec les catégories et marques de Vinted.</p>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step__demo" aria-hidden="true">
+          <div class="dest is-on"><span class="dest__icon bg-discord"><svg class="i"><use href="/assets/icons.svg#i-message-circle"></use></svg></span>Discord<span class="dest__tick"><svg class="i"><use href="/assets/icons.svg#i-check"></use></svg></span></div>
+          <div class="dest"><span class="dest__icon bg-telegram"><svg class="i"><use href="/assets/icons.svg#i-send"></use></svg></span>Telegram<span class="dest__tick"></span></div>
+          <div class="dest"><span class="dest__icon bg-ntfy"><svg class="i"><use href="/assets/icons.svg#i-smartphone"></use></svg></span>Notification sur le téléphone<span class="dest__tick"></span></div>
+        </div>
+        <div class="step__text">
+          <p class="step__when">Ensuite</p>
+          <h3 class="h3">Choisissez où vont les alertes</h3>
+          <p>Discord, Telegram, une notification sur votre téléphone, un e-mail ou une centaine d'autres applis. Envoyez d'abord un test pour vérifier que ça arrive.</p>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step__demo" aria-hidden="true">
+          <div class="mini-push"><img src="/assets/img/icon-96.webp" width="34" height="34" alt=""><div><b>Nouvelle annonce · Levi's à moins de 35 €</b><span>Jean Levi's 501 coupe droite · 23,80 €</span></div></div>
+          <div class="mini-push mini-push--faint"><img src="/assets/img/icon-96.webp" width="34" height="34" alt=""><div><b>Nouvelle annonce · Manteaux à moins de 60 €</b><span>Long manteau en laine camel · 47,95 €</span></div></div>
+        </div>
+        <div class="step__text">
+          <p class="step__when">Et ensuite</p>
+          <h3 class="h3">Soyez prévenu des nouvelles annonces</h3>
+          <p>Il vérifie chaque recherche toutes les minutes et n'envoie que ce qui n'y était pas avant. La première vérification reste silencieuse, pour éviter un déluge d'anciennes annonces.</p>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="section" id="alerts" aria-labelledby="alerts-title">
+  <div class="wrap">
+    <div class="head">
+      <h2 class="h2" id="alerts-title">Des alertes qui se lisent d'un coup d'œil</h2>
+      <p class="lead">Le prix que vous paierez passe en premier, protection acheteurs comprise. Un badge signale quand c'est nettement moins cher que d'habitude pour cette recherche. Des boutons mènent droit à l'achat, au vendeur ou à l'annonce.</p>
+    </div>
+    <div class="field field--lilac">
+      <div class="alerts">
+        <div class="alerts__col">
+          <p class="alerts__label"><span class="dest__icon bg-discord" aria-hidden="true"><svg class="i"><use href="/assets/icons.svg#i-message-circle"></use></svg></span>Sur Discord</p>
+          <div class="dc" role="img" aria-label="Un message Discord de vinted-sniper : nouvelle annonce pour la recherche Levi's à moins de 35 € sur vinted.fr, publiée il y a 2 minutes. Jean Levi's 501 coupe droite, délavage moyen, avec trois photos. 23,80 €, bonne affaire, 24 % sous l'habituel. 22,00 € plus la protection acheteurs, habituel environ 31,50 €. Taille W31 L32, très bon état, marque Levi's, vendeur denimdrawer noté 4,9 sur 128 avis. Boutons : Acheter, Contacter, Voir sur Vinted.">
+            <img class="dc__avatar" src="/assets/img/icon-96.webp" width="40" height="40" alt="" loading="lazy">
+            <div>
+              <div class="dc__head"><span class="dc__name">vinted-sniper</span><span class="dc__tag">APP</span><span class="dc__time">Aujourd'hui à 14:02</span></div>
+              <div class="dc__box">
+                <div class="dc__sub">Nouvelle annonce · Levi's à moins de 35 € · <i class="flag"></i> vinted.fr · publié il y a 2 minutes</div>
+                <div class="dc__h3"><a href="#alerts" tabindex="-1">Jean Levi's 501 coupe droite, délavage moyen</a></div>
+                <div class="dc__gallery">
+                  <img src="/assets/img/demo/alert-straight-leg-jeans.webp" width="320" height="480" alt="" loading="lazy">
+                  <img src="/assets/img/demo/alert-straight-leg-jeans-2.webp" width="320" height="480" alt="" loading="lazy">
+                  <img src="/assets/img/demo/alert-straight-leg-jeans-3.webp" width="320" height="480" alt="" loading="lazy">
+                </div>
+                <div>
+                  <div class="dc__price"><b>23,80 €</b><code>Bonne affaire −24% vs habituel</code></div>
+                  <div class="dc__sub">22,00 € + protection acheteurs · habituel ~31,50 €</div>
+                </div>
+                <div class="dc__hr"></div>
+                <div class="dc__facts"><strong>Taille</strong> W31 L32 · <strong>État</strong> Très bon état · <strong>Marque</strong> Levi's<br><strong>Vendeur</strong> <a href="#alerts" tabindex="-1">denimdrawer</a> · <span class="star">★</span> 4.9 (128) · ♥ 7</div>
+                <div class="dc__btns">
+                  <span class="dc__btn">Acheter<svg class="i"><use href="/assets/icons.svg#i-external-link"></use></svg></span>
+                  <span class="dc__btn">Contacter<svg class="i"><use href="/assets/icons.svg#i-external-link"></use></svg></span>
+                  <span class="dc__btn">Voir sur Vinted<svg class="i"><use href="/assets/icons.svg#i-external-link"></use></svg></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="alerts__col">
+          <p class="alerts__label"><span class="dest__icon bg-telegram" aria-hidden="true"><svg class="i"><use href="/assets/icons.svg#i-send"></use></svg></span>Sur Telegram</p>
+          <div class="tg" role="img" aria-label="Un message Telegram avec la photo de l'annonce et une légende : 23,80 €, bonne affaire, 24 % sous l'habituel. Jean Levi's 501 coupe droite, délavage moyen. W31 L32, très bon état, Levi's. Vendeur denimdrawer noté 4,9 sur 128 avis. vinted.fr, il y a 2 minutes. 22,00 € plus la protection acheteurs, habituel environ 31,50 €. Recherche : Levi's à moins de 35 €. Boutons : Acheter, Contacter, Voir sur Vinted.">
+            <div class="tg__bubble">
+              <img class="tg__photo" src="/assets/img/demo/alert-straight-leg-jeans.webp" width="320" height="480" alt="" loading="lazy">
+              <div class="tg__cap">
+                <div><b>23,80 €</b>&nbsp; <i>Bonne affaire −24% vs habituel</i></div>
+                <div><b><a href="#alerts" tabindex="-1">Jean Levi's 501 coupe droite, délavage moyen</a></b></div>
+                <div>W31 L32 · Très bon état · Levi's</div>
+                <div>denimdrawer&nbsp; <span class="star">★</span> 4.9 (128)</div>
+                <div><i class="flag"></i> vinted.fr · il y a 2 minutes</div>
+                <div class="tg__quote">22,00 € + protection acheteurs · habituel ~31,50 €</div>
+                <div><i>Levi's à moins de 35 €</i></div>
+                <span class="tg__time">14:02</span>
+              </div>
+            </div>
+            <div class="tg__kb">
+              <span class="tg__key tg__key--success">Acheter</span><span class="tg__key">Contacter</span>
+              <span class="tg__key tg__key--primary tg__key--wide">Voir sur Vinted</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="alerts__foot">
+        <img class="alerts__mags" src="/assets/img/mags-alert.webp" width="356" height="400" alt="" loading="lazy">
+        <span>Et aussi :</span>
+        <span class="pill"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-smartphone"></use></svg>Notification sur le téléphone avec ntfy</span>
+        <span class="pill"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-mail"></use></svg>E-mail</span>
+        <span class="pill"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-sparkles"></use></svg>Slack, Pushover, Matrix et 100 autres via Apprise</span>
+        <span class="pill"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-link"></use></svg>Webhook JSON signé</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="health" aria-labelledby="health-title">
+  <div class="wrap">
+    <div class="field field--deep health">
+      <div class="health__text">
+        <h2 class="h2" id="health-title">Il vous prévient quand il ne marche plus</h2>
+        <p class="lead">La plupart des outils d'alerte tombent en panne sans rien dire. Vous vous en rendez compte une semaine plus tard, en remarquant que c'est bien calme. vinted-sniper vérifie son propre travail et vous dit, recherche par recherche et en termes simples, quand quelque chose ne va pas et ce qu'il fait pour y remédier.</p>
+        <p class="health__quote">Une recherche calme la nuit, c'est normal. Une recherche qui affiche les mêmes annonces depuis trois heures, non, et vous serez prévenu.</p>
+        <img class="health__mags" src="/assets/img/mags-worried.webp" width="309" height="400" alt="" loading="lazy">
+      </div>
+      <div class="status-card" role="group" aria-label="Exemple : quatre recherches et leur état">
+        <div class="status-card__head"><b>Vos recherches</b><span>Dernière vérification il y a 9 secondes</span></div>
+        <div class="srow" style="--sc: var(--s-1)"><i class="srow__bar"></i><div><div class="srow__name">Levi's à moins de 35 €</div><div class="srow__state"><span class="status status--watching">Surveillée</span><span>Vérifiée il y a 14 secondes. Tout va bien.</span></div></div></div>
+        <div class="srow" style="--sc: var(--s-4)"><i class="srow__bar"></i><div><div class="srow__name">Cirés enfant 98 à 110</div><div class="srow__state"><span class="status status--quiet">Calme</span><span>Aucune nouvelle annonce depuis 5 heures. Normal pour une recherche précise, la nuit.</span></div></div></div>
+        <div class="srow" style="--sc: var(--s-5)"><i class="srow__bar"></i><div><div class="srow__name">Bottines en daim, pointure 38</div><div class="srow__state"><span class="status status--stuck">Bloquée</span><span>La recherche Vinted affiche les mêmes annonces depuis 3 heures. On réessaie toutes les 2 minutes.</span></div></div></div>
+        <div class="srow" style="--sc: var(--s-7)"><i class="srow__bar"></i><div><div class="srow__name">Baskets épaisses, pointure 39</div><div class="srow__state"><span class="status status--blocked">Refusée</span><span>vinted.co.uk a refusé nos 4 dernières vérifications. On attend 8 minutes, puis on réessaie.</span></div></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="features" aria-labelledby="features-title">
+  <div class="wrap">
+    <div class="head">
+      <h2 class="h2" id="features-title">Tout ce qu'il faut, rien qui demande vos identifiants</h2>
+      <p class="lead">Il fait tout, sauf acheter ou écrire à votre place. Pour ça, il faudrait votre compte Vinted, et c'est de là que viennent les suspensions de compte.</p>
+    </div>
+    <ul class="features">
+      <li class="feature"><span class="feature__icon" aria-hidden="true"><svg class="i"><use href="/assets/icons.svg#i-shield-check"></use></svg></span><div><h3>Le prix que vous paierez vraiment</h3><p>Un maximum de 35 € veut dire 35 € protection acheteurs comprise. Le filtre de prix de Vinted ignore ces frais.</p></div></li>
+      <li class="feature"><span class="feature__icon" aria-hidden="true"><svg class="i"><use href="/assets/icons.svg#i-heart-pulse"></use></svg></span><div><h3>Il prévient quand il ne marche plus</h3><p>Chaque recherche indique si elle est surveillée, calme, bloquée ou refusée, et vous recevez un message quand l'une d'elles a besoin d'attention.</p></div></li>
+      <li class="feature"><span class="feature__icon" aria-hidden="true"><svg class="i"><use href="/assets/icons.svg#i-lock"></use></svg></span><div><h3>Pas de compte, rien à suspendre</h3><p>Il lit les annonces publiques anonymement et ne demande jamais vos identifiants Vinted. Il n'y a aucun compte que Vinted pourrait restreindre.</p></div></li>
+      <li class="feature"><span class="feature__icon" aria-hidden="true"><svg class="i"><use href="/assets/icons.svg#i-trending-down"></use></svg></span><div><h3>Badges bonnes affaires</h3><p>Il apprend le prix habituel de chaque recherche et signale les annonces nettement en dessous. Vous pouvez ne recevoir que celles-là.</p></div></li>
+      <li class="feature"><span class="feature__icon" aria-hidden="true"><svg class="i"><use href="/assets/icons.svg#i-filter"></use></svg></span><div><h3>Des filtres que Vinted n'a pas</h3><p>Des mots que le titre doit contenir, avec « ceci ou cela ». Des mots à écarter, comme « pour pièces » ou « boîte seule ». Des expressions régulières, si ça vous parle.</p></div></li>
+      <li class="feature"><span class="feature__icon" aria-hidden="true"><svg class="i"><use href="/assets/icons.svg#i-user-x"></use></svg></span><div><h3>Filtres vendeurs et liste noire</h3><p>Note et nombre d'avis minimum, pays d'envoi, et un bouton pour bloquer le vendeur qui met votre recherche en mot-clé sur toutes ses annonces.</p></div></li>
+      <li class="feature"><span class="feature__icon" aria-hidden="true"><svg class="i"><use href="/assets/icons.svg#i-moon"></use></svg></span><div><h3>Heures calmes</h3><p>Les alertes de la nuit attendent le matin, arrivent sans son, ou sont ignorées. À vous de choisir, recherche par recherche.</p></div></li>
+      <li class="feature"><span class="feature__icon" aria-hidden="true"><svg class="i"><use href="/assets/icons.svg#i-eye"></use></svg></span><div><h3>Baisses de prix et ventes</h3><p>Suivez une annonce pour savoir quand son prix baisse ou qu'elle est vendue. Suivez un vendeur pour savoir quand il publie du nouveau.</p></div></li>
+      <li class="feature"><span class="feature__icon" aria-hidden="true"><svg class="i"><use href="/assets/icons.svg#i-globe"></use></svg></span><div><h3>Tous les pays Vinted</h3><p>Les 27 sites nationaux, de vinted.fr à vinted.co.uk. Une recherche peut couvrir plusieurs pays à la fois.</p></div></li>
+      <li class="feature"><span class="feature__icon" aria-hidden="true"><svg class="i"><use href="/assets/icons.svg#i-send"></use></svg></span><div><h3>Des alertes là où vous êtes déjà</h3><p>Discord, Telegram, ntfy sur votre téléphone, l'e-mail et 100 autres via Apprise. Chaque recherche choisit ses destinations.</p></div></li>
+      <li class="feature"><span class="feature__icon" aria-hidden="true"><svg class="i"><use href="/assets/icons.svg#i-layout-grid"></use></svg></span><div><h3>Un tableau de bord en direct</h3><p>Toutes les trouvailles dans une grille de photos qui se met à jour à chaque arrivée, avec un son si vous voulez. Enregistrez, masquez ou bloquez depuis là.</p></div></li>
+      <li class="feature"><span class="feature__icon" aria-hidden="true"><svg class="i"><use href="/assets/icons.svg#i-circle-help"></use></svg></span><div><h3>« Pourquoi je ne l'ai pas reçue ? »</h3><p>Chaque annonce écartée est gardée un moment, avec la raison : au-dessus de votre prix, un mot exclu, un vendeur mal noté.</p></div></li>
+    </ul>
+  </div>
+</section>
+
+<section class="section" id="screens" aria-labelledby="screens-title">
+  <div class="wrap">
+    <div class="head">
+      <h2 class="h2" id="screens-title">Un tableau de bord qu'on a envie d'ouvrir</h2>
+      <p class="lead">Tout se passe dans votre navigateur, à l'adresse localhost:8000. Pas de fichier de configuration, plus de terminal après l'installation.</p>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Écrans du tableau de bord" data-tabs="screens">
+      <button role="tab" id="tab-finds" aria-controls="panel-finds" aria-selected="true">Trouvailles</button>
+      <button role="tab" id="tab-searches" aria-controls="panel-searches" aria-selected="false" tabindex="-1">Recherches</button>
+      <button role="tab" id="tab-health" aria-controls="panel-health" aria-selected="false" tabindex="-1">État d'une recherche</button>
+      <button role="tab" id="tab-editor" aria-controls="panel-editor" aria-selected="false" tabindex="-1">Éditeur de recherche</button>
+      <button role="tab" id="tab-places" aria-controls="panel-places" aria-selected="false" tabindex="-1">Destinations</button>
+    </div>
+    <div class="screens__panel" role="tabpanel" id="panel-finds" aria-labelledby="tab-finds" tabindex="0">
+      <div class="window">
+        <div class="window__bar" aria-hidden="true"><span class="window__dots"><i></i><i></i><i></i></span><span class="window__url">localhost:8000</span></div>
+        <picture><source media="(max-width: 620px) and (prefers-color-scheme: dark)" srcset="/assets/shots/finds-m-dark.webp" width="780" height="1440"><source media="(max-width: 620px)" srcset="/assets/shots/finds-m.webp" width="780" height="1440"><source media="(prefers-color-scheme: dark)" srcset="/assets/shots/finds-dark.webp"><img src="/assets/shots/finds.webp" width="1280" height="800" loading="lazy" decoding="async" alt="La page Trouvailles (en anglais) : les sept recherches et leur état, puis une grille de photos d'annonces, chacune avec son prix frais compris, la note du vendeur, la recherche d'origine et l'heure de publication."></picture>
+      </div>
+      <p class="screens__cap">Tout ce que vos recherches ont trouvé, du plus récent au plus ancien. Les nouvelles annonces apparaissent pendant que la page est ouverte.</p>
+    </div>
+    <div class="screens__panel" role="tabpanel" id="panel-searches" aria-labelledby="tab-searches" tabindex="0" hidden>
+      <div class="window">
+        <div class="window__bar" aria-hidden="true"><span class="window__dots"><i></i><i></i><i></i></span><span class="window__url">localhost:8000/searches</span></div>
+        <picture><source media="(max-width: 620px)" srcset="/assets/shots/searches-m.webp" width="780" height="1440"><source media="(prefers-color-scheme: dark)" srcset="/assets/shots/searches-dark.webp"><img src="/assets/shots/searches.webp" width="1280" height="800" loading="lazy" decoding="async" alt="La page Recherches (en anglais) : sept recherches avec leurs filtres, leurs destinations, leur fréquence, leur état en termes simples et leurs trouvailles du jour."></picture>
+      </div>
+      <p class="screens__cap">Chaque recherche avec ses filtres, ses destinations et son état.</p>
+    </div>
+    <div class="screens__panel" role="tabpanel" id="panel-health" aria-labelledby="tab-health" tabindex="0" hidden>
+      <div class="window">
+        <div class="window__bar" aria-hidden="true"><span class="window__dots"><i></i><i></i><i></i></span><span class="window__url">localhost:8000/searches/1</span></div>
+        <picture><source media="(max-width: 620px)" srcset="/assets/shots/health-m.webp" width="780" height="1440"><img src="/assets/shots/health.webp" width="1280" height="800" loading="lazy" decoding="async" alt="La page d'une recherche (en anglais) : trouvailles du jour, courbe sur 14 jours, prix habituel frais compris, alertes envoyées, et un onglet santé avec les vérifications du dernier jour et l'historique."></picture>
+      </div>
+      <p class="screens__cap">Une recherche en détail : son prix habituel, ses vérifications du dernier jour et l'historique de ce qui s'est passé.</p>
+    </div>
+    <div class="screens__panel" role="tabpanel" id="panel-editor" aria-labelledby="tab-editor" tabindex="0" hidden>
+      <div class="window">
+        <div class="window__bar" aria-hidden="true"><span class="window__dots"><i></i><i></i><i></i></span><span class="window__url">localhost:8000/searches/1/edit</span></div>
+        <picture><source media="(max-width: 620px) and (prefers-color-scheme: dark)" srcset="/assets/shots/editor-m-dark.webp" width="780" height="1440"><source media="(max-width: 620px)" srcset="/assets/shots/editor-m.webp" width="780" height="1440"><source media="(prefers-color-scheme: dark)" srcset="/assets/shots/editor-dark.webp"><img src="/assets/shots/editor.webp" width="1280" height="800" loading="lazy" decoding="async" alt="L'éditeur de recherche (en anglais) : nom, site Vinted, mots-clés, catégories et mots obligatoires, avec un aperçu indiquant 23 annonces correspondantes et ce que chaque filtre retire."></picture>
+      </div>
+      <p class="screens__cap">Modifiez une recherche et voyez tout de suite ce qu'elle trouverait, et ce que chaque filtre écarte.</p>
+    </div>
+    <div class="screens__panel" role="tabpanel" id="panel-places" aria-labelledby="tab-places" tabindex="0" hidden>
+      <div class="window">
+        <div class="window__bar" aria-hidden="true"><span class="window__dots"><i></i><i></i><i></i></span><span class="window__url">localhost:8000/alerts</span></div>
+        <picture><source media="(max-width: 620px) and (prefers-color-scheme: dark)" srcset="/assets/shots/alerts-m-dark.webp" width="780" height="1440"><source media="(max-width: 620px)" srcset="/assets/shots/alerts-m.webp" width="780" height="1440"><source media="(prefers-color-scheme: dark)" srcset="/assets/shots/alerts-dark.webp"><img src="/assets/shots/alerts.webp" width="1280" height="800" loading="lazy" decoding="async" alt="La page des destinations (en anglais) : e-mail, Discord, Telegram et téléphone, chacun avec son état, des interrupteurs bonnes affaires seulement et sans son, et un bouton de test. La carte e-mail explique simplement pourquoi elle a échoué."></picture>
+      </div>
+      <p class="screens__cap">Chaque destination, si elle fonctionne, et un bouton de test. Quand l'une échoue, elle dit pourquoi.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="compare" aria-labelledby="compare-title">
+  <div class="wrap">
+    <div class="head">
+      <h2 class="h2" id="compare-title">Gratuit, comparé aux bots d'alerte payants</h2>
+      <p class="lead">Les services d'alerte Vinted payants coûtent de 5 à 30 € par mois, et ceux qui achètent pour vous montent jusqu'à 300 €. Voici une comparaison honnête.</p>
+    </div>
+    <div class="compare-wrap">
+      <table class="compare">
+        <thead>
+          <tr><th scope="col"><span class="sr-only">Question</span></th><th scope="col" class="is-us">vinted-sniper</th><th scope="col">Un bot d'alerte payant typique</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">Prix</th><td class="is-us" data-label="vinted-sniper"><svg class="i yes" aria-hidden="true"><use href="/assets/icons.svg#i-check"></use></svg>Gratuit. Pas de formules, pas d'essai.</td><td data-label="Bot payant typique">5 à 30 € par mois. Jusqu'à 300 € avec l'achat automatique.</td></tr>
+          <tr><th scope="row">Vos identifiants Vinted</th><td class="is-us" data-label="vinted-sniper"><svg class="i yes" aria-hidden="true"><use href="/assets/icons.svg#i-check"></use></svg>Jamais demandés</td><td data-label="Bot payant typique">Pas pour les alertes. L'achat et les messages automatiques demandent votre compte, et c'est de là que viennent les restrictions.</td></tr>
+          <tr><th scope="row">Quand ça casse</th><td class="is-us" data-label="vinted-sniper"><svg class="i yes" aria-hidden="true"><use href="/assets/icons.svg#i-check"></use></svg>Il vous le dit, par recherche, en termes simples</td><td data-label="Bot payant typique">En général, vous le remarquez quand c'est trop calme</td></tr>
+          <tr><th scope="row">Filtre de prix</th><td class="is-us" data-label="vinted-sniper"><svg class="i yes" aria-hidden="true"><use href="/assets/icons.svg#i-check"></use></svg>Protection acheteurs comprise</td><td data-label="Bot payant typique">En général, le prix affiché</td></tr>
+          <tr><th scope="row">Rapidité</th><td class="is-us" data-label="vinted-sniper">En général quelques minutes après la mise en ligne</td><td data-label="Bot payant typique">Souvent vendu comme « instantané ». Tous les outils dépendent du moment où Vinted affiche l'annonce dans la recherche.</td></tr>
+          <tr><th scope="row">Où il tourne</th><td class="is-us" data-label="vinted-sniper">Sur votre ordinateur, un Raspberry Pi ou un NAS</td><td data-label="Bot payant typique">Sur leurs serveurs</td></tr>
+          <tr><th scope="row">Code source</th><td class="is-us" data-label="vinted-sniper"><svg class="i yes" aria-hidden="true"><use href="/assets/icons.svg#i-check"></use></svg>Ouvert, licence MIT</td><td data-label="Bot payant typique">Fermé</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="compare-note"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-triangle-alert"></use></svg><span><strong>Là où les bots payants gagnent :</strong> rien à installer, et ils tournent même quand votre ordinateur est éteint. Si ça compte plus pour vous que le prix, c'est un choix honnête.</span></p>
+  </div>
+</section>
+
+<section class="section" id="install" aria-labelledby="install-title">
+  <div class="wrap">
+    <div class="head">
+      <h2 class="h2" id="install-title">Installé en quelques minutes</h2>
+      <p class="lead">Une seule commande l'installe, le lance et ouvre le tableau de bord. Pas de droits administrateur, pas de Docker, rien en dehors de votre dossier utilisateur. Relancez la même commande pour mettre à jour.</p>
+    </div>
+    <div class="install">
+      <div class="tabs" role="tablist" aria-label="Votre ordinateur" data-tabs="os">
+        <button role="tab" id="tab-win" aria-controls="os-win" aria-selected="true" data-os="windows"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-monitor"></use></svg>Windows</button>
+        <button role="tab" id="tab-mac" aria-controls="os-mac" aria-selected="false" tabindex="-1" data-os="mac"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-laptop"></use></svg>Mac</button>
+        <button role="tab" id="tab-linux" aria-controls="os-linux" aria-selected="false" tabindex="-1" data-os="linux"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-server"></use></svg>Linux ou Pi</button>
+        <button role="tab" id="tab-docker" aria-controls="os-docker" aria-selected="false" tabindex="-1" data-os="docker"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-package"></use></svg>Docker</button>
+        <button role="tab" id="tab-nas" aria-controls="os-nas" aria-selected="false" tabindex="-1" data-os="nas"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-server"></use></svg>NAS</button>
+      </div>
+
+      <div class="install__panel" role="tabpanel" id="os-win" aria-labelledby="tab-win" tabindex="0">
+        <ol>
+          <li><p>Ouvrez PowerShell : cliquez sur Démarrer, tapez <strong>PowerShell</strong> et appuyez sur Entrée.</p></li>
+          <li><p>Collez ceci et appuyez sur Entrée :</p>
+            <div class="code"><pre><code>powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.ps1 | iex"</code></pre><button class="copy" type="button" data-copy><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-copy"></use></svg><span>Copy</span></button></div></li>
+          <li><p>Il demande s'il doit démarrer tout seul à l'ouverture de session. Répondez oui, sauf si vous préférez le lancer vous-même.</p></li>
+          <li><p>Votre navigateur ouvre le tableau de bord à l'adresse <strong>http://localhost:8000</strong>. L'appli tourne en arrière-plan, sans fenêtre à garder ouverte.</p></li>
+        </ol>
+        <p class="fine">Gardez le PC éveillé quand il est branché : Paramètres, Système, Alimentation, et mettez la mise en veille sur Jamais.</p>
+        <details class="more"><summary>Mettre à jour ou désinstaller</summary>
+          <p>Pour mettre à jour, relancez la même commande. Pour le désinstaller (vos recherches sont conservées) :</p>
+          <div class="code"><pre><code>powershell -ExecutionPolicy ByPass -c '$env:VINTED_SNIPER_UNINSTALL=1; irm https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.ps1 | iex'</code></pre><button class="copy" type="button" data-copy><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-copy"></use></svg><span>Copy</span></button></div>
+        </details>
+      </div>
+
+      <div class="install__panel" role="tabpanel" id="os-mac" aria-labelledby="tab-mac" tabindex="0" hidden>
+        <ol>
+          <li><p>Ouvrez le Terminal : appuyez sur <strong>Cmd+Espace</strong>, tapez <strong>Terminal</strong> et appuyez sur Entrée.</p></li>
+          <li><p>Collez ceci et appuyez sur Entrée :</p>
+            <div class="code"><pre><code>curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.sh | sh</code></pre><button class="copy" type="button" data-copy><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-copy"></use></svg><span>Copy</span></button></div></li>
+          <li><p>Il demande s'il doit garder votre Mac éveillé quand il est branché, et s'il doit démarrer à l'ouverture de session. Oui aux deux, pour des alertes fiables. macOS affiche ensuite « Éléments d'arrière-plan ajoutés ». C'est normal.</p></li>
+          <li><p>Votre navigateur ouvre le tableau de bord à l'adresse <strong>http://localhost:8000</strong>.</p></li>
+        </ol>
+        <details class="more"><summary>Mettre à jour ou désinstaller</summary>
+          <p>Pour mettre à jour, relancez la même commande. Pour le désinstaller (vos recherches sont conservées) :</p>
+          <div class="code"><pre><code>curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.sh | sh -s -- --uninstall</code></pre><button class="copy" type="button" data-copy><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-copy"></use></svg><span>Copy</span></button></div>
+        </details>
+      </div>
+
+      <div class="install__panel" role="tabpanel" id="os-linux" aria-labelledby="tab-linux" tabindex="0" hidden>
+        <ol>
+          <li><p>Dans un terminal, lancez ceci. Sur un Raspberry Pi, utilisez Raspberry Pi OS 64 bits.</p>
+            <div class="code"><pre><code>curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.sh | sh</code></pre><button class="copy" type="button" data-copy><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-copy"></use></svg><span>Copy</span></button></div></li>
+          <li><p>Acceptez le démarrage à l'ouverture de session. Pour qu'il tourne sans personne de connecté (pratique sur un Pi), l'installeur peut vous demander de lancer :</p>
+            <div class="code"><pre><code>sudo loginctl enable-linger $USER</code></pre><button class="copy" type="button" data-copy><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-copy"></use></svg><span>Copy</span></button></div></li>
+          <li><p>Ouvrez <strong>http://localhost:8000</strong>. Un Pi sans écran ? Lancez ceci sur votre ordinateur, puis ouvrez la même adresse dessus (avec l'utilisateur et le nom de votre Pi) :</p>
+            <div class="code"><pre><code>ssh -L 8000:localhost:8000 pi@raspberrypi.local</code></pre><button class="copy" type="button" data-copy><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-copy"></use></svg><span>Copy</span></button></div></li>
+        </ol>
+        <details class="more"><summary>Mettre à jour ou désinstaller</summary>
+          <p>Pour mettre à jour, relancez la même commande. Pour le désinstaller (vos recherches sont conservées) :</p>
+          <div class="code"><pre><code>curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.sh | sh -s -- --uninstall</code></pre><button class="copy" type="button" data-copy><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-copy"></use></svg><span>Copy</span></button></div>
+        </details>
+      </div>
+
+      <div class="install__panel" role="tabpanel" id="os-docker" aria-labelledby="tab-docker" tabindex="0" hidden>
+        <ol>
+          <li><p>Dans un terminal, sur n'importe quel ordinateur qui a déjà Docker :</p>
+            <div class="code"><pre><code>mkdir vinted-sniper &amp;&amp; cd vinted-sniper
+curl -O https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docker-compose.yml
+docker compose up -d</code></pre><button class="copy" type="button" data-copy><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-copy"></use></svg><span>Copy</span></button></div></li>
+          <li><p>Ouvrez <strong>http://localhost:8000</strong> sur cet ordinateur.</p></li>
+        </ol>
+        <p class="fine">Dans Windows PowerShell, téléchargez le fichier avec <code>Invoke-WebRequest https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docker-compose.yml -OutFile docker-compose.yml</code> plutôt qu'avec curl. Pour mettre à jour : <code>docker compose pull &amp;&amp; docker compose up -d</code>. L'image est <code>ghcr.io/jasp-nerd/vinted-sniper</code>.</p>
+      </div>
+
+      <div class="install__panel" role="tabpanel" id="os-nas" aria-labelledby="tab-nas" tabindex="0" hidden>
+        <ol>
+          <li><p><strong>Unraid :</strong> Apps (Community Applications), cherchez vinted-sniper.</p></li>
+          <li><p><strong>Umbrel :</strong> ajoutez le store communautaire indiqué dans le <a href="https://github.com/jasp-nerd/vinted-sniper/blob/main/deploy/README.md">guide de déploiement</a> (en anglais).</p></li>
+          <li><p><strong>CasaOS ou ZimaOS :</strong> App Store, Custom Install, et importez ce fichier :</p>
+            <div class="code"><pre><code>https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/deploy/casaos/docker-compose.yml</code></pre><button class="copy" type="button" data-copy><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-copy"></use></svg><span>Copy</span></button></div></li>
+          <li><p><strong>Synology (DSM 7.2 ou plus récent) :</strong> Container Manager, Projet, Créer, et collez le <a href="https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docker-compose.yml">docker-compose.yml</a>.</p></li>
+        </ol>
+        <p class="fine">Sur un NAS, le tableau de bord est accessible depuis tout votre réseau domestique : définissez un mot de passe (<code>VINTED_SNIPER_WEB_AUTH_TOKEN</code>) dans les réglages de l'appli sur le NAS.</p>
+      </div>
+
+      <div class="install__aside">
+        <div class="text">
+          <h3 class="h3">Il envoie des alertes tant que cet ordinateur est allumé</h3>
+          <p>Un portable en veille n'envoie rien pendant sa veille. Votre téléphone ne fait que recevoir les alertes. Pour des alertes jour et nuit, utilisez un Raspberry Pi, un NAS, ou un vieux portable laissé branché.</p>
+          <p class="fine">Vous préférez lire un script avant de le lancer ? Voici <a href="/install.sh">install.sh</a> et <a href="/install.ps1">install.ps1</a>, ou le <a href="https://github.com/jasp-nerd/vinted-sniper">code source sur GitHub</a>.</p>
+        </div>
+        <img src="/assets/img/mags-sleep.webp" width="420" height="240" alt="" loading="lazy">
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="ai" aria-labelledby="ai-title">
+  <div class="wrap">
+    <div class="field field--sun ai">
+      <div class="ai__text">
+        <h2 class="h2" id="ai-title">Laissez une IA vous guider</h2>
+        <p class="lead" style="color: var(--field-ink)">Jamais utilisé de terminal ? Collez ceci dans Claude ou ChatGPT. L'IA lit le guide d'installation et vous accompagne, une petite étape à la fois.</p>
+        <img class="ai__mags" src="/assets/img/mags-think.webp" width="297" height="400" alt="" loading="lazy">
+      </div>
+      <div>
+        <div class="prompt">
+          <pre id="ai-prompt" tabindex="0" aria-label="Le message à coller">Aide-moi à installer et configurer vinted-sniper, une application gratuite et open source qui surveille mes recherches Vinted et m'envoie un message sur Discord ou Telegram quand une nouvelle annonce correspond.
+
+Lis d'abord son guide d'installation : https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/llms.txt
+Si tu ne peux pas ouvrir de liens, dis-le-moi et je le collerai.
+
+Comment j'aimerais que tu m'aides :
+- Je ne suis pas technicien. Commence par me demander quel ordinateur j'ai et s'il reste allumé.
+- Donne-moi une petite étape à la fois. Dis-moi exactement où cliquer ou quoi coller, et ce que je devrais voir ensuite. Attends que je te dise que ça a marché avant l'étape suivante.
+- Utilise uniquement les commandes du guide. N'invente ni commandes ni réglages.
+- Ne me demande jamais de coller mon lien de webhook Discord, mon jeton Telegram ou un mot de passe dans cette conversation. Dis-moi plutôt où les mettre dans l'application.
+- Si quelque chose ne marche pas, demande-moi le message d'erreur exact, puis aide-moi avec la partie dépannage du guide.
+
+Une fois l'installation terminée, aide-moi à ajouter ma première recherche Vinted et à vérifier qu'une alerte de test arrive. Réponds-moi en français.</pre>
+          <div class="prompt__foot">
+            <button class="copy" type="button" data-copy="#ai-prompt"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-copy"></use></svg><span>Copier le message</span></button>
+            <a class="btn btn--secondary" href="https://claude.ai/new?q=Aide-moi%20%C3%A0%20installer%20et%20configurer%20vinted-sniper%2C%20une%20application%20gratuite%20et%20open%20source%20qui%20surveille%20mes%20recherches%20Vinted%20et%20m%27envoie%20un%20message%20sur%20Discord%20ou%20Telegram%20quand%20une%20nouvelle%20annonce%20correspond.%0A%0ALis%20d%27abord%20son%20guide%20d%27installation%20%3A%20https%3A%2F%2Fraw.githubusercontent.com%2Fjasp-nerd%2Fvinted-sniper%2Fmain%2Fllms.txt%0ASi%20tu%20ne%20peux%20pas%20ouvrir%20de%20liens%2C%20dis-le-moi%20et%20je%20le%20collerai.%0A%0AComment%20j%27aimerais%20que%20tu%20m%27aides%20%3A%0A-%20Je%20ne%20suis%20pas%20technicien.%20Commence%20par%20me%20demander%20quel%20ordinateur%20j%27ai%20et%20s%27il%20reste%20allum%C3%A9.%0A-%20Donne-moi%20une%20petite%20%C3%A9tape%20%C3%A0%20la%20fois.%20Dis-moi%20exactement%20o%C3%B9%20cliquer%20ou%20quoi%20coller%2C%20et%20ce%20que%20je%20devrais%20voir%20ensuite.%20Attends%20que%20je%20te%20dise%20que%20%C3%A7a%20a%20march%C3%A9%20avant%20l%27%C3%A9tape%20suivante.%0A-%20Utilise%20uniquement%20les%20commandes%20du%20guide.%20N%27invente%20ni%20commandes%20ni%20r%C3%A9glages.%0A-%20Ne%20me%20demande%20jamais%20de%20coller%20mon%20lien%20de%20webhook%20Discord%2C%20mon%20jeton%20Telegram%20ou%20un%20mot%20de%20passe%20dans%20cette%20conversation.%20Dis-moi%20plut%C3%B4t%20o%C3%B9%20les%20mettre%20dans%20l%27application.%0A-%20Si%20quelque%20chose%20ne%20marche%20pas%2C%20demande-moi%20le%20message%20d%27erreur%20exact%2C%20puis%20aide-moi%20avec%20la%20partie%20d%C3%A9pannage%20du%20guide.%0A%0AUne%20fois%20l%27installation%20termin%C3%A9e%2C%20aide-moi%20%C3%A0%20ajouter%20ma%20premi%C3%A8re%20recherche%20Vinted%20et%20%C3%A0%20v%C3%A9rifier%20qu%27une%20alerte%20de%20test%20arrive.%20R%C3%A9ponds-moi%20en%20fran%C3%A7ais." rel="noopener"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-external-link"></use></svg>Ouvrir dans Claude</a>
+            <a class="btn btn--secondary" href="https://chatgpt.com/?q=Aide-moi%20%C3%A0%20installer%20et%20configurer%20vinted-sniper%2C%20une%20application%20gratuite%20et%20open%20source%20qui%20surveille%20mes%20recherches%20Vinted%20et%20m%27envoie%20un%20message%20sur%20Discord%20ou%20Telegram%20quand%20une%20nouvelle%20annonce%20correspond.%0A%0ALis%20d%27abord%20son%20guide%20d%27installation%20%3A%20https%3A%2F%2Fraw.githubusercontent.com%2Fjasp-nerd%2Fvinted-sniper%2Fmain%2Fllms.txt%0ASi%20tu%20ne%20peux%20pas%20ouvrir%20de%20liens%2C%20dis-le-moi%20et%20je%20le%20collerai.%0A%0AComment%20j%27aimerais%20que%20tu%20m%27aides%20%3A%0A-%20Je%20ne%20suis%20pas%20technicien.%20Commence%20par%20me%20demander%20quel%20ordinateur%20j%27ai%20et%20s%27il%20reste%20allum%C3%A9.%0A-%20Donne-moi%20une%20petite%20%C3%A9tape%20%C3%A0%20la%20fois.%20Dis-moi%20exactement%20o%C3%B9%20cliquer%20ou%20quoi%20coller%2C%20et%20ce%20que%20je%20devrais%20voir%20ensuite.%20Attends%20que%20je%20te%20dise%20que%20%C3%A7a%20a%20march%C3%A9%20avant%20l%27%C3%A9tape%20suivante.%0A-%20Utilise%20uniquement%20les%20commandes%20du%20guide.%20N%27invente%20ni%20commandes%20ni%20r%C3%A9glages.%0A-%20Ne%20me%20demande%20jamais%20de%20coller%20mon%20lien%20de%20webhook%20Discord%2C%20mon%20jeton%20Telegram%20ou%20un%20mot%20de%20passe%20dans%20cette%20conversation.%20Dis-moi%20plut%C3%B4t%20o%C3%B9%20les%20mettre%20dans%20l%27application.%0A-%20Si%20quelque%20chose%20ne%20marche%20pas%2C%20demande-moi%20le%20message%20d%27erreur%20exact%2C%20puis%20aide-moi%20avec%20la%20partie%20d%C3%A9pannage%20du%20guide.%0A%0AUne%20fois%20l%27installation%20termin%C3%A9e%2C%20aide-moi%20%C3%A0%20ajouter%20ma%20premi%C3%A8re%20recherche%20Vinted%20et%20%C3%A0%20v%C3%A9rifier%20qu%27une%20alerte%20de%20test%20arrive.%20R%C3%A9ponds-moi%20en%20fran%C3%A7ais." rel="noopener"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-external-link"></use></svg>Ouvrir dans ChatGPT</a>
+          </div>
+        </div>
+        <p class="ai__fine">L'appli n'a jamais besoin de votre lien Discord ou de votre jeton Telegram dans une conversation. Si un assistant vous les demande, ne les collez pas.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="faq" aria-labelledby="faq-title">
+  <div class="wrap faq">
+    <div class="head">
+      <h2 class="h2" id="faq-title">Les questions qu'on nous pose</h2>
+      <p class="lead">Autre chose ? <a href="https://github.com/jasp-nerd/vinted-sniper/issues">Demandez sur GitHub</a>.</p>
+    </div>
+    <div class="faq__list">
+      <details open>
+        <summary>Vinted va-t-il me bannir ?<svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-chevron-down"></use></svg></summary>
+        <div class="faq__body">
+          <p><strong>Votre compte, non : il n'est pas concerné.</strong> vinted-sniper lit les annonces publiques anonymement. Il ne se connecte jamais et ne demande jamais vos identifiants Vinted, donc il n'y a aucun compte que Vinted pourrait restreindre.</p>
+          <p>Ce que Vinted peut faire, c'est cesser de répondre à votre connexion internet (votre adresse IP) pendant un moment s'il voit trop de requêtes. C'est temporaire. Par défaut, c'est une vérification par minute et par recherche, et vinted-sniper ralentit de lui-même quand Vinted le demande.</p>
+        </div>
+      </details>
+      <details>
+        <summary>C'est vraiment gratuit ?<svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-chevron-down"></use></svg></summary>
+        <div class="faq__body">
+          <p>Oui. C'est open source sous licence MIT, sans formule payante, sans compte et sans publicité. Il tourne sur votre propre ordinateur, donc il n'y a aucun serveur à payer.</p>
+          <p>Si vous préférez ne pas laisser d'ordinateur allumé, un petit serveur loué coûte quelques euros par mois. Cet argent va à l'hébergeur, pas à ce projet.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Dois-je laisser mon ordinateur allumé ?<svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-chevron-down"></use></svg></summary>
+        <div class="faq__body">
+          <p>Oui. Les alertes n'arrivent que si l'ordinateur qui le fait tourner est allumé, éveillé et connecté. Un portable en veille n'envoie rien. L'installeur Mac peut garder un Mac branché éveillé pour vous.</p>
+          <p>Pour des alertes jour et nuit, faites-le tourner sur un Raspberry Pi, un NAS ou un vieux portable laissé branché. Votre téléphone, lui, reçoit simplement les alertes.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Pourquoi ce n'est pas instantané ?<svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-chevron-down"></use></svg></summary>
+        <div class="faq__body">
+          <p>Vinted affiche les nouvelles annonces dans sa recherche quelques minutes après leur publication, donc tous les outils, payants ou gratuits, les voient avec un peu de retard. vinted-sniper vérifie toutes les minutes par défaut et vous prévient en général quelques minutes après la mise en ligne.</p>
+          <p>C'est assez rapide pour les collectionneurs, les chasseurs de tailles et la plupart des bonnes affaires. Si vous êtes en course contre des bots d'achat automatique pour des consoles bradées, aucune alerte ne gagnera, et on préfère le dire.</p>
+        </div>
+      </details>
+      <details>
+        <summary>C'est légal ? C'est autorisé ?<svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-chevron-down"></use></svg></summary>
+        <div class="faq__body">
+          <p>Les conditions de Vinted interdisent l'accès automatisé. C'est un contrat entre vous et Vinted, pas une loi : ne pas le respecter n'est pas un délit, mais cela donne à Vinted le droit de ne plus vous servir. Dans l'UE, lire des pages accessibles publiquement n'est pas illégal en soi.</p>
+          <p>Cet outil lit les annonces publiques anonymement, sans se presser, et n'achète, ne publie et n'écrit jamais à votre place. Le faire tourner, c'est votre choix. Si Vinted vous demande d'arrêter, arrêtez. Plus de détails dans les <a href="https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/legal.md">notes sur les règles et les risques</a> (en anglais). Ceci n'est pas un conseil juridique.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Peut-il acheter ou écrire aux vendeurs à ma place ?<svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-chevron-down"></use></svg></summary>
+        <div class="faq__body">
+          <p>Non, et ça ne changera pas. Acheter demande un compte Vinted connecté, et c'est de là que viennent les restrictions de compte. Chaque alerte a un bouton Acheter : c'est vous qui appuyez.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Que deviennent mes données ?<svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-chevron-down"></use></svg></summary>
+        <div class="faq__body">
+          <p>Elles restent dans un fichier sur votre ordinateur. vinted-sniper ne garde que ce dont une alerte a besoin et supprime les annonces au bout de 30 jours. Il n'envoie rien nulle part, à part les alertes que vous avez réglées et une vérification quotidienne des nouvelles versions, que vous pouvez couper. Ce site n'a ni pisteurs ni cookies non plus.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Dans quels pays ça marche ?<svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-chevron-down"></use></svg></summary>
+        <div class="faq__body">
+          <p>Sur les 27 sites nationaux de Vinted, dont vinted.fr, .be, .de, .nl, .es, .it, .pl et .co.uk. Les prix sont dans la devise du site, et les alertes utilisent sa langue pour leurs quelques mots fixes.</p>
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="closer-title">
+  <div class="wrap">
+    <div class="field field--teal closer">
+      <div class="closer__text">
+        <h2 class="h2" id="closer-title">Commencez par une recherche</h2>
+        <p class="lead" style="color: var(--field-ink)">Celle que vous vérifiez sans arrêt à la main. Laissez vinted-sniper s'en charger.</p>
+        <div class="btn-row">
+          <a class="btn btn--primary btn--lg" href="#install">Installer gratuitement</a>
+          <a class="btn btn--secondary btn--lg" href="https://github.com/jasp-nerd/vinted-sniper"><svg class="i" aria-hidden="true"><use href="/assets/icons.svg#i-github"></use></svg>Voir sur GitHub</a>
+        </div>
+      </div>
+      <img src="/assets/img/mags-cheer.webp" width="346" height="400" alt="" loading="lazy">
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer__grid">
+    <div class="footer__legal">
+      <a class="brand" href="/fr/"><img src="/assets/img/icon-96.webp" width="34" height="34" alt=""><span>vinted-sniper</span></a>
+      <p>Outil open source indépendant. Sans affiliation, soutien ni lien avec Vinted. Vinted est une marque de son propriétaire.</p>
+      <p>Licence MIT. Créé par <a href="https://github.com/jasp-nerd">jasp-nerd</a>. Les photos et noms d'annonces de cette page sont inventés.</p>
+    </div>
+    <div>
+      <h2>Projet</h2>
+      <ul>
+        <li><a href="https://github.com/jasp-nerd/vinted-sniper">Code source</a></li>
+        <li><a href="https://github.com/jasp-nerd/vinted-sniper/releases">Versions</a></li>
+        <li><a href="https://github.com/jasp-nerd/vinted-sniper/issues">Signaler un problème</a></li>
+        <li><a href="/llms.txt">Guide pour les assistants IA</a></li>
+      </ul>
+    </div>
+    <div>
+      <h2>Aide (en anglais)</h2>
+      <ul>
+        <li><a href="https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/troubleshooting.md">Dépannage</a></li>
+        <li><a href="https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/self-hosting.md">Le faire tourner en continu</a></li>
+        <li><a href="https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/legal.md">Règles et risques</a></li>
+        <li><a href="/" hreflang="en" lang="en">English</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+
+<script src="/assets/js/site.js" defer></script>
+</body>
+</html>
