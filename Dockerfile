@@ -1,5 +1,7 @@
 # Build stage: resolve and install dependencies into a self-contained virtualenv.
-FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim AS build
+# Both base images are pinned by digest so a rebuild of the same commit gets the same bytes;
+# Dependabot moves the digests forward weekly.
+FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim@sha256:e586c1c65b7071aec78f02c5587c76c5011159cd76b3d6f1255f40e48e850abc AS build
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -21,22 +23,36 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 
 # Runtime stage: the virtualenv and the code, nothing else.
-FROM python:3.13-slim-trixie
+FROM python:3.13-slim-trixie@sha256:2d44738ebf4ce5f63b9d9ea871e9c7cfdc0426f7b0c97cac915fd88ded1d86bb
+
+# Static so a local build carries them too; the publish workflow adds version and revision.
+LABEL org.opencontainers.image.title="vinted-sniper" \
+      org.opencontainers.image.description="Watch Vinted searches and get a message when a new listing matches." \
+      org.opencontainers.image.source="https://github.com/jasp-nerd/vinted-sniper" \
+      org.opencontainers.image.url="https://github.com/jasp-nerd/vinted-sniper" \
+      org.opencontainers.image.documentation="https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/self-hosting.md" \
+      org.opencontainers.image.licenses="MIT"
 
 # curl is here for the health check and for the connection test in the troubleshooting
 # guide, which is the first thing anyone reaches for when listings stop arriving.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/* \
-    && useradd --system --create-home --uid 10001 sniper
+    && groupadd --system --gid 10001 sniper \
+    && useradd --system --create-home --uid 10001 --gid 10001 sniper
 
 WORKDIR /app
 COPY --from=build --chown=sniper:sniper /app/.venv /app/.venv
 COPY --from=build --chown=sniper:sniper /app/src /app/src
 
+# The privilege-dropping wrapper from docker/entrypoint.sh. It sits ahead of the real
+# command on PATH, so the health check and `docker compose exec ... vinted-sniper status`
+# also run as the app's user rather than as root.
+COPY --chmod=755 docker/entrypoint.sh /app/bin/vinted-sniper
+
 # The web host is 0.0.0.0 *inside the container* so the published port can reach it;
 # docker-compose.yml maps it to the host's localhost only.
-ENV PATH="/app/.venv/bin:$PATH" \
+ENV PATH="/app/bin:/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     VINTED_SNIPER_DB_PATH=/data/app.db \
     VINTED_SNIPER_LOG_FORMAT=json \
@@ -44,7 +60,10 @@ ENV PATH="/app/.venv/bin:$PATH" \
 
 RUN mkdir -p /data && chown sniper:sniper /data
 VOLUME ["/data"]
-USER sniper
+
+# No USER line on purpose: the container starts as root only long enough for the wrapper
+# to hand /data to PUID:PGID (default 10001, the `sniper` user), then the app runs as that
+# user. Anyone who wants no root at all can set `user: "10001:10001"` instead.
 
 EXPOSE 8000
 

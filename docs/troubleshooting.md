@@ -1,7 +1,22 @@
 # When it stops finding things
 
-Start here: `vinted-sniper status`. It prints every search with a one-word state, when it
-last succeeded, and what went wrong if anything did.
+## First: are you on the newest version?
+
+Vinted moved its search to a new address in September 2026. Versions before 2.0.0 still ask
+the old one and find nothing, or report errors such as a 404 or "malformed" on every search.
+No setting fixes that; [updating](self-hosting.md#updating) does.
+
+Check the version you run with `vinted-sniper --version` (Docker:
+`docker compose exec vinted-sniper vinted-sniper --version`). The dashboard also says when a
+newer version is out.
+
+## Then: how is each search doing?
+
+The dashboard shows the state of every search. <!-- TODO(web): name the exact page and
+badge wording once the dashboard redesign settles. --> On the command line,
+`vinted-sniper status` prints the same: each search with a one-word state, when it last
+succeeded, and what went wrong if anything did. With Docker, put
+`docker compose exec vinted-sniper` in front of any `vinted-sniper` command.
 
 ```
 Running.
@@ -17,6 +32,38 @@ carhartt jacket [failing] — vinted.co.uk
 ```
 
 The state tells you which of the following sections to read.
+
+## Vinted reachable from this machine
+
+Most "it finds nothing" reports come down to one question: does Vinted answer the computer
+vinted-sniper runs on? <!-- TODO(web): describe the dashboard's reachability indicator here
+(where it is, what "yes" and "no" look like). --> To test it by hand, try one search once:
+
+```bash
+vinted-sniper check --url "https://www.vinted.fr/catalog?search_text=nike"
+```
+
+Listings printed means the connection works. "Blocked" means Vinted is refusing this
+address. To confirm without vinted-sniper at all, ask Vinted for a session cookie, using the
+country site you watch:
+
+```bash
+# macOS, Linux, Raspberry Pi
+curl -s -c - -L "https://www.vinted.fr/" | grep access_token_web
+
+# Windows (PowerShell)
+curl.exe -s -c - -L "https://www.vinted.fr/" | Select-String access_token_web
+
+# Docker
+docker compose exec vinted-sniper sh -c 'curl -s -c - -L "https://www.vinted.fr/" | grep access_token_web'
+```
+
+**A line with `access_token_web` in it** means your address is fine. If searches still fail,
+the problem is in the app: please [open an issue](https://github.com/jasp-nerd/vinted-sniper/issues/new/choose)
+with the output of `vinted-sniper status` and the log.
+
+**Nothing printed** means Vinted is challenging this address, and no setting inside
+vinted-sniper changes that. See [the 403 section](#failing-with-403) for what does.
 
 ## "ok" but nothing is arriving
 
@@ -43,11 +90,8 @@ still finding them. Vinted sometimes serves a catalog that has quietly stopped u
 which looks like success from the outside.
 
 The app starts a fresh session on its own when it notices. If it stays stale for more than
-an hour, restart it:
-
-```bash
-docker compose restart vinted-sniper
-```
+an hour, restart it: run the install command again if you used the installer, or
+`docker compose restart vinted-sniper` with Docker.
 
 If it persists after that, the search may have genuinely dried up. Compare with the same URL
 in a browser.
@@ -55,19 +99,11 @@ in a browser.
 ## "failing" with 403
 
 Vinted is refusing the connection. Almost always this is about where the request comes from,
-not what it asked for. Confirm it in one command:
+not what it asked for. Confirm it with the
+[reachability check](#vinted-reachable-from-this-machine).
 
-```bash
-curl -v -c - -L "https://www.vinted.fr/" 2>&1 | grep access_token_web
-```
-
-Use whichever country site you are watching.
-
-**If that prints a cookie line**, your address is fine and the problem is the app — please
-open an issue with your logs.
-
-**If it prints nothing**, your address is being challenged, and no setting will fix that.
-Options, cheapest first:
+If the check passes, your address is fine and the problem is the app: please open an issue
+with your logs. If it fails, your address is being challenged. Options, cheapest first:
 
 1. **Wait.** These are usually temporary. The app backs off on its own.
 2. **Slow down.** Raise `VINTED_SNIPER_POLL_DEFAULT_INTERVAL_S` to 120 or 300. Ten searches
@@ -90,9 +126,11 @@ listings will still be there.
 
 ## "failing" with malformed
 
-Vinted answered with something that is not a catalog. That usually means either an anti-bot
-interstitial (see the 403 section) or a change to their API, which needs a fix here. Worth
-opening an issue with the logged error.
+Vinted answered with something that is not a catalog. That usually means one of three
+things: a version from before September 2026's API move ([update](self-hosting.md#updating)),
+an anti-bot page instead of an answer (see the 403 section), or a new change on Vinted's
+side, which needs a fix here. If you are on the newest version, please open an issue with the
+logged error.
 
 ## Notifications stopped but searches are fine
 
@@ -113,14 +151,9 @@ flood of stale ones.
 
 ## It says "Not running"
 
-The heartbeat is stale, meaning the process is not coming round its loop.
-
-```bash
-docker compose logs --tail 50 vinted-sniper
-docker compose ps
-```
-
-If the container is restarting repeatedly, the logs will say why.
+The heartbeat is stale, meaning the process is not coming round its loop, or it is not
+running at all. The log says why; see [where the logs are](#where-the-logs-are). With Docker,
+`docker compose ps` also shows whether the container keeps restarting.
 
 Also worth grepping the logs for `web.no_password`: that warning means the dashboard is
 listening on an address other than localhost with no sign-in, so anyone who can reach the
@@ -139,12 +172,60 @@ topic.
 
 ## Everything is broken after an update
 
-Roll back to the previous image tag and open an issue:
+Go back to the previous release and open an issue. With Docker, pin its tag in
+`docker-compose.yml`, then `docker compose up -d`:
 
 ```yaml
-image: ghcr.io/jasp-nerd/vinted-sniper:0.1.0
+image: ghcr.io/jasp-nerd/vinted-sniper:2.0.0
 ```
 
-The weekly canary tests against the live site, so an outright break usually gets caught
-before it ships. If you hit one anyway, the logs from `docker compose logs` are the useful
-thing to attach.
+With the installer, run it with the release you want (macOS and Linux shown; on Windows set
+the same variable with `$env:VINTED_SNIPER_PACKAGE = "..."` first):
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.sh | \
+  VINTED_SNIPER_PACKAGE="vinted-sniper[web] @ https://github.com/jasp-nerd/vinted-sniper/archive/refs/tags/v2.0.0.zip" sh
+```
+
+Your searches carry over either way. The weekly canary tests against the live site, so an
+outright break usually gets caught before it ships. If you hit one anyway, the log is the
+useful thing to attach.
+
+## Installing
+
+**"vinted-sniper: command not found"** (or "not recognized" on Windows) right after
+installing: open a new terminal window. The installer adds its folder to your PATH, and
+windows that were already open don't see that.
+
+**The installer says port 8000 is taken.** Something else listens there, often an older copy
+of vinted-sniper running in Docker. Stop that, or install on another port: put
+`VINTED_SNIPER_WEB_PORT=8001` before `sh` in the install command (Windows:
+`$env:VINTED_SNIPER_WEB_PORT = 8001` first). The dashboard is then on
+http://localhost:8001.
+
+**"running scripts is disabled on this system"** on Windows: use the install command exactly
+as written, including `-ExecutionPolicy ByPass`. That lifts the restriction for this one
+command only.
+
+**The download fails** at work or school: some networks block downloads from GitHub or from
+astral.sh, where uv comes from. Try from home.
+
+**"It installed, but didn't start".** The log says why: see below.
+
+**Docker: "unable to open database file"** or "/data is not writable": the folder mounted at
+`/data` belongs to a user the container can't write as. Set `PUID` and `PGID` to the
+folder's owner (`id` on the host prints yours) and start the container normally, without a
+`user:` line, so it can fix the ownership itself.
+
+## Where the logs are
+
+| Installed with | Log |
+|---|---|
+| Installer, Windows | `%LOCALAPPDATA%\vinted-sniper\vinted-sniper.log` |
+| Installer, macOS | `~/Library/Application Support/vinted-sniper/vinted-sniper.log` |
+| Installer, Linux | `journalctl --user -u vinted-sniper` (or `~/.local/share/vinted-sniper/vinted-sniper.log` if it isn't started at login) |
+| Docker | `docker compose logs --tail 200 vinted-sniper` |
+
+When you open an issue, attach the last couple of hundred lines and the output of
+`vinted-sniper status`. The app keeps tokens and webhook links out of both, but glance over
+them before posting anyway.

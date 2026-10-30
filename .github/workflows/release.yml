@@ -1,0 +1,107 @@
+name: Release
+
+# Runs when a version tag is pushed (see "Cutting a release" in CONTRIBUTING.md). The
+# image for the same tag is built by docker.yml; this publishes the Python package and the
+# GitHub release that the dashboard's update notice reads.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # No job here pushes, so the token has no reason to stay in .git/config.
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      # A tag that disagrees with pyproject.toml would publish a package whose version
+      # says something different from the release it came from. Stop before anything
+      # leaves the runner.
+      - name: Check the tag matches the package version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="$(uv version --short)"
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::Tag $TAG does not match the version in pyproject.toml ($version)."
+            exit 1
+          fi
+
+      - name: Build
+        run: uv build
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Trusted publishing: PyPI accepts an identity token from this exact repository,
+    # workflow and environment, so no API token is stored anywhere. Set up once on pypi.org
+    # under Publishing (repository jasp-nerd/vinted-sniper, workflow release.yml,
+    # environment pypi), and add the `pypi` environment in the repository settings.
+    environment:
+      name: pypi
+      url: https://pypi.org/project/vinted-sniper/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist/
+
+      # Also uploads signed attestations of where each file was built.
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+
+  github-release:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist/
+
+      # The release notes are this version's section of CHANGELOG.md, so they are written
+      # once, reviewed in the pull request, and never retyped into a web form.
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          # From this version's heading up to the next heading or the link list at the end.
+          awk -v v="$version" '
+            /^## \[/ { if (found) exit; if (index($0, "[" v "]")) { found = 1; next } }
+            /^\[[^]]+\]: / { if (found) exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "::error::CHANGELOG.md has no section for $version."
+            exit 1
+          fi
+          gh release create "$TAG" dist/* --verify-tag --title "$TAG" --notes-file notes.md

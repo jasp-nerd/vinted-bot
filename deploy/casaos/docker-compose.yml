@@ -1,0 +1,58 @@
+# vinted-sniper for CasaOS and ZimaOS. In the CasaOS dashboard: App Store, Custom Install,
+# then the import button, and paste this file. The same file is the starting point for a
+# pull request to a community store such as BigBear's (Apps/vinted-sniper/).
+name: vinted-sniper
+services:
+  app:
+    image: ghcr.io/jasp-nerd/vinted-sniper:latest
+    container_name: vinted-sniper
+    restart: unless-stopped
+    environment:
+      # CasaOS app folders usually belong to 1000:1000.
+      PUID: "1000"
+      PGID: "1000"
+      TZ: Europe/Paris
+      # The dashboard is reachable from your whole network here and shows your webhook
+      # links, so set a password: uncomment this and put any long random text in place of
+      # the example. You type it once to sign in.
+      # VINTED_SNIPER_WEB_AUTH_TOKEN: "change-me-to-something-long-and-random"
+    volumes:
+      - /DATA/AppData/$AppID:/data
+    ports:
+      - "8000:8000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    x-casaos:
+      envs:
+        - container: TZ
+          description:
+            en_US: Time zone, for example Europe/Paris
+      volumes:
+        - container: /data
+          description:
+            en_US: Your searches and alert settings
+      ports:
+        - container: "8000"
+          description:
+            en_US: Dashboard
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+  main: app
+  author: jasp-nerd
+  developer: jasp-nerd
+  category: Utilities
+  icon: https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docs/media/icon.png
+  title:
+    en_US: vinted-sniper
+  tagline:
+    en_US: Alerts for new Vinted listings
+  description:
+    en_US: Get a message on Discord, Telegram or ntfy the moment a new Vinted listing matches your search. Never logs in to Vinted. Not affiliated with Vinted.
+  port_map: "8000"
+  scheme: http
+  index: /

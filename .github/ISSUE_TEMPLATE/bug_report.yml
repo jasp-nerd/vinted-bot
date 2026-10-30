@@ -1,0 +1,67 @@
+name: Something isn't working
+description: Alerts not arriving, an error, the installer failing, anything broken.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Two things first, because they solve most reports:
+
+        1. **Are you on the newest version?** Vinted moved its search in September 2026 and versions before 2.0.0 find nothing. Updating: [self-hosting guide](https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/self-hosting.md#updating).
+        2. **Does Vinted answer your machine?** The [reachability check](https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/troubleshooting.md#vinted-reachable-from-this-machine) takes one command.
+
+        Please don't paste webhook links, bot tokens or passwords below.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How is it installed?
+      options:
+        - Installer on Windows
+        - Installer on macOS
+        - Installer on Linux or Raspberry Pi
+        - Docker / Docker Compose
+        - Unraid, Umbrel, CasaOS, Synology or another NAS
+        - A cloud host (Render, Railway, a VPS...)
+        - From source (git clone)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "`vinted-sniper --version`, or the image tag you run."
+      placeholder: vinted-sniper 2.0.0
+    validations:
+      required: true
+  - type: input
+    id: site
+    attributes:
+      label: Which Vinted site?
+      placeholder: vinted.fr
+  - type: textarea
+    id: status
+    attributes:
+      label: Output of `vinted-sniper status`
+      description: "With Docker: `docker compose exec vinted-sniper vinted-sniper status`."
+      render: text
+  - type: textarea
+    id: logs
+    attributes:
+      label: The last part of the log
+      description: Where to find it is in [troubleshooting](https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/troubleshooting.md#where-the-logs-are). A couple of hundred lines is plenty. Check it for tokens or webhook links before posting.
+      render: text
+  - type: dropdown
+    id: reachable
+    attributes:
+      label: Does the reachability check pass?
+      options:
+        - "Yes, it prints access_token_web"
+        - "No, it prints nothing"
+        - "I haven't tried it"

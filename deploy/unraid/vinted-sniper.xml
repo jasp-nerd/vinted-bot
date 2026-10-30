@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>vinted-sniper</Name>
+  <Repository>ghcr.io/jasp-nerd/vinted-sniper:latest</Repository>
+  <Registry>https://github.com/jasp-nerd/vinted-sniper/pkgs/container/vinted-sniper</Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Icon>https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docs/media/icon.png</Icon>
+  <WebUI>http://[IP]:[PORT:8000]/</WebUI>
+  <Overview>Get a message on Discord, Telegram, ntfy or another app the moment a new Vinted listing matches your search. Paste a Vinted search into the dashboard, or build one there. It filters on the price you actually pay (buyer protection included), notices when a search goes quiet, and never logs in to Vinted, so there is no account to put at risk. Not affiliated with Vinted.</Overview>
+  <Support>https://github.com/jasp-nerd/vinted-sniper/issues</Support>
+  <Project>https://github.com/jasp-nerd/vinted-sniper</Project>
+  <TemplateURL>https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/deploy/unraid/vinted-sniper.xml</TemplateURL>
+  <ReadMe>https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/self-hosting.md</ReadMe>
+  <Category>Tools:Utilities</Category>
+  <ExtraSearchTerms>vinted alerts notifier discord telegram secondhand</ExtraSearchTerms>
+  <Requires>Internet access. Discord, Telegram or ntfy for the alerts themselves.</Requires>
+  <License>MIT</License>
+  <Screenshot>https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docs/media/builder.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docs/media/discord.png</Screenshot>
+  <!-- The same hardening as the project's docker-compose.yml. -->
+  <ExtraParams>--read-only --tmpfs /tmp --security-opt no-new-privileges:true</ExtraParams>
+  <PostArgs/>
+  <Config Name="Dashboard port" Target="8000" Default="8000" Mode="tcp" Description="The web dashboard, where searches and alerts are set up." Type="Port" Display="always" Required="true" Mask="false">8000</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/vinted-sniper" Mode="rw" Description="The database with your searches and alert settings. One small file." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/vinted-sniper</Config>
+  <Config Name="Dashboard password" Target="VINTED_SNIPER_WEB_AUTH_TOKEN" Default="" Mode="" Description="Strongly recommended: the dashboard can be reached from your whole network and shows your webhook links. Any long random text; you type it once to sign in." Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="Time zone" Target="TZ" Default="Europe/Paris" Mode="" Description="Used for times in the dashboard and for quiet hours." Type="Variable" Display="always" Required="false" Mask="false">Europe/Paris</Config>
+  <Config Name="Dashboard address for alert links" Target="VINTED_SNIPER_WEB_PUBLIC_URL" Default="" Mode="" Description="Optional. How you open the dashboard, for example http://192.168.1.10:8000, so links in alerts lead back to it." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Telegram bot token" Target="VINTED_SNIPER_TELEGRAM_BOT_TOKEN" Default="" Mode="" Description="Optional, from @BotFather, for Telegram alerts. Discord needs nothing here." Type="Variable" Display="advanced" Required="false" Mask="true"/>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User that owns the Data folder (Unraid: 99 = nobody). The app runs as this user." Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group that owns the Data folder (Unraid: 100 = users)." Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
+</Container>

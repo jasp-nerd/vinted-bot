@@ -43,10 +43,17 @@ jobs:
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ghcr.io/${{ github.repository }}
+          # `latest` is the newest release, so people who never touch the tag only get
+          # versions that went through a release. `edge` is every push to main, for anyone
+          # who wants fixes before they are released. Release tags also get `2.1.0`,
+          # `2.1` and `2`, so a compose file can pin as tightly as its owner likes.
+          flavor: |
+            latest=auto
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
+            type=edge,branch=main
 
       - id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
