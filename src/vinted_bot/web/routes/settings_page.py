@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo, available_timezones
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
+from vinted_bot.config import DASHBOARD_MANAGED, Settings
 from vinted_bot.engine import health, self_update
 from vinted_bot.engine.validation import InvalidInputError
 from vinted_bot.web import core, security, views
@@ -118,9 +119,47 @@ async def settings_page(request: Request) -> Response:
             "install": context.updater.install,
             "update_last": last_update,
             "update_last_when": _when(last_update, tz),
+            "environment": environment_settings(context.settings),
         },
         snapshot=snapshot,
     )
+
+
+_SOURCES = {
+    "environment": "From the environment",
+    "env file": "From the .env file",
+    "default": "Default",
+}
+
+
+def environment_settings(settings: Settings) -> list[dict[str, str]]:
+    """Every setting the dashboard has no control for, with its value and where it's from.
+
+    Read-only on purpose: these shape the process (where the database is, ports, logging)
+    and take effect at a restart, so a switch here would promise more than it can do.
+    The rest (the password, phone access, the Telegram bot) have controls of their own.
+    """
+    rows = []
+    for name, field in Settings.model_fields.items():
+        if name in DASHBOARD_MANAGED:
+            continue
+        rows.append(
+            {
+                "name": f"VINTED_BOT_{name.upper()}",
+                "value": _shown(getattr(settings, name)),
+                "source": _SOURCES[settings.source(name)],
+                "about": field.description or "",
+            }
+        )
+    return rows
+
+
+def _shown(value: object) -> str:
+    if value is None:
+        return "not set"
+    if isinstance(value, bool):
+        return "on" if value else "off"
+    return str(value)
 
 
 def _when(outcome: self_update.Outcome | None, tz: ZoneInfo) -> str | None:

@@ -83,3 +83,25 @@ def test_the_time_zone_falls_back_to_tz(monkeypatch: pytest.MonkeyPatch) -> None
 def test_an_unknown_time_zone_is_refused() -> None:
     with pytest.raises(ValidationError, match="time zone"):
         Settings(_env_file=None, timezone="Mars/Olympus")  # type: ignore[call-arg]
+
+
+def test_a_value_from_the_environment_says_so(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("VINTED_BOT_WEB_PORT", "8123")
+
+    assert Settings(_env_file=None).source("web_port") == "environment"  # type: ignore[call-arg]
+
+
+def test_a_value_from_the_env_file_says_so(tmp_path: Path) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text("VINTED_BOT_WEB_PORT=8123\n", encoding="utf-8")
+
+    assert Settings(_env_file=env_file).source("web_port") == "env file"  # type: ignore[call-arg]
+
+
+def test_an_unset_value_is_the_default() -> None:
+    assert Settings(_env_file=None).source("web_port") == "default"  # type: ignore[call-arg]
+
+
+def test_every_setting_says_what_it_does() -> None:
+    """The dashboard's Advanced list shows these; a blank one would hide a setting's purpose."""
+    assert [name for name, field in Settings.model_fields.items() if not field.description] == []

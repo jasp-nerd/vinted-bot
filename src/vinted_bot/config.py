@@ -8,6 +8,7 @@ never a question of which copy of a setting wins.
 from __future__ import annotations
 
 import contextlib
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -34,6 +35,10 @@ def in_container() -> bool:
     """
     return Path("/.dockerenv").exists() or Path("/run/.containerenv").exists()
 
+
+# Settings the dashboard has its own controls for. Unset, the dashboard decides; set, the
+# environment wins and the dashboard says so (see managed.py).
+DASHBOARD_MANAGED = frozenset({"telegram_bot_token", "web_auth_token", "web_host"})
 
 # Where 1.x kept the database, relative to wherever the app was started.
 LEGACY_DB_PATH = Path("./data/app.db")
@@ -116,8 +121,13 @@ class Settings(BaseSettings):
     )
 
     # --- Logging -------------------------------------------------------------------
-    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
-    log_format: Literal["console", "json"] = "console"
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(
+        default="INFO", description="How much the app writes to its log."
+    )
+    log_format: Literal["console", "json"] = Field(
+        default="console",
+        description="'json' when something else collects the logs, 'console' for people.",
+    )
 
     # --- Vinted transport ----------------------------------------------------------
     http_impersonate: bool = Field(
@@ -135,7 +145,9 @@ class Settings(BaseSettings):
         description="Discard and re-bootstrap a site session once it reaches this age. "
         "Blocks correlate with session age more than with request rate.",
     )
-    request_timeout_s: float = Field(default=15.0, gt=0)
+    request_timeout_s: float = Field(
+        default=15.0, gt=0, description="Seconds to wait for Vinted before giving up on a request."
+    )
 
     # --- Polling -------------------------------------------------------------------
     poll_default_interval_s: int = Field(
@@ -179,7 +191,8 @@ class Settings(BaseSettings):
     )
     telegram_bot_token: SecretStr | None = Field(
         default=None,
-        description="Enables Telegram delivery and the /start binding bot when set.",
+        description="A Telegram bot token fixed by the environment. Unset, the token pasted "
+        "on the dashboard's Alerts page is used; set, it wins over that one.",
     )
 
     # --- Updating ------------------------------------------------------------------
@@ -196,20 +209,24 @@ class Settings(BaseSettings):
         default="live",
         description="'mock' replays recorded responses from disk instead of calling Vinted.",
     )
-    mock_scenario_dir: Path | None = None
+    mock_scenario_dir: Path | None = Field(
+        default=None, description="Where the recorded responses are, for fetch_mode 'mock'."
+    )
 
     # --- Web UI --------------------------------------------------------------------
-    web_enabled: bool = True
+    web_enabled: bool = Field(
+        default=True, description="The dashboard. Turn it off to use the command line only."
+    )
     web_host: str = Field(
         default="127.0.0.1",
-        description="Loopback by default. Only widen this behind a reverse proxy you trust.",
+        description="Where the dashboard listens. Unset, the dashboard's phone access switch "
+        "decides (loopback, or every interface); set, it wins over the switch.",
     )
-    web_port: int = Field(default=8000, ge=1, le=65535)
+    web_port: int = Field(default=8000, ge=1, le=65535, description="The dashboard's port.")
     web_auth_token: SecretStr | None = Field(
         default=None,
-        description="Optional. When set, the dashboard asks for it as a password. Set it "
-        "before exposing the dashboard beyond localhost: anyone who can open it can add, "
-        "remove and reroute your alerts.",
+        description="A dashboard password fixed by the environment. Unset, the password is "
+        "the one set in the dashboard's Settings, if any; set, it wins over that one.",
     )
     web_public_url: str | None = Field(
         default=None,
@@ -225,6 +242,19 @@ class Settings(BaseSettings):
         "web_public_url are always allowed; every other name gets a 400, which is what "
         "stops a DNS-rebinding web page from reading or changing the dashboard.",
     )
+
+    def source(self, name: str) -> Literal["environment", "env file", "default"]:
+        """Where a setting's value came from, for the dashboard's Advanced list.
+
+        Set values come from the environment or from the .env file; the environment wins
+        when both say, so a name in os.environ is enough to tell them apart.
+        """
+        if name not in self.model_fields_set:
+            return "default"
+        names = {f"VINTED_BOT_{name.upper()}"} | ({"TZ"} if name == "timezone" else set())
+        # Names are matched without regard to case, as pydantic-settings reads them.
+        in_environment = names & {key.upper() for key in os.environ}
+        return "environment" if in_environment else "env file"
 
     @property
     def dashboard_url(self) -> str | None:

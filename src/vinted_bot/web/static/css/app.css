@@ -1213,3 +1213,15 @@ select.chip { width: auto; max-width: 220px; }
   .tiers a { transition: none; }
   .tiers a:hover { transform: none; }
 }
+
+/* Settings, Advanced: the environment's settings, read-only. */
+.envlist summary { cursor: pointer; list-style: none; }
+.envlist summary::-webkit-details-marker { display: none; }
+.envlist summary .i { transition: transform .15s; vertical-align: -2px; }
+.envlist[open] summary .i { transform: rotate(90deg); }
+.envlist__rows { margin: 8px 0 0; display: grid; gap: 0; }
+.envlist__row { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 4px 16px; padding: 10px 0; border-top: 1px solid var(--c-line); }
+.envlist__row dt { min-width: 0; overflow-wrap: anywhere; }
+.envlist__row dd { margin: 0; display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.envlist__row dd b { font-weight: 580; }
+@media (max-width: 640px) { .envlist__row { grid-template-columns: 1fr; } }

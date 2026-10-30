@@ -161,6 +161,14 @@
         <div class="set set--stack hide-sm"><div class="set__text"><span class="t-h3">Add searches straight from Vinted</span><span class="t-sm">Drag this to your bookmarks bar. On any Vinted search, click it to open that search here.</span></div><div class="row"><a class="btn btn--secondary btn--sm" href="{{ bookmarklet }}" data-bookmarklet>{{ ui.icon("bookmark", "i-sm") }}Watch this search</a></div></div>
         <div class="set set--stack"><div class="set__text"><span class="t-h3">Data folder</span></div><div class="row" style="flex-wrap:nowrap"><span class="code grow" style="overflow:auto;white-space:nowrap;padding:8px 10px">{{ db_path }}</span><button class="btn btn--icon btn--sm" type="button" data-copy="{{ db_path }}" aria-label="Copy folder path">{{ ui.icon("copy", "i-sm") }}</button></div></div>
         <div class="set"><div class="set__text"><span class="t-h3">Run it day and night</span><span class="t-sm">Searches only run while this computer is on and awake. A Raspberry Pi or home server keeps it going without your laptop.</span></div><a class="btn btn--ghost btn--sm" href="{{ self_hosting }}" target="_blank" rel="noopener">See the guide</a></div>
+        <details class="set set--stack envlist" data-collapse-sm>
+          <summary class="set__text"><span class="t-h3">{{ ui.icon("chevron-right", "i-sm") }}Settings from the environment</span><span class="t-sm">Everything else that shapes vinted-bot, for people who run it on a server. Nobody needs to change these. They're set as environment variables or in a .env file in the folder vinted-bot starts from, and take effect at the next start.</span></summary>
+          <dl class="envlist__rows">
+            {% for row in environment %}
+            <div class="envlist__row"><dt><span class="code">{{ row.name }}</span></dt><dd><span><b>{{ row.value }}</b> <span class="t-sm">· {{ row.source }}</span></span>{% if row.about %}<span class="t-sm">{{ row.about }}</span>{% endif %}</dd></div>
+            {% endfor %}
+          </dl>
+        </details>
       </div>
     </section>
 

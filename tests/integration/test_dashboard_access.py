@@ -19,7 +19,7 @@ from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
 from vinted_bot import cli, managed
-from vinted_bot.config import Settings
+from vinted_bot.config import DASHBOARD_MANAGED, Settings
 from vinted_bot.db import Database
 from vinted_bot.db.repo import Repo
 from vinted_bot.web import security
@@ -395,3 +395,33 @@ async def test_a_port_already_in_use_stops_the_app_at_start(tmp_path: Path, repo
 
         with pytest.raises(SystemExit):
             await serve(settings, repo, asyncio.Event())
+
+
+# --- Advanced: what the environment sets ------------------------------------------------
+
+
+def test_advanced_lists_every_setting_without_a_control_of_its_own(client: TestClient) -> None:
+    page = client.get("/settings").text
+
+    missing = [
+        name
+        for name in Settings.model_fields
+        if name not in DASHBOARD_MANAGED and f"VINTED_BOT_{name.upper()}" not in page
+    ]
+    assert missing == []
+
+
+def test_advanced_says_a_value_came_from_the_environment(
+    make_client: Callable[..., TestClient], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("VINTED_BOT_ITEM_RETENTION_DAYS", "90")
+
+    page = make_client(item_retention_days=90).get("/settings").text
+
+    assert '<b>90</b> <span class="t-sm">· From the environment</span>' in page
+
+
+def test_advanced_never_shows_a_secret(make_client: Callable[..., TestClient], repo: Repo) -> None:
+    client = make_client(telegram_bot_token=SecretStr("123456789:" + "S" * 35))
+
+    assert "S" * 35 not in client.get("/settings").text
