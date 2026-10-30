@@ -1,0 +1,295 @@
+[
+  {
+    "slug": "straight-leg-jeans",
+    "title": "Straight leg jeans mid blue, high waist",
+    "brand": "Unbranded",
+    "size": "W28 L30",
+    "condition": "Very good",
+    "price": 18.0,
+    "currency": "EUR",
+    "photos": [
+      "straight-leg-jeans.webp",
+      "straight-leg-jeans-2.webp",
+      "straight-leg-jeans-3.webp"
+    ]
+  },
+  {
+    "slug": "trench-coat",
+    "title": "Beige trench coat with belt, double-breasted",
+    "brand": "Maison Lerac",
+    "size": "M",
+    "condition": "Very good",
+    "price": 55.0,
+    "currency": "EUR",
+    "photos": [
+      "trench-coat.webp"
+    ]
+  },
+  {
+    "slug": "chunky-sneakers",
+    "title": "Chunky white leather sneakers",
+    "brand": "Unbranded",
+    "size": "39",
+    "condition": "Good",
+    "price": 25.0,
+    "currency": "EUR",
+    "photos": [
+      "chunky-sneakers.webp",
+      "chunky-sneakers-2.webp"
+    ]
+  },
+  {
+    "slug": "vintage-windbreaker",
+    "title": "Vintage 90s windbreaker green colour block",
+    "brand": "Vintage",
+    "size": "L",
+    "condition": "Good",
+    "price": 32.0,
+    "currency": "EUR",
+    "photos": [
+      "vintage-windbreaker.webp"
+    ]
+  },
+  {
+    "slug": "cable-knit-sweater",
+    "title": "Cream cable knit jumper, chunky wool",
+    "brand": "Handmade",
+    "size": "M",
+    "condition": "Very good",
+    "price": 28.0,
+    "currency": "EUR",
+    "photos": [
+      "cable-knit-sweater.webp"
+    ]
+  },
+  {
+    "slug": "leather-jacket",
+    "title": "Black leather biker jacket, real leather",
+    "brand": "Vintage",
+    "size": "S",
+    "condition": "Good",
+    "price": 85.0,
+    "currency": "EUR",
+    "photos": [
+      "leather-jacket.webp",
+      "leather-jacket-2.webp"
+    ]
+  },
+  {
+    "slug": "floral-summer-dress",
+    "title": "Floral midi summer dress, pale blue",
+    "brand": "Ruelle Paris",
+    "size": "S",
+    "condition": "New without tags",
+    "price": 22.0,
+    "currency": "EUR",
+    "photos": [
+      "floral-summer-dress.webp"
+    ]
+  },
+  {
+    "slug": "grey-hoodie",
+    "title": "Plain grey hoodie, oversized fit",
+    "brand": "Unbranded",
+    "size": "L",
+    "condition": "Good",
+    "price": 9.0,
+    "currency": "EUR",
+    "photos": [
+      "grey-hoodie.webp"
+    ]
+  },
+  {
+    "slug": "suede-boots",
+    "title": "Brown suede ankle boots, block heel",
+    "brand": "Calzari Venn",
+    "size": "38",
+    "condition": "Very good",
+    "price": 40.0,
+    "currency": "EUR",
+    "photos": [
+      "suede-boots.webp"
+    ]
+  },
+  {
+    "slug": "denim-jacket",
+    "title": "Light wash denim jacket, classic fit",
+    "brand": "Vintage",
+    "size": "M",
+    "condition": "Good",
+    "price": 26.0,
+    "currency": "EUR",
+    "photos": [
+      "denim-jacket.webp"
+    ]
+  },
+  {
+    "slug": "breton-top",
+    "title": "Striped Breton top navy/white, long sleeve",
+    "brand": "Matelot & Fils",
+    "size": "XS",
+    "condition": "Very good",
+    "price": 14.0,
+    "currency": "EUR",
+    "photos": [
+      "breton-top.webp"
+    ]
+  },
+  {
+    "slug": "corduroy-trousers",
+    "title": "Rust corduroy trousers, wide wale",
+    "brand": "Unbranded",
+    "size": "W30",
+    "condition": "Very good",
+    "price": 21.0,
+    "currency": "EUR",
+    "photos": [
+      "corduroy-trousers.webp"
+    ]
+  },
+  {
+    "slug": "puffer-jacket",
+    "title": "Black puffer jacket, warm winter coat",
+    "brand": "Kestrelwood",
+    "size": "M",
+    "condition": "Good",
+    "price": 45.0,
+    "currency": "EUR",
+    "photos": [
+      "puffer-jacket.webp"
+    ]
+  },
+  {
+    "slug": "canvas-tote",
+    "title": "Plain canvas tote bag, natural cotton",
+    "brand": "Unbranded",
+    "size": "One size",
+    "condition": "Very good",
+    "price": 4.0,
+    "currency": "EUR",
+    "photos": [
+      "canvas-tote.webp"
+    ]
+  },
+  {
+    "slug": "knitted-beanie",
+    "title": "Mustard knitted beanie with cuff",
+    "brand": "Handmade",
+    "size": "One size",
+    "condition": "New without tags",
+    "price": 6.0,
+    "currency": "EUR",
+    "photos": [
+      "knitted-beanie.webp"
+    ]
+  },
+  {
+    "slug": "wool-coat",
+    "title": "Long camel wool coat, horn buttons",
+    "brand": "Atelier Brume",
+    "size": "L",
+    "condition": "Very good",
+    "price": 95.0,
+    "currency": "EUR",
+    "photos": [
+      "wool-coat.webp"
+    ]
+  },
+  {
+    "slug": "flannel-shirt",
+    "title": "Red and black plaid flannel shirt",
+    "brand": "Vintage",
+    "size": "M",
+    "condition": "Good",
+    "price": 12.0,
+    "currency": "EUR",
+    "photos": [
+      "flannel-shirt.webp"
+    ]
+  },
+  {
+    "slug": "running-shoes",
+    "title": "Blue running shoes, lightweight mesh",
+    "brand": "Strydo",
+    "size": "42",
+    "condition": "Good",
+    "price": 30.0,
+    "currency": "EUR",
+    "photos": [
+      "running-shoes.webp"
+    ]
+  },
+  {
+    "slug": "kids-raincoat",
+    "title": "Kids yellow raincoat with hood, 4 years",
+    "brand": "Little Puddle",
+    "size": "104 cm",
+    "condition": "Very good",
+    "price": 8.0,
+    "currency": "EUR",
+    "photos": [
+      "kids-raincoat.webp"
+    ]
+  },
+  {
+    "slug": "baby-romper-set",
+    "title": "Baby romper + hat set, sage green cotton",
+    "brand": "Little Puddle",
+    "size": "62 cm",
+    "condition": "New with tags",
+    "price": 7.0,
+    "currency": "EUR",
+    "photos": [
+      "baby-romper-set.webp"
+    ]
+  },
+  {
+    "slug": "retro-football-shirt",
+    "title": "Retro 90s style football shirt, royal blue",
+    "brand": "Vintage",
+    "size": "L",
+    "condition": "Good",
+    "price": 35.0,
+    "currency": "EUR",
+    "photos": [
+      "retro-football-shirt.webp"
+    ]
+  },
+  {
+    "slug": "silk-scarf",
+    "title": "Vintage silk scarf, paisley burgundy/gold",
+    "brand": "Vintage",
+    "size": "One size",
+    "condition": "Very good",
+    "price": 16.0,
+    "currency": "EUR",
+    "photos": [
+      "silk-scarf.webp"
+    ]
+  },
+  {
+    "slug": "leather-handbag",
+    "title": "Tan leather top-handle handbag with strap",
+    "brand": "Selliera",
+    "size": "One size",
+    "condition": "Very good",
+    "price": 68.0,
+    "currency": "EUR",
+    "photos": [
+      "leather-handbag.webp",
+      "leather-handbag-2.webp"
+    ]
+  },
+  {
+    "slug": "cargo-trousers",
+    "title": "Olive cargo trousers, relaxed fit",
+    "brand": "Unbranded",
+    "size": "M",
+    "condition": "Good",
+    "price": 19.0,
+    "currency": "EUR",
+    "photos": [
+      "cargo-trousers.webp"
+    ]
+  }
+]

@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Finds{% endblock %}
+{% block content %}
+{% if searches %}
+<section class="watchband field-panel field-panel--teal" aria-labelledby="wb-title" data-band>
+  {{ ui.mags("watch", "watchband__mags") }}
+  <div class="watchband__body">
+    <div class="watchband__head">
+      <h2 class="t-h2" id="wb-title">{% if waiting %}{{ app.searches_active - waiting }} {{ "search" if app.searches_active - waiting == 1 else "searches" }} running, {{ waiting }} waiting on Vinted{% elif app.searches_active %}{{ "Your search is" if app.searches_active == 1 else "All " ~ app.searches_active ~ " searches are" }} running{% else %}Nothing is running{% endif %}</h2>
+      <p>{% if last_check_s is not none %}Last check <time data-ago="{{ last_check_s }}">{{ "just now" if last_check_s < 45 else (last_check_s // 60) ~ " min ago" }}</time>. {% endif %}Vinted shows new listings in search a few minutes late, so we see them then too.</p>
+    </div>
+    <button class="watchband__summary btn btn--ghost btn--sm" type="button" data-band-toggle aria-expanded="false">
+      {{ app.searches_active - waiting }} running{% if waiting %} · {{ waiting }} waiting{% endif %}{% if paused %} · {{ paused }} paused{% endif %}{{ ui.icon("chevron-down", "i-sm") }}
+    </button>
+    <ul class="healthlist" aria-label="Your searches">
+      {% for key in ["blocked", "stuck", "quiet", "watching", "paused"] %}
+      {% for s in searches if s.status == key %}
+      <li><a class="health{% if s.status == 'stuck' %} health--warn{% elif s.status == 'blocked' %} health--bad{% endif %}" href="{{ url('search_detail', id=s.id) }}" style="--sc: {{ s.color }}" title="{{ s.why }}">
+        <i class="sdot"></i>
+        <span class="health__name">{{ s.name }}</span>
+        {% if s.status == "watching" %}<span class="health__n num">{{ s.finds_today }} today</span>
+        {% else %}{{ ui.status(s.status, s.status_label) }}{% endif %}
+      </a></li>
+      {% endfor %}
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+{% endif %}
+
+{% if no_destinations and searches %}
+<div class="notice notice--sun" style="margin:16px 0">{{ ui.icon("triangle-alert") }}<div><p><strong>Finds only show on this page for now.</strong> Add your phone, Telegram or Discord to hear about them anywhere. <a href="{{ url('alerts') }}" style="color:inherit">Add a place for alerts</a></p></div></div>
+{% endif %}
+
+{% if not searches %}
+<section class="card card--pad stack" style="margin-top:12px">
+  <h1 class="t-h2">No searches yet</h1>
+  <p>A search is what you'd type on Vinted, plus your size and price. We check it for you all day and tell you when something new turns up.</p>
+  <div class="btn-row"><a class="btn btn--primary" href="{{ url('search_new') }}">{{ ui.icon("plus") }}New search</a><a class="btn btn--ghost" href="{{ url('welcome_1') }}">Walk me through it</a></div>
+</section>
+{% elif empty %}
+<section class="field-panel field-panel--sun empty" aria-labelledby="empty-title">
+  <div class="empty__text">
+    <h1 class="t-h1" id="empty-title">No finds yet</h1>
+    <p class="t-lead">Your {{ "search is" if searches|length == 1 else "searches are" }} running. The first check skips everything that was already on Vinted, so you only hear about new listings.</p>
+    <p>New listings show up here on their own, usually a few minutes after the seller posts them.</p>
+    <div class="btn-row" style="margin-top:6px">
+      <a class="btn btn--primary" href="{{ url('search_new') }}">{{ ui.icon("plus") }}Add another search</a>
+      <a class="btn btn--secondary" href="{{ url('alerts') }}">Send a test alert</a>
+    </div>
+  </div>
+  {{ ui.mags("watch", "empty__art") }}
+</section>
+{% else %}
+<form class="toolbar" method="get" action="{{ url('home') }}" data-finds-form>
+  <div class="row" style="gap:10px 14px">
+    <h1 class="sr-only">Finds</h1>
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+    <div class="chips chips--scroll" role="group" aria-label="Show">
+      {% for key, label, ic in [("all", "All", ""), ("today", "Today", ""), ("deals", "Deals", "trending-down"), ("saved", "Saved", "heart")] %}
+      <button class="chip" type="submit" name="show" value="{{ key }}" aria-pressed="{{ 'true' if show == key or (key == 'all' and not show) else 'false' }}">{% if ic %}{{ ui.icon(ic) }}{% endif %}{{ label }}</button>
+      {% endfor %}
+      <label class="sr-only" for="f-search">Which search</label>
+      <select class="chip chip--select" id="f-search" name="search" data-autosubmit>
+        <option value="">All searches</option>
+        {% for s in searches %}<option value="{{ s.id }}"{% if search_filter == s.id|string %} selected{% endif %}>{{ s.name }}</option>{% endfor %}
+      </select>
+      <details class="chip-pop">
+        <summary class="chip{% if min or max %} is-on{% endif %}">Price{{ ui.icon("chevron-down") }}</summary>
+        <div class="chip-pop__panel card">
+          <div class="grid-2" style="gap:8px">
+            <div class="field"><label class="label" for="f-min">From</label><input class="input" id="f-min" name="min" inputmode="decimal" value="{{ min }}"></div>
+            <div class="field"><label class="label" for="f-max">To</label><input class="input" id="f-max" name="max" inputmode="decimal" value="{{ max }}"></div>
+          </div>
+          <p class="help">Total with fees.</p>
+          <button class="btn btn--primary btn--sm" type="submit" name="show" value="{{ show }}">Show</button>
+        </div>
+      </details>
+      {% if filtered %}<a class="chip chip--filled" href="{{ url('home') }}">{{ ui.icon("x") }}Clear</a>{% endif %}
+    </div>
+  </div>
+  <div class="toolbar__end">
+    <label class="sr-only" for="sort">Sort finds</label>
+    <select class="chip chip--select" id="sort" name="sort" data-autosubmit>
+      <option value="newest"{% if sort == "newest" %} selected{% endif %}>Newest first</option>
+      <option value="deal"{% if sort == "deal" %} selected{% endif %}>Biggest deal first</option>
+      <option value="cheap"{% if sort == "cheap" %} selected{% endif %}>Cheapest first</option>
+    </select>
+    <div class="seg seg--icons" role="group" aria-label="Layout">
+      <button type="button" aria-pressed="true" data-view="grid" aria-label="Photo grid">{{ ui.icon("layout-grid", "i-sm") }}</button>
+      <button type="button" aria-pressed="false" data-view="list" aria-label="List">{{ ui.icon("rows-3", "i-sm") }}</button>
+    </div>
+    <button class="btn btn--icon btn--sm hide-sm" type="button" data-open="keys" aria-label="Keyboard shortcuts">{{ ui.icon("keyboard", "i-sm") }}</button>
+  </div>
+</form>
+
+<div class="resultline">
+  {% if filtered %}
+  <span><b class="t-ink num" data-count>{{ items|length }}</b> {{ "find matches" if items|length == 1 else "finds match" }}{% if more %} so far{% endif %}</span>
+  {% else %}
+  <span><b class="t-ink num">{{ "{:,}".format(found_total) }}</b> {{ "find" if found_total == 1 else "finds" }} kept · <b class="t-ink num" data-today>{{ found_today }}</b> today</span>
+  {% endif %}
+  <span class="row t-sm"><i class="pulse" aria-hidden="true"></i>New finds appear here on their own</span>
+</div>
+{% if not items %}
+<div class="card card--pad stack"><h2 class="t-h2">Nothing matches</h2><p>No finds fit these filters. <a href="{{ url('home') }}">Show all finds</a></p></div>
+{% endif %}
+<div class="newpill" hidden data-newpill><button class="btn btn--primary btn--sm" type="button">{{ ui.icon("arrow-up", "i-sm") }}<span data-newpill-text>1 new find</span></button></div>
+<div class="feed" id="feed" aria-live="off" data-live="{{ latest_seq }}"{% if filtered %} data-filtered{% endif %}>
+  {% for it in items %}{{ ui.item_card(it, lazy=loop.index > 10) }}{% endfor %}
+</div>
+{% if more %}
+<div class="row" style="justify-content:center;margin-top:32px">
+  <button class="btn btn--secondary" type="button" data-older="{{ more }}">Show older finds</button>
+</div>
+{% endif %}
+{% endif %}
+{% if searches and empty %}<div id="feed" class="feed" data-live="{{ latest_seq }}" hidden></div>{% endif %}
+{% endblock %}
+
+{% block modals %}
+<dialog class="modal modal--wide" id="quickview" aria-labelledby="qv-title">
+  <div class="quick">
+    <div class="quick__media"><img alt="" data-qv="img" referrerpolicy="no-referrer"></div>
+    <div class="quick__info">
+      <div class="row row--between" style="align-items:flex-start;flex-wrap:nowrap">
+        <div class="stack" style="gap:6px">
+          <span data-qv="search"></span>
+          <h2 class="t-h2" id="qv-title" data-qv="title"></h2>
+        </div>
+        <button class="btn btn--icon" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button>
+      </div>
+      <div class="stack" style="gap:2px">
+        <span class="t-sm" data-qv="price"></span>
+        <span class="item__total" style="font-size:22px" data-qv="total"></span>
+        <span class="t-sm">Estimated with Vinted's buyer protection fee. Shipping is added at checkout.</span>
+      </div>
+      <div data-qv="deal"></div>
+      <dl class="dl" data-qv="dl"></dl>
+      <div class="stack" style="gap:8px;margin-top:6px">
+        <a class="btn btn--primary btn--block btn--lg" href="#" data-qv="buy" target="_blank" rel="noopener">{{ ui.icon("shopping-bag") }}Buy on Vinted</a>
+        <div class="grid-2" style="gap:8px">
+          <a class="btn btn--secondary" href="#" data-qv="message" target="_blank" rel="noopener">{{ ui.icon("message-circle") }}Message seller</a>
+          <a class="btn btn--secondary" href="#" data-qv="url" target="_blank" rel="noopener">{{ ui.icon("external-link") }}Open listing</a>
+        </div>
+        <p class="t-sm">These open Vinted in your browser, where you're signed in. vinted-sniper never buys or messages for you.</p>
+        <div class="row" style="justify-content:center;gap:4px">
+          <button class="btn btn--ghost btn--sm" type="button" data-toggle-save aria-pressed="false">{{ ui.icon("heart", "i-sm") }}Save</button>
+          <button class="btn btn--ghost btn--sm" type="button" data-act="watch">{{ ui.icon("eye", "i-sm") }}Watch price</button>
+          <button class="btn btn--ghost btn--sm" type="button" data-act="hide">{{ ui.icon("eye-off", "i-sm") }}Hide</button>
+          <button class="btn btn--ghost btn--sm" type="button" data-act="block">{{ ui.icon("ban", "i-sm") }}Block seller</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="modal" id="block-confirm" aria-labelledby="bc-title">
+  <div class="modal__head"><h2 class="t-h2" id="bc-title">Block this seller?</h2><button class="btn btn--icon" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button></div>
+  <div class="modal__body"><p>You won't get alerts for anything they list, in any of your searches. You can unblock them in Settings.</p></div>
+  <div class="modal__foot"><button class="btn btn--secondary" type="button" data-close>Keep</button><button class="btn btn--danger" type="button" data-block-confirm>Block seller</button></div>
+</dialog>
+
+<dialog class="modal" id="keys" aria-labelledby="keys-title">
+  <div class="modal__head"><h2 class="t-h2" id="keys-title">Keyboard shortcuts</h2><button class="btn btn--icon" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button></div>
+  <div class="modal__body">
+    <dl class="kbd-list">
+      <dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>Next and previous find</dd>
+      <dt><kbd>o</kbd></dt><dd>Open on Vinted</dd>
+      <dt><kbd>Enter</kbd></dt><dd>Details</dd>
+      <dt><kbd>s</kbd></dt><dd>Save or unsave</dd>
+      <dt><kbd>h</kbd></dt><dd>Hide</dd>
+      <dt><kbd>b</kbd></dt><dd>Block the seller</dd>
+      <dt><kbd>w</kbd></dt><dd>Watch the price</dd>
+      <dt><kbd>/</kbd></dt><dd>Search your finds</dd>
+      <dt><kbd>?</kbd></dt><dd>This list</dd>
+    </dl>
+  </div>
+  <div class="modal__foot"></div>
+</dialog>
+{% endblock %}

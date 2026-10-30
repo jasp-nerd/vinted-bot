@@ -1,0 +1,48 @@
+{% extends "ob_base.html" %}
+{% block title %}Your Vinted{% endblock %}
+{% block action %}/welcome/search{% endblock %}
+{% block submitted %}{% endblock %}
+{% block question %}
+<h1 class="t-display" tabindex="-1" data-autofocus>Which Vinted do you shop on?</h1>
+<p class="t-lead">You can watch other countries later, per search.</p>
+<fieldset class="choices choices--2" style="border:0;padding:0;margin:0">
+  <legend class="sr-only">Your Vinted country</legend>
+  {% for t, code, name in countries[:8] %}
+  <label class="choice choice--compact">
+    <input type="radio" name="tld" value="{{ t }}"{% if t == tld %} checked{% endif %}>
+    <span class="choice__icon choice__icon--code" aria-hidden="true">{{ code }}</span>
+    <span class="choice__text"><span class="choice__title">{{ name }}{% if t == tld and guessed %} <small class="t-sm">(guessed from your language)</small>{% endif %}</span><span class="choice__desc">vinted.{{ t }} · prices in {{ currency(t) }}</span></span>
+    <span class="choice__tick">{{ ui.icon("check") }}</span>
+  </label>
+  {% endfor %}
+</fieldset>
+<details class="faq"{% if tld not in countries[:8]|map(attribute=0)|list %} open{% endif %}>
+  <summary>{{ ui.icon("globe", "i-sm") }}Show all {{ countries|length }} countries</summary>
+  <div class="chips">
+    {% for t, code, name in countries[8:] %}<label class="chip chip--sm"><input type="radio" name="tld" value="{{ t }}"{% if t == tld %} checked{% endif %}>{{ name }}</label>{% endfor %}
+  </div>
+</details>
+{% endblock %}
+{% block back %}<a class="btn btn--secondary btn--icon" style="width:52px;height:52px" href="/welcome" aria-label="Back">{{ ui.icon("arrow-left") }}</a>{% endblock %}
+{% block hint %}Step 1 of 5{% endblock %}
+{% block field_class %}field-panel--sun{% endblock %}
+{% block field %}
+<div class="ob__field-say">
+  <b>Prices the way you'll pay them</b>
+  <span>Every listing shows the item price and the total with Vinted's buyer protection fee.</span>
+</div>
+<div class="ob__field-stage">
+  <div class="mini-card" aria-hidden="true">
+    <div class="item__media" style="--dominant:#d8cbbb"><img src="{{ static('img/demo/wool-coat.webp') }}" alt=""></div>
+    <div class="item__body">
+      <p class="item__title">Long camel wool coat</p>
+      <p class="item__meta">38 · Very good</p>
+      <div class="item__prices">
+        <span class="item__base"><span>€45.00</span></span>
+        <span class="item__total">€47.95 <small>incl. fees</small>{{ ui.icon("shield-check") }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+{{ ui.mags("think", "ob__mags ob__mags--corner") }}
+{% endblock %}

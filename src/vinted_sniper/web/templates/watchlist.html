@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Watchlist{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <h1 class="t-h1">Watchlist</h1>
+    <p>Listings you're tracking for a price drop or a sale, and sellers whose new uploads you want first. Saved finds (the heart) stay on your Finds page.</p>
+  </div>
+</div>
+
+<form class="field" method="post" action="/watchlist" style="margin-bottom:18px;max-width:680px">
+  <label class="label" for="watch-url">Add by link</label>
+  <div class="row" style="flex-wrap:nowrap">
+    <input class="input grow" id="watch-url" name="url" type="text" inputmode="url" placeholder="Paste a Vinted listing or a member's page" autocomplete="off" value="{{ link }}"{% if error %} aria-invalid="true" aria-describedby="watch-err"{% endif %}>
+    <button class="btn btn--secondary" type="submit">{{ ui.icon("eye") }}Watch</button>
+  </div>
+  {% if error %}<p class="help help--error" id="watch-err">{{ ui.icon("circle-alert") }}<span>{{ error }}</span></p>{% endif %}
+  <p class="help">Or open any find's menu and choose "Watch the price" or "Follow this seller".</p>
+</form>
+{% if kinds and ("item" not in kinds or "seller" not in kinds) %}
+<div class="notice notice--sun" style="margin-bottom:18px">{{ ui.icon("info") }}<div><p>{% if "item" not in kinds %}Price watches can't run in this copy of vinted-sniper right now.{% else %}Seller follows can't run in this copy of vinted-sniper right now.{% endif %} You can still add them; they start when it can.</p></div></div>
+{% endif %}
+
+<div class="tabs" role="tablist" aria-label="Watchlist">
+  <button class="tab" role="tab" id="tab-items" aria-controls="p-items" aria-selected="true">Listings <span class="badge">{{ items|length }}</span></button>
+  <button class="tab" role="tab" id="tab-sellers" aria-controls="p-sellers" aria-selected="false" tabindex="-1">Sellers <span class="badge">{{ sellers|length }}</span></button>
+</div>
+
+<div class="tabpanel" id="p-items" role="tabpanel" aria-labelledby="tab-items">
+  <p class="t-sm" style="margin-bottom:14px">We look at each listing about every 30 minutes and tell you when the price drops, or when it's reserved or sold.</p>
+  {% if items %}
+  <div class="card">
+    {% for w in items %}
+    <div class="wrow" style="grid-template-columns:56px minmax(0,1fr) auto auto">
+      <div class="wrow__img">{% if w.photo %}<img src="{{ w.photo }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}</div>
+      <div class="wrow__main">
+        <span class="wrow__title">{{ w.title }}</span>
+        <span class="row" style="gap:8px">
+          {% if w.status == "reserved" %}<span class="badge badge--warn">{{ ui.icon("hourglass") }}{{ w.status_label }}</span>
+          {% elif w.status == "sold" %}<span class="badge">{{ ui.icon("package") }}{{ w.status_label }}</span>
+          {% else %}<span class="badge badge--ok">{{ ui.icon("eye") }}{{ w.status_label }}</span>{% endif %}
+          <span class="wrow__sub">{{ w.tld }} · checked {{ w.checked }}{% if not w.active %} · alerts off{% endif %}</span>
+        </span>
+        {% if w.error %}<span class="wrow__sub" style="color:var(--c-danger-ink)">Last look didn't work: {{ w.error }}</span>{% endif %}
+      </div>
+      <div class="wrow__price"><b>{{ w.now }}</b></div>
+      <div class="wrow__act row" style="gap:2px;flex-wrap:nowrap">
+        <a class="btn btn--icon btn--sm" href="{{ w.url }}" target="_blank" rel="noopener" aria-label="Open on Vinted" title="Open on Vinted">{{ ui.icon("external-link", "i-sm") }}</a>
+        <form method="post" action="/watchlist/{{ w.id }}/delete"><button class="btn btn--icon btn--sm" type="submit" aria-label="Stop watching {{ w.title }}" title="Stop watching">{{ ui.icon("x", "i-sm") }}</button></form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card card--pad stack"><h2 class="t-h2">Nothing on your watchlist</h2><p>Watch a listing to hear when its price drops or it sells. Open any find's menu and choose "Watch the price", or paste a listing link above.</p><a class="btn btn--primary btn--sm" href="{{ url('home') }}" style="justify-self:start">Go to finds</a></div>
+  {% endif %}
+</div>
+
+<div class="tabpanel" id="p-sellers" role="tabpanel" aria-labelledby="tab-sellers" hidden>
+  <p class="t-sm" style="margin-bottom:14px">Get an alert when one of these sellers lists something new, whatever it is.</p>
+  {% if sellers %}
+  <div class="card">
+    {% for sl in sellers %}
+    <div class="wrow" style="grid-template-columns:48px minmax(0,1fr) auto auto">
+      <span class="avatar" style="--sc: var(--s-{{ loop.index0 % 7 + 1 }})" aria-hidden="true">{{ sl.initial }}</span>
+      <div class="wrow__main">
+        <a class="wrow__title" href="{{ sl.url }}" target="_blank" rel="noopener">{{ sl.login }}</a>
+        <span class="wrow__sub">{{ sl.tld }} · checked {{ sl.checked }}</span>
+        {% if sl.error %}<span class="wrow__sub" style="color:var(--c-danger-ink)">Last look didn't work: {{ sl.error }}</span>{% endif %}
+      </div>
+      <form method="post" action="/watchlist/{{ sl.id }}/toggle"><button class="btn btn--ghost btn--sm" type="submit" aria-pressed="{{ 'true' if sl.on else 'false' }}">{{ ui.icon("bell" if sl.on else "bell-off", "i-sm") }}{{ "Alerts on" if sl.on else "Alerts off" }}</button></form>
+      <form method="post" action="/watchlist/{{ sl.id }}/delete"><button class="btn btn--icon btn--sm" type="submit" aria-label="Stop following {{ sl.login }}" title="Stop following">{{ ui.icon("x", "i-sm") }}</button></form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card card--pad stack"><h2 class="t-h2">No sellers followed</h2><p>Follow a seller from any find's menu, or paste their member page above, to hear about everything new they list.</p></div>
+  {% endif %}
+</div>
+{% endblock %}

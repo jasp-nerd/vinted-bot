@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+{% block title %}{% if s %}Edit {{ s.name }}{% else %}New search{% endif %}{% endblock %}
+{% block body_class %}is-task{% endblock %}
+{% macro sec(id, ic, title, sub) -%}
+<section class="card esec" id="{{ id }}" aria-labelledby="{{ id }}-h">
+  <div class="esec__head"><span class="esec__icon">{{ ui.icon(ic) }}</span><h2 class="t-h3" id="{{ id }}-h" style="font-size:17px">{{ title }}</h2><p>{{ sub }}</p></div>
+  <div class="esec__body">{{ caller() }}</div>
+</section>
+{%- endmacro %}
+{% macro fold(id, ic, title, summary, open=False) -%}
+<details class="card esec esec-fold" id="{{ id }}"{% if open %} open{% endif %}>
+  <summary><span class="esec__icon">{{ ui.icon(ic) }}</span><span class="stack" style="gap:2px;min-width:0"><span class="t-h3" style="font-size:17px">{{ title }}</span><span class="esec__sum">{{ summary }}</span></span>{{ ui.icon("chevron-right") }}</summary>
+  <div class="esec__body">{{ caller() }}</div>
+</details>
+{%- endmacro %}
+{% set E = errors %}
+{% block content %}
+<nav class="crumbs" aria-label="Breadcrumb" style="margin-bottom:10px"><a href="{{ url('searches') }}">Searches</a>{{ ui.icon("chevron-right", "i-xs") }}{% if s %}<a href="{{ url('search_detail', id=s.id) }}">{{ s.name }}</a>{{ ui.icon("chevron-right", "i-xs") }}<span>Edit</span>{% else %}<span>New search</span>{% endif %}</nav>
+<div class="page-head">
+  <div class="page-head__text">
+    <h1 class="t-h1">{% if s %}Edit search{% else %}New search{% endif %}</h1>
+    <p>{% if s %}Changes apply from the next check. Listings you already got are not sent again.{% else %}Paste a search from Vinted, or build one here. The first check skips what's already there, so only new listings alert you.{% endif %}</p>
+  </div>
+</div>
+{% if E %}
+<div class="notice notice--danger" role="alert" style="margin-bottom:16px">{{ ui.icon("circle-alert") }}<div><p><strong>{{ "One thing needs" if E|length == 1 else E|length ~ " things need" }} fixing before this can be saved.</strong> {{ "It's" if E|length == 1 else "They're" }} marked below.</p></div></div>
+{% endif %}
+
+<form class="editor" id="edit-form" method="post" action="{% if s %}/searches/{{ s.id }}{% else %}/searches{% endif %}" novalidate data-editor data-tld="{{ f.tld }}" data-builder="{{ 1 if builder else 0 }}" data-previews="{{ 1 if previews else 0 }}"{% if s %} data-search="{{ s.id }}"{% endif %}>
+  <input type="hidden" name="labels" value="{{ f.labels }}" data-labels>
+  <input type="hidden" name="extra_params" value="{{ f.extra_params }}">
+  <div class="editor__form">
+    {% call sec("what", "search", "What you're looking for", "The words and category Vinted searches for.") %}
+      <div class="field">
+        <label class="label" for="link">Vinted search link <small>easiest: copy it from Vinted</small></label>
+        <input class="input" id="link" name="link" type="text" inputmode="url" spellcheck="false" autocomplete="off" placeholder="vinted.nl/catalog?search_text=regenjas" value="{{ f.link }}"{{ ui.invalid(E, 'link') }}>
+        {{ ui.field_error(E, "link") }}
+        <p class="help">On Vinted, search and set your filters, then copy the address (in the app: Share, then Copy). Pasting a link replaces the filters below. Works without https:// too.</p>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label class="label" for="name">Name <small>optional</small></label>
+          <input class="input" id="name" name="name" type="text" value="{{ f.name }}" placeholder="Named after the search words"{{ ui.invalid(E, 'name') }}>
+          {{ ui.field_error(E, "name") }}
+        </div>
+        <div class="field">
+          <label class="label" for="site">Vinted site</label>
+          <select class="select" id="site" name="tld"{{ ui.invalid(E, 'tld') }}>
+            {% for tld, code, cname in countries %}<option value="{{ tld }}"{% if tld == f.tld %} selected{% endif %}>vinted.{{ tld }} ({{ cname }})</option>{% endfor %}
+          </select>
+          {{ ui.field_error(E, "tld") }}
+        </div>
+      </div>
+      <div class="field">
+        <label class="label" for="words">Search words</label>
+        <input class="input" id="words" name="search_text" type="text" value="{{ f.search_text }}" placeholder="e.g. regenjas"{{ ui.invalid(E, 'search_text') }}>
+        {{ ui.field_error(E, "search_text") }}
+        <p class="help">What you'd type in Vinted's search box.</p>
+      </div>
+      <div class="field">
+        <span class="label" id="cat-label">Category</span>
+        <div class="cattree" data-cattree aria-labelledby="cat-label">
+          <input type="hidden" name="catalog_ids" value="{{ f.catalog_ids }}" data-ids>
+          <p class="t-sm" data-cattree-status>{% if f.catalog_ids %}{{ f.catalog_ids.split(',')|length }} picked.{% else %}Any category.{% endif %}{% if not builder %} The category picker works while the app runs.{% endif %}</p>
+        </div>
+      </div>
+      <div class="field combo" data-combo>
+        <label class="label" for="must">Title must include <small>every word here</small></label>
+        <div class="tokens" data-tokens="yes" data-or{{ ui.invalid(E, 'include_terms') }}>
+          <input type="hidden" name="include_terms" value="{{ f.include_terms }}" data-token-value>
+          <input id="must" type="text" placeholder="Add a word" autocomplete="off">
+        </div>
+        {{ ui.field_error(E, "include_terms") }}
+        <p class="help">Each chip must be in the title. To accept either of two words, type them with "or" between: <b>501 or 505</b>.</p>
+      </div>
+      <div class="field">
+        <label class="label" for="nope">Skip titles with these words</label>
+        <div class="tokens" data-tokens="no"{{ ui.invalid(E, 'banned_keywords') }}>
+          <input type="hidden" name="banned_keywords" value="{{ f.banned_keywords }}" data-token-value>
+          <input id="nope" type="text" placeholder="Add a word, like damaged" autocomplete="off">
+        </div>
+        {{ ui.field_error(E, "banned_keywords") }}
+      </div>
+      <details class="adv"{% if E.regex or f.regex %} open{% endif %}>
+        <summary>{{ ui.icon("chevron-right") }}Advanced</summary>
+        <div>
+          <div class="field">
+            <label class="label" for="regex">Title pattern <small>for people who know regular expressions</small></label>
+            <input class="input" id="regex" name="regex" type="text" spellcheck="false" placeholder="e.g. \b50[15]\b" style="font-family:ui-monospace,Menlo,monospace" value="{{ f.regex }}"{{ ui.invalid(E, 'regex') }}>
+            {{ ui.field_error(E, "regex") }}
+          </div>
+          <div class="field" style="max-width:300px">
+            <label class="label" for="maxage">Ignore listings older than <small>minutes, optional</small></label>
+            <input class="input num" id="maxage" name="max_age_min" type="text" inputmode="numeric" value="{{ f.max_age_min }}"{{ ui.invalid(E, 'max_age_min') }}>
+            {{ ui.field_error(E, "max_age_min") }}
+          </div>
+          <p class="t-sm">Paid bumps of old listings are always skipped.</p>
+        </div>
+      </details>
+    {% endcall %}
+
+    {% call sec("price", "badge-percent", "Price", "Prices here include Vinted's buyer protection fee, so they match what you'd pay before shipping.") %}
+      <div class="grid-2">
+        <div class="field">
+          <label class="label" for="pmin">At least</label>
+          <div class="affix"><span class="affix__pre">{{ currency }}</span><input class="input num" id="pmin" name="min_total_price" type="text" inputmode="decimal" value="{{ f.min_total_price }}" data-money{{ ui.invalid(E, 'min_total_price') }}></div>
+          {{ ui.field_error(E, "min_total_price") }}
+          <p class="help" data-money-help>Optional</p>
+        </div>
+        <div class="field">
+          <label class="label" for="pmax">At most</label>
+          <div class="affix"><span class="affix__pre">{{ currency }}</span><input class="input num" id="pmax" name="max_total_price" type="text" inputmode="decimal" value="{{ f.max_total_price }}" data-money{{ ui.invalid(E, 'max_total_price') }}></div>
+          {{ ui.field_error(E, "max_total_price") }}
+          <p class="help" data-money-help>Including fees</p>
+        </div>
+      </div>
+      <div class="set" style="padding:4px 0 0">
+        <div class="set__text"><span class="t-h3">Only send deals</span><span class="t-sm">Skip anything that isn't clearly cheaper than usual for this search.{% if typical %} The typical price right now is <b class="t-ink">{{ typical|join(", ") }}</b>.{% else %} The typical price is worked out once this search has found about 15 listings.{% endif %}</span></div>
+        <label class="switch"><input type="checkbox" id="deal-on" name="deal_on" value="1"{% if f.deal_on %} checked{% endif %} aria-label="Only send deals"></label>
+      </div>
+      <div class="field" style="max-width:300px" data-dep="deal-on">
+        <label class="label" for="deal-pct">At least this much under typical</label>
+        <div class="affix affix--post"><input class="input num" id="deal-pct" name="deal_only_pct" type="text" inputmode="numeric" value="{{ f.deal_only_pct }}"{{ ui.invalid(E, 'deal_only_pct') }}><span class="affix__post">% cheaper</span></div>
+        {{ ui.field_error(E, "deal_only_pct") }}
+      </div>
+    {% endcall %}
+
+    {% call sec("item", "shirt", "The item", "Leave anything empty to allow all. Not every listing says its size or condition; those still come through.") %}
+      <div class="field combo" data-combo data-brands>
+        <label class="label" for="brand">Brands</label>
+        <div class="tokens" data-tokens="brand">
+          <input type="hidden" name="brand_ids" value="{{ f.brand_ids }}" data-token-value>
+          <input id="brand" type="text" placeholder="Add a brand" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="brand-list" aria-autocomplete="list">
+        </div>
+        <ul class="combo__list" id="brand-list" role="listbox" hidden></ul>
+      </div>
+      {% for code, key, label in [("size", "size_ids", "Sizes"), ("status", "status_ids", "Condition"), ("color", "color_ids", "Colours")] %}
+      <fieldset class="field facet" data-facet="{{ code }}" style="border:0;padding:0;margin:0">
+        <legend class="label" style="margin-bottom:6px">{{ label }}</legend>
+        <input type="hidden" name="{{ key }}" value="{{ f[key] }}" data-ids>
+        <div class="chips" data-facet-chips><span class="t-sm">{% if f[key] %}{{ f[key].split(',')|length }} picked.{% else %}Any.{% endif %}{% if code == "size" %} Pick a category first for its sizes.{% endif %}</span></div>
+      </fieldset>
+      {% endfor %}
+    {% endcall %}
+
+    {% call sec("where", "bell", "Where alerts go", "Tick where this search sends. Tick none and it sends to every place you've added.") %}
+      <div class="choices">
+        {% for dd in dests %}
+        <label class="choice choice--compact">
+          <input type="checkbox" name="dest" value="{{ dd.id }}"{% if dd.id|string in f.dest %} checked{% endif %}>
+          <span class="choice__icon dest__logo dest__logo--{{ dd.kind }}" style="width:36px;height:36px">{{ ui.dest_icon(dd.kind) }}</span>
+          <span class="choice__text"><span class="choice__title">{{ dd.name }}</span><span class="choice__desc">{{ dd.label }}{% if dd.status == "failing" %} · not working right now, <a href="{{ url('alerts') }}">fix on Alerts</a>{% endif %}</span></span>
+          <span class="choice__tick" style="border-radius:7px">{{ ui.icon("check") }}</span>
+        </label>
+        {% else %}
+        <p class="t-sm">No places yet, so finds only show on your Finds page. <a href="{{ url('alerts') }}">Add your phone, Telegram or Discord</a>.</p>
+        {% endfor %}
+      </div>
+    {% endcall %}
+
+    {% set quiet_sum = ("quiet " ~ f.quiet_start ~ " to " ~ f.quiet_end) if f.quiet_on else "no quiet hours" %}
+    {% call fold("when", "clock", "When to check", ("every " ~ (f.interval|int // 60) ~ " min" if f.interval|int >= 60 else "every " ~ f.interval ~ " s") ~ " · " ~ quiet_sum, open=E.interval or E.quiet_start or E.quiet_end) %}
+      <fieldset class="field" style="border:0;padding:0;margin:0">
+        <legend class="label" style="margin-bottom:8px">Check</legend>
+        <div class="seg seg--wrap" role="radiogroup">
+          {% set chosen = f.interval|string %}
+          {% for v in presets %}
+          <label><input type="radio" name="interval" value="{{ v }}"{% if chosen == v|string %} checked{% endif %}>{% if v < 60 %}{{ v }} s{% else %}{{ v // 60 }} min{% endif %}{% if v == 60 %} (recommended){% endif %}</label>
+          {% endfor %}
+          {% if chosen|int not in presets %}<label><input type="radio" name="interval" value="{{ chosen }}" checked>{{ chosen }} s</label>{% endif %}
+        </div>
+        {{ ui.field_error(E, "interval") }}
+        <p class="help">Vinted shows new listings a few minutes late, so checking faster than every minute rarely helps and can make Vinted slow you down.</p>
+      </fieldset>
+      <div class="set" style="padding:4px 0 0">
+        <div class="set__text"><span class="t-h3">Quiet hours</span><span class="t-sm">No buzzing at night. Times are in your time zone, {{ timezone }}.</span></div>
+        <label class="switch"><input type="checkbox" id="quiet-on" name="quiet_on" value="1"{% if f.quiet_on %} checked{% endif %} aria-label="Quiet hours"></label>
+      </div>
+      <div class="grid-3" data-dep="quiet-on" style="grid-template-columns:repeat(2,minmax(0,140px))">
+        <div class="field"><label class="label" for="qfrom">From</label><input class="input num" id="qfrom" name="quiet_start" type="time" value="{{ f.quiet_start }}"{{ ui.invalid(E, 'quiet_start') }}>{{ ui.field_error(E, "quiet_start") }}</div>
+        <div class="field"><label class="label" for="qto">Until</label><input class="input num" id="qto" name="quiet_end" type="time" value="{{ f.quiet_end }}"{{ ui.invalid(E, 'quiet_end') }}>{{ ui.field_error(E, "quiet_end") }}</div>
+      </div>
+      <fieldset class="choices choices--3" data-dep="quiet-on" style="border:0;padding:0;margin:0">
+        <legend class="label" style="margin-bottom:8px">During quiet hours</legend>
+        {% for v, t, dsc in [("hold", "Save for the morning", "Sent together when quiet hours end"), ("silent", "Send without sound", "Arrives now, silently"), ("drop", "Don't send", "Still shown on Finds")] %}
+        <label class="choice choice--card"><input type="radio" name="quiet_mode" value="{{ v }}"{% if f.quiet_mode == v %} checked{% endif %}><span class="choice__text"><span class="choice__title">{{ t }}</span><span class="choice__desc">{{ dsc }}</span></span><span class="choice__tick">{{ ui.icon("check") }}</span></label>
+        {% endfor %}
+      </fieldset>
+    {% endcall %}
+
+    {% set seller_parts = [] %}
+    {% if f.seller_min_rating %}{% set _ = seller_parts.append(f.seller_min_rating ~ " stars or more") %}{% endif %}
+    {% if f.seller_min_reviews %}{% set _ = seller_parts.append(f.seller_min_reviews ~ " reviews or more") %}{% endif %}
+    {% if f.skip_unrated_sellers %}{% set _ = seller_parts.append("no brand-new sellers") %}{% endif %}
+    {% if f.countries %}{% set _ = seller_parts.append("in " ~ f.countries|join(", ")) %}{% endif %}
+    {% call fold("seller", "user", "The seller", seller_parts|join(" · ") or "Any seller", open=E.seller_min_rating or E.seller_min_reviews or E.countries) %}
+      <p class="t-sm">Vinted's search doesn't say much about sellers, so these need a quick look at each new seller's page. Alerts can arrive a few seconds later.</p>
+      <div class="grid-2">
+        <div class="field">
+          <label class="label" for="minrate">Lowest rating</label>
+          <select class="select" id="minrate" name="seller_min_rating">
+            {% for v, l in [("", "Any rating"), ("4", "4 stars or more"), ("4.5", "4.5 stars or more"), ("4.8", "4.8 stars or more")] %}<option value="{{ v }}"{% if f.seller_min_rating == v %} selected{% endif %}>{{ l }}</option>{% endfor %}
+            {% if f.seller_min_rating and f.seller_min_rating not in ("4", "4.5", "4.8") %}<option value="{{ f.seller_min_rating }}" selected>{{ f.seller_min_rating }} stars or more</option>{% endif %}
+          </select>
+          {{ ui.field_error(E, "seller_min_rating") }}
+        </div>
+        <div class="field">
+          <label class="label" for="minrev">Fewest reviews</label>
+          <input class="input num" id="minrev" name="seller_min_reviews" type="text" inputmode="numeric" value="{{ f.seller_min_reviews }}"{{ ui.invalid(E, 'seller_min_reviews') }}>
+          {{ ui.field_error(E, "seller_min_reviews") }}
+        </div>
+      </div>
+      <div class="set" style="padding:0">
+        <div class="set__text"><span class="t-h3">Skip brand-new sellers</span><span class="t-sm">Sellers with no reviews yet.</span></div>
+        <label class="switch"><input type="checkbox" name="skip_unrated_sellers" value="1"{% if f.skip_unrated_sellers %} checked{% endif %} aria-label="Skip brand-new sellers"></label>
+      </div>
+      <fieldset class="field" style="border:0;padding:0;margin:0">
+        <legend class="label" style="margin-bottom:6px">Seller lives in <small>none ticked means anywhere</small></legend>
+        <div class="chips">{% for tld, code, cname in countries if code != "US" %}<label class="chip chip--sm"><input type="checkbox" name="countries" value="{{ code }}"{% if code in f.countries %} checked{% endif %}>{{ cname }}</label>{% endfor %}</div>
+        {{ ui.field_error(E, "countries") }}
+        <p class="help">Handy to keep shipping cheap and quick.</p>
+      </fieldset>
+      <p class="t-sm">{{ ui.icon("ban", "i-xs") }} {{ blocked_count }} {{ "seller is" if blocked_count == 1 else "sellers are" }} blocked in every search. <a href="{{ url('settings') }}#blocked">Manage blocked sellers</a></p>
+    {% endcall %}
+
+    {% call fold("countries", "globe", "Other countries", ("Also on " ~ f.extra_tlds|map("string")|join(", ")) if f.extra_tlds else "Only vinted." ~ f.tld, open=E.extra_tlds) %}
+      <p class="t-sm">Run the same search on other Vinted sites. More countries means more finds, but higher shipping and more chance Vinted slows you down.</p>
+      <div class="chips">{% for tld, code, cname in countries if tld != f.tld %}<label class="chip chip--sm"><input type="checkbox" name="extra_tlds" value="{{ tld }}"{% if tld in f.extra_tlds %} checked{% endif %}>vinted.{{ tld }}</label>{% endfor %}</div>
+      {{ ui.field_error(E, "extra_tlds") }}
+    {% endcall %}
+
+    {% call fold("look", "palette", "Look", ("Tags: " ~ f.tags) if f.tags else "Colour, tags and notes", open=E.color or E.tags or E.notes) %}
+      <fieldset class="field" style="border:0;padding:0;margin:0">
+        <legend class="label" style="margin-bottom:8px">Colour <small>tells searches apart in Finds and Discord</small></legend>
+        <div class="chips">{% for hex in slots %}<label class="chip chip--sm" style="padding:0 8px" title="Colour {{ loop.index }}"><input type="radio" name="color" value="{{ hex }}"{% if (f.color or '')|upper == hex %} checked{% endif %} aria-label="Colour {{ loop.index }}"><i class="sdot" style="--sc: var(--s-{{ loop.index }});width:18px;height:18px"></i></label>{% endfor %}
+        {% if f.color and f.color|upper not in slots %}<label class="chip chip--sm" style="padding:0 8px" title="Current colour"><input type="radio" name="color" value="{{ f.color }}" checked aria-label="Current colour"><i class="sdot" style="--sc: {{ f.color }};width:18px;height:18px"></i></label>{% endif %}</div>
+      </fieldset>
+      <div class="field">
+        <label class="label" for="tags">Tags</label>
+        <div class="tokens" data-tokens="yes"{{ ui.invalid(E, 'tags') }}><input type="hidden" name="tags" value="{{ f.tags }}" data-token-value><input id="tags" type="text" placeholder="Add a tag"></div>
+        {{ ui.field_error(E, "tags") }}
+      </div>
+      <div class="field">
+        <label class="label" for="notes">Notes <small>only you see these</small></label>
+        <textarea class="textarea" id="notes" name="notes"{{ ui.invalid(E, 'notes') }}>{{ f.notes }}</textarea>
+        {{ ui.field_error(E, "notes") }}
+      </div>
+    {% endcall %}
+
+    {% call fold("resale", "tag", "Resale", ("Resells for " ~ currency ~ f.resale_price ~ (", at least " ~ currency ~ f.min_margin ~ " left" if f.min_margin else "")) if f.resale_price else "For resellers: only alert when the margin is worth it", open=E.resale_price or E.resale_fee_pct or E.resale_shipping or E.min_margin) %}
+      <p class="t-sm">Fill this in if you buy to resell. Alerts then show what you'd keep after the selling platform's cut and postage, and can skip anything that leaves too little. Amounts are in vinted.{{ f.tld }}'s currency.</p>
+      <div class="grid-2">
+        <div class="field">
+          <label class="label" for="rs-price">It resells for</label>
+          <div class="affix"><span class="affix__pre">{{ currency }}</span><input class="input num" id="rs-price" name="resale_price" type="text" inputmode="decimal" value="{{ f.resale_price }}"{{ ui.invalid(E, 'resale_price') }}></div>
+          {{ ui.field_error(E, "resale_price") }}
+        </div>
+        <div class="field">
+          <label class="label" for="rs-fee">Selling fee</label>
+          <div class="affix affix--post"><input class="input num" id="rs-fee" name="resale_fee_pct" type="text" inputmode="decimal" value="{{ f.resale_fee_pct }}"{{ ui.invalid(E, 'resale_fee_pct') }}><span class="affix__post">%</span></div>
+          {{ ui.field_error(E, "resale_fee_pct") }}
+          <p class="help">0 for Vinted, about 10 for eBay.</p>
+        </div>
+        <div class="field">
+          <label class="label" for="rs-ship">Your postage when you sell it</label>
+          <div class="affix"><span class="affix__pre">{{ currency }}</span><input class="input num" id="rs-ship" name="resale_shipping" type="text" inputmode="decimal" value="{{ f.resale_shipping }}"{{ ui.invalid(E, 'resale_shipping') }}></div>
+          {{ ui.field_error(E, "resale_shipping") }}
+          <p class="help">Leave empty if the buyer pays it, as on Vinted.</p>
+        </div>
+        <div class="field">
+          <label class="label" for="rs-min">Only alert if I keep at least</label>
+          <div class="affix"><span class="affix__pre">{{ currency }}</span><input class="input num" id="rs-min" name="min_margin" type="text" inputmode="decimal" value="{{ f.min_margin }}"{{ ui.invalid(E, 'min_margin') }}></div>
+          {{ ui.field_error(E, "min_margin") }}
+          <p class="help">Optional. Needs the resale price.</p>
+        </div>
+      </div>
+    {% endcall %}
+
+    <div class="savebar">
+      <span class="t-sm savebar__count" aria-live="polite" data-savebar-count></span>
+      <div class="btn-row">
+        <a class="btn btn--ghost" href="{% if s %}{{ url('search_detail', id=s.id) }}{% else %}{{ url('searches') }}{% endif %}">Cancel</a>
+        <button class="btn btn--primary" type="submit">{% if s %}Save changes{% else %}Start watching{% endif %}</button>
+      </div>
+    </div>
+    {% if s %}
+    <div class="row" style="padding:8px 0 24px;border-top:1px solid var(--c-line)">
+      <button class="btn btn--danger-soft btn--sm" type="button" data-confirm="delete-search" data-name="{{ s.name }}" data-action="/searches/{{ s.id }}/delete">{{ ui.icon("trash-2", "i-sm") }}Delete this search</button>
+    </div>
+    {% endif %}
+  </div>
+
+  <aside class="editor__aside" aria-label="Preview">
+    <div class="field-panel field-panel--sun preview" data-preview>
+      <h2 class="t-h3" style="font-size:15px">Preview what this finds</h2>
+      <div class="preview__count" aria-live="polite"><b class="num" data-preview-count>–</b><span data-preview-label>{% if previews %}Fill in the search to see what matches{% else %}Previews work while the app itself is running{% endif %}</span></div>
+      <div class="preview__thumbs" data-preview-thumbs></div>
+      <div class="receipt" data-preview-receipt></div>
+      <p class="t-sm" data-preview-note hidden>Seller filters are checked when listings arrive, not here.</p>
+      {% if previews %}<button class="btn btn--secondary btn--sm" type="button" data-preview-refresh>{{ ui.icon("refresh-cw", "i-sm") }}Check again</button>{% endif %}
+    </div>
+    <p class="t-sm" style="padding:0 6px">The preview runs the search once on Vinted. It doesn't send anything.</p>
+  </aside>
+</form>
+{% endblock %}
+
+{% block modals %}
+{% if s %}
+<dialog class="modal" id="delete-search" aria-labelledby="ds-title">
+  <form method="post" data-confirm-form>
+    <div class="modal__head"><h2 class="t-h2" id="ds-title">Delete "<span data-fill="name"></span>"?</h2><button class="btn btn--icon" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button></div>
+    <div class="modal__body"><p>It stops checking and sending alerts right away. Finds it already made stay on your Finds page.</p></div>
+    <div class="modal__foot"><button class="btn btn--secondary" type="button" data-close>Keep it</button><button class="btn btn--danger" type="submit">Delete search</button></div>
+  </form>
+</dialog>
+{% endif %}
+{% endblock %}
