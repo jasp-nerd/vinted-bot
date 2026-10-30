@@ -461,7 +461,7 @@ async def _run(args: argparse.Namespace) -> int:
     except ValidationError as exc:
         print(config.explain(exc), file=sys.stderr)
         return 2
-    log.configure(level=settings.log_level, fmt=settings.log_format)
+    log.configure(level=settings.log_level, fmt=settings.log_format, timezone=settings.timezone)
     for warning in settings.warnings:
         _log.warning("config.not_used", problem=warning)
     if unknown := Settings.unknown_keys():

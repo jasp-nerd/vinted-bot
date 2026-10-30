@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import logging
 import sys
+from collections.abc import Callable, MutableMapping
+from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import structlog
 
@@ -19,7 +22,26 @@ import structlog
 _NOISY_LOGGERS = ("httpx", "httpcore", "aiogram.event", "uvicorn.access", "aiosqlite")
 
 
-def configure(level: str = "INFO", fmt: str = "console") -> None:
+Stamper = Callable[[Any, str, MutableMapping[str, Any]], MutableMapping[str, Any]]
+
+
+def local_timestamps(tz: ZoneInfo) -> Stamper:
+    """Stamp each entry with the time on the reader's clock, offset included.
+
+    UTC stamps in a container whose TZ says Amsterdam made every log line an hour or two
+    off from what the dashboard and the alerts said.
+    """
+
+    def stamp(
+        _logger: Any, _method: str, event: MutableMapping[str, Any]
+    ) -> MutableMapping[str, Any]:
+        event["timestamp"] = datetime.now(tz).isoformat(timespec="seconds")
+        return event
+
+    return stamp
+
+
+def configure(level: str = "INFO", fmt: str = "console", timezone: str = "UTC") -> None:
     """Set up structlog and the standard library logger it bridges to."""
     renderer: structlog.typing.Processor = (
         structlog.dev.ConsoleRenderer(colors=sys.stderr.isatty())
@@ -31,7 +53,7 @@ def configure(level: str = "INFO", fmt: str = "console") -> None:
         processors=[
             structlog.contextvars.merge_contextvars,
             structlog.stdlib.add_log_level,
-            structlog.processors.TimeStamper(fmt="iso", utc=True),
+            local_timestamps(ZoneInfo(timezone)),
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
             renderer,
