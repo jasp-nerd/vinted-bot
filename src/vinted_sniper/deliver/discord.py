@@ -4,56 +4,592 @@ A webhook is the whole integration: paste a URL, get notifications. No bot to in
 gateway connection to keep alive, and when someone deletes the webhook we get a clean 404
 instead of a bot that silently stops working.
 
-Every listing renders as one rich embed: an author line naming the search it matched, the
-title linking to the listing, a row of links (item, dashboard, seller), an inline grid of
-the facts a buying decision needs — total price included — and the photo full width. The
-links live in the embed itself rather than in buttons, so a single listing and a batch of
-ten read identically and nothing is lost when embeds are stacked.
+Listings go out as Components V2 cards: an accent bar in the search's colour (green for a
+deal), the title as a link, a photo gallery, the total price large with a deal badge, the
+facts in two lines and a row of link buttons. Plain webhooks may carry non-interactive
+components, and link buttons are non-interactive, so this needs nothing beyond the URL.
+Cards pack several to a message up to Discord's 40-component limit; bigger bursts become a
+digest of thumbnail rows, which reads far better than a wall of full-height cards.
 
-Two details are doing real work here. Discord collapses embeds that share a link, so every
-embed carries its own listing URL rather than the search's. And rejected requests count
-against an allowance that, once spent, gets the whole address blocked — so a destination
-that answers 404 is switched off rather than retried.
+If Discord ever answers a card with a 400 about components, the same listings are resent as
+classic embeds and this destination stays on embeds until the app restarts. That costs one
+rejected request, and 400s do not count against the invalid-request allowance (only 401,
+403 and 429 do), so it is safe to learn this way rather than guess.
+
+Two details are doing real work. Every mention is opt-in: `allowed_mentions` is always sent
+empty unless the destination names a role or user to ping, so a listing titled "@everyone"
+pings nobody. And rejected requests count against an allowance that, once spent, gets the
+whole address blocked — so a webhook that answers 404 is switched off rather than retried.
 """
 
 from __future__ import annotations
 
-import time
+import re
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from http import HTTPStatus
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 
 from vinted_sniper.db.repo import PendingNotification
-from vinted_sniper.deliver.base import SendResult, require
+from vinted_sniper.deliver.base import SenderConfigError, SendResult, require
 from vinted_sniper.deliver.ratelimit import TokenBucket
+from vinted_sniper.deliver.render import BOT_NAME, ICON_URL, STATUS_COLOUR, ListingView, view
 from vinted_sniper.log import get_logger
-from vinted_sniper.vinted.models import Item
 
 log = get_logger(__name__)
 
-# Discord's own cap on embeds in one message.
+# Discord's limits for one message.
+MAX_COMPONENTS = 40
+MAX_TEXT_CHARS = 4000
 MAX_EMBEDS = 10
+MAX_EMBED_CHARS = 6000
 
-# Up to this many listings at once, each gets its own message — the shape people expect
-# an alert to have. Past it, one message per listing turns into a wall, so the embeds
-# stack into a single message instead.
-STACK_THRESHOLD = 3
+# Up to this many listings go out as full cards; past it they become a digest.
+CARD_BATCH = 3
+# Nine thumbnail rows with separators is 37 components; ten would be 41.
+DIGEST_BATCH = 9
+
+# Photos in a card's gallery. Four make a balanced mosaic; Vinted's portrait photos make
+# anything longer taller than a phone screen.
+GALLERY_PHOTOS = 4
 
 # The documented per-webhook limit is around five requests every two seconds, but webhooks
 # in the same server have been observed sharing one allowance. One request every half
 # second stays clear of both.
 REQUESTS_PER_S = 2.0
 
-BOT_NAME = "Vinted Sniper"
-# The dart-on-target emoji as a hosted PNG, shown as the webhook's avatar and in footers.
-ICON_URL = "https://cdn.jsdelivr.net/gh/jdecked/twemoji@15.1.0/assets/72x72/1f3af.png"
-BRAND_COLOUR = 0x007782
+# Message flags.
+SUPPRESS_NOTIFICATIONS = 1 << 12
+IS_COMPONENTS_V2 = 1 << 15
 
-# Vinted's country sites named by the ISO code their flag needs. Everything not listed is
-# already its own ISO code.
-_ISO_BY_TLD = {"co.uk": "GB", "com": "US"}
+# Component types.
+ACTION_ROW, BUTTON, SECTION, TEXT, THUMBNAIL, GALLERY, SEPARATOR, CONTAINER = (
+    1,
+    2,
+    9,
+    10,
+    11,
+    12,
+    14,
+    17,
+)
+LINK_STYLE = 5
+
+Style = Literal["card", "compact", "classic"]
+_STYLES: dict[str, Style] = {"card": "card", "compact": "compact", "classic": "classic"}
+
+_ROLE = re.compile(r"^<@&(\d+)>$")
+_USER = re.compile(r"^<@!?(\d+)>$")
+
+# Characters Discord markdown would act on inside a title or a login.
+_MARKDOWN = re.compile(r"([\\*_~|`>#\-\[\]()<:])")
+
+
+@dataclass(frozen=True, slots=True)
+class DiscordOptions:
+    """What a destination's settings ask of the messages."""
+
+    style: Style = "card"
+    mention: str | None = None
+    allowed_mentions: dict[str, list[str]] | None = None
+    silent: bool = False
+    username: str = BOT_NAME
+    avatar_url: str = ICON_URL
+    photos: int = GALLERY_PHOTOS
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any]) -> DiscordOptions:
+        raw_style = config.get("style") or "card"
+        style = _STYLES.get(raw_style)
+        if style is None:
+            raise SenderConfigError(
+                f"Discord style must be card, compact or classic, not {raw_style!r}"
+            )
+        mention, allowed = _parse_mention(config.get("mention"))
+        return cls(
+            style=style,
+            mention=mention,
+            allowed_mentions=allowed,
+            silent=bool(config.get("silent")),
+            username=str(config.get("username") or BOT_NAME)[:80],
+            avatar_url=str(config.get("avatar_url") or ICON_URL),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class Message:
+    """One request's body and the notifications it carries."""
+
+    payload: dict[str, Any]
+    outbox_ids: list[int]
+
+
+def _parse_mention(raw: Any) -> tuple[str | None, dict[str, list[str]] | None]:
+    """Turn the configured ping into its text and the allowance that lets it through.
+
+    Only the exact role or user named may ping. Anything else in the message, a title
+    included, stays inert.
+    """
+    if not raw:
+        return None, None
+    text = str(raw).strip()
+    if role := _ROLE.match(text):
+        return text, {"parse": [], "roles": [role.group(1)]}
+    if user := _USER.match(text):
+        return text, {"parse": [], "users": [user.group(1)]}
+    if text in {"@everyone", "@here"}:
+        return text, {"parse": ["everyone"]}
+    raise SenderConfigError(
+        "Discord mention must look like <@&role id>, <@user id>, @everyone or @here"
+    )
+
+
+def escape(text: str) -> str:
+    """Make user text render literally: no markdown, no mentions, no timestamps."""
+    escaped = _MARKDOWN.sub(r"\\\1", text)
+    # A zero-width space after @ keeps "@everyone" readable and unpingable even where
+    # allowed_mentions would not apply.
+    return escaped.replace("@", "@\u200b")
+
+
+# Inside a masked link's text Discord shows backslash escapes literally, and a mention
+# stops the link rendering at all (both checked against the live client). So link text
+# swaps formatting characters for lookalikes instead of escaping them.
+_LINK_TEXT = str.maketrans(
+    {
+        "[": "(",
+        "]": ")",
+        "*": "\u2217",
+        "_": "\uff3f",
+        "~": "\u223c",
+        "`": "\u02cb",
+        "|": "\u01c0",
+        "@": "\uff20",
+        "<": "\u2039",
+        ">": "\u203a",
+    }
+)
+
+
+def link_text(text: str) -> str:
+    """Make user text safe as the visible part of a markdown link."""
+    return text.translate(_LINK_TEXT)
+
+
+def _link(url: str) -> str:
+    """A URL safe inside a markdown link's parentheses."""
+    return url.replace("(", "%28").replace(")", "%29").replace(" ", "%20")
+
+
+# --- Components V2 ------------------------------------------------------------------
+
+
+def _text(content: str) -> dict[str, Any]:
+    return {"type": TEXT, "content": content}
+
+
+def _separator(*, divider: bool = True) -> dict[str, Any]:
+    return {"type": SEPARATOR, "divider": divider, "spacing": 1}
+
+
+def _button(label: str, url: str) -> dict[str, Any]:
+    return {"type": BUTTON, "style": LINK_STYLE, "label": label[:80], "url": url}
+
+
+def _buttons(listing: ListingView) -> dict[str, Any]:
+    labels = listing.labels
+    buttons = []
+    if listing.can_buy:
+        buttons.append(_button(labels.buy, listing.buy_url))
+        buttons.append(_button(labels.message, listing.message_url))
+    buttons.append(_button(labels.open, listing.url))
+    if listing.dashboard_url:
+        buttons.append(_button(labels.dashboard, listing.search_url or listing.dashboard_url))
+    return {"type": ACTION_ROW, "components": buttons}
+
+
+def _header(listing: ListingView) -> str:
+    search = escape(listing.search_name)
+    if listing.search_url:
+        search = f"[{search}]({_link(listing.search_url)})"
+    site = f"{listing.flag} {listing.site}".strip()
+    return (
+        f"-# {escape(listing.headline)} · {search} · {site} · "
+        f"{listing.labels.listed} <t:{listing.listed_at}:R>"
+    )
+
+
+def _price_block(listing: ListingView) -> str | None:
+    if listing.price is None:
+        return None
+    line = f"# {listing.price}"
+    if listing.previous_price:
+        line += f"  ~~{listing.previous_price}~~"
+    if listing.badge:
+        line += f"  `{listing.badge}`"
+    if listing.price_note:
+        line += f"\n-# {listing.price_note}"
+    return line
+
+
+def _seller_line(listing: ListingView) -> str | None:
+    parts = []
+    if listing.seller_login:
+        login = escape(listing.seller_login)
+        if listing.seller_url:
+            login = f"[{login}]({_link(listing.seller_url)})"
+        parts.append(f"**{listing.labels.seller}** {login}")
+    if listing.rating:
+        parts.append(listing.rating)
+    if listing.favourites:
+        parts.append(f"♥ {listing.favourites}")
+    return "  ·  ".join(parts) or None
+
+
+def _facts_block(listing: ListingView) -> str | None:
+    lines = []
+    if listing.facts:
+        lines.append("  ·  ".join(f"**{label}** {escape(value)}" for label, value in listing.facts))
+    if seller := _seller_line(listing):
+        lines.append(seller)
+    return "\n".join(lines) or None
+
+
+def card(listing: ListingView, *, photos: int = GALLERY_PHOTOS) -> dict[str, Any]:
+    """The full listing card: one container, built from top to bottom."""
+    children: list[dict[str, Any]] = [
+        _text(_header(listing)),
+        _text(f"### [{link_text(listing.title)}]({_link(listing.url)})"),
+    ]
+    if listing.photos:
+        children.append(
+            {
+                "type": GALLERY,
+                "items": [
+                    {"media": {"url": url}, "description": listing.title[:1024]}
+                    for url in listing.photos[:photos]
+                ],
+            }
+        )
+    if price := _price_block(listing):
+        children.append(_text(price))
+    if facts := _facts_block(listing):
+        children.append(_separator())
+        children.append(_text(facts))
+    children.append(_buttons(listing))
+    return {"type": CONTAINER, "accent_color": listing.accent, "components": children}
+
+
+def _row_text(listing: ListingView) -> str:
+    """One listing as three lines of a digest."""
+    title = f"**[{link_text(listing.title)}]({_link(listing.url)})**"
+    price = " ".join(
+        part
+        for part in (
+            f"**{listing.price}**" if listing.price else None,
+            f"~~{listing.previous_price}~~" if listing.previous_price else None,
+            f"`{listing.badge}`" if listing.badge else None,
+        )
+        if part
+    )
+    second = [price, *(escape(value) for _, value in listing.facts)]
+    third = [
+        part
+        for part in (
+            listing.rating,
+            f"<t:{listing.listed_at}:R>",
+            f"[{listing.labels.buy}]({_link(listing.buy_url)})" if listing.can_buy else None,
+            f"[{listing.labels.message}]({_link(listing.message_url)})"
+            if listing.can_buy
+            else None,
+        )
+        if part
+    ]
+    second_line = " · ".join(part for part in second if part)
+    lines = [title, second_line, f"-# {' · '.join(third)}"]
+    return "\n".join(line for line in lines if line)
+
+
+def _row(listing: ListingView) -> dict[str, Any]:
+    text = _text(_row_text(listing))
+    if not listing.photos:
+        return text
+    return {
+        "type": SECTION,
+        "components": [text],
+        "accessory": {
+            "type": THUMBNAIL,
+            "media": {"url": listing.photos[0]},
+            "description": listing.title[:1024],
+        },
+    }
+
+
+def digest(listings: list[ListingView], *, with_buttons: bool = False) -> dict[str, Any]:
+    """Several listings as thumbnail rows in one container."""
+    first = listings[0]
+    searches = {listing.search_name for listing in listings}
+    if len(listings) == 1:
+        heading = f"-# {escape(first.headline)} · {escape(first.search_name)}"
+    else:
+        heading = f"### {first.labels.new_matches.format(n=len(listings))}"
+        if len(searches) == 1:
+            heading += f" · {escape(first.search_name)}"
+    children: list[dict[str, Any]] = [_text(heading)]
+    for index, listing in enumerate(listings):
+        if index:
+            children.append(_separator())
+        children.append(_row(listing))
+    if with_buttons:
+        children.append(_buttons(first))
+    accent = next((listing.accent for listing in listings if listing.deal), first.accent)
+    return {"type": CONTAINER, "accent_color": accent, "components": children}
+
+
+def count_components(components: list[dict[str, Any]]) -> int:
+    """Every component, nested ones and section accessories included, as Discord counts."""
+    total = 0
+    for component in components:
+        total += 1
+        total += count_components(component.get("components", []))
+        if "accessory" in component:
+            total += 1
+    return total
+
+
+def text_chars(components: list[dict[str, Any]]) -> int:
+    """Characters across every text display, which Discord caps per message."""
+    total = 0
+    for component in components:
+        if component.get("type") == TEXT:
+            total += len(component["content"])
+        total += text_chars(component.get("components", []))
+    return total
+
+
+def _envelope(options: DiscordOptions, *, silent: bool) -> dict[str, Any]:
+    return {
+        "username": options.username,
+        "avatar_url": options.avatar_url,
+        "allowed_mentions": (options.allowed_mentions if not silent else None) or {"parse": []},
+    }
+
+
+def _v2_message(
+    containers: list[dict[str, Any]], listings: list[ListingView], options: DiscordOptions
+) -> Message:
+    silent = options.silent or all(listing.silent for listing in listings)
+    components = list(containers)
+    if options.mention and not silent:
+        # Outside the card, so the card itself stays clean; inside a text display it
+        # pings exactly as allowed_mentions permits.
+        components.insert(0, _text(options.mention))
+    flags = IS_COMPONENTS_V2 | (SUPPRESS_NOTIFICATIONS if silent else 0)
+    payload = _envelope(options, silent=silent) | {"flags": flags, "components": components}
+    return Message(payload, [listing.outbox_id for listing in listings])
+
+
+def _fits(containers: list[dict[str, Any]], options: DiscordOptions) -> bool:
+    reserve = 1 if options.mention else 0
+    return (
+        count_components(containers) + reserve <= MAX_COMPONENTS
+        and text_chars(containers) + len(options.mention or "") <= MAX_TEXT_CHARS
+    )
+
+
+def v2_messages(listings: list[ListingView], options: DiscordOptions) -> list[Message]:
+    """Lay a batch out as Components V2 messages, as few as the limits allow."""
+    if not listings:
+        return []
+    if options.style == "compact":
+        if len(listings) == 1:
+            return [_v2_message([digest(listings, with_buttons=True)], listings, options)]
+        return _digests(listings, options)
+    if len(listings) > CARD_BATCH:
+        return _digests(listings, options)
+
+    messages: list[Message] = []
+    pending: list[ListingView] = []
+    containers: list[dict[str, Any]] = []
+    for listing in listings:
+        built = card(listing, photos=options.photos)
+        if containers and not _fits([*containers, built], options):
+            messages.append(_v2_message(containers, pending, options))
+            pending, containers = [], []
+        pending.append(listing)
+        containers.append(built)
+    messages.append(_v2_message(containers, pending, options))
+    return messages
+
+
+def _digests(listings: list[ListingView], options: DiscordOptions) -> list[Message]:
+    return [
+        _v2_message([digest(chunk)], chunk, options)
+        for chunk in (
+            listings[start : start + DIGEST_BATCH]
+            for start in range(0, len(listings), DIGEST_BATCH)
+        )
+    ]
+
+
+def status_v2(message: str, options: DiscordOptions) -> dict[str, Any]:
+    """A notice about the app itself: a plain grey card, no ping."""
+    container = {
+        "type": CONTAINER,
+        "accent_color": STATUS_COLOUR,
+        "components": [_text(f"-# {BOT_NAME}"), _text(escape(message)[: MAX_TEXT_CHARS - 50])],
+    }
+    return _envelope(options, silent=True) | {"flags": IS_COMPONENTS_V2, "components": [container]}
+
+
+# --- Classic embeds -------------------------------------------------------------------
+
+
+def _embed_fields(listing: ListingView) -> list[dict[str, Any]]:
+    labels = listing.labels
+    fields = [
+        {"name": label, "value": escape(value), "inline": True} for label, value in listing.facts
+    ]
+    if listing.seller_login:
+        seller = escape(listing.seller_login)
+        if listing.seller_url:
+            seller = f"[{seller}]({_link(listing.seller_url)})"
+        if listing.rating:
+            seller += f"\n{listing.rating}"
+        fields.append({"name": labels.seller, "value": seller[:1024], "inline": True})
+    fields.append(
+        {"name": "Vinted", "value": f"{listing.flag} {listing.site}".strip(), "inline": True}
+    )
+    fields.append(
+        {"name": labels.listed.capitalize(), "value": f"<t:{listing.listed_at}:R>", "inline": True}
+    )
+    return fields
+
+
+def _embed_card(listing: ListingView, options: DiscordOptions) -> list[dict[str, Any]]:
+    """One listing as a rich embed, plus image-only embeds that fold into a photo mosaic.
+
+    The extra embeds share the listing's URL on purpose: clients merge same-URL images
+    into the first embed. Only the first carries a title, so no listing ever disappears.
+    """
+    author = f"{listing.headline} · {listing.search_name}"
+    if listing.badge:
+        author += f" · {listing.badge}"
+    description = []
+    if listing.price:
+        line = f"## {listing.price}"
+        if listing.previous_price:
+            line += f"  ~~{listing.previous_price}~~"
+        description.append(line)
+    if listing.price_note:
+        description.append(f"-# {listing.price_note}")
+
+    embed: dict[str, Any] = {
+        "author": {"name": author[:256], "icon_url": options.avatar_url},
+        "title": listing.title[:256],
+        "url": listing.url,
+        "color": listing.accent,
+        "fields": _embed_fields(listing),
+        "footer": {"text": BOT_NAME, "icon_url": options.avatar_url},
+        "timestamp": datetime.fromtimestamp(listing.listed_at, tz=UTC).isoformat(),
+    }
+    if listing.search_url:
+        embed["author"]["url"] = listing.search_url
+    if description:
+        embed["description"] = "\n".join(description)
+    if listing.photos:
+        embed["image"] = {"url": listing.photos[0]}
+    extras = [
+        {"url": listing.url, "image": {"url": photo}}
+        for photo in listing.photos[1 : options.photos]
+    ]
+    return [embed, *extras]
+
+
+def _embed_row(listing: ListingView) -> dict[str, Any]:
+    """One listing as a compact embed for a stacked batch."""
+    lines = [" · ".join(escape(value) for _, value in listing.facts)]
+    lines.append(
+        " · ".join(
+            p
+            for p in (
+                listing.rating,
+                f"{listing.flag} {listing.site}".strip(),
+                f"<t:{listing.listed_at}:R>",
+            )
+            if p
+        )
+    )
+    if listing.can_buy:
+        lines.append(
+            f"[{listing.labels.buy}]({_link(listing.buy_url)}) · "
+            f"[{listing.labels.message}]({_link(listing.message_url)})"
+        )
+    if listing.badge:
+        lines.append(f"**{listing.badge}**")
+    title = f"{listing.price} · {listing.title}" if listing.price else listing.title
+    embed: dict[str, Any] = {
+        "title": title[:256],
+        # Distinct per listing on purpose: Discord folds together embeds that share a URL.
+        "url": listing.url,
+        "color": listing.accent,
+        "description": "\n".join(line for line in lines if line)[:4096],
+    }
+    if listing.photos:
+        embed["thumbnail"] = {"url": listing.photos[0]}
+    return embed
+
+
+def classic_messages(listings: list[ListingView], options: DiscordOptions) -> list[Message]:
+    """Lay a batch out as embeds: one card per message, or a stack for bigger bursts.
+
+    Buttons belong to a message rather than an embed, so cards go one per message to keep
+    each listing's buttons next to it.
+    """
+    if not listings:
+        return []
+    if len(listings) <= CARD_BATCH:
+        messages = []
+        for listing in listings:
+            silent = options.silent or listing.silent
+            payload = _envelope(options, silent=silent) | {
+                "embeds": _embed_card(listing, options),
+                "components": [_buttons(listing)],
+            }
+            if options.mention and not silent:
+                payload["content"] = options.mention
+            if silent:
+                payload["flags"] = SUPPRESS_NOTIFICATIONS
+            messages.append(Message(payload, [listing.outbox_id]))
+        return messages
+
+    messages = []
+    for start in range(0, len(listings), MAX_EMBEDS):
+        chunk = listings[start : start + MAX_EMBEDS]
+        silent = options.silent or all(listing.silent for listing in chunk)
+        heading = chunk[0].labels.new_matches.format(n=len(chunk))
+        if len({listing.search_name for listing in chunk}) == 1:
+            heading += f" · {escape(chunk[0].search_name)}"
+        content = f"**{heading}**"
+        if options.mention and not silent:
+            content = f"{options.mention} {content}"
+        payload = _envelope(options, silent=silent) | {
+            "content": content[:2000],
+            "embeds": [_embed_row(listing) for listing in chunk],
+        }
+        if silent:
+            payload["flags"] = SUPPRESS_NOTIFICATIONS
+        messages.append(Message(payload, [listing.outbox_id for listing in chunk]))
+    return messages
+
+
+def status_classic(message: str, options: DiscordOptions) -> dict[str, Any]:
+    return _envelope(options, silent=True) | {"content": escape(message)[:2000]}
+
+
+# --- Sending --------------------------------------------------------------------------
 
 
 class DiscordSender:
@@ -69,7 +605,14 @@ class DiscordSender:
         client: httpx.AsyncClient | None = None,
         bucket: TokenBucket | None = None,
     ) -> None:
-        self._url = require(config, "webhook_url", self.kind)
+        # Destinations made before 2.0 store the address as webhook_url.
+        key = "webhook_url" if config.get("webhook_url") else "url"
+        self._url = require(config, key, self.kind)
+        self._params = {"with_components": "true"}
+        if thread_id := config.get("thread_id"):
+            self._params["thread_id"] = str(thread_id)
+        self._options = DiscordOptions.from_config(config)
+        self._v2 = self._options.style != "classic"
         self._dashboard_url = dashboard_url
         self._client = client or httpx.AsyncClient(timeout=20.0)
         self._owns_client = client is None
@@ -77,103 +620,81 @@ class DiscordSender:
 
     @property
     def max_batch(self) -> int:
-        return MAX_EMBEDS
+        return DIGEST_BATCH
 
     async def send(self, batch: list[PendingNotification]) -> SendResult:
         if not batch:
             return SendResult.ok([])
+        listings = [view(n, dashboard_url=self._dashboard_url) for n in batch]
+        if not self._v2:
+            result, _ = await self._send_all(classic_messages(listings, self._options))
+            return result
 
-        if len(batch) <= STACK_THRESHOLD:
-            delivered: list[int] = []
-            for notification in batch:
-                result = await self._post(
-                    self._message([self._embed(notification)]), [notification.outbox_id]
-                )
-                if result.delivered:
-                    delivered.extend(result.delivered)
-                    continue
-                # Stop at the first problem and hand back what is left, so the queue keeps
-                # its order and nothing is sent twice.
-                remaining = [n.outbox_id for n in batch if n.outbox_id not in delivered]
-                return SendResult(
+        result, rejected = await self._send_all(v2_messages(listings, self._options))
+        if not rejected:
+            return result
+
+        self._v2 = False
+        log.warning("discord.components_rejected", error=result.error, fallback="embeds")
+        rest = [listing for listing in listings if listing.outbox_id not in result.delivered]
+        retried, _ = await self._send_all(classic_messages(rest, self._options))
+        return SendResult(
+            delivered=result.delivered + retried.delivered,
+            retry=retried.retry,
+            retry_after_s=retried.retry_after_s,
+            permanent_error=retried.permanent_error,
+            error=retried.error,
+            pause_all_for_s=retried.pause_all_for_s,
+        )
+
+    async def _send_all(self, messages: list[Message]) -> tuple[SendResult, bool]:
+        """Post messages in order, stopping at the first problem.
+
+        Stopping keeps the queue in order and sends nothing twice: whatever was not
+        attempted goes back for a retry. Returns whether the stop was Discord refusing
+        Components V2 specifically.
+        """
+        delivered: list[int] = []
+        for index, message in enumerate(messages):
+            result, rejected = await self._post(message.payload, message.outbox_ids)
+            if result.delivered:
+                delivered.extend(result.delivered)
+                continue
+            untried = [i for later in messages[index + 1 :] for i in later.outbox_ids]
+            if rejected:
+                untried = [*message.outbox_ids, *untried]
+            return (
+                SendResult(
                     delivered=delivered,
-                    retry=[] if result.permanent_error else remaining,
+                    retry=[] if result.permanent_error else [*result.retry, *untried],
                     retry_after_s=result.retry_after_s,
                     permanent_error=result.permanent_error,
                     error=result.error,
                     pause_all_for_s=result.pause_all_for_s,
-                )
-            return SendResult.ok(delivered)
-
-        chunk = batch[:MAX_EMBEDS]
-        payload = self._message([self._embed(n) for n in chunk])
-        return await self._post(payload, [n.outbox_id for n in chunk])
+                ),
+                rejected,
+            )
+        return SendResult.ok(delivered), False
 
     async def send_status(self, message: str) -> None:
-        await self._post(
-            {"content": message[:2000], "username": BOT_NAME, "avatar_url": ICON_URL}, []
-        )
+        if self._v2:
+            _, rejected = await self._post(status_v2(message, self._options), [])
+            if not rejected:
+                return
+            self._v2 = False
+        await self._post(status_classic(message, self._options), [])
 
-    def _message(self, embeds: list[dict[str, Any]]) -> dict[str, Any]:
-        return {"username": BOT_NAME, "avatar_url": ICON_URL, "embeds": embeds}
-
-    def _embed(self, notification: PendingNotification) -> dict[str, Any]:
-        item = notification.item
-        detected = notification.detected_at or int(time.time())
-
-        links = [f"**[View item]({item.url})**"]
-        if self._dashboard_url:
-            links.append(f"[Dashboard]({self._dashboard_url})")
-        if item.seller_url:
-            links.append(f"[Seller]({item.seller_url})")
-
-        fields: list[dict[str, Any]] = []
-        if item.price is not None:
-            fields.append({"name": "Price", "value": _price_value(item), "inline": True})
-        if item.size:
-            fields.append({"name": "Size", "value": item.size[:1024], "inline": True})
-        if item.condition:
-            fields.append({"name": "Condition", "value": item.condition[:1024], "inline": True})
-        if item.brand:
-            fields.append({"name": "Brand", "value": item.brand[:1024], "inline": True})
-        fields.append({"name": "Location", "value": _location(item.tld), "inline": True})
-        if item.seller_rating is not None:
-            fields.append({"name": "Seller rating", "value": _rating(item), "inline": True})
-        if item.seller_login:
-            fields.append(
-                {"name": "Seller", "value": f"@{item.seller_login}"[:1024], "inline": True}
-            )
-        # Discord renders this in the reader's own timezone, as "2 minutes ago".
-        fields.append({"name": "Detected", "value": f"<t:{detected}:R>", "inline": True})
-
-        embed: dict[str, Any] = {
-            "author": {"name": f"New match • {notification.query_name}"[:256]},
-            "title": item.title[:256],
-            # Distinct per listing on purpose: Discord folds together embeds that share
-            # a URL.
-            "url": item.url,
-            "color": BRAND_COLOUR,
-            "description": "  •  ".join(links),
-            "fields": fields,
-            "footer": {
-                "text": f"{BOT_NAME} • vinted.{item.tld}"[:2048],
-                "icon_url": ICON_URL,
-            },
-            "timestamp": datetime.fromtimestamp(detected, tz=UTC).isoformat(),
-        }
-        if item.photo_url:
-            embed["image"] = {"url": item.photo_url}
-        return embed
-
-    async def _post(self, payload: dict[str, Any], outbox_ids: list[int]) -> SendResult:
+    async def _post(
+        self, payload: dict[str, Any], outbox_ids: list[int]
+    ) -> tuple[SendResult, bool]:
         await self._bucket.acquire()
         try:
-            response = await self._client.post(self._url, json=payload)
+            response = await self._client.post(self._url, params=self._params, json=payload)
         except httpx.HTTPError as exc:
-            return SendResult.transient(outbox_ids, f"could not reach Discord: {exc}")
+            return SendResult.transient(outbox_ids, f"could not reach Discord: {exc}"), False
 
         if response.is_success:
-            return SendResult.ok(outbox_ids)
+            return SendResult.ok(outbox_ids), False
 
         if response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
             retry_after = _retry_after(response)
@@ -183,12 +704,15 @@ class DiscordSender:
                 response, "global"
             )
             log.warning("discord.rate_limited", retry_after_s=retry_after, is_global=is_global)
-            return SendResult(
-                delivered=[],
-                retry=outbox_ids,
-                retry_after_s=retry_after,
-                error="rate limited by Discord",
-                pause_all_for_s=retry_after if is_global else None,
+            return (
+                SendResult(
+                    delivered=[],
+                    retry=outbox_ids,
+                    retry_after_s=retry_after,
+                    error="rate limited by Discord",
+                    pause_all_for_s=retry_after if is_global else None,
+                ),
+                False,
             )
 
         if response.status_code in (
@@ -196,52 +720,34 @@ class DiscordSender:
             HTTPStatus.FORBIDDEN,
             HTTPStatus.NOT_FOUND,
         ):
-            return SendResult.gone(
-                f"Discord answered {response.status_code}; the webhook looks deleted or "
-                "its permissions were removed"
+            return (
+                SendResult.gone(
+                    f"Discord answered {response.status_code}; the webhook looks deleted or "
+                    "its permissions were removed"
+                ),
+                False,
             )
 
         if response.status_code == HTTPStatus.BAD_REQUEST:
             # Our payload is wrong. Retrying an identical payload will fail identically,
             # and each attempt spends the allowance that protects everything else.
-            log.error("discord.rejected_payload", body=response.text[:400])
-            return SendResult(
-                delivered=[], retry=[], error=f"Discord rejected the message: {response.text[:200]}"
+            body = response.text[:400]
+            log.error("discord.rejected_payload", body=body)
+            rejected_v2 = bool(payload.get("flags", 0) & IS_COMPONENTS_V2) and (
+                "components" in body or "flags" in body
+            )
+            return (
+                SendResult(
+                    delivered=[], retry=[], error=f"Discord rejected the message: {body[:200]}"
+                ),
+                rejected_v2,
             )
 
-        return SendResult.transient(outbox_ids, f"Discord answered {response.status_code}")
+        return SendResult.transient(outbox_ids, f"Discord answered {response.status_code}"), False
 
     async def aclose(self) -> None:
         if self._owns_client:
             await self._client.aclose()
-
-
-def _price_value(item: Item) -> str:
-    """The asking price in bold, with the real total under it when the two differ.
-
-    The total — buyer protection included — is the number a buying decision compares, so
-    it must be visible even though Vinted leads with the smaller figure.
-    """
-    currency = f" {item.currency}" if item.currency else ""
-    value = f"**{item.price}{currency}**"
-    if item.total_price is not None and item.total_price != item.price:
-        value += f"\n{item.total_price}{currency} total"
-    return value
-
-
-def _location(tld: str) -> str:
-    """The country site the listing is on, as a flag and ISO code."""
-    iso = _ISO_BY_TLD.get(tld, tld.upper())
-    flag = "".join(chr(0x1F1E6 + ord(letter) - ord("A")) for letter in iso)
-    return f"{flag} {iso}"
-
-
-def _rating(item: Item) -> str:
-    """Vinted's 0..1 reputation as the five-star figure users know, with its review count."""
-    stars = round((item.seller_rating or 0.0) * 50) / 10
-    if item.seller_feedback_count:
-        return f"⭐ {stars:.1f} ({item.seller_feedback_count})"
-    return f"⭐ {stars:.1f}"
 
 
 def _retry_after(response: httpx.Response) -> float:

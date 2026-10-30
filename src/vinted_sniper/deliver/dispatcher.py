@@ -20,11 +20,13 @@ from typing import Any
 import httpx
 
 from vinted_sniper.config import Settings
-from vinted_sniper.db.repo import Destination, Repo
+from vinted_sniper.db.repo import Destination, PendingNotification, Repo
+from vinted_sniper.deliver.apprise import AppriseSender
 from vinted_sniper.deliver.base import Sender, SenderConfigError
 from vinted_sniper.deliver.discord import DiscordSender
 from vinted_sniper.deliver.ntfy import NtfySender
 from vinted_sniper.deliver.ratelimit import Gate, TokenBucket
+from vinted_sniper.deliver.render import GOOD_DEAL_PCT, deal_pct
 from vinted_sniper.deliver.telegram import TelegramSender
 from vinted_sniper.deliver.webhook import WebhookSender
 from vinted_sniper.log import get_logger
@@ -44,9 +46,61 @@ MAX_RETRY_DELAY_S = 5.0
 TELEGRAM_GLOBAL_PER_S = 25.0
 
 
-def _awaiting_pairing(destination: Destination) -> bool:
+def awaiting_pairing(destination: Destination) -> bool:
     """True for a Telegram destination that no chat has claimed yet."""
     return destination.kind == "telegram" and not destination.config.get("chat_id")
+
+
+def skip_reason(notification: PendingNotification, config: dict[str, Any]) -> str | None:
+    """Why a destination that only wants deals should not get this listing, if it should not.
+
+    Decided here, at delivery, rather than when the listing is found: one listing goes to
+    several destinations, and only some of them may be picky. Watch alerts (price drops,
+    sales) and a followed seller's uploads were asked for one by one, so they always pass.
+    """
+    if notification.kind != "listing":
+        return None
+    threshold = config.get("min_deal_pct")
+    if threshold is None and config.get("deals_only"):
+        threshold = GOOD_DEAL_PCT
+    if threshold is None:
+        return None
+    item = notification.item
+    total = item.total_price if item.total_price is not None else item.price
+    pct = deal_pct(total, notification.typical_price)
+    if pct is None:
+        return "skipped: this destination only wants deals and there is no typical price yet"
+    if pct < int(threshold):
+        return f"skipped: {pct}% under the typical price, this destination wants {threshold}%"
+    return None
+
+
+def build_sender(destination: Destination, settings: Settings, client: httpx.AsyncClient) -> Sender:
+    """The sender for a destination, or SenderConfigError saying what is missing."""
+    config: dict[str, Any] = destination.config
+    match destination.kind:
+        case "discord":
+            return DiscordSender(config, dashboard_url=settings.dashboard_url, client=client)
+        case "telegram":
+            token = settings.telegram_bot_token
+            if token is None:
+                raise SenderConfigError(
+                    "a Telegram destination exists but VINTED_SNIPER_TELEGRAM_BOT_TOKEN is not set"
+                )
+            return TelegramSender(
+                config,
+                bot_token=token.get_secret_value(),
+                dashboard_url=settings.dashboard_url,
+                client=client,
+            )
+        case "webhook":
+            return WebhookSender(config, client=client)
+        case "ntfy":
+            return NtfySender(config, client=client)
+        case "apprise":
+            return AppriseSender(config, dashboard_url=settings.dashboard_url)
+        case unknown:
+            raise SenderConfigError(f"unknown destination type {unknown!r}")
 
 
 class Dispatcher:
@@ -122,7 +176,7 @@ class Dispatcher:
         if destination is None or not destination.active:
             return 0
 
-        if _awaiting_pairing(destination):
+        if awaiting_pairing(destination):
             # Created but nobody has tapped the link yet. Waiting is not a misconfiguration,
             # so this must not switch the destination off; notifications queue until it is
             # claimed, or expire on their own.
@@ -138,7 +192,8 @@ class Dispatcher:
         if sender.kind == "discord" and self._discord_gate.is_closed:
             return 0
 
-        batch = await self._repo.claim_batch(destination_id, sender.max_batch)
+        claimed = await self._repo.claim_batch(destination_id, sender.max_batch)
+        batch = await self._drop_unwanted(claimed, destination.config)
         if not batch:
             return 0
 
@@ -208,34 +263,25 @@ class Dispatcher:
         if cached is not None:
             await self._drop_sender(destination.id)
 
-        sender = self._build(destination)
+        sender = build_sender(destination, self._settings, self._client)
         self._senders[destination.id] = sender
         self._signatures[destination.id] = signature
         return sender
 
-    def _build(self, destination: Destination) -> Sender:
-        config: dict[str, Any] = destination.config
-        match destination.kind:
-            case "discord":
-                return DiscordSender(
-                    config, dashboard_url=self._settings.dashboard_url, client=self._client
-                )
-            case "telegram":
-                token = self._settings.telegram_bot_token
-                if token is None:
-                    raise SenderConfigError(
-                        "a Telegram destination exists but VINTED_SNIPER_TELEGRAM_BOT_TOKEN "
-                        "is not set"
-                    )
-                return TelegramSender(
-                    config, bot_token=token.get_secret_value(), client=self._client
-                )
-            case "webhook":
-                return WebhookSender(config, client=self._client)
-            case "ntfy":
-                return NtfySender(config, client=self._client)
-            case unknown:
-                raise SenderConfigError(f"unknown destination type {unknown!r}")
+    async def _drop_unwanted(
+        self, batch: list[PendingNotification], config: dict[str, Any]
+    ) -> list[PendingNotification]:
+        """Set aside what this destination asked not to get, with the reason recorded."""
+        wanted = []
+        for notification in batch:
+            reason = skip_reason(notification, config)
+            if reason is None:
+                wanted.append(notification)
+            else:
+                # The only per-row way out of the queue the repo offers; the reason text
+                # makes clear this was the destination's choice, not a delivery error.
+                await self._repo.mark_failed([notification.outbox_id], reason)
+        return wanted
 
     async def _drop_sender(self, destination_id: int) -> None:
         self._signatures.pop(destination_id, None)
