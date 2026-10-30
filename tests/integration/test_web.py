@@ -311,7 +311,7 @@ def test_the_unknown_host_page_names_the_setting_to_use(
 ) -> None:
     docker = make_client(web_host="0.0.0.0")
 
-    page = docker.get("/", headers={"Host": "nas.local:8000"})
+    page = docker.get("/", headers={"Host": "finds.example.net:8000"})
 
     assert "VINTED_BOT_WEB_ALLOWED_HOSTS" in page.text
 

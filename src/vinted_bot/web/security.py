@@ -7,8 +7,9 @@ Kept apart from the routes because each of these is a rule worth reading in one 
 127.0.0.1, and the browser then treats the dashboard as that page's own site: the page can
 read it and post to it. The Host header is what gives that away, so the dashboard only
 answers to names it was told about: loopback, the host of VINTED_BOT_WEB_PUBLIC_URL,
-VINTED_BOT_WEB_ALLOWED_HOSTS, and any bare IP address (a rebinding page always arrives
-under a name, never an address, so opening it as http://192.168.1.20:8000 from a phone
+VINTED_BOT_WEB_ALLOWED_HOSTS, and names no public DNS can hand out: any bare IP address,
+`*.local` and single-label names such as `nas` (a rebinding page always arrives under a
+public name, so opening it as http://192.168.1.20:8000 or http://umbrel.local from a phone
 stays possible). This holds however the server is bound, the Docker image's 0.0.0.0
 included, because the port mapping that decides who can connect is invisible from here.
 
@@ -96,8 +97,20 @@ def _is_ip_address(host: str) -> bool:
     return True
 
 
+def _is_local_name(host: str) -> bool:
+    """A name only this network can resolve: `nas.local` (mDNS) or a bare `nas`.
+
+    A rebinding page needs a name the attacker controls in public DNS, and neither kind
+    can be one: .local never leaves the network, and public names always have a dot. NAS
+    boxes are opened exactly this way (umbrel.local, nas), and got a 400 until someone
+    found VINTED_BOT_WEB_ALLOWED_HOSTS.
+    """
+    name = host.rstrip(".")
+    return bool(name) and (name.endswith(".local") or "." not in name) and ":" not in name
+
+
 def host_allowed(host: str, allowed: frozenset[str]) -> bool:
-    return host in allowed or _is_ip_address(host)
+    return host in allowed or _is_ip_address(host) or _is_local_name(host)
 
 
 def same_origin(request: Request, settings: Settings, allowed: frozenset[str]) -> bool:
