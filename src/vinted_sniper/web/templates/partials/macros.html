@@ -1,0 +1,87 @@
+{# Shared building blocks. Import with: {% import "partials/macros.html" as ui %} #}
+
+{% macro icon(name, cls="") -%}
+<svg class="i {{ cls }}" aria-hidden="true"><use href="#i-{{ name }}"></use></svg>
+{%- endmacro %}
+
+{# Mags is decorative everywhere: the text next to him always says the same thing. #}
+{% macro mags(pose, cls="", w=None) -%}
+<img class="mags {{ cls }}" src="{{ static('img/mags/mags-' ~ pose ~ '.webp') }}" alt=""{% if w %} width="{{ w }}"{% endif %} loading="lazy" decoding="async">
+{%- endmacro %}
+
+{% macro status(st, label) -%}
+<span class="status status--{{ st }}">{{ label }}</span>
+{%- endmacro %}
+
+{% macro schip(s) -%}
+<span class="schip" style="--sc: {{ s.color }}"><i class="sdot"></i><span>{{ s.name }}</span></span>
+{%- endmacro %}
+
+{% macro dest_icon(kind) -%}
+{%- set m = {"discord": "message-circle", "telegram": "send", "ntfy": "smartphone", "browser": "monitor", "apprise": "mail", "webhook": "webhook"} -%}
+{{ icon(m.get(kind, "bell")) }}
+{%- endmacro %}
+
+{% macro field_error(errors, key) -%}
+{% if errors and errors.get(key) %}<p class="help help--error" id="err-{{ key }}">{{ icon("circle-alert") }}<span>{{ errors[key] }}</span></p>{% endif %}
+{%- endmacro %}
+
+{% macro invalid(errors, key) -%}
+{% if errors and errors.get(key) %} aria-invalid="true" aria-describedby="err-{{ key }}"{% endif %}
+{%- endmacro %}
+
+{#
+  The listing card. Only id, title, price, total, url, age and search are guaranteed:
+  Vinted's 2026 catalog often leaves out brand, size, condition, seller rating and extra
+  photos. Every optional line simply disappears, and the card still reads as complete.
+#}
+{% macro item_card(it, extra_cls="", lazy=True, show_search=True) -%}
+<article class="item {{ extra_cls }}{% if it.is_new %} is-fresh{% endif %}" data-item-id="{{ it.id }}" data-seq="{{ it.seq }}" data-search="{{ it.search.id }}" data-deal="{{ 1 if it.deal_pct else 0 }}" data-tld="{{ it.tld }}">
+  <div class="item__media" style="--dominant: {{ it.dominant or 'var(--c-fill)' }}">
+    {% if it.photo %}
+    <img src="{{ it.photo }}" alt=""{% if lazy %} loading="lazy"{% endif %} decoding="async" referrerpolicy="no-referrer">
+    {% else %}
+    <div class="ph">{{ icon("shirt") }}</div>
+    {% endif %}
+    <a class="item__open" href="{{ it.url }}" target="_blank" rel="noopener" data-quickview aria-label="{{ it.title }}, {{ it.total }} including fees. Show details"></a>
+    <div class="item__flags">
+      {% if it.is_new %}<span class="badge badge--new">New</span>{% endif %}
+      {% if it.deal_pct %}<span class="badge badge--deal" title="{{ it.deal_pct }}% under the typical price{% if it.typical %} of {{ it.typical }}{% endif %}">{{ icon("trending-down") }}<span class="hide-sm">{{ it.deal_pct }}% under typical</span><span class="show-sm">&minus;{{ it.deal_pct }}%</span></span>{% endif %}
+    </div>
+    <button class="item__more" type="button" aria-label="More for {{ it.title }}" aria-haspopup="menu" aria-expanded="false" data-menu="item-menu">{{ icon("ellipsis") }}</button>
+    <button class="item__save" type="button" aria-label="Save {{ it.title }}" aria-pressed="{{ 'true' if it.saved else 'false' }}" data-toggle-save>{{ icon("heart") }}</button>
+  </div>
+  <div class="item__body">
+    <p class="item__title" title="{{ it.title }}">{{ it.title }}</p>
+    {% if it.meta %}<p class="item__meta">{{ it.meta }}</p>{% endif %}
+    {% if it.deal_pct %}<span class="badge badge--deal item__inline-deal">{{ icon("trending-down") }}{{ it.deal_pct }}% under typical</span>{% endif %}
+    <div class="item__prices">
+      <span class="item__base"><span>{{ it.price }}</span>{% if it.rating %}<span class="item__seller" title="Seller rating, {{ it.reviews or 0 }} reviews">{{ icon("star") }}{{ "%.1f"|format(it.rating) }}{% if it.reviews %} ({{ it.reviews }}){% endif %}</span>{% endif %}</span>
+      <span class="item__total">{{ it.total }} <small>incl. fees</small>{{ icon("shield-check") }}</span>
+    </div>
+    <div class="item__foot">
+      {% if show_search %}{{ schip(it.search) }}{% else %}<span></span>{% endif %}
+      <time datetime="{{ it.found_at }}" title="When we found it">{{ it.age }}</time>
+    </div>
+  </div>
+  <div class="item__list-actions">
+    <button class="btn btn--icon btn--sm" type="button" aria-label="Save {{ it.title }}" data-toggle-save aria-pressed="{{ 'true' if it.saved else 'false' }}">{{ icon("heart") }}</button>
+    <a class="btn btn--icon btn--sm" href="{{ it.url }}" target="_blank" rel="noopener" aria-label="Open on Vinted">{{ icon("external-link") }}</a>
+  </div>
+</article>
+{%- endmacro %}
+
+{% macro spark(points, w=120, h=32, cls="") -%}
+{%- set lo = points|min -%}{%- set hi = points|max -%}{%- set span = (hi - lo) or 1 -%}
+{%- set n = points|length -%}
+<svg class="{{ cls }}" viewBox="0 0 {{ w }} {{ h }}" preserveAspectRatio="none" aria-hidden="true">
+  {%- set ns = namespace(d="") -%}
+  {%- for p in points -%}
+    {%- set x = (loop.index0 * (w - 4) / ((n - 1) or 1) + 2)|round(1) -%}
+    {%- set y = (h - 4 - (p - lo) / span * (h - 8))|round(1) -%}
+    {%- set ns.d = ns.d ~ ("M" if loop.first else "L") ~ x ~ " " ~ y ~ " " -%}
+  {%- endfor -%}
+  <path d="{{ ns.d }}L{{ w - 2 }} {{ h }} L2 {{ h }} Z" fill="var(--c-primary)" opacity=".1"/>
+  <path d="{{ ns.d }}" fill="none" stroke="var(--c-primary)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+</svg>
+{%- endmacro %}

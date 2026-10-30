@@ -1,0 +1,38 @@
+{% extends "ob_base.html" %}
+{% block title %}You're all set{% endblock %}
+{% block action %}/welcome/finish{% endblock %}
+{% block question %}
+<h1 class="t-display" tabindex="-1" data-autofocus>You're all set</h1>
+<p class="t-lead">Your search starts as soon as you open your finds. Its first check skips everything already on Vinted, so you only hear about new listings.</p>
+<div class="card summary-card">
+  <div class="summary-row"><span class="choice__icon choice__icon--code">{{ tld|upper if tld|length == 2 else tld }}</span><span><small>Vinted</small><b>vinted.{{ tld }} ({{ country }})</b></span><button class="btn btn--ghost btn--sm" type="submit" form="ob-form" formaction="/welcome/country" name="back" value="1">Change</button></div>
+  <div class="summary-row"><span class="choice__icon">{{ ui.icon("search") }}</span><span><small>Search</small><b>{{ summary }}</b></span><button class="btn btn--ghost btn--sm" type="submit" form="ob-form" formaction="/welcome/search" name="back" value="1">Change</button></div>
+  <div class="summary-row"><span class="choice__icon">{{ ui.dest_icon(dest_kind) }}</span><span><small>Alerts go to</small><b>{% if dest_kind == "skip" %}Only this page, for now{% else %}{{ dest_name }}{% endif %}</b></span><button class="btn btn--ghost btn--sm" type="submit" form="ob-form" formaction="/welcome/alerts" name="back" value="1">Change</button></div>
+</div>
+<div class="notice notice--sun">{{ ui.icon("laptop") }}<div><p><strong>Keep your computer on and awake</strong></p><p>Searches only run while this computer is on. If it sleeps or you close the lid, you won't get alerts until it wakes up again. You can close this browser tab; that's fine.</p><p class="t-sm">Want it running day and night without your laptop? <a href="{{ self_hosting }}" target="_blank" rel="noopener" style="color:inherit">See the guide</a>.</p></div></div>
+{% endblock %}
+{% block cta %}Open my finds{% endblock %}
+{% block hint %}Everything here is in Settings too{% endblock %}
+{% block field_class %}field-panel--teal{% endblock %}
+{% block field %}
+<div class="ob__field-say">
+  <b>Open this on your phone too</b>
+  {% if phone %}<span>Scan this with your phone camera while you're on the same Wi-Fi.</span>{% else %}<span>Right now only this computer can open the dashboard. Settings, "Open on your phone", shows how to change that.</span>{% endif %}
+</div>
+<div class="ob__field-stage">
+  {% if phone %}
+  <div class="stack" style="gap:10px;justify-items:center">
+    <div class="qr" data-qr="{{ phone }}" aria-hidden="true"></div>
+    <span class="code">{{ phone }}</span>
+  </div>
+  {% else %}
+  <div class="minifeed" aria-hidden="true">
+    <div class="minifeed__row minifeed__row--new"><img src="{{ static('img/demo/corduroy-trousers.webp') }}" alt=""><span><b>Corduroy trousers, rust</b><small>W30 · just now</small></span><span class="p">€18.55</span></div>
+    <div class="minifeed__row"><img src="{{ static('img/demo/straight-leg-jeans.webp') }}" alt=""><span><b>Levi's 501 straight jeans</b><small>W31 · 2 min ago</small></span><span class="p">€23.80</span></div>
+    <div class="minifeed__row"><img src="{{ static('img/demo/denim-jacket.webp') }}" alt=""><span><b>Levi's trucker jacket</b><small>M · 9 min ago</small></span><span class="p">€30.10</span></div>
+  </div>
+  {% endif %}
+</div>
+{{ ui.mags("point", "ob__mags ob__mags--corner ob__mags--left") }}
+{% endblock %}
+{% block scripts %}<script src="{{ static('js/qrcode.js') }}" defer></script>{% endblock %}

@@ -1,0 +1,101 @@
+{% import "partials/macros.html" as ui %}
+{#
+  The "where alerts go" choices, shared by setup step 3 and the Alerts page's add flow.
+  Context: errors, form (previous answers), ntfy_topic, telegram {configured, bot},
+  apprise (installed), providers. Phone notification comes first: it is the one a
+  person can set up from a phone in a minute.
+#}
+{% set E = errors or {} %}
+{% set F = form or {} %}
+{% macro choice(k, title, desc, icon_name, checked) -%}
+<div class="choice choice--group">
+  <label class="choice__row">
+    <input type="radio" name="kind" value="{{ k }}"{% if checked %} checked{% endif %} data-kind-pick>
+    <span class="choice__icon dest__logo dest__logo--{{ k }}">{{ ui.icon(icon_name) }}</span>
+    <span class="choice__text"><span class="choice__title">{{ title }}</span><span class="choice__desc">{{ desc }}</span></span>
+    <span class="choice__tick">{{ ui.icon("check") }}</span>
+  </label>
+  <div class="choice-more">{{ caller() }}</div>
+</div>
+{%- endmacro %}
+
+{% call choice("ntfy", "Notification on your phone", "Free app called ntfy. Install it, tap +, paste one word. No account.", "smartphone", kind == "ntfy") %}
+  <ol class="steps-list" style="padding-top:6px">
+    <li><span>Install <b>ntfy</b> from the <a href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">App Store</a> or <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Google Play</a>. It's a free, open notification app and doesn't need your name, email or number.</span></li>
+    <li><span>Open ntfy, tap <b>+</b>, and paste this name: <span class="code" data-ntfy-topic>{{ F.ntfy_topic or ntfy_topic }}</span> <button class="btn btn--ghost btn--sm" type="button" data-copy="{{ F.ntfy_topic or ntfy_topic }}">{{ ui.icon("copy", "i-sm") }}Copy</button></span></li>
+  </ol>
+  <input type="hidden" name="ntfy_topic" value="{{ F.ntfy_topic or ntfy_topic }}">
+  {{ ui.field_error(E, "ntfy_topic") }}
+  <p class="t-sm"><a href="ntfy://ntfy.sh/{{ F.ntfy_topic or ntfy_topic }}" class="show-sm">Open in ntfy</a></p>
+{% endcall %}
+
+{% call choice("telegram", "Telegram", "A chat message in Telegram. You make a small private bot first (about 3 minutes).", "send", kind == "telegram") %}
+  {% if telegram.configured %}
+  <div class="stack-lg" data-pair style="padding:6px 2px 4px">
+    <ol class="steps-list">
+      <li><span>Tap <b>Connect my chat</b>. We make a one-time code.</span></li>
+      <li><span>Send it to {% if telegram.bot %}your bot <b>@{{ telegram.bot }}</b>{% else %}your bot{% endif %} in Telegram. The button opens the chat with the code ready; just press Start.</span></li>
+    </ol>
+    <div data-pair-step="start"><button class="btn btn--secondary" type="button" data-pair-start>{{ ui.icon("link") }}Connect my chat</button></div>
+    <div class="pair-code" data-pair-step="wait" hidden>
+      <span class="t-sm">Send this to your bot:</span>
+      <b class="code" data-pair-command></b>
+      <a class="btn btn--primary btn--sm" data-pair-link href="#" target="_blank" rel="noopener" hidden>{{ ui.icon("send", "i-sm") }}Open Telegram</a>
+      <span class="row t-sm" style="gap:8px"><span class="spinner"></span>Waiting for your message</span>
+    </div>
+    <div class="notice notice--ok" data-pair-step="done" hidden>{{ ui.icon("circle-check-big") }}<span><strong>Connected.</strong> Alerts will arrive in that chat.</span></div>
+    <input type="hidden" name="telegram_id" value="{{ F.telegram_id or '' }}" data-pair-id>
+    {{ ui.field_error(E, "telegram") }}
+  </div>
+  {% else %}
+  <ol class="steps-list" style="padding-top:6px">
+    <li><span>In Telegram, search for <b>BotFather</b> (it has a blue tick). It's Telegram's official tool for making bots. Send it <span class="code">/newbot</span> and pick any name.</span></li>
+    <li><span>BotFather sends a long code that starts with numbers, then a colon. On the computer running vinted-sniper, add it to the settings file as <span class="code">VINTED_SNIPER_TELEGRAM_BOT_TOKEN=that-code</span> and restart vinted-sniper.</span></li>
+    <li><span>Come back here and choose Telegram again: you'll get a button that connects your chat.</span></li>
+  </ol>
+  {{ ui.field_error(E, "telegram") }}
+  {% endif %}
+{% endcall %}
+
+{% call choice("discord", "Discord", "A message in a Discord channel. You need your own server (free, 30 seconds).", "message-circle", kind == "discord") %}
+  <div class="stack-lg" style="padding:6px 2px 4px">
+    <p class="t-sm">You need to be allowed to manage the channel. On a friend's server that only works if they make you an admin; otherwise <a href="https://support.discord.com/hc/en-us/articles/204849977" target="_blank" rel="noopener">make your own server</a>.</p>
+    <div class="seg" role="tablist" aria-label="Where you use Discord" data-steps-toggle>
+      <button type="button" aria-pressed="true" data-steps="computer">On a computer</button><button type="button" aria-pressed="false" data-steps="phone">On a phone</button>
+    </div>
+    <ol class="steps-list" data-steps-for="computer">
+      <li><span>Click the cog next to the channel name: <b>Edit Channel</b>.</span></li>
+      <li><span>Open <b>Integrations</b>, then <b>Webhooks</b>, then <b>New Webhook</b>.</span></li>
+      <li><span>Click <b>Copy Webhook URL</b> and paste it below.</span></li>
+    </ol>
+    <ol class="steps-list" data-steps-for="phone" hidden>
+      <li><span>Long-press the channel name and tap <b>Edit Channel</b>.</span></li>
+      <li><span>Tap <b>Integrations</b>, then <b>Webhooks</b>, then <b>New Webhook</b>.</span></li>
+      <li><span>Tap the new webhook, then <b>Copy Webhook URL</b>, and paste it below.</span></li>
+    </ol>
+    <div class="field">
+      <label class="label" for="dc-url">Discord webhook link</label>
+      <input class="input" id="dc-url" name="discord_url" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://discord.com/api/webhooks/…" value="{{ F.discord_url or '' }}" data-discord-url{{ ui.invalid(E, 'discord_url') }}>
+      {% if E.discord_url %}{{ ui.field_error(E, "discord_url") }}{% else %}<p class="help" data-discord-help>Starts with discord.com/api/webhooks/. Keep it to yourself: anyone with it can post in that channel.</p>{% endif %}
+    </div>
+  </div>
+{% endcall %}
+
+{% call choice("apprise", "Email", "Alerts in your inbox. Needs an app password from your email provider.", "mail", kind == "apprise") %}
+  {% if apprise %}
+  <div class="stack" style="padding-top:6px">
+    <div class="grid-2">
+      <div class="field"><label class="label" for="em-addr">Email address</label><input class="input" id="em-addr" name="email_address" type="email" autocomplete="email" value="{{ F.email_address or '' }}"{{ ui.invalid(E, 'email_address') }}>{{ ui.field_error(E, "email_address") }}</div>
+      <div class="field"><label class="label" for="em-prov">Email provider</label>
+        <select class="select" id="em-prov" name="email_provider">{% for key, pair in providers.items() %}<option value="{{ key }}"{% if F.email_provider == key %} selected{% endif %}>{{ pair[0] }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="field"><label class="label" for="em-pw">App password</label><input class="input" id="em-pw" name="email_password" type="password" autocomplete="off"{{ ui.invalid(E, 'email_password') }}>{{ ui.field_error(E, "email_password") }}<p class="help">Your provider makes one in its security settings (Gmail: Google Account, Security, App passwords). Your normal password usually won't work.</p></div>
+    <div class="field"><label class="label" for="em-smtp">Outgoing mail server <small>only for "Something else"</small></label><input class="input" id="em-smtp" name="email_smtp" type="text" placeholder="smtp.example.com" value="{{ F.email_smtp or '' }}"{{ ui.invalid(E, 'email_smtp') }}>{{ ui.field_error(E, "email_smtp") }}</div>
+    <details class="adv"><summary>{{ ui.icon("chevron-right") }}Slack, Pushover, Matrix and more</summary><div class="field"><label class="label" for="ap-url">Apprise link</label><input class="input" id="ap-url" name="apprise_url" type="text" autocomplete="off" spellcheck="false" value="{{ F.apprise_url or '' }}"><p class="help">For people who've set these up before. <a href="https://github.com/caronc/apprise/wiki" target="_blank" rel="noopener">Every service's link format</a>.</p></div></details>
+  </div>
+  {% else %}
+  <p class="t-sm" style="padding-top:6px">Email needs an optional part that isn't installed. On the computer running vinted-sniper, install <span class="code">vinted-sniper[apprise]</span> and restart. Until then, a notification on your phone works the same way: a buzz with the photo.</p>
+  {% endif %}
+  {{ ui.field_error(E, "kind") }}
+  {{ ui.field_error(E, "config") }}
+{% endcall %}

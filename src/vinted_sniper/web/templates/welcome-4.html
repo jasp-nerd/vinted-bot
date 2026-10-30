@@ -1,0 +1,50 @@
+{% extends "ob_base.html" %}
+{% block title %}Where alerts go{% endblock %}
+{% block action %}/welcome/alerts{% endblock %}
+{% block question %}
+<h1 class="t-display" tabindex="-1" data-autofocus>Where should we tell you?</h1>
+<p class="t-lead">Pick one for now. You can add more places, and choose per search, on the Alerts page.</p>
+<fieldset class="choices" style="border:0;padding:0;margin:0">
+  <legend class="sr-only">Where alerts go</legend>
+  {% include "partials/dest_forms.html" %}
+  <div class="choice choice--group">
+    <label class="choice__row">
+      <input type="radio" name="kind" value="skip"{% if kind == "skip" %} checked{% endif %} data-kind-pick>
+      <span class="choice__icon">{{ ui.icon("monitor") }}</span>
+      <span class="choice__text"><span class="choice__title">Skip for now</span><span class="choice__desc">Only show finds on this page. You'll miss them while it's closed.</span></span>
+      <span class="choice__tick">{{ ui.icon("check") }}</span>
+    </label>
+  </div>
+</fieldset>
+<input type="hidden" name="name" value="">
+{% endblock %}
+{% block back %}{% with back_to="/welcome/search" %}{% include "partials/ob_back.html" %}{% endwith %}{% endblock %}
+{% block cta %}Send a test{% endblock %}
+{% block hint %}We send one sample listing{% endblock %}
+{% block field_class %}field-panel--lilac{% endblock %}
+{% block field %}
+<div class="ob__field-say">
+  <b>This is what you'll get</b>
+  <span>One message per new listing, with the photo, the full price and a button to open it.</span>
+</div>
+<div class="ob__field-stage">
+  <div class="phone-notif" data-preview-for="ntfy">
+    <div class="notif"><img src="{{ static('img/mags/mags-head.webp') }}" alt=""><span><b>Levi's 501 straight jeans, mid wash</b>€23.80 incl. fees · 24% under typical</span></div>
+  </div>
+  <div class="chatmock" style="width:min(100%,380px);--sc: var(--s-1)" aria-hidden="true" data-preview-for="discord telegram apprise" hidden>
+    <div class="chatmock__who"><img src="{{ static('img/mags/mags-head.webp') }}" alt=""><b>vinted-sniper</b><small>just now</small></div>
+    <div class="chatmock__embed">
+      <div>
+        <b>Levi's 501 straight jeans, mid wash</b>
+        <span class="pr">€23.80</span> incl. fees · €22.00 item<br>
+        W31 L32 · Very good<br>
+        <span style="color:#949ba4">Your search · found 2 min ago</span><br>
+        <span class="deal">24% under typical</span>
+      </div>
+      <img src="{{ static('img/demo/straight-leg-jeans.webp') }}" alt="">
+    </div>
+    <div class="chatmock__btns"><span>Open on Vinted</span><span>Watch price</span></div>
+  </div>
+</div>
+{{ ui.mags("alert", "ob__mags ob__mags--corner") }}
+{% endblock %}

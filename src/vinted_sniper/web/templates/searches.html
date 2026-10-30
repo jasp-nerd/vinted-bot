@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Searches{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="page-head__text">
+    <h1 class="t-h1">Searches</h1>
+    <p>{{ searches|length }} {{ "search" if searches|length == 1 else "searches" }}. Each one is checked on its own schedule and sends to the places you pick.</p>
+  </div>
+  <div class="page-head__actions">
+    <a class="btn btn--primary" href="{{ url('search_new') }}">{{ ui.icon("plus") }}New search</a>
+  </div>
+</div>
+
+{% set waiting = searches|selectattr("status", "in", ["stuck", "blocked"])|list %}
+{% if waiting %}
+<div class="notice notice--sun" style="margin-bottom:20px">{{ ui.icon("hourglass") }}<div><p><strong>{{ waiting|length }} {{ "search is" if waiting|length == 1 else "searches are" }} waiting on Vinted.</strong> You don't need to do anything; they retry on their own. If it lasts more than a day, <a href="{{ url('settings') }}#vinted" style="color:inherit">see what you can do</a>.</p></div></div>
+{% endif %}
+
+{% if not searches %}
+<section class="card card--pad stack">
+  <h2 class="t-h2">No searches yet</h2>
+  <p>A search is what you'd type on Vinted, plus your size and price. We check it for you all day.</p>
+  <div class="btn-row"><a class="btn btn--primary btn--sm" href="{{ url('search_new') }}">{{ ui.icon("plus", "i-sm") }}New search</a><a class="btn btn--ghost btn--sm" href="{{ url('welcome_1') }}">Walk me through it</a></div>
+</section>
+{% else %}
+<div class="toolbar">
+  <div class="row" style="gap:10px">
+    <div class="searchbar" style="width:min(100%,300px);border-radius:var(--r-pill)">
+      {{ ui.icon("search", "i-sm") }}
+      <label class="sr-only" for="search-filter">Find a search</label>
+      <input id="search-filter" type="search" placeholder="Find a search">
+    </div>
+    <div class="chips chips--scroll" role="group" aria-label="Show">
+      <button class="chip" type="button" aria-pressed="true" data-status-filter="all">All <span class="chip__count">{{ searches|length }}</span></button>
+      <button class="chip" type="button" aria-pressed="false" data-status-filter="watching"><span class="status status--watching">Watching</span> <span class="chip__count">{{ counts.watching }}</span></button>
+      <button class="chip" type="button" aria-pressed="false" data-status-filter="quiet"><span class="status status--quiet">Quiet</span> <span class="chip__count">{{ counts.quiet }}</span></button>
+      <button class="chip" type="button" aria-pressed="false" data-status-filter="stuck"><span class="status status--stuck">Waiting on Vinted</span> <span class="chip__count">{{ counts.stuck }}</span></button>
+      <button class="chip" type="button" aria-pressed="false" data-status-filter="paused"><span class="status status--paused">Paused</span> <span class="chip__count">{{ counts.paused }}</span></button>
+    </div>
+  </div>
+</div>
+
+<form id="bulk" method="post" action="/searches/bulk"></form>
+<div class="bulkbar" data-bulkbar hidden>
+  <span data-bulk-count>0 searches selected</span>
+  <span class="grow"></span>
+  <button class="btn btn--ghost btn--sm" type="submit" form="bulk" name="action" value="pause">{{ ui.icon("pause", "i-sm") }}Pause</button>
+  <button class="btn btn--ghost btn--sm" type="submit" form="bulk" name="action" value="resume">{{ ui.icon("play", "i-sm") }}Resume</button>
+  <button class="btn btn--ghost btn--sm" type="button" data-open="send-to">{{ ui.icon("bell", "i-sm") }}Change where alerts go</button>
+  <button class="btn btn--ghost btn--sm" type="button" data-open="delete-many">{{ ui.icon("trash-2", "i-sm") }}Delete</button>
+  <button class="btn btn--ghost btn--icon btn--sm" type="button" data-bulk-clear aria-label="Clear selection">{{ ui.icon("x", "i-sm") }}</button>
+</div>
+
+<div class="card" style="overflow:visible">
+  <div class="slist-head" aria-hidden="true">
+    <label class="check"><input type="checkbox" data-select-all aria-label="Select all searches"></label>
+    <span></span><span>Search</span><span>Status</span><span>Today</span><span></span>
+  </div>
+  <ul class="slist">
+    {% for s in searches %}
+    <li class="srow{% if s.paused %} srow--paused{% endif %}" data-status="{{ 'stuck' if s.status in ('stuck', 'blocked') else s.status }}" style="--sc: {{ s.color }}">
+      <label class="check"><input type="checkbox" name="ids" value="{{ s.id }}" form="bulk" data-select-row aria-label="Select {{ s.name }}"></label>
+      <span class="srow__bar" aria-hidden="true"></span>
+      <div class="srow__main">
+        <a class="srow__name" href="{{ url('search_detail', id=s.id) }}">{{ s.name }}</a>
+        <span class="srow__sum">{{ s.sites }} · {{ s.summary }}</span>
+        <span class="srow__dest meta">
+          {% for k in s.dests %}<span>{{ ui.dest_icon(k) }}{{ s.dest_names[loop.index0] }}</span>{% else %}<span class="t-muted">Only on this page</span>{% endfor %}
+          <span class="t-muted">checks {{ s.interval_human }}</span>
+        </span>
+      </div>
+      <div class="srow__state">
+        {{ ui.status(s.status, s.status_label) }}
+        <small>{{ s.why }}</small>
+      </div>
+      <div class="srow__n"><b class="num">{{ s.finds_today }}</b><small>{{ s.newest }}</small></div>
+      <div class="srow__actions">
+        {% if s.muted %}
+        <form method="post" action="/searches/{{ s.id }}/unmute"><button class="btn btn--ghost btn--sm" type="submit">{{ ui.icon("bell", "i-sm") }}Unmute<span class="sr-only"> {{ s.name }}</span></button></form>
+        {% endif %}
+        <form method="post" action="/searches/{{ s.id }}/pause">
+          <input type="hidden" name="paused" value="{{ '0' if s.paused else '1' }}">
+          <button class="btn btn--ghost btn--sm" type="submit" title="{{ 'Resume checking' if s.paused else 'Pause: no checks, no alerts' }}">{{ ui.icon("play" if s.paused else "pause", "i-sm") }}<span class="hide-sm">{{ "Resume" if s.paused else "Pause" }}</span><span class="sr-only show-sm">{{ "Resume" if s.paused else "Pause" }} {{ s.name }}</span></button>
+        </form>
+        <a class="btn btn--ghost btn--sm hide-sm" href="{{ url('search_edit', id=s.id) }}">Edit<span class="sr-only"> {{ s.name }}</span></a>
+        <details class="rowmenu">
+          <summary class="btn btn--icon btn--sm" aria-label="More for {{ s.name }}" title="More">{{ ui.icon("ellipsis", "i-sm") }}</summary>
+          <div class="menu rowmenu__list">
+            <a class="show-sm" href="{{ url('search_edit', id=s.id) }}">{{ ui.icon("pencil") }}Edit</a>
+            <form method="post" action="/searches/{{ s.id }}/duplicate"><button type="submit">{{ ui.icon("copy") }}Duplicate</button></form>
+            <button type="button" class="is-danger" data-confirm="delete-search" data-name="{{ s.name }}" data-action="/searches/{{ s.id }}/delete">{{ ui.icon("trash-2") }}Delete</button>
+          </div>
+        </details>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+
+<details class="section" id="status-help" style="margin-top:28px">
+  <summary class="t-h3" style="cursor:pointer">What the statuses mean</summary>
+  <div class="grid-3" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-top:12px">
+    <div class="well stack" style="gap:6px">{{ ui.status("watching", "Watching") }}<p class="t-sm">Checked recently and working. New listings arrive as soon as Vinted shows them in search.</p></div>
+    <div class="well stack" style="gap:6px">{{ ui.status("quiet", "Quiet") }}<p class="t-sm">Working, but nothing new for a while. That's normal for narrow searches and at night.</p></div>
+    <div class="well stack" style="gap:6px">{{ ui.status("stuck", "Waiting on Vinted") }}<p class="t-sm">Vinted keeps showing the same results, or answered strangely. Nothing you need to do; it usually sorts itself out within the hour.</p></div>
+    <div class="well stack" style="gap:6px">{{ ui.status("blocked", "Slowed down by Vinted") }}<p class="t-sm">Vinted asked us to slow down. We wait a few minutes and try again. Your Vinted account is not affected: we never use one.</p></div>
+    <div class="well stack" style="gap:6px">{{ ui.status("paused", "Paused") }}<p class="t-sm">You paused it. No checks and no alerts until you resume.</p></div>
+  </div>
+</details>
+{% endif %}
+
+<section class="card card--pad stack" style="margin-top:28px">
+  <h2 class="t-h3">Add searches straight from Vinted</h2>
+  <p class="t-sm">Drag this button to your bookmarks bar. On any Vinted search, click it and the search opens here, ready to save.</p>
+  <div class="row"><a class="btn btn--secondary btn--sm" href="{{ bookmarklet }}" data-bookmarklet>{{ ui.icon("bookmark", "i-sm") }}Watch this search</a><span class="t-sm">Or paste a Vinted link into <a href="{{ url('search_new') }}">New search</a>.</span></div>
+</section>
+{% endblock %}
+
+{% block modals %}
+<dialog class="modal" id="delete-search" aria-labelledby="ds-title">
+  <form method="post" data-confirm-form>
+    <div class="modal__head"><h2 class="t-h2" id="ds-title">Delete "<span data-fill="name"></span>"?</h2><button class="btn btn--icon" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button></div>
+    <div class="modal__body">
+      <p>It stops checking and sending alerts right away. Finds it already made stay on your Finds page.</p>
+      <p class="t-sm">Want a break instead? Pausing keeps everything and stops alerts.</p>
+    </div>
+    <div class="modal__foot">
+      <button class="btn btn--secondary" type="button" data-close>Keep it</button>
+      <button class="btn btn--danger" type="submit">Delete search</button>
+    </div>
+  </form>
+</dialog>
+<dialog class="modal" id="delete-many" aria-labelledby="dm-title">
+  <div class="modal__head"><h2 class="t-h2" id="dm-title">Delete <span data-bulk-count>these searches</span>?</h2><button class="btn btn--icon" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button></div>
+  <div class="modal__body"><p>They stop checking and sending alerts right away. Their finds stay on your Finds page.</p></div>
+  <div class="modal__foot"><button class="btn btn--secondary" type="button" data-close>Keep them</button><button class="btn btn--danger" type="submit" form="bulk" name="action" value="delete">Delete searches</button></div>
+</dialog>
+<dialog class="modal" id="send-to" aria-labelledby="st-title">
+  <div class="modal__head"><h2 class="t-h2" id="st-title">Where should alerts go?</h2><button class="btn btn--icon" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button></div>
+  <div class="modal__body">
+    <p>For the searches you selected. Tick none to send to every place.</p>
+    <div class="choices">
+      {% for dd in dests %}
+      <label class="choice choice--compact">
+        <input type="checkbox" name="dest" value="{{ dd.id }}" form="bulk">
+        <span class="choice__icon dest__logo dest__logo--{{ dd.kind }}" style="width:36px;height:36px">{{ ui.dest_icon(dd.kind) }}</span>
+        <span class="choice__text"><span class="choice__title">{{ dd.name }}</span><span class="choice__desc">{{ dd.label }}{% if dd.status == "failing" %} · not working right now{% endif %}</span></span>
+        <span class="choice__tick" style="border-radius:7px">{{ ui.icon("check") }}</span>
+      </label>
+      {% else %}
+      <p class="t-sm">You haven't added any places yet. <a href="{{ url('alerts') }}">Add one on Alerts</a>.</p>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="modal__foot"><button class="btn btn--secondary" type="button" data-close>Cancel</button><button class="btn btn--primary" type="submit" form="bulk" name="action" value="routes">Save</button></div>
+</dialog>
+{% endblock %}

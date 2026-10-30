@@ -1,156 +1,109 @@
+{% import "partials/macros.html" as ui %}
 <!doctype html>
-<html lang="en">
+<html lang="en"{% if app and app.theme in ("light", "dark") %} data-theme="{{ app.theme }}"{% endif %}>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}vinted-sniper{% endblock %}</title>
-  <style>
-    :root {
-      --bg: #fbfbfa; --panel: #fff; --ink: #1a1a1a; --muted: #6b6b6b;
-      --line: #e4e4e1; --accent: #09b1ba; --ok: #2e7d32; --warn: #b26a00; --bad: #c62828;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #17181a; --panel: #1f2023; --ink: #ececea; --muted: #9a9a97;
-        --line: #313337; --accent: #35c9d1; --ok: #7dc47f; --warn: #e2a44a; --bad: #ef7b7b;
-      }
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; background: var(--bg); color: var(--ink);
-      font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-    }
-    header {
-      display: flex; align-items: baseline; gap: 1rem; padding: 1rem 1.5rem;
-      border-bottom: 1px solid var(--line); background: var(--panel);
-    }
-    header h1 { font-size: 1.05rem; margin: 0; letter-spacing: -0.01em; }
-    header .status { margin-left: auto; font-size: .85rem; color: var(--muted); }
-    main { max-width: 60rem; margin: 0 auto; padding: 1.5rem; }
-    section { margin-bottom: 2.25rem; }
-    h2 { font-size: .95rem; text-transform: uppercase; letter-spacing: .06em;
-         color: var(--muted); margin: 0 0 .75rem; }
-    .card { background: var(--panel); border: 1px solid var(--line);
-            border-radius: 10px; padding: 1rem 1.15rem; margin-bottom: .75rem; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--line); }
-    th { font-weight: 600; font-size: .8rem; color: var(--muted); }
-    .pill { display: inline-block; padding: .1rem .55rem; border-radius: 999px;
-            font-size: .75rem; font-weight: 600; }
-    .pill.ok { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
-    .pill.stale, .pill.starting, .pill.paused {
-      background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
-    .pill.failing { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
-    form.inline { display: inline; }
-    label { display: block; font-size: .82rem; color: var(--muted); margin-bottom: .2rem; }
-    input, select, button {
-      font: inherit; padding: .45rem .6rem; border-radius: 7px;
-      border: 1px solid var(--line); background: var(--bg); color: var(--ink);
-    }
-    input[type=text], input[type=url], input[type=password] { width: 100%; }
-    button { cursor: pointer; background: var(--accent); color: #06282a;
-             border-color: transparent; font-weight: 600; }
-    button.quiet { background: transparent; color: var(--muted); font-weight: 500; }
-    .grid { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); }
-    .error { border-left: 3px solid var(--bad); padding-left: .75rem; color: var(--bad); }
-    .muted { color: var(--muted); font-size: .85rem; }
-    .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
-    a { color: var(--accent); }
-
-    /* --- Listing cards ----------------------------------------------------------- */
-    .listing-grid { display: grid; gap: .75rem;
-                    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); }
-    .listing { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-               overflow: hidden; display: flex; flex-direction: column; font-size: .84rem; }
-    .listing .photo { position: relative; display: block; width: 100%; aspect-ratio: 4 / 5;
-                      padding: 0; border: 0; border-radius: 0; background: var(--bg);
-                      cursor: zoom-in; }
-    .listing .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .listing .photo .count { position: absolute; top: .45rem; right: .45rem;
-                             background: rgb(0 0 0 / .55); color: #fff; border-radius: 6px;
-                             padding: .06rem .45rem; font-size: .72rem; font-weight: 600; }
-    .listing .no-photo { display: flex; align-items: center; justify-content: center;
-                         aspect-ratio: 4 / 5; color: var(--muted); background: var(--bg); }
-    .listing .body { display: flex; flex-direction: column; gap: .4rem; flex: 1;
-                     padding: .6rem .7rem .7rem; }
-    .listing .title { color: var(--ink); text-decoration: none; font-weight: 600;
-                      line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2;
-                      -webkit-box-orient: vertical; overflow: hidden; }
-    .listing .title:hover { color: var(--accent); }
-    .listing .price strong { font-size: .95rem; }
-    .listing .price .muted { margin-left: .4rem; font-size: .75rem; }
-    .listing .tags { display: flex; flex-wrap: wrap; gap: .3rem; }
-    .tag { border: 1px solid var(--line); background: var(--bg); border-radius: 6px;
-           padding: .02rem .4rem; font-size: .72rem; color: var(--muted); max-width: 100%;
-           overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .tag.brand { color: var(--ink); font-weight: 500; }
-    .listing .meta { display: flex; flex-wrap: wrap; gap: .2rem .6rem; font-size: .75rem;
-                     color: var(--muted); }
-    .listing .meta a { color: inherit; }
-    .listing .meta a:hover { color: var(--accent); }
-    .listing .foot { margin-top: auto; padding-top: .1rem; justify-content: space-between;
-                     flex-wrap: nowrap; }
-    .listing .foot .search-name { overflow: hidden; text-overflow: ellipsis;
-                                  white-space: nowrap; }
-    .listing .foot .age { flex-shrink: 0; }
-
-    /* --- The photo lightbox ------------------------------------------------------ */
-    .lightbox { position: fixed; inset: 0; z-index: 50; background: rgb(0 0 0 / .8);
-                display: flex; align-items: center; justify-content: center; }
-    .lightbox[hidden] { display: none; }
-    .lightbox img { max-width: min(92vw, 56rem); max-height: 88vh; object-fit: contain;
-                    border-radius: 10px; }
-    .lightbox button { position: fixed; display: flex; align-items: center;
-                       justify-content: center; width: 2.6rem; height: 2.6rem;
-                       border-radius: 999px; border: 0; background: rgb(0 0 0 / .45);
-                       color: #fff; font-size: 1.5rem; line-height: 1; }
-    .lightbox button:hover { background: rgb(0 0 0 / .7); }
-    .lightbox .lb-close { top: 1rem; right: 1rem; }
-    .lightbox .lb-prev { left: 1rem; top: 50%; transform: translateY(-50%); }
-    .lightbox .lb-next { right: 1rem; top: 50%; transform: translateY(-50%); }
-    .lightbox .lb-counter { position: fixed; bottom: 1rem; left: 50%;
-                            transform: translateX(-50%); color: #fff;
-                            background: rgb(0 0 0 / .45); border-radius: 999px;
-                            padding: .1rem .7rem; font-size: .8rem; }
-
-    /* --- The advanced-search builder ------------------------------------------- */
-    #builder { border-top: 1px dashed var(--line); margin-top: .85rem; padding-top: .85rem; }
-    .option-list { display: flex; flex-wrap: wrap; gap: .3rem .9rem; max-height: 10.5rem;
-                   overflow-y: auto; padding: .3rem 0; }
-    .option-list label { display: flex; gap: .4rem; align-items: center; margin: 0;
-                         font-size: .85rem; color: var(--ink); }
-    .option-list .count { color: var(--muted); font-size: .75rem; }
-    .option-list .group-label { width: 100%; margin: .3rem 0 0; font-size: .72rem;
-                                text-transform: uppercase; letter-spacing: .05em;
-                                color: var(--muted); }
-    .cat-node { background: var(--bg); color: var(--ink); border: 1px solid var(--line);
-                font-weight: 500; padding: .25rem .7rem; border-radius: 999px;
-                font-size: .85rem; }
-    .cat-node:hover { border-color: var(--accent); }
-    .crumb { background: none; border: 0; color: var(--accent); padding: 0;
-             font-size: .85rem; cursor: pointer; font-weight: 500; }
-    .crumb[aria-current] { color: var(--ink); font-weight: 600; cursor: default; }
-    .chip { display: inline-flex; gap: .35rem; align-items: center; border-radius: 999px;
-            padding: .12rem .65rem; font-size: .8rem; font-weight: 500;
-            background: color-mix(in srgb, var(--accent) 16%, transparent); }
-    .chip button { background: none; border: 0; color: inherit; padding: 0;
-                   font-weight: 700; line-height: 1; cursor: pointer; }
-    .combo { position: relative; }
-    .combo-list { position: absolute; z-index: 10; top: calc(100% + 2px); left: 0; right: 0;
-                  background: var(--panel); border: 1px solid var(--line); border-radius: 7px;
-                  max-height: 13rem; overflow-y: auto; box-shadow: 0 6px 18px rgb(0 0 0 / .12); }
-    .combo-list button { display: flex; width: 100%; justify-content: space-between;
-                         gap: .5rem; background: none; color: var(--ink); border: 0;
-                         border-radius: 0; padding: .4rem .6rem; text-align: left;
-                         font-weight: 400; }
-    .combo-list button:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}Finds{% endblock %} · vinted-sniper</title>
+  {% include "partials/head.html" %}
 </head>
-<body>
-  <header>
-    <h1>vinted-sniper</h1>
-    {% block header_extra %}{% endblock %}
-  </header>
-  <main>{% block content %}{% endblock %}</main>
+<body class="{% block body_class %}{% endblock %}" data-theme-pref="{{ app.theme if app else 'system' }}">
+{% include "partials/icons.svg" %}
+<a class="skip" href="#main">Skip to content</a>
+
+{% import "partials/banners.html" as bn with context %}
+<div id="banners">
+{% if app %}
+  {% if app.blocked %}{{ bn.blocked(app.blocked) }}{% elif app.new_version %}{{ bn.update(app.new_version) }}{% endif %}
+  {% if app.exposed %}{{ bn.exposed() }}{% endif %}
+{% endif %}
+</div>
+{{ bn.offline() }}
+
+<header class="topbar">
+  <div class="container topbar__row">
+    <a class="brand" href="{{ url('home') }}" aria-label="vinted-sniper, your finds">
+      <span class="brand__mark" style="--tick: {{ app.tick if app else 1 }}" data-tick="{{ app.next_check_s if app and app.next_check_s is not none else '' }}" title="{% if app and app.next_check_s is not none %}Next check in {{ app.next_check_s }} seconds{% else %}vinted-sniper{% endif %}">
+        <img src="{{ static('img/mags/mags-head.webp') }}" alt="">
+      </span>
+      <span class="brand__name"><span>vinted-</span>sniper</span>
+    </a>
+    <form class="topbar__search searchbar" role="search" action="{{ url('home') }}">
+      {{ ui.icon("search", "i-sm") }}
+      <label class="sr-only" for="q">Search your finds</label>
+      <input id="q" name="q" type="search" placeholder="Search your finds" autocomplete="off" value="{{ q or '' }}">
+      <kbd>/</kbd>
+    </form>
+    <div class="topbar__end">
+      {% if app %}
+      <a class="live hide-sm" href="{{ url('searches') }}">
+        <i class="pulse" aria-hidden="true"></i>
+        <span><b>Watching {{ app.searches_active }}</b><span class="live__long"> {{ "search" if app.searches_active == 1 else "searches" }}</span></span>
+      </a>
+      {% endif %}
+      <button class="btn btn--ghost btn--sm" type="button" data-sound aria-pressed="false" title="Sound in this tab for new finds">{{ ui.icon("volume-x") }}<span class="sound-label hide-sm" data-sound-label>Sound off</span></button>
+      <button class="btn btn--icon hide-sm" type="button" data-theme-toggle aria-label="Switch to dark mode">{{ ui.icon("moon") }}</button>
+      <a class="btn btn--primary btn--sm" href="{{ url('search_new') }}">{{ ui.icon("plus") }}<span class="hide-sm">New search</span><span class="sr-only show-sm">New search</span></a>
+    </div>
+  </div>
+  <nav class="navrow" aria-label="Main">
+    <div class="container">
+      <ul class="navrow__list">
+        {% set links = [("home", "Finds"), ("searches", "Searches"), ("watchlist", "Watchlist"), ("alerts", "Alerts"), ("stats", "Stats"), ("settings", "Settings")] %}
+        {% for key, label in links %}
+        <li><a class="navrow__link" href="{{ url(key) }}"{% if nav == key %} aria-current="page"{% endif %}>{{ label }}{% if key == "home" %} <span class="count" data-new-count hidden></span>{% endif %}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </nav>
+</header>
+
+<main id="main" class="main">
+  <div class="container">
+    {% block content %}{% endblock %}
+  </div>
+</main>
+
+<footer class="footer">
+  <div class="container footer__row">
+    <span>vinted-sniper {{ app.version if app else "" }}. Independent open-source tool. Not affiliated with, endorsed by, or connected to Vinted.</span>
+    <span class="row"><a href="https://github.com/jasp-nerd/vinted-sniper">Source code</a><a href="{{ url('settings') }}#about">Help and legal</a>{% if app and app.auth %}<form method="post" action="/logout" style="display:inline"><button class="btn btn--link" type="submit">Sign out</button></form>{% endif %}</span>
+  </div>
+</footer>
+
+<nav class="tabbar" aria-label="Main">
+  {% set tabs = [("home", "Finds", "layout-grid"), ("searches", "Searches", "search"), ("watchlist", "Watchlist", "eye"), ("alerts", "Alerts", "bell")] %}
+  {% for key, label, ic in tabs %}
+  <a href="{{ url(key) }}"{% if nav == key %} aria-current="page"{% endif %}>{{ ui.icon(ic) }}{{ label }}{% if key == "home" %}<span class="dot" data-new-count hidden></span>{% endif %}</a>
+  {% endfor %}
+  <button type="button" data-open="more-sheet"{% if nav in ("settings", "stats") %} aria-current="page"{% endif %}>{{ ui.icon("menu") }}More</button>
+</nav>
+
+<dialog class="modal" id="more-sheet" aria-labelledby="more-title">
+  <div class="modal__head"><h2 class="t-h2" id="more-title">More</h2><button class="btn btn--icon" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button></div>
+  <div class="modal__body">
+    <div class="card rows">
+      <a class="summary-row" href="{{ url('stats') }}" style="text-decoration:none"><span class="choice__icon">{{ ui.icon("chart-column") }}</span><span><b>Stats</b><small>Finds per day, busiest hours, delivery</small></span>{{ ui.icon("chevron-right") }}</a>
+      <a class="summary-row" href="{{ url('settings') }}" style="text-decoration:none"><span class="choice__icon">{{ ui.icon("settings") }}</span><span><b>Settings</b><small>Time zone, phone access, updates, your data</small></span>{{ ui.icon("chevron-right") }}</a>
+      <button class="summary-row" type="button" data-theme-toggle style="border:0;background:none;text-align:left;width:100%;font:inherit"><span class="choice__icon">{{ ui.icon("moon") }}</span><span><b>Dark mode</b><small>Follows your device until you choose</small></span>{{ ui.icon("chevron-right") }}</button>
+    </div>
+  </div>
+  <div class="modal__foot"></div>
+</dialog>
+
+<ul class="menu" id="item-menu" role="menu" hidden>
+  <li role="none"><a role="menuitem" href="#" data-act="open" target="_blank" rel="noopener">{{ ui.icon("external-link") }}Open on Vinted</a></li>
+  <li role="none"><button role="menuitem" type="button" data-act="watch">{{ ui.icon("eye") }}Watch the price</button></li>
+  <li role="none"><button role="menuitem" type="button" data-act="follow">{{ ui.icon("user") }}Follow this seller</button></li>
+  <li role="none"><button role="menuitem" type="button" data-act="copy">{{ ui.icon("link") }}Copy link</button></li>
+  <li role="none"><hr></li>
+  <li role="none"><button role="menuitem" type="button" data-act="hide">{{ ui.icon("eye-off") }}Hide this listing</button></li>
+  <li role="none"><button role="menuitem" type="button" data-act="block" class="is-danger">{{ ui.icon("ban") }}Block this seller</button></li>
+</ul>
+
+<div class="toasts" aria-live="polite" aria-atomic="false" id="toasts"{% if flash %} data-flash="{{ flash }}"{% endif %}></div>
+{% block modals %}{% endblock %}
+<script src="{{ static('js/app.js') }}" defer></script>
+{% block scripts %}{% endblock %}
 </body>
 </html>

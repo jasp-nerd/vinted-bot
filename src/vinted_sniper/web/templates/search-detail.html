@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{{ s.name }}{% endblock %}
+{% block content %}
+<nav class="crumbs" aria-label="Breadcrumb" style="margin-bottom:10px"><a href="{{ url('searches') }}">Searches</a>{{ ui.icon("chevron-right", "i-xs") }}<span>{{ s.name }}</span></nav>
+<div class="page-head" style="align-items:flex-start">
+  <div class="page-head__text">
+    <div class="row" style="gap:12px;flex-wrap:nowrap"><i class="sdot" style="--sc: {{ s.color }};width:16px;height:16px"></i><h1 class="t-h1">{{ s.name }}</h1></div>
+    <div class="row" style="gap:6px 14px">{{ ui.status(s.status, s.status_label) }}<span class="t-sm">{{ s.why }} Checks {{ s.interval_human }} on {{ s.sites }}.</span></div>
+  </div>
+  <div class="page-head__actions">
+    {% if s.muted %}<form method="post" action="/searches/{{ s.id }}/unmute"><button class="btn btn--secondary btn--sm" type="submit">{{ ui.icon("bell", "i-sm") }}Unmute</button></form>{% endif %}
+    <form method="post" action="/searches/{{ s.id }}/pause">
+      <input type="hidden" name="paused" value="{{ '0' if s.paused else '1' }}">
+      <input type="hidden" name="back" value="{{ url('search_detail', id=s.id) }}">
+      <button class="btn btn--secondary btn--sm" type="submit">{{ ui.icon("play" if s.paused else "pause", "i-sm") }}{{ "Resume" if s.paused else "Pause" }}</button>
+    </form>
+    <a class="btn btn--secondary btn--sm" href="{{ vinted_url }}" target="_blank" rel="noopener">{{ ui.icon("external-link", "i-sm") }}Open on Vinted</a>
+    <a class="btn btn--primary btn--sm" href="{{ url('search_edit', id=s.id) }}">{{ ui.icon("pencil", "i-sm") }}Edit</a>
+  </div>
+</div>
+
+<div class="kpis" style="margin-bottom:16px">
+  <div class="kpi"><span class="kpi__label">Finds today</span><span class="kpi__value">{{ finds_today }}</span><span class="kpi__note">{% set diff = finds_today - finds_yesterday %}{% if diff > 0 %}{{ diff }} more than yesterday by now{% elif diff < 0 %}{{ -diff }} fewer than yesterday by now{% else %}Same as yesterday by now{% endif %}</span></div>
+  <div class="kpi"><span class="kpi__label">Last 14 days</span><span class="kpi__value">{{ finds_14 }}</span><div class="kpi__spark">{{ ui.spark(spark, 200, 32) }}</div></div>
+  <div class="kpi"><span class="kpi__label">Typical price with fees</span><span class="kpi__value">{% if typical %}{{ typical|join(" · ") }}{% else %}–{% endif %}</span><span class="kpi__note">{% if typical %}Middle price of recent finds{% else %}Known after about 15 finds{% endif %}</span></div>
+  <div class="kpi"><span class="kpi__label">Alerts delivered</span>{% set tried = delivery.sent + delivery.failed %}<span class="kpi__value">{% if tried %}{{ (delivery.sent / tried * 100)|round|int }}<small>%</small>{% else %}–{% endif %}</span><span class="kpi__note">{% if tried %}{{ delivery.sent }} of {{ tried }} sent{% if delivery.pending %}, {{ delivery.pending }} waiting{% endif %}{% else %}Nothing sent yet{% endif %}</span></div>
+</div>
+
+<div class="card" style="margin-bottom:28px">
+  <div class="card__body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px 28px;padding:18px 20px">
+    <div class="stack" style="gap:6px"><span class="t-sm">Looks for</span><span class="t-ink">{{ s.summary }}</span></div>
+    <div class="stack" style="gap:6px"><span class="t-sm">Sends to</span><span class="srow__dest meta" style="font-size:14px;color:var(--c-ink)">{% for k in s.dests %}<span>{{ ui.dest_icon(k) }}{{ s.dest_names[loop.index0] }}</span>{% else %}<span>Only this page</span>{% endfor %}</span>{% if s.routes_all and s.dests %}<span class="t-sm">Every place you've added, because none is picked.</span>{% endif %}</div>
+    <div class="stack" style="gap:6px"><span class="t-sm">Quiet hours</span><span class="t-ink">{{ quiet or "None" }}</span><a class="t-sm" href="{{ rss }}">RSS feed of this search</a></div>
+  </div>
+</div>
+
+<div class="tabs" role="tablist" aria-label="Search details">
+  <button class="tab" role="tab" id="tab-finds" aria-controls="p-finds" aria-selected="true">Recent finds <span class="badge">{{ items|length }}</span></button>
+  <button class="tab" role="tab" id="tab-rejected" aria-controls="p-rejected" aria-selected="false" tabindex="-1">Not sent <span class="badge">{{ rejections|length }}</span></button>
+  <button class="tab" role="tab" id="tab-health" aria-controls="p-health" aria-selected="false" tabindex="-1">Health</button>
+</div>
+
+<div class="tabpanel" id="p-finds" role="tabpanel" aria-labelledby="tab-finds">
+  {% if items %}
+  <div class="feed">{% for it in items %}{{ ui.item_card(it, lazy=loop.index > 10, show_search=False) }}{% endfor %}</div>
+  {% if items|length >= 24 %}<p class="t-sm" style="margin-top:16px"><a href="{{ url('home') }}?search={{ s.id }}">See all its finds</a></p>{% endif %}
+  {% else %}
+  <div class="card card--pad stack"><h2 class="t-h2">No finds yet</h2><p>The first check skipped what was already on Vinted. New listings that match show up here.</p></div>
+  {% endif %}
+</div>
+
+<div class="tabpanel" id="p-rejected" role="tabpanel" aria-labelledby="tab-rejected" hidden>
+  <div class="stack-lg">
+    <p class="t-lead" style="max-width:70ch">Listings this search saw but didn't send you, and why. Useful when you expected an alert that never came. Kept for 7 days.</p>
+    {% if reasons %}
+    <div class="chips" aria-label="Reasons this week">
+      {% for label, count in reasons %}<span class="chip chip--sm chip--filled">{{ label }} <span class="chip__count">{{ count }}</span></span>{% endfor %}
+    </div>
+    {% endif %}
+    {% if rejections %}
+    <div class="card" style="padding:4px 20px">
+      {% for r in rejections %}
+      <div class="rej">
+        <div class="rej__img">{% if r.photo %}<img src="{{ r.photo }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}</div>
+        <div class="stack" style="gap:3px;min-width:0">
+          {% if r.url %}<a class="rej__title" href="{{ r.url }}" target="_blank" rel="noopener">{{ r.title }}</a>{% else %}<span class="rej__title">{{ r.title }}</span>{% endif %}
+          <span class="rej__why" title="{{ r.detail }}">{{ ui.icon(r.icon) }}{{ r.why }}</span>
+        </div>
+        <div class="rej__price">{{ r.price }}<small>{{ r.age }}</small></div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="row"><a class="btn btn--ghost btn--sm" href="{{ url('search_edit', id=s.id) }}">{{ ui.icon("sliders-horizontal", "i-sm") }}Loosen the filters</a></div>
+    {% else %}
+    <div class="card card--pad stack"><h2 class="t-h2">Nothing was held back</h2><p>Every new listing this search saw in the last 7 days was sent to you. Listings your filters skip show up here with the reason.</p></div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="tabpanel" id="p-health" role="tabpanel" aria-labelledby="tab-health" hidden>
+  <div class="stat-grid">
+    <div class="card card--pad stack">
+      <h2 class="t-h3">Since this search started</h2>
+      <div class="receipt" style="--field-ink: var(--c-ink)">
+        <div class="receipt__row">{{ ui.icon("search") }}<span>Listings looked at</span><b>{{ "{:,}".format(state.items_seen_total) }}</b></div>
+        <div class="receipt__row" style="color:var(--c-amber-ink)">{{ ui.icon("hourglass") }}<span>Vinted asked us to wait</span><b>{{ state.count_429 }}</b></div>
+        <div class="receipt__row" style="color:var(--c-danger-ink)">{{ ui.icon("circle-x") }}<span>Vinted turned a check away</span><b>{{ state.count_403 }}</b></div>
+      </div>
+      <p class="t-sm">Vinted shows new listings in search a few minutes after they're posted. We see them on the first check after that.</p>
+    </div>
+    <div class="card card--pad">
+      <h2 class="t-h3" style="margin-bottom:14px">What happened lately</h2>
+      {% if timeline %}
+      <ol class="timeline">
+        {% for e in timeline %}
+        <li class="tl"{% if e.kind == "warn" %} style="--sc: var(--st-stuck)"{% elif e.kind == "bad" %} style="--sc: var(--c-danger)"{% elif e.kind == "quiet" %} style="--sc: var(--st-quiet)"{% endif %}><time>{{ e.time }}</time><i class="tl__dot"></i><span class="tl__text">{{ e.text }}<small>{{ e.detail }}</small></span></li>
+        {% endfor %}
+      </ol>
+      {% else %}<p class="t-sm">Nothing yet. The first check runs within a minute.</p>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
