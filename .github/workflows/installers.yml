@@ -6,9 +6,21 @@ name: Installers
 on:
   push:
     branches: [main]
-    paths: ["install.sh", "install.ps1", "pyproject.toml", ".github/workflows/installers.yml"]
+    paths:
+      - "install.sh"
+      - "install.ps1"
+      - "scripts/check-restart-after-update.sh"
+      - "scripts/check-launcher-restart.ps1"
+      - "pyproject.toml"
+      - ".github/workflows/installers.yml"
   pull_request:
-    paths: ["install.sh", "install.ps1", "pyproject.toml", ".github/workflows/installers.yml"]
+    paths:
+      - "install.sh"
+      - "install.ps1"
+      - "scripts/check-restart-after-update.sh"
+      - "scripts/check-launcher-restart.ps1"
+      - "pyproject.toml"
+      - ".github/workflows/installers.yml"
   workflow_dispatch:
 
 permissions:
@@ -37,7 +49,23 @@ jobs:
       - name: Lint
         if: runner.os == 'Linux'
         run: |
-          pipx run --spec shellcheck-py shellcheck -s sh install.sh docker/entrypoint.sh
+          pipx run --spec shellcheck-py shellcheck -s sh install.sh docker/entrypoint.sh \
+            scripts/check-restart-after-update.sh
+
+      # The LaunchAgent / systemd unit install.sh writes, run for real with a stand-in app:
+      # an update ends with exit code 75, and the service has to start it again.
+      - name: Check the start-at-login entry restarts it after an update
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            # A systemd user manager, which a desktop login would have started.
+            sudo loginctl enable-linger "$(id -un)"
+            export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+            for _ in 1 2 3 4 5 6 7 8 9 10; do
+              systemctl --user show-environment >/dev/null 2>&1 && break
+              sleep 1
+            done
+          fi
+          sh scripts/check-restart-after-update.sh
 
       - name: Install
         run: |
@@ -69,6 +97,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      # The launcher install.ps1 writes, run for real with stand-ins for the app and uv: an
+      # update ends with exit code 75, and the launcher upgrades and starts it again.
+      - name: Check the launcher restarts it after an update
+        shell: powershell
+        run: powershell -NoProfile -NonInteractive -ExecutionPolicy ByPass -File scripts/check-launcher-restart.ps1
 
       # Windows PowerShell 5.1 on purpose: it is what a fresh Windows has.
       - name: Install

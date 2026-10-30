@@ -303,6 +303,8 @@ class AppSettings:
     onboarded: bool
     theme: str
     latest_version: str | None
+    # Install a newer release by itself, in the small hours; off unless someone asks.
+    auto_update: bool
 
 
 THEMES = ("system", "light", "dark")
@@ -1457,6 +1459,20 @@ class Repo:
         )
         return int(value or 0)
 
+    async def notifications_due(self, now: int) -> int:
+        """Notifications being sent, or waiting to be sent, right now.
+
+        Not the whole outbox: one held for quiet hours or waiting out a retry delay is
+        safe in the database across a restart, and counting those would keep anyone with
+        overnight quiet hours from ever being updated at night.
+        """
+        value = await self._db.fetch_value(
+            "SELECT COUNT(*) FROM outbox WHERE status = 'sending' "
+            "OR (status = 'pending' AND next_attempt_at <= ?)",
+            (now,),
+        )
+        return int(value or 0)
+
     # --- Sellers -------------------------------------------------------------------
 
     async def cached_seller(self, seller_id: int, *, max_age_s: int) -> SellerProfile | None:
@@ -2030,7 +2046,7 @@ class Repo:
         rows = await self._db.fetch_all(
             "SELECT key, value FROM app_state WHERE key IN "
             "('timezone', 'healthcheck_url', 'update_check', 'onboarded', 'theme', "
-            "'latest_version')"
+            "'latest_version', 'auto_update')"
         )
         values = {row["key"]: row["value"] for row in rows}
         return AppSettings(
@@ -2040,6 +2056,7 @@ class Repo:
             onboarded=values.get("onboarded") == "1",
             theme=values.get("theme") or "system",
             latest_version=values.get("latest_version") or None,
+            auto_update=values.get("auto_update") == "1",
         )
 
     async def set_timezone(self, name: str) -> None:
@@ -2056,6 +2073,9 @@ class Repo:
 
     async def set_update_check(self, enabled: bool) -> None:
         await self.set_state_value("update_check", "1" if enabled else "0")
+
+    async def set_auto_update(self, enabled: bool) -> None:
+        await self.set_state_value("auto_update", "1" if enabled else "0")
 
     async def set_onboarded(self, done: bool) -> None:
         await self.set_state_value("onboarded", "1" if done else "0")

@@ -118,7 +118,7 @@ A Telegram bot cannot message someone first; that is a Telegram rule, which is w
 
 ## Updating
 
-- Installed with the Windows, macOS or Linux installer: run the same install command again. It keeps all searches.
+- Installed with the Windows, macOS or Linux installer: click "Update now" in the dashboard's banner (or Settings, Updates), or run the same install command again. Both keep all searches. If the dashboard then asks for a restart (it was not set to start at login), run `vinted-sniper run` again.
 - Docker: `docker compose pull && docker compose up -d`
 - NAS app stores: the store's update button.
 

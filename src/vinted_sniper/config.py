@@ -25,7 +25,7 @@ MIN_POLL_INTERVAL_S = 10
 MAX_BACKOFF_S = 900
 
 
-def _in_container() -> bool:
+def in_container() -> bool:
     """Whether we are inside Docker or Podman.
 
     There, 0.0.0.0 is the only bind that works with published ports, and how far the
@@ -71,7 +71,7 @@ def default_db_path() -> Path:
     Support/vinted-sniper on macOS, %LOCALAPPDATA%\\vinted-sniper on Windows), so the
     data does not depend on which directory the app happened to be started from.
     """
-    if _in_container() or LEGACY_DB_PATH.exists():
+    if in_container() or LEGACY_DB_PATH.exists():
         return LEGACY_DB_PATH
     return platformdirs.user_data_path("vinted-sniper", appauthor=False) / "app.db"
 
@@ -182,6 +182,15 @@ class Settings(BaseSettings):
         description="Enables Telegram delivery and the /start binding bot when set.",
     )
 
+    # --- Updating ------------------------------------------------------------------
+    supervised: Literal["launchd", "systemd", "windows-launcher"] | None = Field(
+        default=None,
+        description="Set by the installers' start-at-login entries (the LaunchAgent, the "
+        "systemd unit and the Windows launcher) to say that something starts the app again "
+        "when it exits. With it, an update from the dashboard restarts the app into the new "
+        "version by itself; without it, the dashboard says how to restart.",
+    )
+
     # --- Development ---------------------------------------------------------------
     fetch_mode: Literal["live", "mock"] = Field(
         default="live",
@@ -276,4 +285,4 @@ class Settings(BaseSettings):
         """
         if not self.web_enabled or self.web_auth_token is not None:
             return False
-        return not self.web_is_loopback and not _in_container()
+        return not self.web_is_loopback and not in_container()

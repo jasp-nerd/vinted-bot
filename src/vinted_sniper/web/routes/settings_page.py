@@ -17,7 +17,8 @@ from zoneinfo import ZoneInfo, available_timezones
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
-from vinted_sniper.engine import health
+from vinted_sniper.config import in_container
+from vinted_sniper.engine import health, self_update
 from vinted_sniper.engine.validation import InvalidInputError
 from vinted_sniper.web import core, views
 from vinted_sniper.web.routes.searches import bookmarklet
@@ -74,6 +75,7 @@ async def settings_page(request: Request) -> Response:
     if prefs.timezone not in zones:
         zones.insert(0, prefs.timezone)
     blocked = await repo.list_blocked_sellers()
+    last_update = await self_update.last_outcome(repo)
     return await core.render(
         request,
         "settings.html",
@@ -113,20 +115,41 @@ async def settings_page(request: Request) -> Response:
             "loopback": context.settings.web_is_loopback,
             # The settings file is the .env in the folder the app was started from.
             "settings_file": str(Path.cwd() / ".env"),
-            "in_container": core.in_container(),
+            "in_container": in_container(),
             # A ready-made password to paste, so nobody has to invent one on the spot.
             "suggested_password": secrets.token_urlsafe(9),
             "bookmarklet": bookmarklet(base),
             "self_hosting": core.SELF_HOSTING_URL,
+            "install": context.updater.install,
+            "update_last": last_update,
+            "update_last_when": _when(last_update, tz),
         },
         snapshot=snapshot,
     )
 
 
+def _when(outcome: self_update.Outcome | None, tz: ZoneInfo) -> str | None:
+    if outcome is None or not outcome.at:
+        return None
+    moment = datetime.fromtimestamp(outcome.at, tz)
+    # Not %-d: Windows' strftime refuses it.
+    return f"{moment.day} {moment:%b, %H:%M}"
+
+
+async def _set_auto_update(context: core.WebContext, enabled: bool) -> None:
+    if enabled and not context.updater.install.can_update_automatically:
+        raise InvalidInputError(
+            "auto_update",
+            "This copy can't update itself unattended. The Updates section says how to update it.",
+        )
+    await context.repo.set_auto_update(enabled)
+
+
 @router.post("/settings")
 async def save_setting(request: Request) -> Response:
     """Save one preference. The page sends each change as it happens."""
-    repo = core.ctx(request).repo
+    context = core.ctx(request)
+    repo = context.repo
     form = await request.form()
     key = str(form.get("key") or "")
     value = str(form.get("value") or "")
@@ -142,6 +165,8 @@ async def save_setting(request: Request) -> Response:
                 await repo.set_theme(value)
             case "update_check":
                 await repo.set_update_check(value == "1")
+            case "auto_update":
+                await _set_auto_update(context, value == "1")
             case "healthcheck_url":
                 url = value.strip()
                 if url and not url.startswith(("http://", "https://")):
