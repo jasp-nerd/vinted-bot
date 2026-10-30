@@ -241,8 +241,8 @@ async def test_a_search_on_several_sites_fetches_each_and_announces_once(
     transport.queue_catalog([make_item(200, photo_ts=now), make_item(201, photo_ts=now)])
     await poll.tick()
 
-    catalog_hosts = {r["url"].split("/")[2] for r in transport.requests if "/api/v2/" in r["url"]}
-    assert catalog_hosts == {"www.vinted.fr", "www.vinted.be"}
+    catalog_hosts = {r["url"].split("/")[2] for r in transport.requests if "/svc-" in r["url"]}
+    assert catalog_hosts == {"api.vinted.fr", "api.vinted.be"}
     assert await queued_ids(repo, destination_id) == [200, 201]
 
 

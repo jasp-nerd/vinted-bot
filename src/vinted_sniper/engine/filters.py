@@ -183,8 +183,9 @@ def _check_country(query: Query, profile: SellerProfile | None) -> Rejection | N
 
 def _check_reputation(item: Item, query: Query, profile: SellerProfile | None) -> Rejection | None:
     rating = item.seller_rating
-    if rating is None and profile is not None:
-        rating = profile.rating
+    if rating is None and profile is not None and profile.rating is not None:
+        # Listings carry Vinted's 0..1 fraction; a member page reports stars out of five.
+        rating = profile.rating / _STARS
     reviews = item.seller_feedback_count
     if reviews is None and profile is not None:
         reviews = profile.feedback_count

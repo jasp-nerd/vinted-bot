@@ -133,10 +133,17 @@ def test_without_a_profile_the_country_cannot_be_judged_and_passes() -> None:
 def test_the_rating_comes_from_the_profile_when_the_listing_has_none() -> None:
     query = search(seller_min_rating=4.5)
 
-    rejection = filters.check_seller(item(), query, profile(rating=0.8, feedback_count=40))
+    # A member page reports stars out of five, unlike the listing's 0..1 fraction.
+    rejection = filters.check_seller(item(), query, profile(rating=4.0, feedback_count=40))
 
     assert rejection is not None
     assert rejection.reason == "low_rating"
+
+
+def test_a_profile_rating_in_stars_above_the_minimum_passes() -> None:
+    query = search(seller_min_rating=4.5)
+
+    assert filters.check_seller(item(), query, profile(rating=4.8, feedback_count=40)) is None
 
 
 @pytest.mark.parametrize(

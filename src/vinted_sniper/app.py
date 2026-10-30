@@ -121,15 +121,12 @@ class Application:
                     announce=dispatcher.notify_status,
                 )
                 heartbeat = Heartbeat(repo, self._stop, http=http)
-                # The lead wires these after merging the transport work:
-                # client.item_snapshot and client.seller_items. Until then the watcher
-                # reports watches as unavailable and parks them.
                 watcher = Watcher(
                     repo=repo,
                     stop=self._stop,
                     work_available=self._work_available,
-                    item_snapshot=None,
-                    seller_items=None,
+                    item_snapshot=client.item_snapshot,
+                    seller_items=client.seller_items,
                 )
 
                 self._install_signal_handlers()
@@ -227,9 +224,7 @@ class Application:
                 settings=self._settings,
                 stop=self._stop,
                 work_available=self._work_available,
-                # The lead wires client.seller here after merging the transport work.
-                # Until then, seller country and rating filters pass listings through.
-                seller_lookup=None,
+                seller_lookup=client.seller,
                 start_delay_s=min(delay, float(query.poll_interval_s)),
             )
             self._poller_tasks[query_id] = tg.create_task(
