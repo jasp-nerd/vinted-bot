@@ -67,8 +67,11 @@ jobs:
           name: dist
           path: dist/
 
-      # Also uploads signed attestations of where each file was built.
+      # Also uploads signed attestations of where each file was built. skip-existing lets a
+      # version that was first uploaded by hand be tagged later without failing the run.
       - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          skip-existing: true
 
   github-release:
     needs: build

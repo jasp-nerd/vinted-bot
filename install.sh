@@ -36,10 +36,9 @@
 
 set -eu
 
-# Where vinted-sniper comes from. A GitHub archive rather than a git URL, because a git URL
-# needs git, which many Macs only have after a large Xcode tools download. Once the package
-# is on PyPI this becomes simply: vinted-sniper
-PACKAGE="${VINTED_SNIPER_PACKAGE:-vinted-sniper[web] @ https://github.com/jasp-nerd/vinted-sniper/archive/refs/heads/main.zip}"
+# Where vinted-sniper comes from: the latest release on PyPI. Set VINTED_SNIPER_PACKAGE to
+# install something else, such as a GitHub archive of an unreleased branch.
+PACKAGE="${VINTED_SNIPER_PACKAGE:-vinted-sniper}"
 PORT="${VINTED_SNIPER_WEB_PORT:-8000}"
 URL="http://localhost:$PORT"
 LABEL="io.github.jasp-nerd.vinted-sniper"

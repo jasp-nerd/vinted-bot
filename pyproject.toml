@@ -1,18 +1,33 @@
 [project]
 name = "vinted-sniper"
 version = "2.0.0"
-description = "Watch Vinted searches and get notified the moment something matches."
+description = "Free, self-hosted Vinted bot and monitor: alerts for new Vinted listings on Discord, Telegram, ntfy or email, with a web dashboard. No login, no subscription."
 readme = "README.md"
 requires-python = ">=3.13"
 license = "MIT"
 authors = [{ name = "vinted-sniper contributors" }]
-keywords = ["vinted", "scraper", "notifier", "telegram", "discord"]
+keywords = [
+    "vinted", "vinted-bot", "vinted-monitor", "vinted-alerts", "vinted-notifications",
+    "vinted-scraper", "vinted-api", "second-hand", "monitor", "notifier", "discord", "telegram",
+    "ntfy", "self-hosted",
+]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Environment :: Console",
+    "Environment :: Web Environment",
+    "Framework :: AsyncIO",
+    "Framework :: FastAPI",
     "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Natural Language :: French",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Communications :: Chat",
     "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Office/Business",
 ]
 dependencies = [
     "httpx[brotli,zstd]>=0.28",
@@ -47,7 +62,10 @@ apprise = ["apprise>=2.1"]
 vinted-sniper = "vinted_sniper.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/jasp-nerd/vinted-sniper"
+Homepage = "https://vinted-sniper.jaspnerd.dev"
+Source = "https://github.com/jasp-nerd/vinted-sniper"
+Documentation = "https://github.com/jasp-nerd/vinted-sniper/tree/main/docs"
+Changelog = "https://github.com/jasp-nerd/vinted-sniper/blob/main/CHANGELOG.md"
 Issues = "https://github.com/jasp-nerd/vinted-sniper/issues"
 
 [dependency-groups]
@@ -65,6 +83,11 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+# The source archive is for building and testing the package; the landing site, deploy
+# templates, screenshots and demo tooling live in the repository only.
+[tool.hatch.build.targets.sdist]
+exclude = ["/site", "/deploy", "/docs/media", "/scripts", "/.github"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/vinted_sniper"]

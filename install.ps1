@@ -44,10 +44,9 @@ param(
 # would close the user's PowerShell window along with the error message.
 
 function Get-VsConfig {
-    # Where vinted-sniper comes from. A GitHub archive rather than a git URL, because a git
-    # URL needs Git for Windows installed first. Once the package is on PyPI this becomes
-    # simply: vinted-sniper
-    $spec = 'vinted-sniper[web] @ https://github.com/jasp-nerd/vinted-sniper/archive/refs/heads/main.zip'
+    # Where vinted-sniper comes from: the latest release on PyPI. Set VINTED_SNIPER_PACKAGE
+    # to install something else, such as a GitHub archive of an unreleased branch.
+    $spec = 'vinted-sniper'
     if ($env:VINTED_SNIPER_PACKAGE) { $spec = $env:VINTED_SNIPER_PACKAGE }
 
     $dataDir = Join-Path $env:LOCALAPPDATA 'vinted-sniper'
