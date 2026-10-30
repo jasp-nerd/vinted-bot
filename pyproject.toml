@@ -29,6 +29,9 @@ dependencies = [
 impersonate = ["curl_cffi>=0.7"]
 # python-multipart is what lets FastAPI read the dashboard's form posts.
 web = ["fastapi>=0.115", "uvicorn[standard]>=0.34", "jinja2>=3.1", "python-multipart>=0.0.20"]
+# Apprise reaches the long tail of services (email, Slack, Pushover, Gotify, Matrix, Signal,
+# Home Assistant...) through one URL each. Optional: it pulls in requests and friends.
+apprise = ["apprise>=2.1"]
 
 [project.scripts]
 vinted-sniper = "vinted_sniper.cli:main"
@@ -126,7 +129,7 @@ known_first_party = ["vinted_sniper"]
 
 [tool.deptry.per_rule_ignores]
 # Optional extras are imported lazily behind config flags.
-DEP002 = ["curl_cffi", "fastapi", "uvicorn", "jinja2", "python-multipart"]
+DEP002 = ["curl_cffi", "fastapi", "uvicorn", "jinja2", "python-multipart", "apprise"]
 
 [tool.vulture]
 min_confidence = 80
