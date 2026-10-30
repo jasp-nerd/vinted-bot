@@ -469,3 +469,30 @@ async def test_listings_waiting_on_paused_lookups_are_logged_as_undecided(
         (200, "seller_unknown"),
         (201, "seller_unknown"),
     ]
+
+
+async def test_a_listing_older_than_the_freshness_window_is_logged_as_too_old(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    poll = await poller(transport, repo, settings, db)
+    await seed(poll, transport, make_item)
+    two_hours_ago = int(time.time()) - 7200
+    transport.queue_catalog([make_item(101, photo_ts=two_hours_ago)])
+
+    await poll.tick()
+
+    assert [(r.item_id, r.reason) for r in await repo.rejections_for(poll.query.id)] == [
+        (101, "too_old")
+    ]
+
+
+async def test_a_too_old_listing_a_rule_skips_anyway_is_not_logged_as_too_old(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    poll = await poller(transport, repo, settings, db, banned_keywords=["item"])
+    await seed(poll, transport, make_item)
+    transport.queue_catalog([make_item(101, photo_ts=int(time.time()) - 7200)])
+
+    await poll.tick()
+
+    assert await repo.rejections_for(poll.query.id) == []

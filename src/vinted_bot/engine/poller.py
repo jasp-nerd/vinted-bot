@@ -238,7 +238,9 @@ class Poller:
         if quiet:
             announced = await self._seed(selection.new, announce=state.is_first_run)
         else:
-            announced = await self._judge(selection.new)
+            announced = await self._judge(
+                selection.new, too_old=self._too_old(selection.too_old, now=now, window_s=window_s)
+            )
 
         if announced and self._work_available is not None:
             self._work_available.set()
@@ -306,11 +308,27 @@ class Poller:
         )
         return len(pick) if destination_ids else 0
 
-    async def _judge(self, new: list[Item]) -> int:
+    def _too_old(
+        self, entries: list[tuple[Item, int]], *, now: int, window_s: int
+    ) -> list[RejectedListing]:
+        """Log listings that turned up after the freshness window, unless a rule skips them
+        anyway: "Not sent" should show what the search would have wanted."""
+        rejected = []
+        for item, listed in entries:
+            if self._rules.check(item) is not None:
+                continue
+            detail = (
+                f"already on Vinted {round((now - listed) / 60)} min ago; this search "
+                f"ignores listings older than {window_s // 60} min"
+            )
+            rejected.append(RejectedListing(item, "too_old", detail))
+        return rejected
+
+    async def _judge(self, new: list[Item], *, too_old: list[RejectedListing]) -> int:
         """Filter what is new, record the verdicts, queue the alerts. Returns how many queued."""
-        if not new:
+        if not new and not too_old:
             return 0
-        verdicts = _Verdicts()
+        verdicts = _Verdicts(rejected=list(too_old))
         blocked = frozenset(await self._repo.blocked_seller_ids())
         for item in new:
             rejection = self._rules.check(item, blocked_sellers=blocked)
