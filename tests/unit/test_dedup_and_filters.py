@@ -41,137 +41,116 @@ def search(**kwargs: object) -> Query:
 # --- Deduplication -----------------------------------------------------------------
 
 
-def test_first_check_records_everything_and_announces_nothing() -> None:
-    listings = [item(1), item(2), item(3)]
-
-    result = dedup.select(
-        candidates=listings,
-        all_items=listings,
-        known_ids=set(),
-        high_water_mark=None,
-        now=NOW,
-        freshness_window_s=1200,
-        is_first_run=True,
+def select(
+    listings: list[Item],
+    *,
+    seen: set[int] | None = None,
+    floor: int | None = None,
+    first_run: bool = False,
+    now: int = NOW,
+    window_s: int = 1200,
+    full: bool = False,
+) -> dedup.Selection:
+    return dedup.select(
+        items=listings,
+        seen_ids=seen or set(),
+        floor_item_id=floor,
+        now=now,
+        freshness_window_s=window_s,
+        is_first_run=first_run,
+        page_is_full=full,
     )
 
-    assert len(result.to_record) == 3
-    assert result.to_notify == []
+
+def test_first_check_offers_the_whole_page_and_raises_the_floor_to_its_newest() -> None:
+    result = select([item(1), item(3), item(2)], first_run=True)
+
+    assert [i.item_id for i in result.new] == [1, 2, 3]
+    assert result.floor_item_id == 3, "nothing already on the shelf may count as new later"
 
 
 def test_first_check_can_announce_exactly_one_as_a_smoke_test() -> None:
-    listings = [item(1, ts=NOW - 100), item(2, ts=NOW), item(3, ts=NOW - 50)]
+    listings = [item(1), item(3), item(2)]
 
-    result = dedup.select(
-        candidates=listings,
-        all_items=listings,
-        known_ids=set(),
-        high_water_mark=None,
-        now=NOW,
-        freshness_window_s=1200,
-        is_first_run=True,
-        first_run_mode="newest",
-    )
-
-    assert [i.item_id for i in result.to_notify] == [2], "the newest listing, and only that"
-    assert len(result.to_record) == 3
+    assert [i.item_id for i in dedup.first_run_pick(listings, "newest")] == [3]
+    assert dedup.first_run_pick(listings, "silent") == []
 
 
 def test_listings_older_than_the_freshness_window_are_ignored() -> None:
-    listings = [item(1, ts=NOW - 5000), item(2, ts=NOW - 60)]
+    result = select([item(1, ts=NOW - 5000), item(2, ts=NOW - 60)])
 
-    result = dedup.select(
-        candidates=listings,
-        all_items=listings,
-        known_ids=set(),
-        high_water_mark=None,
-        now=NOW,
-        freshness_window_s=1200,
-        is_first_run=False,
-    )
-
-    assert [i.item_id for i in result.to_notify] == [2]
+    assert [i.item_id for i in result.new] == [2]
     assert result.skipped_stale == 1
 
 
-def test_listings_already_seen_are_ignored_even_when_fresh() -> None:
-    listings = [item(1), item(2)]
+def test_listings_this_search_already_judged_are_ignored() -> None:
+    result = select([item(1), item(2)], seen={1})
 
-    result = dedup.select(
-        candidates=listings,
-        all_items=listings,
-        known_ids={1},
-        high_water_mark=None,
-        now=NOW,
-        freshness_window_s=1200,
-        is_first_run=False,
-    )
-
-    assert [i.item_id for i in result.to_notify] == [2]
+    assert [i.item_id for i in result.new] == [2]
 
 
-def test_the_high_water_mark_stops_older_listings_drifting_back_in() -> None:
-    listings = [item(1, ts=NOW - 500), item(2, ts=NOW - 100)]
+def test_old_stock_pulled_up_below_the_floor_is_not_new() -> None:
+    """A deletion pulls listing 90 onto the first page; it was never new, only unseen."""
+    result = select([item(90, ts=None), item(105, ts=None)], seen={105}, floor=100)
 
-    result = dedup.select(
-        candidates=listings,
-        all_items=listings,
-        known_ids=set(),
-        high_water_mark=NOW - 300,
-        now=NOW,
-        freshness_window_s=1200,
-        is_first_run=False,
-    )
-
-    assert [i.item_id for i in result.to_notify] == [2]
+    assert result.new == []
 
 
-def test_announcements_are_ordered_oldest_first() -> None:
-    listings = [item(3, ts=NOW - 10), item(1, ts=NOW - 300), item(2, ts=NOW - 100)]
+def test_a_late_listing_inside_the_watched_range_is_still_announced() -> None:
+    """The bug the old timestamp mark had: a listing that surfaces after a newer one was
+    already announced was dropped forever. Below the newest but above the floor is news."""
+    result = select([item(120, ts=None), item(110, ts=None)], seen={120}, floor=100)
 
-    result = dedup.select(
-        candidates=listings,
-        all_items=listings,
-        known_ids=set(),
-        high_water_mark=None,
-        now=NOW,
-        freshness_window_s=1200,
-        is_first_run=False,
-    )
-
-    assert [i.item_id for i in result.to_notify] == [1, 2, 3]
+    assert [i.item_id for i in result.new] == [110]
 
 
-def test_a_listing_without_a_timestamp_is_let_through() -> None:
-    listings = [item(1, ts=None)]
+def test_new_listings_come_out_in_upload_order() -> None:
+    result = select([item(3), item(1), item(2)])
 
-    result = dedup.select(
-        candidates=listings,
-        all_items=listings,
-        known_ids=set(),
-        high_water_mark=NOW,
-        now=NOW,
-        freshness_window_s=1200,
-        is_first_run=False,
-    )
-
-    assert [i.item_id for i in result.to_notify] == [1]
+    assert [i.item_id for i in result.new] == [1, 2, 3]
 
 
-def test_the_watchdog_timestamp_ignores_filtering() -> None:
-    everything = [item(1, ts=NOW), item(2, ts=NOW - 10)]
+def test_a_listing_without_a_timestamp_is_judged_on_its_id() -> None:
+    result = select([item(101, ts=None)], floor=100)
 
-    result = dedup.select(
-        candidates=[],  # everything was filtered out
-        all_items=everything,
-        known_ids=set(),
-        high_water_mark=None,
-        now=NOW,
-        freshness_window_s=1200,
-        is_first_run=False,
-    )
+    assert [i.item_id for i in result.new] == [101]
 
-    assert result.newest_raw_ts == NOW, "a quiet search still proves the catalog is moving"
-    assert result.to_notify == []
+
+def test_the_floor_only_rises() -> None:
+    """A quiet search's page reaches far back; the floor must not follow it down."""
+    result = select([item(50), item(150)], seen={50, 150}, floor=100)
+
+    assert result.floor_item_id == 100
+
+
+def test_the_floor_follows_a_full_page_up() -> None:
+    result = select([item(300), item(250)], seen={250, 300}, floor=100, full=True)
+
+    assert result.floor_item_id == 250
+
+
+def test_a_short_page_leaves_the_floor_alone() -> None:
+    """A page that was not full held every result: nothing was below it to keep out."""
+    result = select([item(300), item(250)], seen={250, 300}, floor=100)
+
+    assert result.floor_item_id == 100
+
+
+def test_the_watchdog_markers_ignore_what_this_search_has_seen() -> None:
+    result = select([item(7, ts=NOW), item(5, ts=NOW - 10)], seen={5, 7})
+
+    assert result.newest_raw_id == 7, "a quiet search still proves the catalog is moving"
+    assert result.newest_raw_ts == NOW
+    assert result.new == []
+
+
+def test_freshness_window_uses_real_clock_units() -> None:
+    """A regression guard: the window is seconds, and a 20-minute window is 1200 of them."""
+    now = int(time.time())
+
+    result = select([item(1, ts=now - 19 * 60), item(2, ts=now - 21 * 60)], now=now)
+
+    assert [i.item_id for i in result.new] == [1]
 
 
 # --- Filters -----------------------------------------------------------------------
@@ -227,21 +206,3 @@ def test_condition_filter() -> None:
 
 def test_no_filters_means_everything_matches() -> None:
     assert filters.matches(item(1, price=Decimal("999")), search())
-
-
-def test_freshness_window_uses_real_clock_units() -> None:
-    """A regression guard: the window is seconds, and a 20-minute window is 1200 of them."""
-    now = int(time.time())
-    listings = [item(1, ts=now - 19 * 60), item(2, ts=now - 21 * 60)]
-
-    result = dedup.select(
-        candidates=listings,
-        all_items=listings,
-        known_ids=set(),
-        high_water_mark=None,
-        now=now,
-        freshness_window_s=20 * 60,
-        is_first_run=False,
-    )
-
-    assert [i.item_id for i in result.to_notify] == [1]

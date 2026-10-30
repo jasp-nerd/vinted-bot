@@ -15,15 +15,22 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import random
 import signal
+import sqlite3
+import webbrowser
+
+import httpx
 
 from vinted_sniper.config import Settings
 from vinted_sniper.db import Database, apply_pending
 from vinted_sniper.db.repo import Query, Repo
 from vinted_sniper.deliver.dispatcher import Dispatcher
+from vinted_sniper.engine import updates
 from vinted_sniper.engine.health import Heartbeat
 from vinted_sniper.engine.poller import Poller
 from vinted_sniper.engine.watchdog import Watchdog
+from vinted_sniper.engine.watcher import Watcher
 from vinted_sniper.log import get_logger
 from vinted_sniper.vinted.client import VintedClient
 from vinted_sniper.vinted.proxies import ProxyRotation
@@ -36,22 +43,37 @@ log = get_logger(__name__)
 # How often to notice searches added, paused or edited elsewhere.
 SUPERVISE_INTERVAL_S = 15.0
 
-# Housekeeping: prune old listings and flush undeliverable notifications.
+# Housekeeping: prune old listings and the rejections log, check for a newer release.
 HOUSEKEEPING_INTERVAL_S = 3600.0
+
+# Searches started in the same pass — all of them, after a restart — begin this far apart
+# (plus jitter), so they do not hit the site in the same second.
+STARTUP_SPACING_S = 2.0
+
+# How long `run --open` waits for the dashboard to start listening.
+_OPEN_BROWSER_WAIT_S = 20.0
 
 
 class Application:
     """The whole running system."""
 
     def __init__(
-        self, settings: Settings, *, supervise_interval_s: float = SUPERVISE_INTERVAL_S
+        self,
+        settings: Settings,
+        *,
+        supervise_interval_s: float = SUPERVISE_INTERVAL_S,
+        open_browser: bool = False,
     ) -> None:
         self._settings = settings
         self._supervise_interval_s = supervise_interval_s
+        self._open_browser = open_browser
         self._stop = asyncio.Event()
         self._work_available = asyncio.Event()
+        self._rng = random.Random()
         self._poller_tasks: dict[int, asyncio.Task[None]] = {}
-        self._poller_signatures: dict[int, tuple[str, int]] = {}
+        # The search as its poller was started with it. Any edit makes it unequal, and
+        # the poller is restarted with the new rules on the next pass.
+        self._poller_signatures: dict[int, Query] = {}
 
     def request_stop(self) -> None:
         self._stop.set()
@@ -75,6 +97,8 @@ class Application:
                 )
 
             pool = TransportPool(build)
+            # For the health check ping and the daily update check, never for Vinted.
+            http = httpx.AsyncClient(timeout=10.0)
             try:
                 sessions = SessionManager(
                     db,
@@ -96,7 +120,17 @@ class Application:
                     stop=self._stop,
                     announce=dispatcher.notify_status,
                 )
-                heartbeat = Heartbeat(repo, self._stop)
+                heartbeat = Heartbeat(repo, self._stop, http=http)
+                # The lead wires these after merging the transport work:
+                # client.item_snapshot and client.seller_items. Until then the watcher
+                # reports watches as unavailable and parks them.
+                watcher = Watcher(
+                    repo=repo,
+                    stop=self._stop,
+                    work_available=self._work_available,
+                    item_snapshot=None,
+                    seller_items=None,
+                )
 
                 self._install_signal_handlers()
                 log.info(
@@ -111,7 +145,8 @@ class Application:
                         tg.create_task(dispatcher.run(), name="dispatcher")
                         tg.create_task(watchdog.run(), name="watchdog")
                         tg.create_task(heartbeat.run(), name="heartbeat")
-                        tg.create_task(self._housekeeping(repo), name="housekeeping")
+                        tg.create_task(watcher.run(), name="watcher")
+                        tg.create_task(self._housekeeping(repo, http), name="housekeeping")
                         tg.create_task(
                             self._supervise(tg, repo, client, sessions), name="supervisor"
                         )
@@ -121,11 +156,14 @@ class Application:
                         if settings.web_enabled:
                             taxonomy = Taxonomy(sessions, repo)
                             tg.create_task(self._run_web(repo, taxonomy), name="web")
+                            if self._open_browser:
+                                tg.create_task(self._open_dashboard(), name="open-browser")
                 except* Exception as group:
                     for error in group.exceptions:
                         log.exception("app.task_failed", error=str(error))
                     raise
             finally:
+                await http.aclose()
                 await pool.aclose()
 
         log.info("app.stopped")
@@ -164,9 +202,7 @@ class Application:
         for query_id in list(self._poller_tasks):
             query = queries.get(query_id)
             task = self._poller_tasks[query_id]
-            changed = query is not None and self._signature(query) != self._poller_signatures.get(
-                query_id
-            )
+            changed = query is not None and query != self._poller_signatures.get(query_id)
             if query is None or changed or task.done():
                 task.cancel()
                 del self._poller_tasks[query_id]
@@ -174,9 +210,15 @@ class Application:
                 if query is None:
                     log.info("poller.stopped", query_id=query_id)
 
-        for query_id, query in queries.items():
-            if query_id in self._poller_tasks:
-                continue
+        starting = [
+            query for query_id, query in queries.items() if query_id not in self._poller_tasks
+        ]
+        for position, query in enumerate(starting):
+            query_id = query.id
+            # The first starts at once, so a newly added search checks straight away.
+            delay = position * STARTUP_SPACING_S
+            if position:
+                delay += self._rng.uniform(0, STARTUP_SPACING_S)
             poller = Poller(
                 query,
                 repo=repo,
@@ -185,23 +227,24 @@ class Application:
                 settings=self._settings,
                 stop=self._stop,
                 work_available=self._work_available,
+                # The lead wires client.seller here after merging the transport work.
+                # Until then, seller country and rating filters pass listings through.
+                seller_lookup=None,
+                start_delay_s=min(delay, float(query.poll_interval_s)),
             )
             self._poller_tasks[query_id] = tg.create_task(
                 self._guard(poller), name=f"poll:{query_id}"
             )
-            self._poller_signatures[query_id] = self._signature(query)
+            self._poller_signatures[query_id] = query
             log.info(
                 "poller.started",
                 query_id=query_id,
                 query=query.name,
                 tld=query.tld,
+                sites=query.sites,
                 every_s=query.poll_interval_s,
+                start_in_s=round(min(delay, float(query.poll_interval_s)), 1),
             )
-
-    @staticmethod
-    def _signature(query: Query) -> tuple[str, int]:
-        """What about a search would make its running task out of date."""
-        return (query.url, query.poll_interval_s)
 
     async def _guard(self, poller: Poller) -> None:
         """Run a search's loop so that its failure cannot take the others down with it."""
@@ -214,12 +257,19 @@ class Application:
 
     # --- Background chores ---------------------------------------------------------
 
-    async def _housekeeping(self, repo: Repo) -> None:
+    async def _housekeeping(self, repo: Repo, http: httpx.AsyncClient) -> None:
         while not self._stop.is_set():
-            with contextlib.suppress(Exception):
+            try:
                 pruned = await repo.prune_items(self._settings.item_retention_days)
-                if pruned:
-                    log.debug("housekeeping.pruned_items", count=pruned)
+                rejections = await repo.prune_rejections()
+                if pruned or rejections:
+                    log.debug("housekeeping.pruned", items=pruned, rejections=rejections)
+                # Offline mode is offline: no call to GitHub either.
+                if self._settings.fetch_mode == "live":
+                    await updates.check_for_update(repo, http)
+            except sqlite3.OperationalError as exc:
+                # A locked database; the next pass an hour from now will catch up.
+                log.warning("housekeeping.db_unavailable", error=str(exc))
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(self._stop.wait(), timeout=HOUSEKEEPING_INTERVAL_S)
 
@@ -235,21 +285,39 @@ class Application:
             log.exception("telegram_bot.failed", error=str(exc))
 
     async def _run_web(self, repo: Repo, taxonomy: Taxonomy) -> None:
-        try:
-            from vinted_sniper.web.server import serve  # noqa: PLC0415
-        except ImportError:
-            # The dashboard is on by default but its dependencies are an extra, so a
-            # bare install shouldn't die over it — the poller is the point.
-            log.warning(
-                "web.unavailable",
-                hint="install the web extra to get the dashboard: uv sync --extra web",
-            )
-            return
+        # Imported here so CLI commands that never serve the dashboard skip loading FastAPI.
+        from vinted_sniper.web.server import serve  # noqa: PLC0415
 
         try:
             await serve(self._settings, repo, self._stop, taxonomy)
         except Exception as exc:
             log.exception("web.failed", error=str(exc))
+
+    async def _open_dashboard(self) -> None:
+        """Open the dashboard in a browser once it is listening (`run --open`)."""
+        url = self._settings.dashboard_url
+        if url is None:  # pragma: no cover - only scheduled while the web UI is on
+            return
+        host = (
+            "127.0.0.1" if self._settings.web_host in {"0.0.0.0", "::"} else self._settings.web_host
+        )
+        deadline = asyncio.get_running_loop().time() + _OPEN_BROWSER_WAIT_S
+        while not self._stop.is_set() and asyncio.get_running_loop().time() < deadline:
+            try:
+                _, writer = await asyncio.wait_for(
+                    asyncio.open_connection(host, self._settings.web_port), timeout=1.0
+                )
+            except (OSError, TimeoutError):
+                with contextlib.suppress(TimeoutError):
+                    await asyncio.wait_for(self._stop.wait(), timeout=0.25)
+                continue
+            writer.close()
+            await writer.wait_closed()
+            # webbrowser can block while it launches a process, so it gets a thread.
+            await asyncio.to_thread(webbrowser.open, url)
+            log.info("web.opened", url=url)
+            return
+        log.warning("web.open_timed_out", url=url)
 
     # --- Signals -------------------------------------------------------------------
 
@@ -264,5 +332,5 @@ class Application:
         self._stop.set()
 
 
-async def run(settings: Settings) -> None:
-    await Application(settings).run()
+async def run(settings: Settings, *, open_browser: bool = False) -> None:
+    await Application(settings, open_browser=open_browser).run()

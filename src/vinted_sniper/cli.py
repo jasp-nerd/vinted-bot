@@ -7,13 +7,15 @@ import asyncio
 import sys
 import time
 from collections.abc import Sequence
-from decimal import Decimal, InvalidOperation
+from pathlib import Path
+from typing import Any
 
 from vinted_sniper import __version__, app, log
-from vinted_sniper.config import MIN_POLL_INTERVAL_S, Settings
+from vinted_sniper.config import Settings
 from vinted_sniper.db import Database, apply_pending
+from vinted_sniper.db import export as exporter
 from vinted_sniper.db.repo import Repo
-from vinted_sniper.engine import health
+from vinted_sniper.engine import health, validation
 from vinted_sniper.vinted import urls
 from vinted_sniper.vinted.client import VintedClient
 from vinted_sniper.vinted.errors import BlockedError, VintedError
@@ -31,7 +33,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"vinted-sniper {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("run", help="Start watching. This is what the container runs.")
+    run = sub.add_parser("run", help="Start watching. This is what the container runs.")
+    run.add_argument(
+        "--open", action="store_true", help="Open the dashboard in your browser once it is up."
+    )
     sub.add_parser("migrate", help="Create or update the database, then exit.")
     sub.add_parser("status", help="Show how each search is doing.")
     sub.add_parser("heartbeat", help="Exit 0 if the app is alive. Used by the health check.")
@@ -56,11 +61,46 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="Skip anything above this, buyer protection included.",
     )
+    watch.add_argument("--min-price", default="", help="Skip anything below this total.")
     watch.add_argument("--exclude", default="", help="Comma-separated words to skip in titles.")
+    watch.add_argument(
+        "--include",
+        default="",
+        help="Comma-separated words the title must all contain; 'a|b' accepts either.",
+    )
+    watch.add_argument("--regex", default="", help="A regular expression the title must match.")
+    watch.add_argument("--min-rating", default="", help="Minimum seller rating, 0 to 5 stars.")
+    watch.add_argument("--min-reviews", default="", help="Minimum number of seller reviews.")
+    watch.add_argument(
+        "--skip-unrated", action="store_true", help="Skip sellers with no reviews yet."
+    )
+    watch.add_argument(
+        "--countries", default="", help="Only sellers in these countries, e.g. FR,BE."
+    )
+    watch.add_argument(
+        "--deal", default="", help="Only alert at least this many percent under typical."
+    )
+    watch.add_argument(
+        "--max-age", default="", help="Ignore listings older than this many minutes."
+    )
+    watch.add_argument("--quiet", default="", help="Quiet hours, e.g. 23:00-07:00.")
+    watch.add_argument(
+        "--quiet-mode",
+        default="hold",
+        choices=validation.QUIET_MODES,
+        help="During quiet hours: hold alerts until the end, drop them, or send silently.",
+    )
+    watch.add_argument(
+        "--also-on", default="", help="Run the same search on other sites too, e.g. de,be."
+    )
+    watch.add_argument("--color", default="", help="A colour for this search, e.g. #007782.")
+    watch.add_argument("--notes", default="", help="A note for yourself.")
+    watch.add_argument("--tags", default="", help="Comma-separated tags.")
     watch.add_argument(
         "--to",
         default="",
-        help="Comma-separated destination ids to notify. Defaults to all active ones.",
+        help="Comma-separated destination ids to notify. Without it, every active "
+        "destination, including ones added later.",
     )
 
     sub.add_parser("searches", help="List saved searches.")
@@ -79,6 +119,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     sub.add_parser("destinations", help="List destinations.")
+
+    export = sub.add_parser("export", help="Write found listings as CSV or JSON.")
+    export.add_argument("--format", choices=["csv", "json"], default="csv")
+    export.add_argument("--search", type=int, default=None, help="Only this search's finds.")
+    export.add_argument(
+        "--output", default="-", help="File to write to. Defaults to standard output."
+    )
 
     pair = sub.add_parser(
         "pair-telegram",
@@ -159,6 +206,45 @@ async def _cmd_check(settings: Settings, url: str) -> int:
     return 0
 
 
+def _watch_filters(args: argparse.Namespace, tld: str) -> dict[str, Any]:
+    """Turn `watch` options into search fields, refusing anything that will not work."""
+    quiet_start = quiet_end = None
+    if args.quiet.strip():
+        start, separator, end = args.quiet.partition("-")
+        if not separator:
+            raise validation.InvalidInputError("quiet", "Write quiet hours like 23:00-07:00.")
+        quiet_start, quiet_end = start, end
+    return {
+        "max_total_price": validation.parse_price(args.max_price, field="max_price"),
+        "min_total_price": validation.parse_price(args.min_price, field="min_price"),
+        "banned_keywords": validation.parse_words(args.exclude, field="exclude"),
+        "include_terms": validation.parse_words(args.include, field="include"),
+        "regex": validation.parse_regex(args.regex),
+        "seller_min_rating": validation.parse_rating(args.min_rating),
+        "seller_min_reviews": validation.parse_count(args.min_reviews, field="min_reviews"),
+        "skip_unrated_sellers": args.skip_unrated,
+        "countries": validation.parse_countries(args.countries) or None,
+        "deal_only_pct": validation.parse_percent(args.deal, field="deal"),
+        "max_age_min": validation.parse_minutes(args.max_age, field="max_age"),
+        "quiet_start": quiet_start,
+        "quiet_end": quiet_end,
+        "quiet_mode": args.quiet_mode,
+        "extra_tlds": validation.parse_tlds(args.also_on, primary=tld),
+        "notes": validation.parse_notes(args.notes),
+        "tags": validation.parse_words(args.tags, field="tags"),
+        **({"color": validation.parse_color(args.color)} if args.color.strip() else {}),
+    }
+
+
+def _destination_ids(text: str) -> list[int]:
+    try:
+        return [int(part) for part in text.split(",") if part.strip()]
+    except ValueError as exc:
+        raise validation.InvalidInputError(
+            "to", "--to takes destination ids, like --to 1,2."
+        ) from exc
+
+
 async def _cmd_watch(settings: Settings, args: argparse.Namespace) -> int:
     try:
         normalised = urls.normalise_search_url(args.url)
@@ -168,13 +254,18 @@ async def _cmd_watch(settings: Settings, args: argparse.Namespace) -> int:
         print(f"That URL will not work: {exc}", file=sys.stderr)
         return 2
 
-    max_price: Decimal | None = None
-    if args.max_price:
-        try:
-            max_price = Decimal(args.max_price)
-        except InvalidOperation:
-            print(f"{args.max_price!r} is not a number.", file=sys.stderr)
-            return 2
+    try:
+        fields = _watch_filters(args, tld)
+        destination_ids = _destination_ids(args.to)
+        interval = validation.parse_interval(
+            args.every or None, default=settings.poll_default_interval_s
+        )
+        name = validation.parse_name(
+            args.name, fallback=validation.default_search_name(params, tld)
+        )
+    except validation.InvalidInputError as exc:
+        print(exc.message, file=sys.stderr)
+        return 2
 
     async with Database(settings.db_path) as db:
         await apply_pending(db)
@@ -184,28 +275,46 @@ async def _cmd_watch(settings: Settings, args: argparse.Namespace) -> int:
             print("That search is already being watched.", file=sys.stderr)
             return 1
 
-        interval = max(args.every or settings.poll_default_interval_s, MIN_POLL_INTERVAL_S)
-        query_id = await repo.add_query(
-            name=args.name.strip() or (params.get("search_text") or f"vinted.{tld}"),
-            url=normalised,
-            tld=tld,
-            params=params,
-            poll_interval_s=interval,
-            banned_keywords=[w.strip() for w in args.exclude.split(",") if w.strip()],
-            max_total_price=max_price,
-        )
+        known = {destination.id for destination in await repo.list_destinations()}
+        if unknown := [i for i in destination_ids if i not in known]:
+            print(f"No destination with id {unknown[0]}.", file=sys.stderr)
+            return 2
 
-        if args.to.strip():
-            destination_ids = [int(part) for part in args.to.split(",") if part.strip()]
-        else:
-            destination_ids = [d.id for d in await repo.list_destinations(active_only=True)]
+        try:
+            query_id = await repo.add_query(
+                name=name,
+                url=normalised,
+                tld=tld,
+                params=params,
+                poll_interval_s=interval,
+                **fields,
+            )
+        except validation.InvalidInputError as exc:
+            print(exc.message, file=sys.stderr)
+            return 2
         for destination_id in destination_ids:
             await repo.route(query_id, destination_id)
+        everywhere = await repo.destination_ids_for_query(query_id)
 
-    print(f"Watching “{args.name or params.get('search_text') or normalised}” (id {query_id}).")
-    print(f"Checking vinted.{tld} every {interval}s.")
-    if not destination_ids:
+    sites = ", ".join(f"vinted.{site}" for site in [tld, *fields["extra_tlds"]])
+    print(f"Watching “{name}” (id {query_id}).")
+    print(f"Checking {sites} every {interval}s.")
+    if not everywhere:
         print("\nNo destinations yet — add one with: vinted-sniper destination discord <url>")
+        print("New destinations receive this search's alerts automatically.")
+    return 0
+
+
+async def _cmd_export(settings: Settings, args: argparse.Namespace) -> int:
+    async with Database(settings.db_path) as db:
+        await apply_pending(db)
+        entries = await Repo(db).all_found(query_id=args.search)
+    rendered = exporter.render(entries, args.format)
+    if args.output == "-":
+        sys.stdout.write(rendered)
+    else:
+        await asyncio.to_thread(Path(args.output).write_text, rendered, encoding="utf-8")
+        print(f"Wrote {len(entries)} listing(s) to {args.output}.", file=sys.stderr)
     return 0
 
 
@@ -340,7 +449,7 @@ async def _run(args: argparse.Namespace) -> int:
 
     match args.command:
         case "run":
-            await app.run(settings)
+            await app.run(settings, open_browser=args.open)
             return 0
         case "migrate":
             return await _cmd_migrate(settings)
@@ -356,6 +465,8 @@ async def _run(args: argparse.Namespace) -> int:
             return await _cmd_destination(settings, args)
         case "destinations":
             return await _cmd_destinations(settings)
+        case "export":
+            return await _cmd_export(settings, args)
         case "pair-telegram":
             return await _cmd_pair_telegram(settings, args)
         case "status":

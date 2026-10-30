@@ -1,8 +1,14 @@
 """Schema migrations.
 
 Files in migrations/ are named NNNN_description.sql and applied in order. SQLite's
-user_version pragma records how far we got. Each file runs in its own transaction, so a
-failure leaves the database at the last version that fully applied.
+user_version pragma records how far we got. Each file and its version bump run in one
+transaction, so a failure leaves the database at the last version that fully applied
+rather than half-way through a file that cannot be re-run.
+
+Foreign keys are switched off while a file runs and checked before it commits. That is
+SQLite's documented procedure for rebuilding a table, which is the only way to change a
+constraint: with them on, dropping the old copy of a parent table would cascade-delete
+every child row.
 """
 
 from __future__ import annotations
@@ -67,11 +73,28 @@ async def apply_pending(db: Database, directory: Path = MIGRATIONS_DIR) -> int:
 
     pending = [m for m in migrations if m.version > version]
     for migration in pending:
-        sql = migration.path.read_text(encoding="utf-8")
-        async with db.transaction() as conn:
-            await conn.executescript(sql)
-            # executescript commits any open transaction, so set the version after it.
-            await conn.execute(f"PRAGMA user_version = {migration.version}")
+        await _apply(db, migration)
         log.info("migration.applied", version=migration.version, name=migration.name)
 
     return len(pending)
+
+
+async def _apply(db: Database, migration: Migration) -> None:
+    sql = migration.path.read_text(encoding="utf-8")
+    # The pragma is a no-op inside a transaction, so it goes first, on its own.
+    await db.execute("PRAGMA foreign_keys = OFF")
+    try:
+        async with db.transaction() as conn:
+            # executescript commits whatever is open and then runs the script as written;
+            # starting it with BEGIN is what keeps the whole file in one transaction.
+            await conn.executescript(f"BEGIN;\n{sql}")
+            async with conn.execute("PRAGMA foreign_key_check") as cursor:
+                broken = list(await cursor.fetchall())
+            if broken:
+                raise RuntimeError(
+                    f"Migration {migration.name} left {len(broken)} broken foreign key(s), "
+                    f"first in table {broken[0][0]!r}"
+                )
+            await conn.execute(f"PRAGMA user_version = {migration.version}")
+    finally:
+        await db.execute("PRAGMA foreign_keys = ON")

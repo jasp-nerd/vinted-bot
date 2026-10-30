@@ -10,8 +10,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr, model_validator
+import platformdirs
+from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from vinted_sniper.engine.validation import InvalidInputError, parse_timezone
 
 # Not configurable. Polling faster than this earns 403s without finding items any sooner,
 # because Vinted's own catalog lags behind uploads by far more than a few seconds.
@@ -31,6 +34,25 @@ def _in_container() -> bool:
     return Path("/.dockerenv").exists() or Path("/run/.containerenv").exists()
 
 
+# Where 1.x kept the database, relative to wherever the app was started.
+LEGACY_DB_PATH = Path("./data/app.db")
+
+
+def default_db_path() -> Path:
+    """Where the database lives when VINTED_SNIPER_DB_PATH does not say.
+
+    In a container: ./data/app.db (the image sets the variable to /data/app.db anyway).
+    Outside one, if ./data/app.db already exists it is kept, so an upgrade never strands
+    someone's searches in a file the app has stopped reading. Otherwise the platform's
+    per-user data folder (~/.local/share/vinted-sniper on Linux, ~/Library/Application
+    Support/vinted-sniper on macOS, %LOCALAPPDATA%\\vinted-sniper on Windows), so the
+    data does not depend on which directory the app happened to be started from.
+    """
+    if _in_container() or LEGACY_DB_PATH.exists():
+        return LEGACY_DB_PATH
+    return platformdirs.user_data_path("vinted-sniper", appauthor=False) / "app.db"
+
+
 class Settings(BaseSettings):
     """Static configuration. Every field is documented in docs/configuration.md."""
 
@@ -39,12 +61,15 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="forbid",
+        # The timezone field also answers to TZ, which containers and systemd already set.
+        populate_by_name=True,
     )
 
     # --- Storage -------------------------------------------------------------------
     db_path: Path = Field(
-        default=Path("./data/app.db"),
-        description="Path to the SQLite database file. Its parent directory is created on start.",
+        default_factory=default_db_path,
+        description="Path to the SQLite database file. Its parent directory is created on "
+        "start. Defaults to ./data/app.db if that exists, else the per-user data folder.",
     )
     item_retention_days: int = Field(
         default=30,
@@ -55,6 +80,14 @@ class Settings(BaseSettings):
         default=False,
         description="Store each item's raw API payload. Useful for debugging schema drift, "
         "but it keeps more seller data on disk than notifications need.",
+    )
+
+    # --- Time ----------------------------------------------------------------------
+    timezone: str = Field(
+        default="UTC",
+        validation_alias=AliasChoices("VINTED_SNIPER_TIMEZONE", "TZ"),
+        description="IANA time zone for quiet hours and the stats page, such as "
+        "Europe/Paris. Falls back to TZ. The dashboard's settings page overrides it.",
     )
 
     # --- Logging -------------------------------------------------------------------
@@ -164,6 +197,14 @@ class Settings(BaseSettings):
     def web_is_loopback(self) -> bool:
         """Whether the dashboard is reachable only from this machine."""
         return self.web_host in {"127.0.0.1", "localhost", "::1"}
+
+    @field_validator("timezone")
+    @classmethod
+    def _known_timezone(cls, value: str) -> str:
+        try:
+            return parse_timezone(value)
+        except InvalidInputError as exc:
+            raise ValueError(exc.message) from exc
 
     @model_validator(mode="after")
     def _check_coherent(self) -> Settings:

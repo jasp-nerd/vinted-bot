@@ -60,8 +60,11 @@ class Watchdog:
 
     async def run(self, interval_s: float = 120.0) -> None:
         while not self._stop.is_set():
-            with contextlib.suppress(Exception):
+            try:
                 await self.check()
+            except Exception as exc:
+                # One bad pass (a locked database, usually) must not end the watching.
+                log.exception("watchdog.failed", error=str(exc))
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(self._stop.wait(), timeout=interval_s)
 
@@ -127,8 +130,13 @@ class Watchdog:
             log.info("watchdog.session_rotated", tld=search.tld)
 
         if self._announce is not None:
+            action = (
+                "Started a fresh session; if it stays quiet"
+                if self._settings.watchdog_action == "rotate"
+                else "If it stays quiet"
+            )
             await self._announce(
                 f"“{search.name}” has seen nothing new for {search.stale_cycles} checks "
                 f"while other vinted.{search.tld} searches keep finding listings. "
-                "Started a fresh session; if it stays quiet, see the troubleshooting guide."
+                f"{action}, see the troubleshooting guide."
             )

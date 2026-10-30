@@ -18,9 +18,22 @@ Every variable is prefixed `VINTED_SNIPER_`. All of them are optional except whe
 
 | Variable | Default | What it does |
 |---|---|---|
-| `DB_PATH` | `./data/app.db` | Where the SQLite file lives. Already set to `/data/app.db` in the container. |
+| `DB_PATH` | see below | Where the SQLite file lives. Already set to `/data/app.db` in the container. |
 | `ITEM_RETENTION_DAYS` | `30` | Delete stored listings older than this. Does not cause anything to be re-sent. |
 | `KEEP_RAW_JSON` | `false` | Keep each listing's full API payload. Handy when debugging a parsing problem; stores more seller data than notifications need. |
+
+Unset outside a container, the database goes in `./data/app.db` **if that file already
+exists**, so upgrading from 1.x keeps your searches where they are. Otherwise it goes in
+your user data folder: `~/.local/share/vinted-sniper/app.db` on Linux,
+`~/Library/Application Support/vinted-sniper/app.db` on macOS,
+`%LOCALAPPDATA%\vinted-sniper\app.db` on Windows. That way it no longer matters which
+folder you start the app from. `vinted-sniper migrate` prints the path it used.
+
+### Time
+
+| Variable | Default | What it does |
+|---|---|---|
+| `TIMEZONE` | `UTC` | IANA time zone such as `Europe/Paris`, used for quiet hours and the stats page. Falls back to the standard `TZ` variable when unset. The dashboard's settings page can override it. |
 
 ### Checking
 
@@ -80,13 +93,16 @@ was found, so you can see the real delay yourself.
 ## Commands
 
 ```
-vinted-sniper run                      start watching (what the container runs)
+vinted-sniper run [--open]             start watching (what the container runs);
+                                       --open also opens the dashboard in your browser
 vinted-sniper check --url <url>        fetch one search once and print the result
 vinted-sniper watch <url> [options]    add a search
 vinted-sniper searches                 list searches
 vinted-sniper unwatch <id>             remove one
 vinted-sniper destination <kind> <target>   add somewhere to send
 vinted-sniper destinations             list them
+vinted-sniper export [--format csv|json] [--search ID] [--output FILE]
+                                       write found listings for a spreadsheet
 vinted-sniper pair-telegram            print a link that connects a Telegram chat
 vinted-sniper status                   how each search is doing
 vinted-sniper migrate                  create or update the database, then exit
@@ -99,9 +115,26 @@ Options for `watch`:
 |---|---|
 | `--name` | What to call it. Defaults to the search text. |
 | `--every N` | Seconds between checks for this search. |
-| `--max-price N` | Skip anything above this **including buyer protection**. |
-| `--exclude a,b,c` | Skip listings whose title contains any of these words. |
-| `--to 1,2` | Destination ids to notify. Defaults to all active ones. |
+| `--max-price N` | Skip anything above this **including buyer protection**. `12,50` works. |
+| `--min-price N` | Skip anything below this total. |
+| `--exclude a,b,c` | Skip listings whose title or brand contains any of these words. Whole words, ignoring case and accents; end one with `*` to match any ending (`part*`). |
+| `--include a,b\|c` | The title or brand must contain every one of these. `b\|c` accepts either. Same matching as `--exclude`. |
+| `--regex PATTERN` | The title must match this regular expression (case-insensitive). Checked when you save it. |
+| `--min-rating N` | Skip sellers rated under N stars (0 to 5). |
+| `--min-reviews N` | Skip sellers with fewer than N reviews. |
+| `--skip-unrated` | Skip sellers with no reviews yet. |
+| `--countries FR,BE` | Only sellers in these countries. |
+| `--deal N` | Only alert when the total is at least N% under what this search usually finds. Everything is still recorded, which is how "usually" is learned; it needs 15 finds in two weeks before it alerts at all. |
+| `--max-age N` | Ignore listings older than N minutes (overrides `FRESHNESS_WINDOW_MIN`). |
+| `--quiet 23:00-07:00` | Quiet hours, in `TIMEZONE`. Windows through midnight work. |
+| `--quiet-mode hold\|drop\|silent` | During quiet hours: hold alerts until the window ends (default), drop them (they still show in the dashboard), or send them without a sound. |
+| `--also-on de,be` | Run the same search on other country sites too. A listing seen on two sites is announced once. |
+| `--color`, `--notes`, `--tags` | For your own bookkeeping; the colour tints this search's alerts and chips. |
+| `--to 1,2` | Destination ids to notify. Without it, the search goes to **every active destination, including ones you add later**. |
+
+Seller country and rating filters read the seller's public member page, once a week per
+seller, and only for listings that passed every other filter. Listings a search skipped
+are logged with the reason, so the dashboard can answer "why did I not get this one?".
 
 ## Adding a search
 
@@ -125,7 +158,10 @@ Where to get each kind of target:
 | `webhook` | Any URL you control: n8n, Home Assistant, a script. Payload below. |
 
 Each search can go to its own set of destinations, so a Discord channel for one thing and
-your phone for another is normal.
+your phone for another is normal. A search you have not routed anywhere goes to every
+active destination, including ones added later, so the order you set things up in does not
+matter. Watches follow the same rule. When two searches match the same listing, each
+destination still hears about it once.
 
 What is stored per destination — the dashboard and `vinted-sniper destination` fill these in
 for you:

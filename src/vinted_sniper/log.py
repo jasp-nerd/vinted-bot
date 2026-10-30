@@ -13,8 +13,10 @@ from typing import Any
 
 import structlog
 
-# These libraries are chatty at INFO and none of it is about your searches.
-_NOISY_LOGGERS = ("httpx", "httpcore", "aiogram.event", "uvicorn.access")
+# These libraries are chatty at INFO and none of it is about your searches. aiosqlite logs
+# every statement at DEBUG, which buried everything else when someone turned DEBUG on to
+# attach logs to an issue.
+_NOISY_LOGGERS = ("httpx", "httpcore", "aiogram.event", "uvicorn.access", "aiosqlite")
 
 
 def configure(level: str = "INFO", fmt: str = "console") -> None:

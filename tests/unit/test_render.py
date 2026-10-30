@@ -179,6 +179,7 @@ def test_a_public_dashboard_is_linked_per_search() -> None:
         ("price_drop", "Price drop"),
         ("sold", "Sold"),
         ("reserved", "Reserved"),
+        ("removed", "No longer listed"),
         ("seller_upload", "New from jansen"),
     ],
 )
@@ -188,6 +189,12 @@ def test_each_kind_of_alert_has_its_own_headline(kind: str, headline: str) -> No
     )
 
     assert listing.headline == headline
+
+
+def test_a_watch_alert_has_no_search_page_to_link() -> None:
+    listing = view(pending(query_id=None), dashboard_url="https://sniper.example.net/")
+
+    assert listing.search_url is None
 
 
 def test_a_sold_listing_offers_nothing_to_buy() -> None:
