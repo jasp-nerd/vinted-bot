@@ -2,7 +2,14 @@
 
     uv run python scripts/seed_demo.py /tmp/demo.db
     VINTED_SNIPER_DB_PATH=/tmp/demo.db VINTED_SNIPER_FETCH_MODE=mock \\
-        VINTED_SNIPER_MOCK_SCENARIO_DIR=scripts/demo uv run vinted-sniper run
+        VINTED_SNIPER_MOCK_SCENARIO_DIR=scripts/demo/mock uv run vinted-sniper run
+
+The mock scenario answers every search with an empty page, so that demo never talks to
+Vinted or sends anything. Without the two mock variables the searches run for real.
+Either way nothing already on Vinted is announced: each search's first check is left to
+happen, and a first check records what is there without alerting. The places for alerts
+point nowhere that reaches a person: a fresh random ntfy name, a Discord webhook that is
+switched off, and a Telegram chat id that doesn't exist.
 
 Every listing, seller and price here is made up; the photos are AI-generated and hosted
 with the project site. Not part of the package. It writes through the repository like the
@@ -17,6 +24,7 @@ import argparse
 import asyncio
 import json
 import random
+import secrets
 import time
 from decimal import Decimal
 from pathlib import Path
@@ -126,7 +134,8 @@ async def seed(
             kind="ntfy",
             name="My phone",
             config={
-                "topic": "mags-demo-7f3k",
+                # Fresh per seed: a shared demo topic would put everyone's demo on one phone.
+                "topic": f"mags-demo-{secrets.token_hex(4)}",
                 "tiers": ["steal", "deal", "normal"],
                 "silent_tiers": ["normal"],
             },
@@ -140,11 +149,13 @@ async def seed(
                 "ping_tiers": ["steal"],
             },
         )
+        # Off from the start, the way a webhook someone deleted ends up: it shows what a
+        # broken place looks like and never posts to Discord.
+        await repo.deactivate_destination(discord, "Discord says the webhook no longer exists")
         await repo.add_destination(kind="telegram", name="Telegram", config={"chat_id": "1000001"})
 
         item_id = 7_000_000_000
         planned: list[tuple[int, int, Item, dict[str, Decimal]]] = []
-        query_ids: list[int] = []
         for index, (name, tld, words, budget, slugs, extra) in enumerate(SEARCHES):
             params = {"search_text": words, "order": "newest_first"}
             url = urls.normalise_search_url(
@@ -197,7 +208,6 @@ async def seed(
                     )
                     seen = now - day * 86_400 - rng.randint(60, 86_000 if day else 5_000)
                     planned.append((seen, query_id, item, typical))
-            query_ids.append(query_id)
 
         # Stored oldest first, so the feed's order (by when each was stored) is by time.
         for seen, query_id, item, typical in sorted(planned, key=lambda row: row[0]):
@@ -210,20 +220,15 @@ async def seed(
             await db.execute(
                 "UPDATE query_items SET first_seen_at = ? WHERE item_id = ?", (seen, item.item_id)
             )
-        for query_id in query_ids:
-            await repo.record_success(
-                query_id,
-                newest_raw_ts=now - 120,
-                newest_item_ts=now - 120,
-                seen=rng.randint(4_000, 30_000),
-                stale_cycles=0,
-                newest_raw_id=item_id,
-            )
+        # No record_success here. A search that has never succeeded makes its first
+        # check a silent baseline; one marked as checked, with no floor id, would treat
+        # every listing on Vinted as new and alert all of them.
 
         # A month of delivery: most sent, a handful failed.
         await db.execute("UPDATE outbox SET status = 'sent' WHERE status = 'pending'")
         await db.execute("UPDATE outbox SET status = 'failed' WHERE id % 37 = 0")
-        # One search that Vinted asked to slow down, to show how that reads.
+        # One search that Vinted asked to slow down, to show how that reads. A failure
+        # keeps last_success_at empty, so its first good check is still silent.
         await repo.record_failure(4, "http_429", "rate limited for 30s")
         # Something to look at on the other pages.
         await repo.block_seller(990, login="bulkdeals_eu", tld="fr", reason="Only replicas")

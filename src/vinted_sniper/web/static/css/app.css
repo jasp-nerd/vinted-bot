@@ -12,7 +12,12 @@ body {
   font-feature-settings: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Nothing may push the page sideways on a phone; scrollers scroll inside themselves. */
+  overflow-x: clip;
 }
+/* Short pages keep the footer at the bottom instead of leaving a white band under it. */
+body:not(.is-task) { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+body:not(.is-task) > .main { flex: 1 0 auto; }
 img, svg { display: block; max-width: 100%; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
@@ -363,10 +368,10 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .status::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--st-c, var(--st-quiet)); flex: none; }
 .status--watching { --st-c: var(--st-watching); }
 .status--quiet { --st-c: var(--st-quiet); }
-.status--stuck { --st-c: var(--st-stuck); }
+.status--stuck, .status--stale { --st-c: var(--st-stuck); }
 .status--blocked { --st-c: var(--st-blocked); }
 .status--paused::before { background: transparent; box-shadow: inset 0 0 0 2px var(--st-paused); }
-.status--stuck::before { border-radius: 2px; transform: rotate(45deg) scale(.85); }       /* shape differs, not only colour */
+.status--stuck::before, .status--stale::before { border-radius: 2px; transform: rotate(45deg) scale(.85); }       /* shape differs, not only colour */
 .status--blocked::before { border-radius: 2px; }
 
 .sdot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--sc, var(--c-text-3)); display: inline-block; }
@@ -390,14 +395,14 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .item__flags { position: absolute; z-index: 2; top: 8px; left: 8px; right: 48px; display: flex; flex-wrap: wrap; gap: 4px; pointer-events: none; }
 .item__save, .item__more {
   position: absolute; z-index: 2; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; border: 0;
-  background: var(--c-on-photo); color: var(--c-text-2); box-shadow: var(--shadow-thumb); padding: 0;
+  background: var(--c-on-photo); color: var(--c-on-photo-ink-2); box-shadow: var(--shadow-thumb); padding: 0;
 }
 .item__save { right: 8px; bottom: 8px; }
 .item__more { right: 8px; top: 8px; opacity: 0; transition: opacity var(--dur); }
 .item:hover .item__more, .item__more:focus-visible, .item__more[aria-expanded="true"] { opacity: 1; }
 @media (hover: none) { .item__more { opacity: 1; } }
 .item__save .i, .item__more .i { width: 18px; height: 18px; }
-.item__save:hover, .item__more:hover { color: var(--c-ink); }
+.item__save:hover, .item__more:hover, .item__more[aria-expanded="true"] { color: var(--c-on-photo-ink); }
 .item__save[aria-pressed="true"] { color: var(--c-danger); }
 .item__save[aria-pressed="true"] .i { fill: currentColor; }
 .item__body { display: flex; flex-direction: column; gap: 1px; flex: 1; padding: 0 2px; min-width: 0; font-size: 12.5px; line-height: 1.4; }
@@ -484,7 +489,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 /* ───────────────────────── Searches list ───────────────────────── */
 .slist { margin: 0; padding: 0; list-style: none; }
 .srow {
-  position: relative; display: grid; grid-template-columns: 24px 6px minmax(0, 1fr) 220px 104px auto; align-items: center; gap: 16px;
+  position: relative; display: grid; grid-template-columns: 24px 6px minmax(0, 1fr) 220px 104px var(--srow-actions); align-items: center; gap: 16px;
   padding: 16px 16px 16px 14px; border-bottom: 1px solid var(--c-border-faint);
 }
 .srow:hover { background: var(--c-surface-2); }
@@ -500,12 +505,15 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .srow__n { display: grid; gap: 0; text-align: right; }
 .srow__n b { font: 700 20px/1.1 var(--font-display); color: var(--c-ink); }
 .srow__n small { font-size: 12px; color: var(--c-text-2); }
-.srow__actions { display: flex; gap: 2px; align-items: center; }
+.srow__actions { display: flex; gap: 2px; align-items: center; justify-content: flex-end; }
 .srow__dest { display: inline-flex; gap: 10px; align-items: center; font-size: 12px; color: var(--c-text-2); flex-wrap: wrap; }
 .srow__dest span { display: inline-flex; gap: 4px; align-items: center; }
 .srow__dest .i { width: 14px; height: 14px; }
 .srow--paused .srow__name { color: var(--c-text-2); }
-.slist-head { display: grid; grid-template-columns: 24px 6px minmax(0, 1fr) 220px 104px auto; gap: 16px; padding: 10px 16px 10px 14px; font-size: 12.5px; color: var(--c-text-2); border-bottom: 1px solid var(--c-border); }
+/* The actions column has one fixed width in the head and every row, so the headings sit
+   over their columns whatever buttons a row has. */
+.slist { --srow-actions: 196px; }
+.slist-head { --srow-actions: 196px; display: grid; grid-template-columns: 24px 6px minmax(0, 1fr) 220px 104px var(--srow-actions); gap: 16px; padding: 10px 16px 10px 14px; font-size: 12.5px; color: var(--c-text-2); border-bottom: 1px solid var(--c-border); }
 .slist-head > :nth-child(5) { text-align: right; }
 @media (max-width: 860px) {
   .slist-head { display: none; }
@@ -550,7 +558,7 @@ details.adv > div { display: grid; gap: 16px; padding-top: 14px; }
 .preview__thumbs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .preview__thumbs .t { position: relative; aspect-ratio: var(--photo-ratio); border-radius: 8px; overflow: hidden; background: var(--c-fill); }
 .preview__thumbs .t img { width: 100%; height: 100%; object-fit: cover; }
-.preview__thumbs .t span { position: absolute; left: 6px; bottom: 6px; padding: 3px 7px; border-radius: var(--r-pill); background: var(--c-on-photo); color: var(--c-ink); font-size: 11.5px; font-weight: 600; }
+.preview__thumbs .t span { position: absolute; left: 6px; bottom: 6px; padding: 3px 7px; border-radius: var(--r-pill); background: var(--c-on-photo); color: var(--c-on-photo-ink); font-size: 11.5px; font-weight: 600; }
 .receipt { display: grid; gap: 0; font-size: 13.5px; }
 .receipt__row { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 7px 0; color: var(--field-ink); }
 .receipt__row + .receipt__row { border-top: 1px solid rgba(var(--c-ink-rgb), .08); }
@@ -671,7 +679,7 @@ details.adv > div { display: grid; gap: 16px; padding-top: 14px; }
 .rej__price small { display: block; color: var(--c-text-2); font-size: 12px; }
 
 /* ───────────────────────── Destinations ───────────────────────── */
-.dests { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dests { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
 @media (max-width: 900px) { .dests { grid-template-columns: minmax(0, 1fr); } }
 .dest { display: grid; grid-template-rows: auto 1fr auto; }
 .dest__head { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 18px 20px 14px; }
@@ -837,6 +845,7 @@ details.faq .prose { font-size: 14px; color: var(--c-text-2); padding: 14px 16px
 .ssec > .t-h2 { margin-bottom: 4px; }
 .ssec > p { margin-bottom: 12px; font-size: 14px; }
 .ssec .card { padding: 4px 20px; }
+.ssec .card--pad { padding: 20px; }
 @media (max-width: 900px) { .settings { grid-template-columns: minmax(0, 1fr); gap: 16px; } .snav { position: static; display: flex; overflow-x: auto; gap: 6px; scrollbar-width: none; } .snav a { flex: none; height: 36px; border-radius: var(--r-pill); box-shadow: var(--ring); } .snav__aside { display: none; } }
 .diag { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 0 20px; align-items: center; padding: 20px 20px 20px 24px; }
 .diag__rows { display: grid; gap: 0; }
@@ -1003,7 +1012,7 @@ details.esec-fold > .esec__body { padding: 0 22px 22px; }
 /* Keyboard shortcuts help. */
 .kbd-list { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 0; }
 .kbd-list kbd { font: 600 12px/1 var(--font-ui); padding: 5px 8px; border-radius: 6px; background: var(--c-fill); box-shadow: var(--ring); }
-.item.is-cursor { outline: 2px solid var(--c-primary); outline-offset: 4px; border-radius: 10px; }
+.item.is-cursor { outline: 3px solid var(--c-primary); outline-offset: 4px; border-radius: 10px; }
 .item:focus-within { outline: 2px solid var(--c-primary); outline-offset: 4px; border-radius: 10px; }
 .item:has(.item__open:focus-visible) .item__open { outline: none; }
 @media (min-width: 1600px) { .feed:not(.is-list) { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
@@ -1016,6 +1025,16 @@ select.chip, .chip--select { appearance: none; padding-right: 32px; background-i
 .chip-pop > summary { list-style: none; }
 .chip-pop > summary::-webkit-details-marker { display: none; }
 .chip-pop__panel { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; width: 260px; padding: 14px; display: grid; gap: 10px; box-shadow: var(--shadow-float), var(--ring); }
+.chip-pop__title { display: none; }
+.chip.is-invalid { border-color: var(--c-danger); }
+/* On a phone the price filter is a sheet from the bottom, not a box that hangs off the
+   side of a scrolling chip row and drags the page with it. */
+@media (max-width: 760px) {
+  .chip-pop__panel { position: fixed; z-index: 45; top: auto; left: 0; right: 0; bottom: 0; width: auto; border-radius: 20px 20px 0 0; padding: 18px var(--gutter) calc(18px + env(safe-area-inset-bottom, 0px)); white-space: normal; box-shadow: 0 -8px 32px rgba(var(--c-ink-rgb), .18), var(--ring); }
+  .chip-pop__title { display: block; }
+  .chip-pop__fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; }
+  .chip-pop__panel .btn { min-height: 46px; }
+}
 .chips--scroll:has(.chip-pop[open]) { overflow: visible; }
 /* Row menus on the Searches list. */
 .rowmenu { position: relative; }
@@ -1030,8 +1049,13 @@ select.chip, .chip--select { appearance: none; padding-right: 32px; background-i
 .srow__actions form { margin: 0; }
 .meta > * + *::before { content: "·"; margin-right: 6px; color: var(--c-text-3); }
 @media (max-width: 720px) {
+  /* No checkbox column on a phone: the colour bar starts the row. */
   .srow > .check { display: none; }
+  .srow { grid-template-columns: 6px minmax(0, 1fr) auto; grid-template-areas: "b m a" "b s n"; padding-inline: 12px 6px; }
   .srow__sum { white-space: nowrap; }
+  /* Each place on its own words, with gaps instead of dots that end up starting a line. */
+  .srow__dest { gap: 4px 12px; }
+  .srow__dest > * + *::before { content: none; }
 }
 .seg a { display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border-radius: var(--r-pill); color: var(--c-text-2); font-size: 14px; font-weight: var(--fw-medium); text-decoration: none; white-space: nowrap; }
 .seg a[aria-pressed="true"] { background: var(--c-surface); color: var(--c-ink); box-shadow: var(--shadow-thumb); }
@@ -1041,3 +1065,74 @@ select.chip, .chip--select { appearance: none; padding-right: 32px; background-i
 
 select.chip { width: auto; max-width: 220px; }
 .ob__nav [aria-label="Back"] { order: -1; }
+
+/* ───────────────────────── Round-three fixes ───────────────────────── */
+/* Two lines of title on a phone: one line of a Vinted title is mostly the brand. */
+@media (max-width: 720px) {
+  .item__title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+}
+
+/* Failures look different from successes, not only in words. */
+.toast--bad { background: var(--c-danger-ink); color: #fff; }
+.toast--bad .i, :root[data-theme="dark"] .toast--bad .i { color: #ffd6db; }
+
+/* Quick view: close sits on the photo, the buy button stays in reach on a phone. */
+.quick__media { position: relative; }
+.quick__close { position: absolute; z-index: 2; top: 12px; right: 12px; background: var(--c-on-photo); color: var(--c-on-photo-ink); box-shadow: var(--shadow-thumb); }
+.quick__close:hover { background: var(--c-on-photo); color: var(--c-on-photo-ink); }
+.quick__acts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+@media (max-width: 640px) {
+  .quick__media { height: 45vh; max-height: 45vh; }
+  .quick__buy { position: sticky; bottom: 0; z-index: 2; margin-inline: -24px; padding: 10px 24px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--c-surface); border-top: 1px solid var(--c-border-faint); }
+}
+
+/* Dialog buttons stay visible when the body scrolls. */
+.modal__foot { position: sticky; bottom: 0; z-index: 3; background: var(--c-surface); border-top: 1px solid var(--c-border-faint); }
+
+/* A place's options fold away under one line. */
+.dest__opts > summary { display: flex; align-items: center; gap: 8px; padding: 10px 0; list-style: none; cursor: pointer; color: var(--c-ink); font-weight: var(--fw-semibold); font-size: 14px; }
+.dest__opts > summary::-webkit-details-marker { display: none; }
+.dest__opts > summary small { font-weight: var(--fw-regular); }
+.dest__opts > summary .i { transition: transform var(--dur); }
+.dest__opts[open] > summary .i { transform: rotate(90deg); }
+
+/* Checkbox chips show a tick when on, so on and off read without comparing borders. */
+.chip--check .chip__tick { display: none; }
+.chip--check:has(input:checked) .chip__tick { display: block; }
+.chip--check:not(:has(input:checked)) { color: var(--c-text-2); }
+
+/* A route to a place that was switched off. */
+.srow__dest .is-off { color: var(--c-danger-ink); }
+
+/* Stats: today's column is still filling up; delivery numbers never wrap. */
+.cols__bar--partial { background: repeating-linear-gradient(135deg, var(--c-primary) 0 4px, var(--c-primary-medium) 4px 8px); }
+.hbar__val { white-space: nowrap; }
+.hbar--delivery { grid-template-columns: minmax(110px, 220px) minmax(0, 1fr) 110px; }
+
+/* ntfy: a code to scan on a computer, the name big enough to type on an iPhone. */
+.code--lg { font-size: 15px; padding: 3px 8px; }
+.ntfy-qr { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 16px; align-items: center; margin-top: 4px; padding: 12px; border-radius: var(--r-card); background: var(--c-surface-2); }
+.ntfy-qr .qr { width: 112px; height: 112px; padding: 8px; border-radius: 8px; background: #fff; }
+.ntfy-open { margin-top: 8px; }
+
+/* Settings: the lines to paste, and site rows that wrap instead of overlapping. */
+.envlines { margin: 0; padding: 8px 10px; white-space: pre; overflow: auto; }
+@media (max-width: 480px) {
+  .receipt__row.diag__site { grid-template-columns: 20px minmax(0, 1fr); }
+  .receipt__row.diag__site b { grid-column: 2; font-weight: 500; }
+}
+
+/* Setup: the action bar stays in view on a computer too. */
+@media (min-width: 961px) {
+  .ob__nav { position: sticky; bottom: 0; z-index: 5; padding-top: 14px; background: linear-gradient(transparent, var(--c-page) 18%); }
+}
+
+/* Sign in: one frame, the app's name on it, and a show-password button. */
+.login__card { padding: 150px 0 0; overflow: hidden; }
+.login__brand { position: absolute; top: 18px; left: 22px; color: var(--c-on-photo); }
+.login__brand .brand__name, .login__brand .brand__name span { color: #fff; }
+.login__mags { top: 30px; }
+.login__form { border-radius: 0; box-shadow: none; }
+.affix--end .input { padding-left: 14px; padding-right: 92px; }
+.affix__btn { position: absolute; right: 6px; }
+.login .help--error, .login .help--error span { color: var(--c-danger-ink); }

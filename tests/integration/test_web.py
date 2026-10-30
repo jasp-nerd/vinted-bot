@@ -1074,7 +1074,10 @@ def _state_of(html: str) -> str:
     )
 
 
-async def test_setup_stores_nothing_before_the_end(client: TestClient, repo: Repo) -> None:
+async def test_setup_stores_the_search_and_phone_when_the_test_is_sent(
+    client: TestClient, repo: Repo
+) -> None:
+    """The last screen says the tab can be closed, so by then everything must be stored."""
     page = client.post(
         "/welcome/search",
         data={
@@ -1089,7 +1092,9 @@ async def test_setup_stores_nothing_before_the_end(client: TestClient, repo: Rep
         data={"state": _state_of(page.text), "submitted": "1", "kind": "ntfy", "ntfy_topic": "x1"},
     )
 
-    assert (await repo.list_queries(), await repo.list_destinations()) == ([], [])
+    (query,) = await repo.list_queries()
+    (destination,) = await repo.list_destinations()
+    assert await repo.explicit_routes(query.id) == [destination.id]
 
 
 def test_a_failed_test_send_offers_the_fix(client: TestClient, outgoing: Outgoing) -> None:
