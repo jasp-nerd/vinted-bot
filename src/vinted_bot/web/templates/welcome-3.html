@@ -1,5 +1,7 @@
 {% extends "ob_base.html" %}
 {% block title %}Your first search{% endblock %}
+{# On a phone the preview shows inside the question, so the panel below would repeat it. #}
+{% block ob_class %}ob--search{% endblock %}
 {% block action %}/welcome/search{% endblock %}
 {% set E = errors %}
 {% block question %}
@@ -62,6 +64,12 @@
     <p class="help" data-money-help>Including Vinted's buyer protection fee, before shipping.</p>
   </div>
 </div>
+{% if local and local[0] != "US" %}
+<div class="set" style="padding:0">
+  <div class="set__text"><span class="t-h3" id="local-l">Only sellers in {{ local[1] }}</span><span class="t-sm">vinted.{{ f.tld }} also shows sellers from other countries, with slower and dearer shipping. Each new seller is looked up once, so these alerts can take a little longer.</span></div>
+  <label class="switch"><input type="checkbox" name="countries" value="{{ local[0] }}"{% if local[0] in f.countries %} checked{% endif %} aria-labelledby="local-l"></label>
+</div>
+{% endif %}
 </div>
 <p class="livecount" aria-live="polite" data-livecount>{% if previews %}Paste a link or type some words to see what matches right now.{% endif %}</p>
 {# On a phone the panel with the photos sits below the Continue button; these show them above it. #}

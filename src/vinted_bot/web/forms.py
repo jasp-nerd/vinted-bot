@@ -102,6 +102,7 @@ def default_values(*, tld: str, interval: int, color: str) -> dict[str, Any]:
         "resale_fee_pct": "",
         "resale_shipping": "",
         "min_margin": "",
+        "resume": False,
     }
 
 
@@ -142,6 +143,7 @@ def values_from_query(query: Query, routes: list[int]) -> dict[str, Any]:
         "resale_fee_pct": f"{query.resale_fee_pct:g}" if query.resale_fee_pct is not None else "",
         "resale_shipping": _plain(query.resale_shipping),
         "min_margin": _plain(query.min_margin),
+        "resume": False,
     }
 
 
@@ -206,7 +208,7 @@ def values_from_form(form: Any) -> dict[str, Any]:
             "min_margin",
         )
     }
-    for flag in ("deal_on", "skip_unrated_sellers", "quiet_on"):
+    for flag in ("deal_on", "skip_unrated_sellers", "quiet_on", "resume"):
         values[flag] = bool(_text(form, flag))
     for many in ("countries", "dest", "extra_tlds"):
         values[many] = _list(form, many)

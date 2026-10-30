@@ -350,7 +350,7 @@
     const isBrand = kind === "brand";
     let active = -1;
     const values = () => (hidden.value ? hidden.value.split(",").filter(Boolean) : []);
-    const show = (v) => (isBrand ? (labels["brand:" + v] || "Brand #" + v) : orMode ? v.split("|").join(" or ") : v);
+    const show = (v) => (isBrand ? (labels["brand:" + v] || `Brand ${v}, from your link`) : orMode ? v.split("|").join(" or ") : v);
     const render = () => {
       $$(".token", box).forEach((t) => t.remove());
       values().forEach((v) => {
@@ -393,6 +393,8 @@
       list.hidden = false; input.setAttribute("aria-expanded", "true");
     }, 250);
     render();
+    // A preview can name a brand that came in by id only (a pasted link).
+    if (isBrand) document.addEventListener("vs:labels", render);
     box.addEventListener("click", (e) => { if (e.target === box) input.focus(); });
     if (isBrand) input.addEventListener("input", suggest);
     input.addEventListener("keydown", (e) => {
@@ -470,7 +472,13 @@
     const opts = (data.options || []).slice(0, 80);
     const picked = (hidden.value || "").split(",").filter(Boolean);
     if (!opts.length) { box.innerHTML = `<span class="t-sm">${picked.length ? picked.length + " picked. " : ""}Couldn't load the choices from Vinted just now.</span>`; return; }
-    box.innerHTML = opts.map((o) => `<label class="chip chip--sm"><input type="checkbox" value="${esc(o.id)}"${picked.includes(String(o.id)) ? " checked" : ""}>${esc(o.title)}${o.group && code === "size" ? ` <small class="t-sm">${esc(o.group)}</small>` : ""}</label>`).join("");
+    // Sizes come in groups (letters, numbers, jeans widths). The group is said once, as a
+    // heading, and only when there is more than one; it is not part of each size's name.
+    const chip = (o) => `<label class="chip chip--sm"><input type="checkbox" value="${esc(o.id)}"${picked.includes(String(o.id)) ? " checked" : ""}>${esc(o.title)}</label>`;
+    const groups = [...new Set(opts.map((o) => o.group || ""))];
+    box.innerHTML = groups.length > 1
+      ? groups.map((g) => `<span class="facet__group t-sm">${esc(g || "Other")}</span>` + opts.filter((o) => (o.group || "") === g).map(chip).join("")).join("")
+      : opts.map(chip).join("");
   }
   function loadFacets() { $$("[data-facet]").forEach(loadFacet); }
   $$("[data-facet]").forEach((set) => set.addEventListener("change", (e) => {
@@ -482,9 +490,29 @@
   }));
   if (editorEl) loadFacets();
   const site = $("#site");
+  /* The site decides the money and which other countries are "other": both follow a
+   * change of site, or a pasted link to another site, before anything is saved. */
+  let currencies = {};
+  try { currencies = JSON.parse((editorEl && editorEl.dataset.currencies) || "{}"); } catch (e) { currencies = {}; }
+  function siteChanged(t) {
+    if (!t) return;
+    $$("[data-currency]").forEach((c) => { if (currencies[t]) c.textContent = currencies[t]; });
+    $$("[data-site-name]").forEach((c) => { c.textContent = "vinted." + t; });
+    $$("[data-extra-site]").forEach((chip) => {
+      const same = chip.dataset.extraSite === t;
+      chip.hidden = same; if (same) $("input", chip).checked = false;
+    });
+  }
   if (site) site.addEventListener("change", () => {
     path = []; treeData = null; const h = $("[data-cattree] [data-ids]"); if (h) h.value = "";
+    siteChanged(site.value);
     if (tree) loadTree(); loadFacets(); changed();
+  });
+  const linkInput = editorEl ? $("#link", editorEl.closest("form") || document) : null;
+  if (linkInput && site) linkInput.addEventListener("input", () => {
+    const m = /vinted\.([a-z]{2,3}(?:\.[a-z]{2})?)(?:[/?#:]|$)/i.exec(linkInput.value.trim());
+    const t = m && m[1].toLowerCase();
+    if (t && currencies[t] && t !== site.value) { site.value = t; siteChanged(t); }
   });
 
   /* ── Live preview: one real search, debounced, cached by the server ── */
@@ -510,8 +538,10 @@
       label.textContent = r.error || first || "Fill in the search to see what matches";
       return;
     }
-    count.textContent = r.count; count.hidden = false;
-    label.textContent = r.count === 1 ? "listing matches right now" : "listings match right now";
+    // A full first page is all the preview reads, so its count is "at least".
+    const shown = r.page_full && r.count ? `${r.count}+` : String(r.count);
+    count.textContent = shown; count.hidden = false;
+    label.textContent = r.page_full ? (r.count === 1 ? "listing matches on the first page" : "match on the first page of results") : (r.count === 1 ? "listing matches right now" : "listings match right now");
     // The phone layout has a second set of thumbnails above the Continue button.
     const thumbHtml = r.thumbs.map((t) => `<a class="t" href="${esc(t.url)}" target="_blank" rel="noopener" title="${esc(t.title)}">${t.photo ? `<img src="${esc(t.photo)}" alt="" referrerpolicy="no-referrer">` : ""}<span>${esc(t.total)}</span></a>`).join("");
     $$("[data-preview-thumbs]").forEach((box) => { box.innerHTML = thumbHtml; });
@@ -520,8 +550,10 @@
       r.receipt.map((x) => `<div class="receipt__row">${icon(x.icon)}<span>${esc(x.label)}</span><b>−${x.removed}</b></div>`).join("") +
       `<div class="receipt__row receipt__row--total">${icon("check")}<span>Match your filters</span><b>${r.count}</b></div>`;
     const note = $("[data-preview-note]", preview); if (note) note.hidden = !r.seller_filters;
-    const live = $("[data-livecount]"); if (live) live.innerHTML = `<b class="num">${esc(r.count)}</b> ${r.count === 1 ? "listing" : "listings"} on ${esc(r.site)} match right now.${r.newest ? " Newest " + esc(r.newest) + "." : ""}${r.understood ? `<br><span class="t-sm">Got it: ${esc(r.understood)}</span>` : ""}`;
-    const sb = $("[data-savebar-count]"); if (sb) sb.textContent = `${r.count} match now`;
+    const live = $("[data-livecount]"); if (live) live.innerHTML = `<b class="num">${esc(shown)}</b> ${r.count === 1 ? "listing" : "listings"} on ${esc(r.site)} match${r.page_full ? ", counting the first page of results" : " right now"}.${r.newest ? " Newest " + esc(r.newest) + "." : ""}${r.understood ? `<br><span class="t-sm">Got it: ${esc(r.understood)}</span>` : ""}`;
+    const sb = $("[data-savebar-count]"); if (sb) sb.textContent = `${shown} match now`;
+    const named = Object.entries(r.brand_names || {}).filter(([id]) => !labels["brand:" + id]);
+    if (named.length) { named.forEach(([id, name]) => { labels["brand:" + id] = name; }); saveLabels(); document.dispatchEvent(new CustomEvent("vs:labels")); }
   }
   const schedule = debounce(runPreview, 900);
   if (form && preview) {
@@ -553,6 +585,9 @@
   });
 
   const itemId = (card) => card && card.dataset.itemId;
+  // On the Hidden view, "Hide" puts a listing back instead.
+  const hiddenView = !!(feed && feed.hasAttribute("data-hidden-view"));
+  if (hiddenView) $$("[data-act=hide]").forEach((b) => { b.lastChild.textContent = "Put back in my finds"; });
   async function mark(card, value) {
     const r = await post(`/api/items/${itemId(card)}/mark`, { mark: value });
     if (!r.ok) toast(r.error || "That didn't save. Try again.", { bad: true });
@@ -603,10 +638,11 @@
       if (navigator.clipboard) navigator.clipboard.writeText(u).catch(() => {});
       toast("Link copied", { ok: true, icon: "link" });
     } else if (name === "hide") {
-      if (!(await mark(card, "hidden"))) return;
+      const unhide = hiddenView;
+      if (!(await mark(card, unhide ? "none" : "hidden"))) return;
       card.hidden = true;
       const qv = $("#quickview"); if (qv && qv.open) qv.close();
-      toast("Hidden from your finds", { action: "Undo", onAction: async () => { if (await mark(card, "none")) card.hidden = false; } });
+      toast(unhide ? "Back in your finds" : "Hidden from your finds. Hidden, above, shows it again.", { action: "Undo", onAction: async () => { if (await mark(card, unhide ? "hidden" : "none")) card.hidden = false; } });
     } else if (name === "block") {
       blockFor = card;
       const qv = $("#quickview"); if (qv && qv.open) qv.close();
@@ -753,6 +789,22 @@
   });
 
   /* ── Live feed over Server-Sent Events ────────────── */
+  /* Someone scrolled down doesn't see a card arrive at the top, so a pill says how many
+   * came in and takes them there. It goes when they're back at the top. */
+  const pill = $("[data-newpill]");
+  let pillCount = 0;
+  const atTop = () => !feed || feed.getBoundingClientRect().top > -40;
+  function showPill() {
+    if (!pill || atTop()) return;
+    pillCount += 1;
+    $("[data-newpill-text]", pill).textContent = pillCount === 1 ? "1 new find" : `${pillCount} new finds`;
+    pill.hidden = false;
+  }
+  function clearPill() { pillCount = 0; if (pill) pill.hidden = true; }
+  if (pill) {
+    $("button", pill).addEventListener("click", () => { window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" }); clearPill(); });
+    window.addEventListener("scroll", debounce(() => { if (atTop()) clearPill(); }, 100), { passive: true });
+  }
   let unseen = 0;
   const baseTitle = document.title;
   function bumpNew(n) {
@@ -778,6 +830,7 @@
           if (!reduced) card.classList.add("is-arriving");
           $$(".item.is-fresh", feed).forEach((c) => c.classList.remove("is-fresh"));
           feed.prepend(card); if (cursor >= 0) cursor += 1;
+          showPill();
         }
         const today = $("[data-today]"); if (today) today.textContent = String(Number(today.textContent) + 1);
       }
@@ -847,10 +900,21 @@
       catch (err) { toast(text, { ok: r.ok, bad: !r.ok, ms: 9000 }); }
     });
   });
+  /* "What it looks like": a sample alert drawn by the server with the card's options,
+   * fetched when opened and again after each change while it is open. */
+  async function loadSample(d) {
+    const box = $("[data-sample-box]", d);
+    try {
+      const res = await fetch(d.dataset.sample, { credentials: "same-origin", cache: "no-store" });
+      box.innerHTML = res.ok ? await res.text() : '<p class="t-sm">Couldn\'t draw the sample just now.</p>';
+    } catch (e) { box.innerHTML = '<p class="t-sm">Couldn\'t reach vinted-bot. Is it still running?</p>'; }
+  }
+  $$("details[data-sample]").forEach((d) => d.addEventListener("toggle", () => { if (d.open) loadSample(d); }));
   $$("form[data-autosave]").forEach((f) => {
     const save = debounce(async () => {
       const r = await post(f.dataset.autosave, new FormData(f));
       $$("[data-error-for]", f).forEach((p) => { p.hidden = true; });
+      const sample = $("details[data-sample][open]", f); if (r.ok && sample) loadSample(sample);
       if (r.ok) toast("Saved", { ok: true });
       else {
         const p = $(`[data-error-for="${r.field}"]`, f);
@@ -899,7 +963,8 @@
       const r = await post("/destinations", data);
       if (!r.ok) { showAddError(r.field, r.error); return; }
       const t = await post(`/destinations/${r.id}/test`);
-      sessionStorage.setItem("vs-after", JSON.stringify({ text: (t.ok ? "Added, and a test is on its way. " : "Added, but the test didn't arrive: ") + t.message, bad: !t.ok }));
+      // The test's own message already says it was sent; only a failure needs "Added, but".
+      sessionStorage.setItem("vs-after", JSON.stringify({ text: t.ok ? "Added. " + t.message : "Added, but the test didn't arrive: " + t.message, bad: !t.ok }));
       location.reload();
     });
   });
@@ -909,6 +974,7 @@
   } catch (e) { /* no storage, or an old plain-text value */ }
   $$("[data-kind-pick]").forEach((r) => r.addEventListener("change", () => {
     $$("[data-preview-for]").forEach((p) => { p.hidden = !p.dataset.previewFor.split(" ").includes(r.value); });
+    $$("[data-cta], [data-cta-hint]").forEach((c) => { c.textContent = r.value === "skip" ? c.dataset.ctaSkip : c.dataset.ctaSend; });
   }));
   const picked = $("[data-kind-pick]:checked");
   if (picked) $$("[data-preview-for]").forEach((p) => { p.hidden = !p.dataset.previewFor.split(" ").includes(picked.value); });

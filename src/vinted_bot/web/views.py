@@ -7,14 +7,17 @@ sentence. The templates then only lay things out, and a wording change is one ed
 
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from vinted_bot.db.repo import Destination, FeedItem, Query
+from vinted_bot.db.repo import Destination, FeedItem, Query, RejectionRecord
+from vinted_bot.deliver import ntfy
+from vinted_bot.deliver.dispatcher import awaiting_pairing
 from vinted_bot.engine.health import SearchHealth
 
 # The seven search colours the design validated for telling series apart, light theme
@@ -391,18 +394,32 @@ def _rule_words(query: Query) -> list[str]:
     words = ["title has " + " or ".join(term.split("|")) for term in query.include_terms]
     if query.banned_keywords:
         words.append("no " + ", ".join(query.banned_keywords[:4]))
+    if query.regex:
+        words.append(f"title pattern {query.regex}")
     if query.deal_only_pct:
         words.append(f"deals only, {query.deal_only_pct}% under typical")
-    if query.seller_min_rating:
-        words.append(f"seller {query.seller_min_rating:g} stars or more")
-    if query.countries:
-        words.append("seller in " + ", ".join(query.countries))
+    words.extend(_seller_words(query))
+    if query.quiet_start and query.quiet_end:
+        words.append(f"quiet {query.quiet_start} to {query.quiet_end}")
     if query.resale_price is not None:
         currency = currency_for(query.tld)
         resale = f"resells for {money(query.resale_price, currency)}"
         if query.min_margin is not None:
             resale += f", at least {money(query.min_margin, currency)} left"
         words.append(resale)
+    return words
+
+
+def _seller_words(query: Query) -> list[str]:
+    words = []
+    if query.seller_min_rating:
+        words.append(f"seller {query.seller_min_rating:g} stars or more")
+    if query.seller_min_reviews:
+        words.append(f"seller with {query.seller_min_reviews}+ reviews")
+    if query.skip_unrated_sellers:
+        words.append("no brand-new sellers")
+    if query.countries:
+        words.append("seller in " + ", ".join(query.countries))
     return words
 
 
@@ -450,6 +467,47 @@ def quiet_summary(query: Query) -> str | None:
         "drop": "not sent",
     }.get(query.quiet_mode, "")
     return f"Quiet {query.quiet_start} to {query.quiet_end}, {mode}"
+
+
+_TYPICAL = re.compile(r"(-?\d+)% under the typical (\d+(?:\.\d+)?)")
+
+
+def rejection_detail(record: RejectionRecord, query: Query) -> str:
+    """Why a listing was not sent, in a sentence with its prices in the site's money.
+
+    The engine's own detail is a terse log line ("21.5 above limit 20"). The prices it
+    talks about are rebuilt here from the record and the search, so they read like the
+    rest of the page; anything without a price keeps the engine's words.
+    """
+    currency = record.currency or currency_for(query.tld)
+    total = money(record.total_price, currency)
+    low, high = money(query.min_total_price, currency), money(query.max_total_price, currency)
+    match record.reason:
+        case "over_budget" if high:
+            return f"{total} with fees, over your limit of {high}"
+        case "under_minimum" if low:
+            return f"{total} with fees, under your minimum of {low}"
+        case "not_a_deal":
+            return _deal_words(record.detail, currency, query.deal_only_pct)
+    return _sentence(record.detail)
+
+
+def _deal_words(detail: str, currency: str, wanted: int | None) -> str:
+    """'-11% under the typical 19.60' as what it means: above the typical price."""
+    found = _TYPICAL.search(detail)
+    if found is None:
+        return _sentence(detail)
+    pct, typical = int(found.group(1)), money(Decimal(found.group(2)), currency)
+    want = f"; this search wants {wanted}% under" if wanted else ""
+    if pct < 0:
+        return f"{-pct}% above the typical {typical}{want}"
+    if pct == 0:
+        return f"About the typical {typical}{want}"
+    return f"Only {pct}% under the typical {typical}{want}"
+
+
+def _sentence(text: str) -> str:
+    return text[:1].upper() + text[1:]
 
 
 # --- Destinations ------------------------------------------------------------------
@@ -509,6 +567,7 @@ def destination_view(
         telegram_ready=telegram_ready,
         tz=tz,
     )
+    headers = config.get("headers")
     return {
         "id": destination.id,
         "kind": destination.kind,
@@ -518,18 +577,35 @@ def destination_view(
         "status_label": status_label,
         "detail": detail,
         "searches": searches,
+        # A Telegram place still waiting for its chat has nowhere to send a test to.
+        "can_test": not awaiting_pairing(destination),
+        "notify_status": destination.notify_status,
         "opts": {
             "tiers": _tiers(config, "tiers", ["steal", "deal", "normal"]),
             "silent_tiers": _tiers(config, "silent_tiers", []),
             "ping_tiers": _tiers(config, "ping_tiers", ["steal"]),
-            "deals_only": bool(config.get("deals_only")),
             "silent": bool(config.get("silent")),
             "style": config.get("style") or ("card" if destination.kind == "discord" else "photo"),
             "mention": config.get("mention") or "",
             "priority": str(config.get("priority") or "3"),
             "min_deal_pct": config.get("min_deal_pct") or "",
+            "watch_alerts": config.get("watch_alerts", True) is not False,
+            "thread_id": str(config.get("thread_id") or ""),
+            "username": str(config.get("username") or ""),
+            "avatar_url": str(config.get("avatar_url") or ""),
+            "server": ntfy_server(config),
+            "token_set": bool(config.get("token")),
+            "headers": sorted(headers) if isinstance(headers, dict) else [],
         },
     }
+
+
+def ntfy_server(config: dict[str, Any]) -> str:
+    """The ntfy server a place sends to, whether stored as a server or inside a full URL."""
+    url = str(config.get("url") or "").rstrip("/")
+    if url.startswith(("https://", "http://")):
+        return url.rpartition("/")[0]
+    return str(config.get("server") or ntfy.DEFAULT_SERVER).rstrip("/")
 
 
 def _destination_state(
@@ -612,4 +688,10 @@ def clock(epoch: int, tz: ZoneInfo) -> str:
     today = datetime.fromtimestamp(time.time(), tz).date()
     if moment.date() == today:
         return moment.strftime("%H:%M")
-    return moment.strftime("%-d %b %H:%M")
+    return f"{day_month(moment)} {moment:%H:%M}"
+
+
+def day_month(moment: date) -> str:
+    """ "7 Mar": the day without a leading zero. Built by hand because strftime has no
+    portable way to drop the zero; the glibc one raises on Windows."""
+    return f"{moment.day} {moment:%b}"

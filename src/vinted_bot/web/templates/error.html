@@ -5,7 +5,7 @@
   <div class="empty__text">
     <h1 class="t-h1" id="err-title">{{ title }}</h1>
     <p class="t-lead">{{ message }}</p>
-    <div class="btn-row"><a class="btn btn--primary" href="/">Back to your finds</a></div>
+    {% if not no_way_back %}<div class="btn-row"><a class="btn btn--primary" href="/">Back to your finds</a></div>{% endif %}
   </div>
   {{ ui.mags("worried", "empty__art") }}
 </section>

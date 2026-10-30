@@ -228,15 +228,18 @@ def _unknown_host(request: Request, host: str) -> Response:
         f"This dashboard does not answer to the name {host!r}, which protects it from web "
         "pages that point their own name at your computer (DNS rebinding). If that is "
         "really how you reach it, add the name to VINTED_BOT_WEB_ALLOWED_HOSTS "
-        "(comma-separated), or set VINTED_BOT_WEB_PUBLIC_URL to the full address, and "
-        "restart. Opening it by IP address, such as http://192.168.1.20:8000, always works."
+        "(comma-separated), or set VINTED_BOT_WEB_PUBLIC_URL to the full address, then "
+        "start vinted-bot again. In Docker that means `docker compose up -d` (a plain "
+        "restart keeps the old settings), or saving the app's settings in a NAS app store. "
+        "Opening it by IP address, such as http://192.168.1.20:8000, always works."
     )
     if not _wants_html(request):
         return JSONResponse({"error": message}, status_code=400)
+    # No link back: every page on this name answers the same, so it would only loop.
     return core.TEMPLATES.TemplateResponse(
         request,
         "error.html",
-        {"title": "Unknown address", "message": message, "app": None},
+        {"title": "Unknown address", "message": message, "app": None, "no_way_back": True},
         status_code=400,
     )
 

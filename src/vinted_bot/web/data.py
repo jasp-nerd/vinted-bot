@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 
 from vinted_bot import managed
 from vinted_bot.db.repo import Destination, Query, Repo
+from vinted_bot.deliver.dispatcher import awaiting_pairing
 from vinted_bot.engine import health
 from vinted_bot.web import views
 from vinted_bot.web.core import WebContext
@@ -32,7 +33,7 @@ async def searches(
     by_id = {search.query_id: search for search in snapshot.searches}
     newest = await repo.newest_find_at()
     destinations = {d.id: d for d in await repo.list_destinations()}
-    active = [d for d in destinations.values() if d.active]
+    active = [d for d in destinations.values() if can_send(d)]
     today = datetime.now(tz).date().isoformat()
     activity = await repo.activity(tz, days=1)
     finds_today: dict[int, int] = {}
@@ -108,7 +109,7 @@ async def destinations(
         used_by = [
             {"id": q.id, "name": q.name, "color": views.color_css(q.color)}
             for q in queries
-            if destination.id in routes[q.id] or (not routes[q.id] and destination.active)
+            if destination.id in routes[q.id] or (not routes[q.id] and can_send(destination))
         ]
         delivery = counts.get(destination.id)
         cards.append(
@@ -123,6 +124,48 @@ async def destinations(
             )
         )
     return cards
+
+
+# Brand names by id, as picked in the builder or read off a preview. A stored search keeps
+# only ids (they are what Vinted's search takes), and nothing turns an id back into a name.
+_BRAND_NAMES_KEY = "brand_names"
+_MAX_BRAND_NAMES = 2000
+
+
+async def remember_brand_names(repo: Repo, labels: str) -> None:
+    """Keep the names behind an editor's brand chips (its `labels` field) for next time."""
+    try:
+        parsed = json.loads(labels or "{}")
+    except ValueError:
+        return  # a mangled hidden field only costs the names, which are cosmetic
+    if not isinstance(parsed, dict):
+        return
+    fresh = {
+        key.removeprefix("brand:"): str(name)[:80]
+        for key, name in parsed.items()
+        if isinstance(key, str) and key.startswith("brand:") and key[6:].isdigit()
+    }
+    if not fresh:
+        return
+    known = {**await _brand_names(repo), **fresh}
+    kept = dict(list(known.items())[-_MAX_BRAND_NAMES:])
+    await repo.set_state_value(_BRAND_NAMES_KEY, json.dumps(kept))
+
+
+async def brand_labels(repo: Repo, brand_ids: str) -> str:
+    """The editor's `labels` field for these brand ids: the names that are known."""
+    known = await _brand_names(repo)
+    ids = [part for part in brand_ids.split(",") if part in known]
+    return json.dumps({f"brand:{brand_id}": known[brand_id] for brand_id in ids})
+
+
+async def _brand_names(repo: Repo) -> dict[str, str]:
+    raw = await repo.get_state_value(_BRAND_NAMES_KEY)
+    try:
+        value = json.loads(raw) if raw else {}
+    except ValueError:
+        return {}
+    return {str(k): str(v) for k, v in value.items()} if isinstance(value, dict) else {}
 
 
 def _test_key(destination_id: int) -> str:
@@ -146,6 +189,23 @@ async def last_test(repo: Repo, destination_id: int) -> dict[str, Any] | None:
     except ValueError:
         return None
     return value if isinstance(value, dict) else None
+
+
+def can_send(destination: Destination) -> bool:
+    """Switched on and finished: a Telegram place still waiting for its chat is neither
+    a place alerts go nor a reason to stop saying "finds only show on this page"."""
+    return destination.active and not awaiting_pairing(destination)
+
+
+async def set_notify_status(repo: Repo, destination_id: int, *, on: bool) -> None:
+    """Switch a place's status alerts (watchdog, "updated itself") on or off.
+
+    Adapter: Repo has no setter for `notify_status` on this branch. It moves into Repo
+    (db/repo.py, where SQL lives) when the backend branch that owns it is merged.
+    """
+    await repo._db.execute(
+        "UPDATE destinations SET notify_status = ? WHERE id = ?", (int(on), destination_id)
+    )
 
 
 def is_removed(destination: Destination) -> bool:

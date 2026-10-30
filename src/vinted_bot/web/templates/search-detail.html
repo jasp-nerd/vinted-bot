@@ -64,7 +64,8 @@
         <div class="rej__img">{% if r.photo %}<img src="{{ r.photo }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}</div>
         <div class="stack" style="gap:3px;min-width:0">
           {% if r.url %}<a class="rej__title" href="{{ r.url }}" target="_blank" rel="noopener">{{ r.title }}</a>{% else %}<span class="rej__title">{{ r.title }}</span>{% endif %}
-          <span class="rej__why" title="{{ r.detail }}">{{ ui.icon(r.icon) }}{{ r.why }}</span>
+          <span class="rej__why">{{ ui.icon(r.icon) }}{{ r.why }}</span>
+          {% if r.detail %}<span class="rej__detail">{{ r.detail }}</span>{% endif %}
         </div>
         <div class="rej__price">{{ r.price }}<small>{{ r.age }}</small></div>
       </div>

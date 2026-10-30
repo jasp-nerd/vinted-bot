@@ -26,9 +26,10 @@
 <div class="notice notice--danger" role="alert" style="margin-bottom:16px">{{ ui.icon("circle-alert") }}<div><p><strong>{{ "One thing needs" if E|length == 1 else E|length ~ " things need" }} fixing before this can be saved.</strong> {{ "It's" if E|length == 1 else "They're" }} marked below.</p></div></div>
 {% endif %}
 
-<form class="editor" id="edit-form" method="post" action="{% if s %}/searches/{{ s.id }}{% else %}/searches{% endif %}" novalidate data-editor data-tld="{{ f.tld }}" data-builder="{{ 1 if builder else 0 }}" data-previews="{{ 1 if previews else 0 }}"{% if s %} data-search="{{ s.id }}"{% endif %}>
+<form class="editor" id="edit-form" method="post" action="{% if s %}/searches/{{ s.id }}{% else %}/searches{% endif %}" novalidate data-editor data-tld="{{ f.tld }}" data-builder="{{ 1 if builder else 0 }}" data-previews="{{ 1 if previews else 0 }}"{% if s %} data-search="{{ s.id }}"{% endif %} data-currencies="{{ currencies|tojson|forceescape }}">
   <input type="hidden" name="labels" value="{{ f.labels }}" data-labels>
   <input type="hidden" name="extra_params" value="{{ f.extra_params }}">
+  {% if f.resume %}<input type="hidden" name="resume" value="1">{% endif %}
   <div class="editor__form">
     {% call sec("what", "search", "What you're looking for", "The words and category Vinted searches for.") %}
       <div class="field">
@@ -72,7 +73,7 @@
           <input id="must" type="text" placeholder="Add a word" autocomplete="off">
         </div>
         {{ ui.field_error(E, "include_terms") }}
-        <p class="help">Each chip must be in the title. To accept either of two words, type them with "or" between: <b>501 or 505</b>.</p>
+        <p class="help">Each chip must be in the title. A word matches the start of a word, so <b>jean</b> also finds jeans; put it in quotes, like <b>"jean"</b>, for that word only. To accept either of two words, type them with "or" between: <b>501 or 505</b>.</p>
       </div>
       <div class="field">
         <label class="label" for="nope">Skip titles with these words</label>
@@ -105,13 +106,13 @@
       <div class="grid-2">
         <div class="field">
           <label class="label" for="pmin">At least</label>
-          <div class="affix"><span class="affix__pre">{{ currency }}</span><input class="input num" id="pmin" name="min_total_price" type="text" inputmode="decimal" value="{{ f.min_total_price }}" data-money{{ ui.invalid(E, 'min_total_price') }}></div>
+          <div class="affix"><span class="affix__pre" data-currency>{{ currency }}</span><input class="input num" id="pmin" name="min_total_price" type="text" inputmode="decimal" value="{{ f.min_total_price }}" data-money{{ ui.invalid(E, 'min_total_price') }}></div>
           {{ ui.field_error(E, "min_total_price") }}
           <p class="help" data-money-help>Optional</p>
         </div>
         <div class="field">
           <label class="label" for="pmax">At most</label>
-          <div class="affix"><span class="affix__pre">{{ currency }}</span><input class="input num" id="pmax" name="max_total_price" type="text" inputmode="decimal" value="{{ f.max_total_price }}" data-money{{ ui.invalid(E, 'max_total_price') }}></div>
+          <div class="affix"><span class="affix__pre" data-currency>{{ currency }}</span><input class="input num" id="pmax" name="max_total_price" type="text" inputmode="decimal" value="{{ f.max_total_price }}" data-money{{ ui.invalid(E, 'max_total_price') }}></div>
           {{ ui.field_error(E, "max_total_price") }}
           <p class="help" data-money-help>Including fees</p>
         </div>
@@ -227,7 +228,7 @@
 
     {% call fold("countries", "globe", "Other countries", ("Also on " ~ f.extra_tlds|map("string")|join(", ")) if f.extra_tlds else "Only vinted." ~ f.tld, open=E.extra_tlds) %}
       <p class="t-sm">Run the same search on other Vinted sites. More countries means more finds, but higher shipping and more chance Vinted slows you down.</p>
-      <div class="chips">{% for tld, code, cname in countries if tld != f.tld %}<label class="chip chip--sm"><input type="checkbox" name="extra_tlds" value="{{ tld }}"{% if tld in f.extra_tlds %} checked{% endif %}>vinted.{{ tld }}</label>{% endfor %}</div>
+      <div class="chips">{% for tld, code, cname in countries %}<label class="chip chip--sm" data-extra-site="{{ tld }}"{% if tld == f.tld %} hidden{% endif %}><input type="checkbox" name="extra_tlds" value="{{ tld }}"{% if tld in f.extra_tlds and tld != f.tld %} checked{% endif %}>vinted.{{ tld }}</label>{% endfor %}</div>
       {{ ui.field_error(E, "extra_tlds") }}
     {% endcall %}
 
@@ -250,11 +251,11 @@
     {% endcall %}
 
     {% call fold("resale", "tag", "Resale", ("Resells for " ~ currency ~ f.resale_price ~ (", at least " ~ currency ~ f.min_margin ~ " left" if f.min_margin else "")) if f.resale_price else "For resellers: only alert when the margin is worth it", open=E.resale_price or E.resale_fee_pct or E.resale_shipping or E.min_margin) %}
-      <p class="t-sm">Fill this in if you buy to resell. Alerts then show what you'd keep after the selling platform's cut and postage, and can skip anything that leaves too little. Amounts are in vinted.{{ f.tld }}'s currency.</p>
+      <p class="t-sm">Fill this in if you buy to resell. Alerts then show what you'd keep after the selling platform's cut and postage, and can skip anything that leaves too little. Amounts are in <span data-site-name>vinted.{{ f.tld }}</span>'s currency.</p>
       <div class="grid-2">
         <div class="field">
           <label class="label" for="rs-price">It resells for</label>
-          <div class="affix"><span class="affix__pre">{{ currency }}</span><input class="input num" id="rs-price" name="resale_price" type="text" inputmode="decimal" value="{{ f.resale_price }}"{{ ui.invalid(E, 'resale_price') }}></div>
+          <div class="affix"><span class="affix__pre" data-currency>{{ currency }}</span><input class="input num" id="rs-price" name="resale_price" type="text" inputmode="decimal" value="{{ f.resale_price }}"{{ ui.invalid(E, 'resale_price') }}></div>
           {{ ui.field_error(E, "resale_price") }}
         </div>
         <div class="field">
@@ -265,13 +266,13 @@
         </div>
         <div class="field">
           <label class="label" for="rs-ship">Your postage when you sell it</label>
-          <div class="affix"><span class="affix__pre">{{ currency }}</span><input class="input num" id="rs-ship" name="resale_shipping" type="text" inputmode="decimal" value="{{ f.resale_shipping }}"{{ ui.invalid(E, 'resale_shipping') }}></div>
+          <div class="affix"><span class="affix__pre" data-currency>{{ currency }}</span><input class="input num" id="rs-ship" name="resale_shipping" type="text" inputmode="decimal" value="{{ f.resale_shipping }}"{{ ui.invalid(E, 'resale_shipping') }}></div>
           {{ ui.field_error(E, "resale_shipping") }}
           <p class="help">Leave empty if the buyer pays it, as on Vinted.</p>
         </div>
         <div class="field">
           <label class="label" for="rs-min">Only alert if I keep at least</label>
-          <div class="affix"><span class="affix__pre">{{ currency }}</span><input class="input num" id="rs-min" name="min_margin" type="text" inputmode="decimal" value="{{ f.min_margin }}"{{ ui.invalid(E, 'min_margin') }}></div>
+          <div class="affix"><span class="affix__pre" data-currency>{{ currency }}</span><input class="input num" id="rs-min" name="min_margin" type="text" inputmode="decimal" value="{{ f.min_margin }}"{{ ui.invalid(E, 'min_margin') }}></div>
           {{ ui.field_error(E, "min_margin") }}
           <p class="help">Optional. Needs the resale price.</p>
         </div>

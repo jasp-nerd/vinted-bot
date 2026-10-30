@@ -18,7 +18,6 @@ from fastapi.responses import Response
 
 from vinted_bot.db.repo import Query
 from vinted_bot.engine import health
-from vinted_bot.engine.validation import InvalidInputError
 from vinted_bot.web import core, data, forms, security, views
 
 router = APIRouter()
@@ -88,6 +87,8 @@ async def _editor(
     context = core.ctx(request)
     prefs = await context.repo.app_settings(default_timezone=context.settings.timezone)
     typical = await context.repo.typical_prices(query.id) if query else {}
+    known = json.loads(await data.brand_labels(context.repo, str(values.get("brand_ids") or "")))
+    values = {**values, "labels": json.dumps({**known, **_labels(values)})}
     blocked = await context.repo.list_blocked_sellers()
     return await core.render(
         request,
@@ -106,11 +107,21 @@ async def _editor(
             "link_price": _link_price(values),
             "blocked_count": len(blocked),
             "currency": views.symbol(views.currency_for(values["tld"])),
+            # For the page to relabel the price fields when the site changes.
+            "currencies": {t: views.symbol(views.currency_for(t)) for t, _, _ in views.COUNTRIES},
             "previews": context.previews is not None,
             "builder": context.taxonomy is not None,
         },
         status_code=status_code,
     )
+
+
+def _labels(values: dict[str, Any]) -> dict[str, Any]:
+    try:
+        parsed = json.loads(values.get("labels") or "{}")
+    except ValueError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
 
 
 def _link_price(values: dict[str, Any]) -> str | None:
@@ -172,11 +183,12 @@ async def create_search(request: Request) -> Response:
             poll_interval_s=parsed.poll_interval_s,
             **parsed.filters,
         )
-    except InvalidInputError as exc:
+    except ValueError as exc:
         return await _editor(
-            request, values, query=None, errors={exc.field: exc.message}, status_code=400
+            request, values, query=None, errors=refusal(exc, values), status_code=400
         )
     await context.repo.set_routes(query_id, parsed.destination_ids)
+    await data.remember_brand_names(context.repo, values["labels"])
     return core.redirect(
         core.url("search_detail", id=query_id),
         "Watching it now. The first check skips what's already there, so only new "
@@ -218,10 +230,13 @@ async def bulk(request: Request) -> Response:
 
 
 @router.get("/searches/{query_id}/edit")
-async def edit_search(request: Request, query_id: int) -> Response:
+async def edit_search(request: Request, query_id: int, copy: bool = False) -> Response:
     query = await _query(request, query_id)
     routes = await core.ctx(request).repo.explicit_routes(query_id)
-    return await _editor(request, forms.values_from_query(query, routes), query=query)
+    values = forms.values_from_query(query, routes)
+    # Opened straight after "Duplicate": saving it is what starts the copy.
+    values["resume"] = copy and query.paused
+    return await _editor(request, values, query=query)
 
 
 @router.post("/searches/{query_id}")
@@ -246,15 +261,34 @@ async def update_search(request: Request, query_id: int) -> Response:
                 **parsed.filters,
             )
         )
-    except InvalidInputError as exc:
+    except ValueError as exc:
         return await _editor(
-            request, values, query=query, errors={exc.field: exc.message}, status_code=400
+            request, values, query=query, errors=refusal(exc, values), status_code=400
         )
     await context.repo.set_routes(query_id, parsed.destination_ids)
+    await data.remember_brand_names(context.repo, values["labels"])
+    if values["resume"] and query.paused:
+        # A copy waits paused until it is saved the way someone wants it; this is that save.
+        await context.repo.set_paused(query_id, False)
+        return core.redirect(
+            core.url("search_detail", id=query_id),
+            "Saved. The copy is running now; its first check skips what's already there.",
+        )
     return core.redirect(
         core.url("search_detail", id=query_id),
         "Changes saved. They apply from the next check.",
     )
+
+
+def refusal(exc: ValueError, values: dict[str, Any]) -> dict[str, str]:
+    """The repository's refusal of a search (the same link twice, say) as a field error.
+
+    Shown beside the field it names, or beside the link when it names something the form
+    has no field for. Any ValueError: the repository raises nothing else for bad input.
+    """
+    field = getattr(exc, "field", "link")
+    message = getattr(exc, "message", None) or str(exc)
+    return {field if field in values else "link": message}
 
 
 # --- One search ----------------------------------------------------------------------
@@ -309,7 +343,7 @@ async def search_detail(request: Request, query_id: int) -> Response:
                     "photo": r.photo_url,
                     "title": r.title or f"Listing {r.item_id}",
                     "why": views.REJECTION_WORDS.get(r.reason, (r.reason, "x"))[0],
-                    "detail": r.detail,
+                    "detail": views.rejection_detail(r, query),
                     "icon": views.REJECTION_WORDS.get(r.reason, (r.reason, "circle-x"))[1],
                     "price": views.money(r.total_price, r.currency),
                     "age": views.ago(now - r.created_at),
@@ -450,8 +484,8 @@ async def duplicate(request: Request, query_id: int) -> Response:
     if copy_id is None:
         raise HTTPException(status_code=404, detail="No such search.")
     return core.redirect(
-        core.url("search_edit", id=copy_id),
-        "Copied. The copy is paused until you save it the way you want.",
+        core.url("search_edit", id=copy_id) + "?copy=1",
+        "Copied. Change what you like; the copy starts running when you save it.",
     )
 
 

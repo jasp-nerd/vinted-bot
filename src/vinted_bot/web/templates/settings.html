@@ -62,18 +62,18 @@
     <section class="ssec" id="phone" aria-labelledby="h-phone">
       <h2 class="t-h2" id="h-phone">Open on your phone</h2>
       <div class="card">
-        <div class="set"><div class="set__text"><span class="t-h3" id="phone-l">Allow my phone and other devices</span><span class="t-sm">Devices on the same Wi-Fi or home network, never the internet. They sign in with the password.</span></div>
+        <div class="set"><div class="set__text"><span class="t-h3" id="phone-l">Allow my phone and other devices</span><span class="t-sm">{% if access.container %}vinted-bot runs in a container here, so the container's port setting decides which devices can open this page, not a switch.{% else %}Devices on the same Wi-Fi or home network, never the internet. They sign in with the password.{% endif %}</span></div>
           {% if access.container or access.host_from_env %}<span class="badge">{{ "Docker decides" if access.container else "Set by the environment" }}</span>
           {% else %}<label class="switch"><input type="checkbox" data-phone-switch aria-labelledby="phone-l"{% if not access.loopback %} checked{% endif %}></label>{% endif %}</div>
         {% if listen_error %}
         <div class="set set--stack"><div class="notice notice--danger">{{ ui.icon("circle-alert") }}<div><p><strong>{{ listen_error }}</strong></p><p>Only this computer can open the page for now. Another program may be using the address; restarting the computer usually clears it.</p></div></div></div>
         {% endif %}
         {% if access.container %}
-        <div class="set set--stack"><div class="set__text"><span class="t-sm">vinted-bot runs in Docker here, so your <span class="code">docker-compose.yml</span> decides who can open this page, not a switch. To open it on your phone:</span></div>
+        <div class="set set--stack"><div class="set__text"><span class="t-sm">{% if phone %}It's set up to be opened at the address below.{% else %}If this page opens on your phone already, there is nothing to do. If not:{% endif %}</span></div>
           <ol class="steps-list">
-            <li><span>Set a password below first: other devices can open this page once the port is open.</span></li>
-            <li><span>In <span class="code">docker-compose.yml</span>, change the port line from <span class="code">127.0.0.1:8000:8000</span> to <span class="code">8000:8000</span>.</span></li>
-            <li><span>Run <span class="code">docker compose up -d</span>, then open this computer's address on port 8000 from your phone.</span></li>
+            {% if not access.password %}<li><span>Set a password below first. Anything that can reach the port can open this page.</span></li>{% endif %}
+            <li><span><b>Installed from a NAS app store</b> (Unraid, Umbrel, CasaOS, Synology and the like): the app is usually open to your home network already. Open the NAS's address with the app's port, as shown in the app store.</span></li>
+            <li><span><b>Started with docker compose:</b> in <span class="code">docker-compose.yml</span>, change the port line from <span class="code">127.0.0.1:8000:8000</span> to <span class="code">8000:8000</span>, run <span class="code">docker compose up -d</span> in the same folder, then open this computer's address on port 8000.</span></li>
           </ol></div>
         {% elif access.host_from_env %}
         <div class="set set--stack"><div class="set__text"><span class="t-sm">VINTED_BOT_WEB_HOST is set to <span class="code">{{ access.host }}</span> in this copy's environment (or its .env file), so that's where it listens. Remove that line and restart to use this switch instead.</span></div></div>
@@ -89,7 +89,7 @@
     <section class="ssec" id="access" aria-labelledby="h-access">
       <h2 class="t-h2" id="h-access">Password</h2>
       <div class="card">
-        <div class="set"><div class="set__text"><span class="t-h3">Password</span><span class="t-sm">{% if access.password_from_env %}On. It's set by VINTED_BOT_WEB_AUTH_TOKEN in this copy's environment, so it's changed there.{% elif access.password %}On. Each browser asks for it once.{% elif access.loopback %}Off. Only this computer can open this page, so it isn't needed. Allowing other devices adds one.{% else %}Off.{% endif %}</span></div>
+        <div class="set"><div class="set__text"><span class="t-h3">Password</span><span class="t-sm">{% if access.password_from_env %}On. It's set by VINTED_BOT_WEB_AUTH_TOKEN in this copy's environment, so it's changed there.{% elif access.password %}On. Each browser asks for it once.{% elif access.container %}Off. Set one if anything besides this machine can reach the container's port.{% elif access.loopback %}Off. Only this computer can open this page, so it isn't needed. Allowing other devices adds one.{% else %}Off.{% endif %}</span></div>
           <div class="btn-row">
             {% if not access.password_from_env %}
             {% if access.password %}<button class="btn btn--secondary btn--sm" type="button" data-open="pw-change">Change</button><button class="btn btn--ghost btn--sm" type="button" data-open="pw-remove">Remove</button>
@@ -97,7 +97,7 @@
             {% endif %}
             {% if access.password %}<form method="post" action="/logout"><button class="btn btn--ghost btn--sm" type="submit">Sign out</button></form>{% endif %}
           </div></div>
-        <div class="set"><div class="set__text"><span class="t-h3">Who can open it</span><span class="t-sm">{% if access.container %}Whoever your Docker port mapping lets in.{% elif access.loopback %}Only this computer.{% else %}This computer, and devices on your network that know the password.{% endif %}</span></div></div>
+        <div class="set"><div class="set__text"><span class="t-h3">Who can open it</span><span class="t-sm">{% if access.container %}Whatever the container's port setting lets in{% if access.password %}, with the password{% endif %}.{% elif access.loopback %}Only this computer.{% else %}This computer, and devices on your network that know the password.{% endif %}</span></div></div>
       </div>
     </section>
 
@@ -137,7 +137,7 @@
       <p>Everything is stored in one file on this computer.</p>
       <div class="card">
         <div class="set"><div class="set__text"><span class="t-h3">Download your finds</span><span class="t-sm">{{ "{:,}".format(finds) }} {{ "find" if finds == 1 else "finds" }}, with prices, links and which search found them.</span></div><div class="btn-row"><a class="btn btn--secondary btn--sm" href="/export.csv" download>{{ ui.icon("download", "i-sm") }}Spreadsheet (CSV)</a><a class="btn btn--ghost btn--sm" href="/export.json" download>{{ ui.icon("download", "i-sm") }}JSON</a></div></div>
-        <div class="set"><div class="set__text"><span class="t-h3">Finds are kept for {{ retention }} days</span><span class="t-sm">Saved and watched ones stay. To keep them longer, add VINTED_BOT_ITEM_RETENTION_DAYS=90 to the settings file and restart.</span></div></div>
+        <div class="set"><div class="set__text"><span class="t-h3">Finds are kept for {{ retention }} days</span><span class="t-sm">Saved and watched ones stay. To keep them longer, set VINTED_BOT_ITEM_RETENTION_DAYS=90 {% if access.container %}in the container's environment and recreate it{% else %}in the .env file in the folder vinted-bot starts from, and restart it{% endif %}.</span></div></div>
       </div>
     </section>
 
@@ -160,9 +160,11 @@
           <div class="field"><input class="input" id="hc" type="text" inputmode="url" placeholder="https://hc-ping.com/…" value="{{ prefs.healthcheck_url or '' }}" data-setting="healthcheck_url"><p class="help" data-setting-help="healthcheck_url">{% if prefs.healthcheck_url %}Pinged every 30 seconds while the app runs.{% else %}Optional.{% endif %}</p></div></div>
         <div class="set set--stack hide-sm"><div class="set__text"><span class="t-h3">Add searches straight from Vinted</span><span class="t-sm">Drag this to your bookmarks bar. On any Vinted search, click it to open that search here.</span></div><div class="row"><a class="btn btn--secondary btn--sm" href="{{ bookmarklet }}" data-bookmarklet>{{ ui.icon("bookmark", "i-sm") }}Watch this search</a></div></div>
         <div class="set set--stack"><div class="set__text"><span class="t-h3">Data folder</span></div><div class="row" style="flex-wrap:nowrap"><span class="code grow" style="overflow:auto;white-space:nowrap;padding:8px 10px">{{ db_path }}</span><button class="btn btn--icon btn--sm" type="button" data-copy="{{ db_path }}" aria-label="Copy folder path">{{ ui.icon("copy", "i-sm") }}</button></div></div>
+        {% if not access.container %}
         <div class="set"><div class="set__text"><span class="t-h3">Run it day and night</span><span class="t-sm">Searches only run while this computer is on and awake. A Raspberry Pi or home server keeps it going without your laptop.</span></div><a class="btn btn--ghost btn--sm" href="{{ self_hosting }}" target="_blank" rel="noopener">See the guide</a></div>
+        {% endif %}
         <details class="set set--stack envlist" data-collapse-sm>
-          <summary class="set__text"><span class="t-h3">{{ ui.icon("chevron-right", "i-sm") }}Settings from the environment</span><span class="t-sm">Everything else that shapes vinted-bot, for people who run it on a server. Nobody needs to change these. They're set as environment variables or in a .env file in the folder vinted-bot starts from, and take effect at the next start.</span></summary>
+          <summary class="set__text"><span class="t-h3">{{ ui.icon("chevron-right", "i-sm") }}Settings from the environment</span><span class="t-sm">Everything else that shapes vinted-bot, for people who run it on a server. Nobody needs to change these. {% if access.container %}They're set in the container's environment (the app's settings in a NAS app store, or <span class="code">environment:</span> in docker-compose.yml) and take effect when the container is recreated, with <span class="code">docker compose up -d</span> for example; a plain restart keeps the old values.{% else %}They're set as environment variables or in a .env file in the folder vinted-bot starts from, and take effect at the next start.{% endif %}</span></summary>
           <dl class="envlist__rows">
             {% for row in environment %}
             <div class="envlist__row"><dt><span class="code">{{ row.name }}</span></dt><dd><span><b>{{ row.value }}</b> <span class="t-sm">· {{ row.source }}</span></span>{% if row.about %}<span class="t-sm">{{ row.about }}</span>{% endif %}</dd></div>
@@ -191,7 +193,7 @@
 </div>
 {% endblock %}
 {% block modals %}
-{{ ph.dialogs(access, suggested_password) }}
+{% if not access.container and not access.host_from_env %}{{ ph.dialogs(access, suggested_password) }}{% endif %}
 <dialog class="modal" id="pw-set" aria-labelledby="ps-title">
   <form data-post action="/settings/password" data-done="Password set. Each browser asks for it once." novalidate>
     <div class="modal__head"><h2 class="t-h2" id="ps-title">Set a password</h2><button class="btn btn--icon" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button></div>

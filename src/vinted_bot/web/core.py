@@ -30,7 +30,7 @@ from vinted_bot import __version__
 from vinted_bot.config import Settings
 from vinted_bot.db.repo import Repo
 from vinted_bot.engine import health, updates
-from vinted_bot.engine.self_update import Phase, Updater
+from vinted_bot.engine.self_update import InstallKind, Phase, Updater
 from vinted_bot.vinted.client import VintedClient
 from vinted_bot.vinted.taxonomy import Taxonomy
 from vinted_bot.web import security, support, views
@@ -180,6 +180,14 @@ async def shell(context: WebContext, snapshot: health.Snapshot | None = None) ->
     }
 
 
+# A container may have come from a NAS app store rather than a compose file, and the app
+# cannot tell which, so the update hint names both.
+_DOCKER_HINT = (
+    "Installed from a NAS app store? Update the app there. Started with docker compose? "
+    "In the folder with its docker-compose.yml, run:"
+)
+
+
 def update_offer(updater: Updater, latest: str | None) -> dict[str, Any] | None:
     """What the update banner and the settings page offer, or None for nothing to say.
 
@@ -197,7 +205,7 @@ def update_offer(updater: Updater, latest: str | None) -> dict[str, Any] | None:
         "can_upgrade": install.can_upgrade,
         "restarts": install.restarts_itself,
         "command": install.manual_command,
-        "hint": install.manual_hint,
+        "hint": _DOCKER_HINT if install.kind is InstallKind.DOCKER else install.manual_hint,
         "status": updater.status(),
     }
 

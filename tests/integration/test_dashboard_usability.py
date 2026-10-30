@@ -312,9 +312,12 @@ def _to_alerts(client: TestClient) -> str:
 
 
 def test_the_setup_offers_the_same_ntfy_name_after_a_reload(client: TestClient) -> None:
+    _to_alerts(client)
     first = re.findall(r"data-ntfy-topic>([^<]+)<", client.get("/welcome/alerts").text)
 
-    assert first == re.findall(r"data-ntfy-topic>([^<]+)<", client.get("/welcome/alerts").text)
+    assert first and first == re.findall(
+        r"data-ntfy-topic>([^<]+)<", client.get("/welcome/alerts").text
+    )
 
 
 async def test_changing_the_place_in_setup_replaces_it(client: TestClient, repo: Repo) -> None:

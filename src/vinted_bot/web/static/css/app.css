@@ -1168,10 +1168,14 @@ select.chip { width: auto; max-width: 220px; }
 .support-card--sun h2, .support-card--lilac h2, .support-card--sun p, .support-card--lilac p,
 .support-card--sun .support-card__quiet a, .support-card--lilac .support-card__quiet a,
 .support-card--sun .support-card__quiet button, .support-card--lilac .support-card__quiet button { color: var(--field-ink); }
-@media (max-width: 520px) {
-  .support-card { grid-template-columns: minmax(0, 1fr); padding: 20px; }
-  .support-card__logo { display: none; }
-  .support-card__actions > * { flex: 1 1 100%; }
+/* On a phone the card stays small, so the first screen is still mostly finds: the
+   heading, the two buttons side by side, and the quiet links. */
+@media (max-width: 640px) {
+  .support-card { grid-template-columns: minmax(0, 1fr); padding: 14px 16px; margin-bottom: 16px; border-radius: 18px; }
+  .support-card__logo, .support-card [data-support-pitch] { display: none; }
+  .support-card__actions { margin-top: 10px; gap: 8px; }
+  .support-card__actions > * { flex: 1 1 0; min-height: 40px; padding-inline: 10px; font-size: 14px; }
+  .support-card__quiet { margin-top: 2px; }
 }
 
 .support { display: grid; gap: 20px; padding: 28px 32px; border-radius: var(--r-field); background: var(--field-sun); color: var(--field-ink); }
@@ -1242,3 +1246,44 @@ select.chip { width: auto; max-width: 220px; }
 .more-choices[open] > summary .i { transform: rotate(90deg); }
 .pair-qr { display: flex; gap: 14px; align-items: center; }
 .pair-qr .qr { width: 132px; height: 132px; padding: 8px; }
+
+/* Alerts, "What it looks like": a sample alert in the colours of the app it lands in. */
+.sample { margin-top: 8px; border-radius: 12px; padding: 12px; font-size: 13.5px; line-height: 1.45; overflow: hidden; }
+.sample p { margin: 0 0 4px; overflow-wrap: anywhere; }
+.sample__who { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.sample__who img { width: 28px; height: 28px; border-radius: 50%; background: #007782; object-fit: cover; object-position: 50% 18%; }
+.sample__who small { font-size: 11px; opacity: .7; }
+.sample__photos { display: flex; gap: 6px; margin: 6px 0; }
+.sample__photos img { width: 96px; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 6px; background: rgba(255, 255, 255, .08); }
+.sample__btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.sample__btns span { padding: 5px 10px; border-radius: 6px; font-size: 12.5px; }
+.sample--discord { background: #313338; color: #dbdee1; }
+.sample--discord .sample__msg { border-left: 4px solid var(--accent, #2a78d6); background: #2b2d31; border-radius: 6px; padding: 10px 12px; }
+.sample--discord b { color: #f2f3f5; }
+.sample--discord .sample__small { font-size: 12px; color: #949ba4; }
+.sample--discord .sample__btns span { background: #4e5058; color: #fff; }
+.sample--telegram { background: #e6ebee; color: #0f1419; }
+.sample--telegram .sample__msg { background: #fff; border-radius: 12px; padding: 8px 10px; }
+.sample--telegram .sample__msg table { border-collapse: collapse; }
+.sample--telegram .sample__msg td { padding: 0 8px 0 0; }
+.sample--telegram .sample__msg blockquote { margin: 4px 0; padding-left: 8px; border-left: 3px solid #3390ec; }
+.sample--telegram .sample__btns { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+.sample--telegram .sample__btns span { background: rgba(0, 0, 0, .28); color: #fff; text-align: center; }
+@media (max-width: 760px) { .ob--search .ob__field { display: none; } }
+.facet__group { flex-basis: 100%; margin-top: 4px; font-weight: 580; }
+.rej__detail { font-size: 12.5px; color: var(--c-text-2); overflow-wrap: anywhere; }
+
+/* Watchlist rows: photo, what it is, price, actions. On a phone the price gets its own
+   line under the title, so a long label never runs into the status badge. */
+.wrow--watch { grid-template-columns: 56px minmax(0, 1fr) auto auto; }
+.wrow--seller { grid-template-columns: 48px minmax(0, 1fr) auto auto; }
+.wrow__price s { display: block; }
+.wrow__routes summary { cursor: pointer; list-style: none; }
+.wrow__routes summary::-webkit-details-marker { display: none; }
+.wrow__routes .t-link { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 760px) {
+  .wrow--watch { grid-template-columns: 56px minmax(0, 1fr) auto; grid-template-areas: "i m m" "i p a"; }
+  .wrow--watch .wrow__price { text-align: left; }
+  .wrow--seller { grid-template-columns: 48px minmax(0, 1fr) auto auto; grid-template-areas: none; }
+  .wrow--seller > * { grid-area: auto; }
+}

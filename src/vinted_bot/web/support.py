@@ -8,6 +8,9 @@ after an alert has reached them, then at most once a week and only after another
 alert, each time in the next of three looks. It sits on the page and never interrupts.
 Only "Don't show again" stops it; giving or starring keeps it, with a thank-you.
 
+Nor in the first hour after setup: the first alert arrives minutes after it, and someone
+still finding their way around has not yet had anything to be glad about.
+
 It is never shown when something is wrong. A search waiting on Vinted or nowhere to
 send alerts is a moment for help, not for a coffee. Nothing asks in setup, before the
 app has found anything, and nothing asks inside the alerts themselves: those land in
@@ -23,6 +26,10 @@ from vinted_bot.db.repo import Repo, SupportState
 
 WEEK_S = 7 * 24 * 60 * 60
 LOOKS = 3
+SETTLE_S = 60 * 60
+
+# When setup last stored a search (app_state), so the card can wait out the first hour.
+SETUP_AT_KEY = "setup_at"
 
 KO_FI = "https://ko-fi.com/jaspnerd"
 SPONSORS = "https://github.com/sponsors/jasp-nerd"
@@ -48,11 +55,18 @@ async def card_on_visit(repo: Repo, now: int | None = None) -> int | None:
     Recording it here means a reload or a second tab doesn't ask again the same week.
     """
     now = int(time.time()) if now is None else now
+    setup_at = await repo.get_state_value(SETUP_AT_KEY)
+    if setup_at and setup_at.isdigit() and now - int(setup_at) < SETTLE_S:
+        return None
     state = await repo.support_state()
     look = card_for(state, now)
     if look is not None:
         await repo.record_support_card_shown(state.times_shown + 1, now)
     return look
+
+
+async def note_setup(repo: Repo, now: int | None = None) -> None:
+    await repo.set_state_value(SETUP_AT_KEY, str(int(time.time()) if now is None else now))
 
 
 def tracked(url: str, place: str) -> str:

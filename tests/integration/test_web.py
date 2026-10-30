@@ -603,7 +603,7 @@ async def test_duplicating_opens_the_paused_copy(client: TestClient, repo: Repo)
     response = client.post(f"/searches/{query_id}/duplicate", follow_redirects=False)
 
     copy = (await repo.list_queries())[-1]
-    assert response.headers["location"] == f"/searches/{copy.id}/edit"
+    assert response.headers["location"] == f"/searches/{copy.id}/edit?copy=1"
     assert copy.paused
 
 

@@ -32,13 +32,17 @@
       <p class="t-sm" style="padding-bottom:4px">{{ dd.detail }}</p>
       {% endif %}
       <details class="dest__opts" data-collapse-sm open>
-      <summary>{{ ui.icon("chevron-right", "i-sm") }}<span>Options</span><small class="t-sm">What to send, sound{% if dd.kind == "discord" %}, look and pings{% elif dd.kind == "telegram" %}, look{% elif dd.kind == "ntfy" %}, priority{% endif %}</small></summary>
+      <summary>{{ ui.icon("chevron-right", "i-sm") }}<span>Options</span><small class="t-sm">What to send, sound{% if dd.kind == "discord" %}, look and pings{% elif dd.kind == "telegram" %}, look{% elif dd.kind == "ntfy" %}, priority and server{% elif dd.kind == "webhook" %}, headers{% endif %}</small></summary>
       <div class="rows">
+        <div class="set"><div class="set__text"><span class="t-h3" id="ns-{{ dd.id }}">Tell me when something stops working</span><span class="t-sm">A message here when a search has been stuck for a while, when Vinted keeps turning checks away, and when vinted-bot updated itself. Without one, nobody hears about it until they look at this page.</span></div><label class="switch"><input type="checkbox" name="notify_status" value="1"{% if dd.notify_status %} checked{% endif %} aria-labelledby="ns-{{ dd.id }}"></label></div>
         {% set tier_names = [("steal", "Big bargains", "40% or more under the typical price"), ("deal", "Bargains", "20% or more under"), ("normal", "Everything else", "")] %}
         <fieldset class="set set--stack" style="border:0;margin:0"><legend class="set__text"><span class="t-h3">Send these</span><span class="t-sm">Compared with the search's typical price. New searches count as "everything else" until they know it.</span></legend>
           <div class="chips">{% for key, label, hint in tier_names %}<label class="chip chip--sm chip--check" title="{{ hint }}"><input type="checkbox" name="tiers" value="{{ key }}"{% if key in dd.opts.tiers %} checked{% endif %}>{{ ui.icon("check", "chip__tick") }}{{ label }}{% if hint %} <small class="t-sm">{{ hint }}</small>{% endif %}</label>{% endfor %}</div>
           <p class="help help--error" data-error-for="tiers" hidden></p>
+          {# Set by older versions (and the CLI): it still filters, so it is shown and editable. #}
+          <div class="field" style="max-width:300px{% if not dd.opts.min_deal_pct %};display:none{% endif %}" data-min-deal><label class="label" for="md-{{ dd.id }}">And at least <small>% under the typical price, empty for no limit</small></label><div class="affix affix--post"><input class="input num" id="md-{{ dd.id }}" name="min_deal_pct" type="text" inputmode="numeric" value="{{ dd.opts.min_deal_pct }}" style="min-height:38px"><span class="affix__post">% cheaper</span></div><p class="help">Anything with no typical price yet is skipped too.</p><p class="help help--error" data-error-for="min_deal_pct" hidden></p></div>
         </fieldset>
+        <div class="set"><div class="set__text"><span class="t-h3" id="wa-{{ dd.id }}">Watchlist alerts</span><span class="t-sm">Price drops and sales of listings you watch, and new uploads from sellers you follow. These come whatever the choice above.</span></div><label class="switch"><input type="checkbox" name="watch_alerts" value="1"{% if dd.opts.watch_alerts %} checked{% endif %} aria-labelledby="wa-{{ dd.id }}"></label></div>
         <fieldset class="set set--stack" style="border:0;margin:0"><legend class="set__text"><span class="t-h3">Without sound</span><span class="t-sm">These arrive quietly, no buzz</span></legend>
           <div class="chips">{% for key, label, hint in tier_names %}<label class="chip chip--sm chip--check"><input type="checkbox" name="silent_tiers" value="{{ key }}"{% if key in dd.opts.silent_tiers %} checked{% endif %}>{{ ui.icon("check", "chip__tick") }}{{ label }}</label>{% endfor %}</div>
         </fieldset>
@@ -47,11 +51,25 @@
         <fieldset class="set set--stack" style="border:0;margin:0"><legend class="set__text"><span class="t-h3">Ping for</span><span class="t-sm">Which listings mention the person or role below</span></legend>
           <div class="chips">{% for key, label, hint in tier_names %}<label class="chip chip--sm chip--check"><input type="checkbox" name="ping_tiers" value="{{ key }}"{% if key in dd.opts.ping_tiers %} checked{% endif %}>{{ ui.icon("check", "chip__tick") }}{{ label }}</label>{% endfor %}</div>
         </fieldset>
-        <div class="set set--stack"><div class="set__text"><span class="t-h3">Ping someone</span><span class="t-sm">Type @everyone to buzz phones even when the server is muted, or a role's ID number (Discord can't look names up for webhooks). Copy a role ID by turning on Developer Mode, then right-clicking the role.</span></div><div class="field"><input class="input" style="max-width:260px;min-height:38px" type="text" name="mention" value="{{ dd.opts.mention }}" placeholder="@everyone or 123456789012345678" aria-label="Who to ping"><p class="help help--error" data-error-for="mention" hidden></p></div></div>
+        <div class="set set--stack"><div class="set__text"><span class="t-h3">Ping someone</span><span class="t-sm">Type @everyone to buzz phones even when the server is muted, a role's ID number, or user: and a person's ID number for just them (Discord can't look names up for webhooks). Copy an ID by turning on Developer Mode, then right-clicking the role or person.</span></div><div class="field"><input class="input" style="max-width:260px;min-height:38px" type="text" name="mention" value="{% if dd.opts.mention.startswith('<@&') %}{{ dd.opts.mention[3:-1] }}{% elif dd.opts.mention.startswith('<@') %}user:{{ dd.opts.mention[2:-1]|replace('!', '') }}{% else %}{{ dd.opts.mention }}{% endif %}" placeholder="@everyone, 1234567890 or user:1234567890" aria-label="Who to ping"><p class="help help--error" data-error-for="mention" hidden></p></div></div>
+        <div class="set"><div class="set__text"><span class="t-h3" id="sl-{{ dd.id }}">Never buzz</span><span class="t-sm">Every alert arrives without a notification sound, pings included.</span></div><label class="switch"><input type="checkbox" name="silent" value="1"{% if dd.opts.silent %} checked{% endif %} aria-labelledby="sl-{{ dd.id }}"></label></div>
+        <details class="adv"><summary>{{ ui.icon("chevron-right") }}Thread, name and picture</summary><div class="stack">
+          <div class="field"><label class="label" for="th-{{ dd.id }}">Thread ID <small>optional, to post inside a thread or forum post</small></label><input class="input num" id="th-{{ dd.id }}" name="thread_id" type="text" inputmode="numeric" value="{{ dd.opts.thread_id }}" style="max-width:260px;min-height:38px"><p class="help help--error" data-error-for="thread_id" hidden></p></div>
+          <div class="field"><label class="label" for="un-{{ dd.id }}">Name it posts as <small>optional</small></label><input class="input" id="un-{{ dd.id }}" name="username" type="text" maxlength="80" value="{{ dd.opts.username }}" placeholder="vinted-bot" style="max-width:260px;min-height:38px"></div>
+          <div class="field"><label class="label" for="av-{{ dd.id }}">Picture <small>optional, an https:// image address</small></label><input class="input" id="av-{{ dd.id }}" name="avatar_url" type="text" inputmode="url" value="{{ dd.opts.avatar_url }}" placeholder="https://" style="min-height:38px"><p class="help help--error" data-error-for="avatar_url" hidden></p></div>
+        </div></details>
         {% elif dd.kind == "telegram" %}
         <div class="set"><div class="set__text"><span class="t-h3">Look</span><span class="t-sm">One photo with buttons, or all photos</span></div><div class="seg" role="radiogroup" aria-label="Telegram look"><label><input type="radio" name="style" value="photo"{% if dd.opts.style != "gallery" %} checked{% endif %}>Photo</label><label><input type="radio" name="style" value="gallery"{% if dd.opts.style == "gallery" %} checked{% endif %}>All photos</label></div></div>
+        <div class="set"><div class="set__text"><span class="t-h3" id="sl-{{ dd.id }}">Never buzz</span><span class="t-sm">Every alert arrives without a notification sound.</span></div><label class="switch"><input type="checkbox" name="silent" value="1"{% if dd.opts.silent %} checked{% endif %} aria-labelledby="sl-{{ dd.id }}"></label></div>
+        <div class="field"><label class="label" for="th-{{ dd.id }}">Topic ID <small>optional, for a group with topics</small></label><input class="input num" id="th-{{ dd.id }}" name="thread_id" type="text" inputmode="numeric" value="{{ dd.opts.thread_id }}" style="max-width:260px;min-height:38px"><p class="help help--error" data-error-for="thread_id" hidden></p></div>
         {% elif dd.kind == "ntfy" %}
-        <div class="set"><div class="set__text"><span class="t-h3">Priority</span><span class="t-sm">High can break through Do Not Disturb</span></div><select class="select" name="priority" style="width:130px;min-height:38px;font-size:14px" aria-label="Priority">{% for v, l in [("2", "Low"), ("3", "Normal"), ("4", "High"), ("5", "Urgent")] %}<option value="{{ v }}"{% if dd.opts.priority == v %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+        <div class="set"><div class="set__text"><span class="t-h3">Priority</span><span class="t-sm">High can break through Do Not Disturb</span></div><select class="select" name="priority" style="width:130px;min-height:38px;font-size:14px" aria-label="Priority">{% for v, l in [("1", "Lowest"), ("2", "Low"), ("3", "Normal"), ("4", "High"), ("5", "Urgent")] %}<option value="{{ v }}"{% if dd.opts.priority == v %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+        <details class="adv"><summary>{{ ui.icon("chevron-right") }}Your own ntfy server</summary><div class="stack">
+          <div class="field"><label class="label" for="sv-{{ dd.id }}">Server</label><input class="input" id="sv-{{ dd.id }}" name="server" type="text" inputmode="url" value="{{ dd.opts.server }}" style="min-height:38px"><p class="help">ntfy.sh unless you run your own. The phone app must use the same server.</p><p class="help help--error" data-error-for="server" hidden></p></div>
+          <div class="field"><label class="label" for="tk-{{ dd.id }}">Access token <small>optional, for a protected topic</small></label><input class="input" id="tk-{{ dd.id }}" name="ntfy_token" type="password" autocomplete="off" placeholder="{{ 'Set. Type a new one to replace it' if dd.opts.token_set else 'tk_...' }}" style="min-height:38px">{% if dd.opts.token_set %}<label class="row t-sm" style="gap:6px;margin-top:6px"><input type="checkbox" name="clear_ntfy_token" value="1">Remove the token</label>{% endif %}</div>
+        </div></details>
+        {% elif dd.kind == "webhook" %}
+        <div class="field"><label class="label" for="hd-{{ dd.id }}">Extra headers <small>one per line, like Authorization: Bearer ...</small></label><textarea class="textarea" id="hd-{{ dd.id }}" name="headers" rows="2" spellcheck="false" placeholder="{{ 'Sends ' ~ dd.opts.headers|join(', ') ~ '. Type new lines to replace them' if dd.opts.headers else 'X-Api-Key: ...' }}"></textarea>{% if dd.opts.headers %}<label class="row t-sm" style="gap:6px;margin-top:6px"><input type="checkbox" name="clear_headers" value="1">Remove the headers</label>{% endif %}<p class="help help--error" data-error-for="headers" hidden></p></div>
         {% endif %}
         <div class="set set--stack"><div class="set__text"><span class="t-h3">Used by</span></div>
           <div class="chips">
@@ -60,9 +78,15 @@
         </div>
       </div>
       </details>
+      {% if dd.kind in ("discord", "telegram") and dd.can_test %}
+      <details class="dest__opts" data-sample="/destinations/{{ dd.id }}/preview">
+        <summary>{{ ui.icon("chevron-right", "i-sm") }}<span>What it looks like</span><small class="t-sm">A made-up listing, with these options</small></summary>
+        <div data-sample-box><p class="t-sm">Loading…</p></div>
+      </details>
+      {% endif %}
     </form>
     <div class="dest__foot">
-      <button class="btn btn--secondary btn--sm" type="button" data-test-dest="{{ dd.id }}">{{ ui.icon("send", "i-sm") }}Send a test</button>
+      {% if dd.can_test %}<button class="btn btn--secondary btn--sm" type="button" data-test-dest="{{ dd.id }}">{{ ui.icon("send", "i-sm") }}Send a test</button>{% endif %}
       <span class="grow"></span>
       <button class="btn btn--ghost btn--sm" type="button" data-confirm="delete-dest" data-name="{{ dd.name }}" data-action="/destinations/{{ dd.id }}/delete">{{ ui.icon("trash-2", "i-sm") }}Remove</button>
     </div>

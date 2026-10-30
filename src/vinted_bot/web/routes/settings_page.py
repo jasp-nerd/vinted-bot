@@ -103,7 +103,7 @@ async def settings_page(request: Request) -> Response:
                     "login": b.login or f"Seller {b.seller_id}",
                     "tld": f"vinted.{b.tld}" if b.tld else "",
                     "reason": b.reason,
-                    "when": datetime.fromtimestamp(b.created_at, tz).strftime("%-d %b"),
+                    "when": views.day_month(datetime.fromtimestamp(b.created_at, tz)),
                 }
                 for b in blocked
             ],
@@ -166,8 +166,7 @@ def _when(outcome: self_update.Outcome | None, tz: ZoneInfo) -> str | None:
     if outcome is None or not outcome.at:
         return None
     moment = datetime.fromtimestamp(outcome.at, tz)
-    # Not %-d: Windows' strftime refuses it.
-    return f"{moment.day} {moment:%b, %H:%M}"
+    return f"{views.day_month(moment)}, {moment:%H:%M}"
 
 
 async def _set_auto_update(context: core.WebContext, enabled: bool) -> None:

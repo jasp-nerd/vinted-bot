@@ -13,7 +13,7 @@ from typing import Any
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 from vinted_bot import managed
 from vinted_bot.botctl.telegram_bot import create_pairing
@@ -21,7 +21,7 @@ from vinted_bot.db.repo import Destination
 from vinted_bot.deliver import send_test
 from vinted_bot.engine.validation import InvalidInputError
 from vinted_bot.log import get_logger
-from vinted_bot.web import core, data, destinations
+from vinted_bot.web import core, data, destinations, sample_alert
 
 log = get_logger(__name__)
 router = APIRouter()
@@ -185,7 +185,11 @@ async def add_destination(request: Request) -> Response:
         destinations.check(kind, config, context.settings, context.http)
     except InvalidInputError as exc:
         return JSONResponse({"ok": False, "field": exc.field, "error": exc.message}, 400)
-    destination_id = await context.repo.add_destination(kind=kind, name=name, config=config)
+    # Status alerts on: a place someone adds is where they expect to hear that a search
+    # stopped working. The card's switch turns it off.
+    destination_id = await context.repo.add_destination(
+        kind=kind, name=name, config=config, notify_status=True
+    )
     if _wants_json(request):
         return JSONResponse({"ok": True, "id": destination_id})
     return RedirectResponse(core.url("alerts"), status_code=303)
@@ -210,19 +214,39 @@ async def set_options(request: Request, destination_id: int) -> Response:
     except InvalidInputError as exc:
         return JSONResponse({"ok": False, "field": exc.field, "error": exc.message}, 400)
     await context.repo.update_destination_config(destination_id, config)
+    notify = bool(form.get("notify_status"))
+    if notify != destination.notify_status:
+        await data.set_notify_status(context.repo, destination_id, on=notify)
     return JSONResponse({"ok": True})
+
+
+@router.get("/destinations/{destination_id}/preview")
+async def preview(request: Request, destination_id: int) -> Response:
+    """The card's "What it looks like": a sample alert with this place's own options."""
+    context = core.ctx(request)
+    destination = await _destination(request, destination_id)
+    sample = sample_alert.look(destination.kind, destination.config, await _sample_tld(context))
+    if sample is None:
+        raise HTTPException(status_code=404, detail="No picture of this kind of alert.")
+    return HTMLResponse(core.TEMPLATES.get_template("partials/sample_alert.html").render(a=sample))
+
+
+async def _sample_tld(context: core.WebContext) -> str:
+    """The site the sample pretends to be from: the one the searches use, so the alert
+    speaks their language and currency."""
+    queries = await context.repo.list_queries()
+    return queries[0].tld if queries else "ie"
 
 
 @router.post("/destinations/{destination_id}/test")
 async def test_destination(request: Request, destination_id: int) -> JSONResponse:
     context = core.ctx(request)
     destination = await _destination(request, destination_id)
-    queries = await context.repo.list_queries()
     result = await send_test(
         destination,
         settings=context.settings,
         telegram_token=await managed.telegram_token(context.settings, context.repo),
-        tld=queries[0].tld if queries else "ie",
+        tld=await _sample_tld(context),
         client=context.http,
     )
     if result.ok and destination.failure_count:
@@ -273,6 +297,8 @@ async def start_pairing(request: Request) -> JSONResponse:
             status_code=400,
         )
     destination_id, code = await create_pairing(context.repo, "Telegram")
+    # Like any place added here: it hears when something stops working, until switched off.
+    await data.set_notify_status(context.repo, destination_id, on=True)
     bot = await bot_username(context)
     return JSONResponse(
         {

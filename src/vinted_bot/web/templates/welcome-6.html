@@ -9,7 +9,11 @@
   <div class="summary-row"><span class="choice__icon">{{ ui.icon("search") }}</span><span><small>Search</small><b>{{ summary }}</b></span><button class="btn btn--ghost btn--sm" type="submit" form="ob-form" formaction="/welcome/search" name="back" value="1">Change</button></div>
   <div class="summary-row"><span class="choice__icon">{{ ui.dest_icon(dest_kind) }}</span><span><small>Alerts go to</small><b>{% if dest_kind == "skip" %}Only this page, for now{% else %}{{ dest_name }}{% endif %}</b></span><button class="btn btn--ghost btn--sm" type="submit" form="ob-form" formaction="/welcome/alerts" name="back" value="1">Change</button></div>
 </div>
+{% if access.container %}
+<div class="notice notice--teal">{{ ui.icon("server") }}<div><p><strong>It keeps running on its own</strong></p><p>vinted-bot runs in a container here, so it checks your searches for as long as the machine it's on stays up. You can close this browser tab.</p></div></div>
+{% else %}
 <div class="notice notice--sun">{{ ui.icon("laptop") }}<div><p><strong>Keep your computer on and awake</strong></p><p>Searches only run while this computer is on. If it sleeps or you close the lid, you won't get alerts until it wakes up again. You can close this browser tab; that's fine.</p><p class="t-sm">Want it running day and night without your laptop? <a href="{{ self_hosting }}" target="_blank" rel="noopener" style="color:inherit">See the guide</a>.</p></div></div>
+{% endif %}
 {% endblock %}
 {% block cta %}Open my finds{% endblock %}
 {% block hint %}Everything here is in Settings too{% endblock %}
@@ -24,6 +28,9 @@
   {% elif switchable %}
   <b>Want this page on your phone too?</b>
   <span>For now it only opens on this computer{% if dest_kind == "ntfy" %}, but alerts already reach your phone{% endif %}. One switch lets your phone in, on your own Wi-Fi only.</span>
+  {% elif access.container %}
+  <b>Want this page on your phone too?</b>
+  <span>In a container, its port setting decides which devices can open this page{% if dest_kind != "skip" %}; alerts reach you either way{% endif %}. Settings, "Open on your phone", says how.</span>
   {% else %}
   <b>Want this page on your phone too?</b>
   <span>For now it only opens on this computer{% if dest_kind == "ntfy" %}, but alerts already reach your phone{% endif %}. Settings, "Open on your phone", says how.</span>
