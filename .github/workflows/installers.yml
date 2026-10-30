@@ -101,3 +101,9 @@ jobs:
           Start-Sleep -Seconds 3
           if (Test-Path "$env:USERPROFILE\.local\bin\vinted-sniper.exe") { throw 'still installed' }
           if (Get-Process vinted-sniper -ErrorAction SilentlyContinue) { throw 'still running' }
+
+      # The app runs hidden on Windows, so its own log is the only record of why it stopped.
+      - name: Show the app's log
+        if: failure()
+        shell: powershell
+        run: Get-Content -Tail 80 "$env:LOCALAPPDATA\vinted-sniper\vinted-sniper.log" -ErrorAction SilentlyContinue
