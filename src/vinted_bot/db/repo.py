@@ -311,6 +311,19 @@ THEMES = ("system", "light", "dark")
 
 
 @dataclass(frozen=True, slots=True)
+class SupportState:
+    """Where the dashboard's request for support stands. web/support.py decides from it."""
+
+    times_shown: int
+    # 0 until the card has shown once.
+    last_shown_at: int
+    # Chose "Don't show again". Giving or starring doesn't count: the card stays.
+    opted_out: bool
+    # When an alert last reached someone, or None if none ever has.
+    last_alert_at: int | None
+
+
+@dataclass(frozen=True, slots=True)
 class DailyFinds:
     day: str
     query_id: int
@@ -2087,6 +2100,33 @@ class Repo:
 
     async def set_latest_version(self, version: str) -> None:
         await self.set_state_value("latest_version", version)
+
+    # --- Asking for support --------------------------------------------------------
+
+    async def support_state(self) -> SupportState:
+        rows = await self._db.fetch_all(
+            "SELECT key, value FROM app_state WHERE key IN "
+            "('support_times_shown', 'support_last_shown_at', 'support_opted_out')"
+        )
+        values = {row["key"]: row["value"] for row in rows}
+        # Read from the outbox rather than counted separately, so it can't drift from
+        # what was actually delivered.
+        last_alert = await self._db.fetch_value(
+            "SELECT MAX(sent_at) FROM outbox WHERE status = 'sent'"
+        )
+        return SupportState(
+            times_shown=int(values.get("support_times_shown") or 0),
+            last_shown_at=int(values.get("support_last_shown_at") or 0),
+            opted_out=values.get("support_opted_out") == "1",
+            last_alert_at=int(last_alert) if last_alert is not None else None,
+        )
+
+    async def record_support_card_shown(self, times_shown: int, at: int) -> None:
+        await self.set_state_value("support_times_shown", str(times_shown))
+        await self.set_state_value("support_last_shown_at", str(at))
+
+    async def opt_out_of_support_card(self) -> None:
+        await self.set_state_value("support_opted_out", "1")
 
     # --- Miscellaneous state -------------------------------------------------------
 

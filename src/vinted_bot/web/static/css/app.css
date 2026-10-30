@@ -1140,3 +1140,72 @@ select.chip { width: auto; max-width: 220px; }
 .affix--end .input { padding-left: 14px; padding-right: 92px; }
 .affix__btn { position: absolute; right: 6px; }
 .login .help--error, .login .help--error span { color: var(--c-danger-ink); }
+
+/* Asking for support (partials/support.html). Ko-fi's blue and cup, which people know,
+   in this app's lipped pill. Not teal: teal is the one action colour of the app itself. */
+.btn--kofi { --lip: #4a7fd0; padding: 0 20px 0 14px; background: #72a4f2; color: #14171f; font-weight: 700; box-shadow: 0 3px 0 var(--lip); }
+.btn--kofi:hover { background: #6598ea; color: #14171f; }
+.btn--kofi:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--lip); }
+.btn--kofi .kofi-cup { flex: none; }
+
+.support-card { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 16px; align-items: start; margin: 0 0 24px; padding: 22px 28px; border-radius: 24px; background: var(--c-surface); box-shadow: var(--ring); }
+.support-card__logo { width: 40px; height: 40px; margin-top: 2px; border-radius: 9px; }
+.support-card__body { display: grid; min-width: 0; }
+.support-card__title { font: 700 17px/1.3 var(--font-display); }
+.support-card p { margin-top: 6px; max-width: 640px; font-size: 14px; color: var(--c-text-2); text-wrap: pretty; }
+.support-card__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.support-card__quiet { display: flex; flex-wrap: wrap; gap: 0 20px; margin-top: 6px; font-size: 13px; }
+.support-card__quiet a, .support-card__quiet button { display: inline-flex; align-items: center; min-height: 32px; padding: 0; border: 0; background: none; font: inherit; color: var(--c-text-2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.support-card__quiet a:hover, .support-card__quiet button:hover { color: var(--c-ink); }
+.support-card__quiet form { display: contents; }
+.support-card--sun, .support-card--lilac { box-shadow: none; }
+.support-card--sun { background: var(--field-sun); }
+.support-card--lilac { background: var(--field-lilac); }
+.support-card--sun h2, .support-card--lilac h2, .support-card--sun p, .support-card--lilac p,
+.support-card--sun .support-card__quiet a, .support-card--lilac .support-card__quiet a,
+.support-card--sun .support-card__quiet button, .support-card--lilac .support-card__quiet button { color: var(--field-ink); }
+@media (max-width: 520px) {
+  .support-card { grid-template-columns: minmax(0, 1fr); padding: 20px; }
+  .support-card__logo { display: none; }
+  .support-card__actions > * { flex: 1 1 100%; }
+}
+
+.support { display: grid; gap: 20px; padding: 28px 32px; border-radius: var(--r-field); background: var(--field-sun); color: var(--field-ink); }
+.support__story { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 24px; align-items: center; }
+.support__mags { width: auto; height: 112px; }
+.support__title { margin-bottom: 6px; font: 700 24px/1.2 var(--font-display); color: var(--field-ink); }
+.support__story p { max-width: 600px; font-size: 16px; line-height: 1.5; color: var(--field-ink); text-wrap: pretty; }
+.tiers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.tiers a { display: grid; gap: 2px; padding: 0 0 14px; overflow: hidden; border-radius: var(--r-card); background: var(--c-surface); color: var(--c-ink); text-decoration: none; box-shadow: inset 0 0 0 1.5px transparent; transition: box-shadow .12s, transform .12s; }
+.tiers a:hover { box-shadow: inset 0 0 0 1.5px var(--c-amber-ink); transform: translateY(-2px); }
+.tiers a:focus-visible { outline: 3px solid var(--c-ink); outline-offset: 2px; }
+.tier__art { position: relative; display: block; aspect-ratio: 2 / 1; margin-bottom: 10px; overflow: hidden; }
+.tier__art--sun { background: color-mix(in srgb, var(--c-amber) 50%, var(--field-sun)); }
+.tier__art--lilac { background: var(--field-lilac); }
+.tier__art--mint { background: var(--field-mint); }
+.tier__art::before { content: ""; position: absolute; left: 50%; top: 50%; width: 48%; aspect-ratio: 1; border-radius: 50%; background: rgba(255, 255, 255, .5); transform: translate(-50%, -50%); }
+.tier__mags { position: absolute; left: 50%; bottom: -6%; height: 92%; width: auto; transform: translateX(-62%); }
+.tier__art .kofi-cup { position: absolute; right: 16%; top: 38%; width: 18%; height: auto; transform: rotate(8deg); }
+.tier__heart { position: absolute; width: 7%; fill: #e5484d; }
+.tier__heart--a { left: 22%; top: 18%; transform: rotate(-14deg); }
+.tier__heart--b { right: 30%; top: 12%; width: 5%; fill: #f08aa0; transform: rotate(12deg); }
+.tier__name { padding: 0 16px; font: 700 17px/1.25 var(--font-display); }
+.tier__amount { padding: 0 16px; font-size: 14px; font-weight: 600; color: var(--c-text-2); }
+.support__small { margin-top: -8px; font-size: 14px; color: var(--field-ink); }
+.support__other { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; padding-top: 18px; border-top: 1.5px solid color-mix(in srgb, var(--field-ink) 14%, transparent); font-size: 14px; }
+.support__links { display: flex; flex-wrap: wrap; gap: 10px; }
+@media (max-width: 640px) {
+  .support { padding: 24px 20px; }
+  .support__story { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .tiers { grid-template-columns: minmax(0, 1fr); }
+  /* A row each on a phone: the picture square on the left, the words beside it. */
+  .tiers a { grid-template-columns: 96px minmax(0, 1fr); grid-template-rows: auto auto; align-content: center; column-gap: 14px; padding: 0; }
+  .tier__art { grid-row: 1 / 3; aspect-ratio: 1; margin: 0; }
+  .tier__art::before { width: 80%; }
+  .tier__name { align-self: end; padding: 0; }
+  .tier__amount { align-self: start; padding: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tiers a { transition: none; }
+  .tiers a:hover { transform: none; }
+}

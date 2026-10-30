@@ -32,7 +32,7 @@ from vinted_bot.engine import health, updates
 from vinted_bot.engine.self_update import Phase, Updater
 from vinted_bot.vinted.client import VintedClient
 from vinted_bot.vinted.taxonomy import Taxonomy
-from vinted_bot.web import views
+from vinted_bot.web import support, views
 from vinted_bot.web.preview import PreviewService
 from vinted_bot.web.security import LoginThrottle
 
@@ -107,7 +107,7 @@ def static(path: str) -> str:
 TEMPLATES = Jinja2Templates(directory=str(HERE / "templates"))
 TEMPLATES.env.trim_blocks = True
 TEMPLATES.env.lstrip_blocks = True
-TEMPLATES.env.globals.update(url=url, static=static, money=views.money)
+TEMPLATES.env.globals.update(url=url, static=static, money=views.money, support_links=support.links)
 TEMPLATES.env.filters["tojson_attr"] = json.dumps
 
 

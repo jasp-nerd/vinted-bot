@@ -23,7 +23,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response, Streamin
 
 from vinted_bot.db.repo import FeedItem, MarkFilter
 from vinted_bot.engine import health, validation
-from vinted_bot.web import core, data, views
+from vinted_bot.web import core, data, support, views
 
 router = APIRouter()
 
@@ -132,6 +132,9 @@ async def home(request: Request) -> Response:
         or params.get("show", "all") not in ("all", "")
     )
     waiting = [row for row in rows if row["status"] in ("stuck", "blocked", "stale")]
+    no_destinations = not await repo.list_destinations(active_only=True)
+    # Asked only when everything works; a problem on the page comes first.
+    trouble = bool(waiting) or no_destinations
     return await core.render(
         request,
         "index.html",
@@ -156,10 +159,21 @@ async def home(request: Request) -> Response:
             "sort": params.get("sort", "newest"),
             "last_check_s": int(time.time()) - last_check if last_check else None,
             "latest_seq": await repo.latest_seq(),
-            "no_destinations": not await repo.list_destinations(active_only=True),
+            "no_destinations": no_destinations,
+            "support_look": None if trouble else await support.card_on_visit(repo),
         },
         snapshot=snapshot,
     )
+
+
+@router.post("/support/hide")
+async def hide_support_card(request: Request) -> Response:
+    """The support card's "Don't show again". The page script posts it in the background;
+    without the script the form posts here and lands back on Finds."""
+    await core.ctx(request).repo.opt_out_of_support_card()
+    if "application/json" in request.headers.get("accept", ""):
+        return JSONResponse({"ok": True})
+    return RedirectResponse(core.url("home"), status_code=303)
 
 
 @router.get("/api/finds")
