@@ -612,7 +612,7 @@ async def test_export_as_csv_keeps_prices_exact(repo: Repo) -> None:
 
     rendered = export.render(await repo.all_found(), "csv")
 
-    header, row = rendered.splitlines()
+    header, row = rendered.removeprefix("\ufeff").splitlines()
     assert header.startswith("item_id,site,title")
     assert ",15.00,16.45,EUR," in row
 
@@ -627,6 +627,31 @@ async def test_export_as_csv_never_hands_a_spreadsheet_a_formula(repo: Repo, tit
 
     [row] = list(csv.DictReader(io.StringIO(rendered)))
     assert row["title"] == "'" + title
+
+
+async def test_a_csv_export_starts_with_a_byte_order_mark_for_excel(repo: Repo) -> None:
+    query = await add(repo)
+    await repo.record_new_items(query, [listing(1, title="Très bon état")], [])
+
+    assert export.render(await repo.all_found(), "csv").startswith("\ufeffitem_id,")
+
+
+async def test_an_export_leaves_out_blocked_sellers_finds(repo: Repo) -> None:
+    query = await add(repo)
+    await repo.record_new_items(query, [listing(1, seller_id=7), listing(2, seller_id=8)], [])
+    await repo.block_seller(7)
+
+    assert [entry.item.item_id for entry in await repo.all_found()] == [2]
+
+
+async def test_an_export_names_the_seller_country_a_later_lookup_found(repo: Repo) -> None:
+    query = await add(repo)
+    await repo.record_new_items(query, [listing(1, seller_id=7)], [])
+    await repo.cache_seller(SellerProfile(seller_id=7, tld="fr", country_code="BE"))
+
+    [row] = list(csv.DictReader(io.StringIO(export.render(await repo.all_found(), "csv"))))
+
+    assert (row["seller_country"], "listed_at" in row) == ("BE", False)
 
 
 async def test_export_as_json(repo: Repo) -> None:

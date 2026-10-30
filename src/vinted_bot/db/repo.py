@@ -607,9 +607,11 @@ _INSERT_ITEM = (
 _FEED_SELECT = (
     "SELECT i.*, m.mark, q.id AS feed_query_id, q.name AS feed_query_name, "
     "q.color AS feed_query_color, "
+    "COALESCE(i.seller_country, sc.country) AS known_seller_country, "
     "CASE WHEN fqi.query_id IS NULL THEN i.typical_price ELSE fqi.typical_price END "
     "AS feed_typical_price FROM items i "
     "LEFT JOIN item_marks m ON m.item_id = i.item_id "
+    "LEFT JOIN seller_cache sc ON sc.seller_id = i.seller_id "
     "LEFT JOIN query_items fqi ON fqi.rowid = ("
     "  SELECT qi.rowid FROM query_items qi "
     "  WHERE qi.item_id = i.item_id AND qi.status = 'matched' "
@@ -635,7 +637,8 @@ def _feed_item(row: aiosqlite.Row) -> FeedItem:
         query_color=row["feed_query_color"],
         watch_id=row["watch_id"],
         typical_price=_money(row["feed_typical_price"]),
-        seller_country=row["seller_country"],
+        # From the listing's own record, or from any seller lookup since.
+        seller_country=row["known_seller_country"],
         mark=row["mark"],
     )
 
@@ -1747,6 +1750,7 @@ class Repo:
         since: int | None = None,
         limit: int = 60,
         offset: int = 0,
+        without_blocked: bool = False,
     ) -> list[FeedItem]:
         """Found listings, newest first, filtered the way the dashboard's grid needs.
 
@@ -1790,6 +1794,11 @@ class Repo:
         if since is not None:
             clauses.append("i.first_seen_at >= ?")
             params.append(since)
+        if without_blocked:
+            clauses.append(
+                "(i.seller_id IS NULL OR "
+                "i.seller_id NOT IN (SELECT seller_id FROM blocked_sellers))"
+            )
         rows = await self._db.fetch_all(
             f"{_FEED_SELECT} WHERE {' AND '.join(clauses)} ORDER BY i.seq DESC LIMIT ? OFFSET ?",
             (*params, limit, offset),
@@ -1797,9 +1806,12 @@ class Repo:
         return [_feed_item(row) for row in rows]
 
     async def all_found(self, *, query_id: int | None = None) -> list[FeedItem]:
-        """Every listing still stored that a search matched, newest first, for export."""
+        """Every listing still stored that a search matched, newest first, for export.
+
+        Not a blocked seller's: blocking says "never show me this seller again".
+        """
         # LIMIT -1 is SQLite for "no limit".
-        return await self.items_feed(query_id=query_id, mark="all", limit=-1)
+        return await self.items_feed(query_id=query_id, mark="all", limit=-1, without_blocked=True)
 
     async def items_after(self, cursor: int, *, limit: int = 50) -> list[FeedItem]:
         """Listings found after a cursor, oldest first: what a live feed appends next.

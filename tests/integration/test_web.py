@@ -959,7 +959,7 @@ async def test_finds_download_as_a_spreadsheet(client: TestClient, repo: Repo) -
     response = client.get("/export.csv")
 
     assert response.headers["content-disposition"].startswith("attachment;")
-    assert response.text.splitlines()[0].startswith("item_id,site,title")
+    assert response.text.removeprefix("\ufeff").startswith("item_id,site,title")
 
 
 async def test_finds_download_as_json(client: TestClient, repo: Repo) -> None:
