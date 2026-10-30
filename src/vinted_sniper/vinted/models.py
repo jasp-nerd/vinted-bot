@@ -93,6 +93,39 @@ class Item(BaseModel):
         return f"{self.price}{currency}"
 
 
+class SellerProfile(BaseModel):
+    """What the public member page says about a seller.
+
+    The catalog response names the seller but not where they ship from, so the country
+    filter needs this second, cacheable lookup. Only fetched when a search asks for it.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    seller_id: int
+    tld: str
+    login: str | None = None
+    country_code: str | None = None
+    rating: float | None = None
+    feedback_count: int | None = None
+
+
+class ItemSnapshot(BaseModel):
+    """A single listing re-read from its own page, for watching price drops and sales."""
+
+    model_config = ConfigDict(frozen=True)
+
+    item_id: int
+    tld: str
+    title: str | None = None
+    price: Decimal | None = None
+    total_price: Decimal | None = None
+    currency: str | None = None
+    # 'available', 'reserved', 'sold' or 'gone' (the page no longer exists).
+    status: str = "available"
+    photo_url: str | None = None
+
+
 def _first(source: dict[str, Any], *paths: str) -> Any:
     """Return the first present value among dotted paths. Tolerates renamed fields."""
     for path in paths:
