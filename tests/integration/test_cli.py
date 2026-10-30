@@ -114,3 +114,14 @@ def test_export_writes_found_listings_as_json(db_path: Path, tmp_path: Path) -> 
     assert run("export", "--format", "json", "--output", str(out)) == 0
 
     assert [row["item_id"] for row in json.loads(out.read_text())] == [5]
+
+
+def test_a_bad_setting_ends_with_a_sentence_not_a_traceback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("VINTED_BOT_WEB_PORT", "abc")
+
+    code = cli.main(["status"])
+
+    assert (code, "VINTED_BOT_WEB_PORT is set to 'abc'" in capsys.readouterr().err) == (2, True)

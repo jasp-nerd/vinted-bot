@@ -10,7 +10,9 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from vinted_bot import __version__, app, log
+from pydantic import ValidationError
+
+from vinted_bot import __version__, app, config, log
 from vinted_bot.config import Settings
 from vinted_bot.db import Database, apply_pending
 from vinted_bot.db import export as exporter
@@ -21,6 +23,8 @@ from vinted_bot.vinted.client import VintedClient
 from vinted_bot.vinted.errors import BlockedError, VintedError
 from vinted_bot.vinted.session import SessionManager
 from vinted_bot.vinted.transport import TransportSession
+
+_log = log.get_logger(__name__)
 
 TROUBLESHOOTING = "https://github.com/jasp-nerd/vinted-bot/blob/main/docs/troubleshooting.md"
 
@@ -452,8 +456,21 @@ async def _cmd_heartbeat(settings: Settings) -> int:
 
 
 async def _run(args: argparse.Namespace) -> int:
-    settings = Settings()
+    try:
+        settings = Settings()
+    except ValidationError as exc:
+        print(config.explain(exc), file=sys.stderr)
+        return 2
     log.configure(level=settings.log_level, fmt=settings.log_format)
+    for warning in settings.warnings:
+        _log.warning("config.not_used", problem=warning)
+    if unknown := Settings.unknown_keys():
+        _log.warning(
+            "config.unknown_keys",
+            keys=unknown,
+            hint="no setting has these names, so they do nothing; check for typos or "
+            "keys left over from an older version",
+        )
 
     match args.command:
         case "run":

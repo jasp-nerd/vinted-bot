@@ -8,11 +8,12 @@ never a question of which copy of a setting wins.
 from __future__ import annotations
 
 import contextlib
+import os
 from pathlib import Path
 from typing import Literal
 
 import platformdirs
-from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
+from pydantic import AliasChoices, Field, PrivateAttr, SecretStr, ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from vinted_bot.engine.validation import InvalidInputError, parse_timezone
@@ -76,14 +77,20 @@ def default_db_path() -> Path:
     return platformdirs.user_data_path("vinted-bot", appauthor=False) / "app.db"
 
 
+ENV_FILE = ".env"
+
+
 class Settings(BaseSettings):
     """Static configuration. Every field is documented in docs/configuration.md."""
 
     model_config = SettingsConfigDict(
         env_prefix="VINTED_BOT_",
-        env_file=".env",
+        env_file=ENV_FILE,
         env_file_encoding="utf-8",
-        extra="forbid",
+        # Ignored rather than refused: a leftover VINTED_SNIPER_ line, PUID, or another
+        # program's keys in a shared .env used to stop the app starting at all. The ones
+        # that look meant for us are named in a warning instead; see `unknown_keys`.
+        extra="ignore",
         # The timezone field also answers to TZ, which containers and systemd already set.
         populate_by_name=True,
     )
@@ -258,21 +265,51 @@ class Settings(BaseSettings):
         """Whether the dashboard is reachable only from this machine."""
         return self.web_host in {"127.0.0.1", "localhost", "::1"}
 
-    @field_validator("timezone")
-    @classmethod
-    def _known_timezone(cls, value: str) -> str:
-        try:
-            return parse_timezone(value)
-        except InvalidInputError as exc:
-            raise ValueError(exc.message) from exc
+    # Settings that were set but could not be used, worded for the startup log.
+    _warnings: list[str] = PrivateAttr(default_factory=list)
+
+    @property
+    def warnings(self) -> list[str]:
+        return list(self._warnings)
 
     @model_validator(mode="after")
     def _check_coherent(self) -> Settings:
+        try:
+            self.timezone = parse_timezone(self.timezone)
+        except InvalidInputError:
+            # TZ is often set by the system in a form zoneinfo cannot read (":/etc/localtime",
+            # "CET-1CEST,M3.5.0,M10.5.0/3"). Refusing to start over it helps nobody.
+            fallback = system_timezone()
+            self._warnings.append(
+                f"The time zone {self.timezone!r} is not one this app can read (it wants a "
+                f"name like Europe/Paris), so {fallback} is used. Set VINTED_BOT_TIMEZONE "
+                "to choose another."
+            )
+            self.timezone = fallback
         if self.fetch_mode == "mock" and self.mock_scenario_dir is None:
             raise ValueError(
                 "VINTED_BOT_FETCH_MODE is 'mock' but VINTED_BOT_MOCK_SCENARIO_DIR is not set."
             )
         return self
+
+    @classmethod
+    def unknown_keys(cls) -> list[str]:
+        """VINTED_* names in the environment or the .env file that no setting reads.
+
+        Usually a typo or a key from an older version, and silently ignoring it would leave
+        someone wondering why their change did nothing.
+        """
+        known = {f"VINTED_BOT_{name.upper()}" for name in cls.model_fields}
+        names = set(os.environ)
+        with contextlib.suppress(OSError):
+            # No .env at all is the normal case, not a problem.
+            for line in Path(ENV_FILE).read_text(encoding="utf-8").splitlines():
+                key = line.strip().removeprefix("export ").split("=", 1)[0].strip()
+                if "=" in line and not key.startswith("#"):
+                    names.add(key)
+        return sorted(
+            n for n in names if n.upper().startswith("VINTED_") and n.upper() not in known
+        )
 
     @property
     def web_is_exposed_without_a_password(self) -> bool:
@@ -286,3 +323,23 @@ class Settings(BaseSettings):
         if not self.web_enabled or self.web_auth_token is not None:
             return False
         return not self.web_is_loopback and not in_container()
+
+
+def explain(error: ValidationError) -> str:
+    """A settings error as one paragraph naming the variable, instead of a traceback."""
+    problems = []
+    for entry in error.errors():
+        field = ".".join(str(part) for part in entry["loc"])
+        message = entry["msg"].removeprefix("Value error, ")
+        if field:
+            problems.append(
+                f"VINTED_BOT_{field.upper()} is set to {entry.get('input')!r}: {message}."
+            )
+        else:
+            problems.append(message.rstrip(".") + ".")
+    return (
+        "vinted-bot can't start because of its settings. "
+        + " ".join(problems)
+        + " Fix or remove that line in your .env file, or in the environment: section of "
+        "docker-compose.yml (then run docker compose up -d), and start it again."
+    )
