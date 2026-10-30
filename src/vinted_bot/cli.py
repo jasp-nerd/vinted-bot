@@ -66,7 +66,9 @@ def build_parser() -> argparse.ArgumentParser:
     watch.add_argument(
         "--include",
         default="",
-        help="Comma-separated words the title must all contain; 'a|b' accepts either.",
+        help="Comma-separated words the title must all contain; 'a|b' accepts either. "
+        'A word matches longer words starting with it (jean finds jeans); "jean" in '
+        "double quotes means that exact word.",
     )
     watch.add_argument("--regex", default="", help="A regular expression the title must match.")
     watch.add_argument("--min-rating", default="", help="Minimum seller rating, 0 to 5 stars.")

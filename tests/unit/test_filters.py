@@ -64,6 +64,25 @@ def test_included_terms_ignore_accents_and_case() -> None:
     assert reason(item(title="Veste CAFÉ racer"), search(include_terms=["cafe"])) is None
 
 
+def test_an_included_word_matches_longer_words_starting_with_it() -> None:
+    assert reason(item(title="Levi's Jeans 501"), search(include_terms=["jean"])) is None
+
+
+def test_an_included_word_does_not_match_inside_another_word() -> None:
+    assert reason(item(title="Bluejeans"), search(include_terms=["jean"])) == "missing_keyword"
+
+
+@pytest.mark.parametrize("term", ['"jean"', "\u201cjean\u201d"])
+def test_a_quoted_included_word_must_appear_as_a_whole_word(term: str) -> None:
+    assert reason(item(title="Levi's Jeans 501"), search(include_terms=[term])) == (
+        "missing_keyword"
+    )
+
+
+def test_a_quoted_included_word_still_matches_that_word() -> None:
+    assert reason(item(title="Jean jacket"), search(include_terms=['"jean"'])) is None
+
+
 def test_the_brand_counts_as_part_of_the_title() -> None:
     """The title often leaves the brand out because Vinted shows it separately."""
     assert reason(item(title="Air Max 90", brand="Nike"), search(include_terms=["nike"])) is None

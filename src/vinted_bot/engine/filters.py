@@ -40,15 +40,23 @@ class Rejection:
     detail: str
 
 
-def _word_pattern(term: str) -> re.Pattern[str] | None:
-    """Match a word or phrase as whole words; a trailing * allows any ending.
+# Straight and typographic double quotes: phones type the second kind.
+_QUOTES = '"\u201c\u201d\u201e'
 
-    Whole words, because a plain substring test let "art" exclude "smartphone" and
-    "party". Text is folded first, so case and accents never matter.
+
+def _word_pattern(term: str, *, prefix: bool = False) -> re.Pattern[str] | None:
+    """Match a word or phrase starting at a word boundary.
+
+    With `prefix` it matches the start of a word, so "jean" finds "Jeans"; without it,
+    only the whole word, so "art" never excludes "smartphone" or "party". A trailing *
+    asks for a prefix match and quotes ("jean") for the whole word, whatever the
+    default. Text is folded first, so case and accents never matter.
     """
     folded = fold(term.strip())
-    prefix = folded.endswith("*")
-    folded = folded.rstrip("*").strip()
+    if len(folded) > 1 and folded[0] in _QUOTES and folded[-1] in _QUOTES:
+        folded, prefix = folded[1:-1].strip(), False
+    if folded.endswith("*"):
+        folded, prefix = folded.rstrip("*").strip(), True
     if not folded:
         return None
     tail = "" if prefix else r"(?!\w)"
@@ -65,11 +73,14 @@ class Rules:
             for word in query.banned_keywords
             if (pattern := _word_pattern(word)) is not None
         ]
-        # Each term is a list of alternatives, any one of which satisfies it.
+        # Each term is a list of alternatives, any one of which satisfies it. Must-include
+        # words match word beginnings: someone who asks for "jean" wants the jeans too.
         self._include = [
             (term, patterns)
             for term in query.include_terms
-            if (patterns := [p for alt in term.split("|") if (p := _word_pattern(alt))])
+            if (
+                patterns := [p for alt in term.split("|") if (p := _word_pattern(alt, prefix=True))]
+            )
         ]
         self._regex = re.compile(query.regex, TITLE_REGEX_FLAGS) if query.regex else None
         self._conditions = {fold(condition) for condition in query.conditions or []}
