@@ -1,9 +1,17 @@
 """Push notifications through ntfy.
 
 Worth having because it needs no account and no bot: install the app, pick a topic name,
-done. Tapping the notification opens the listing. The public server allows a few hundred
-messages a day, which suits one person watching a handful of searches; anyone busier should
-self-host ntfy or use Discord or Telegram.
+done. The public server allows a few hundred messages a day, which suits one person
+watching a handful of searches; anyone busier should self-host ntfy or use Discord or
+Telegram.
+
+Published as JSON rather than with headers. Headers have to be ASCII, and Vinted titles are
+full of accents and euro signs, so a header-based push of "Très bon état · 4,90 €" fails
+before it leaves the machine.
+
+Each push carries the price and title, a markdown body with the facts, the photo, the
+project icon and up to three buttons (ntfy's maximum). Deals are sent at a higher priority
+so a phone set to let only urgent pushes through still hears about them.
 """
 
 from __future__ import annotations
@@ -13,10 +21,90 @@ from typing import Any
 import httpx
 
 from vinted_sniper.db.repo import PendingNotification
-from vinted_sniper.deliver.base import SendResult, require
+from vinted_sniper.deliver.base import SenderConfigError, SendResult
 from vinted_sniper.deliver.ratelimit import TokenBucket
+from vinted_sniper.deliver.render import BOT_NAME, ICON_URL, ListingView, escape_markdown, view
 
 DEFAULT_SERVER = "https://ntfy.sh"
+
+# ntfy's priorities run 1 (min) to 5 (max); 3 is the default.
+STEAL_PRIORITY = 5
+DEAL_PRIORITY = 4
+DEFAULT_PRIORITY = 3
+SILENT_PRIORITY = 2
+
+MAX_ACTIONS = 3
+
+
+def _server_and_topic(config: dict[str, Any]) -> tuple[str, str]:
+    """Accept either a topic (plus optional server) or the full topic URL."""
+    if url := str(config.get("url") or "").strip():
+        server, _, topic = url.rstrip("/").rpartition("/")
+        if server.startswith(("https://", "http://")) and topic:
+            return server, topic
+        raise SenderConfigError("ntfy url must look like https://ntfy.sh/your-topic")
+    topic = str(config.get("topic") or "").strip()
+    if not topic:
+        raise SenderConfigError("ntfy destination needs a 'topic'")
+    return str(config.get("server") or DEFAULT_SERVER).rstrip("/"), topic
+
+
+def _priority(listing: ListingView, default: int) -> int:
+    if listing.deal is not None:
+        return STEAL_PRIORITY if listing.deal.tier == "steal" else DEAL_PRIORITY
+    return SILENT_PRIORITY if listing.silent else default
+
+
+def push(
+    listing: ListingView, *, topic: str, default_priority: int = DEFAULT_PRIORITY
+) -> dict[str, Any]:
+    """The JSON body for one listing."""
+    labels = listing.labels
+    title = f"{listing.price} · {listing.title}" if listing.price else listing.title
+    if listing.kind != "listing":
+        title = f"{listing.headline}: {title}"
+
+    first = " · ".join(
+        part
+        for part in (
+            f"**{listing.badge}**" if listing.badge else None,
+            f"~~{listing.previous_price}~~" if listing.previous_price else None,
+            listing.price_note,
+        )
+        if part
+    )
+    seller = escape_markdown(listing.seller_login) if listing.seller_login else None
+    lines = [
+        first,
+        " · ".join(escape_markdown(value) for _, value in listing.facts),
+        " · ".join(p for p in (seller, listing.rating) if p),
+        f"{listing.flag} {listing.site} · _{escape_markdown(listing.search_name)}_".strip(),
+    ]
+
+    actions = []
+    if listing.can_buy:
+        actions.append({"action": "view", "label": labels.buy, "url": listing.buy_url})
+        actions.append({"action": "view", "label": labels.message, "url": listing.message_url})
+    actions.append({"action": "view", "label": labels.open, "url": listing.url})
+
+    tags = ["shopping_bags"]
+    if listing.deal is not None:
+        tags.append(labels.steal if listing.deal.tier == "steal" else labels.good_deal)
+
+    body: dict[str, Any] = {
+        "topic": topic,
+        "title": title[:250],
+        "message": "\n".join(line for line in lines if line),
+        "markdown": True,
+        "priority": _priority(listing, default_priority),
+        "tags": tags,
+        "click": listing.url,
+        "icon": ICON_URL,
+        "actions": actions[:MAX_ACTIONS],
+    }
+    if listing.photos:
+        body["attach"] = listing.photos[0]
+    return body
 
 
 class NtfySender:
@@ -31,9 +119,12 @@ class NtfySender:
         client: httpx.AsyncClient | None = None,
         bucket: TokenBucket | None = None,
     ) -> None:
-        self._topic = require(config, "topic", self.kind)
-        self._server = str(config.get("server") or DEFAULT_SERVER).rstrip("/")
+        self._server, self._topic = _server_and_topic(config)
         self._token = config.get("token")
+        try:
+            self._priority = int(config.get("priority") or DEFAULT_PRIORITY)
+        except (TypeError, ValueError) as exc:
+            raise SenderConfigError("ntfy priority must be a number from 1 to 5") from exc
         self._client = client or httpx.AsyncClient(timeout=20.0)
         self._owns_client = client is None
         self._bucket = bucket or TokenBucket(1.0, capacity=3)
@@ -44,29 +135,22 @@ class NtfySender:
         # pushing it.
         return 5
 
+    def _headers(self) -> dict[str, str]:
+        return {"Authorization": f"Bearer {self._token}"} if self._token else {}
+
     async def send(self, batch: list[PendingNotification]) -> SendResult:
         delivered: list[int] = []
         for notification in batch:
-            item = notification.item
-            headers = {
-                "Title": item.title[:200],
-                "Click": item.url,
-                "Tags": "shopping_bags",
-            }
-            if item.photo_url:
-                headers["Attach"] = item.photo_url
-            if self._token:
-                headers["Authorization"] = f"Bearer {self._token}"
+            # Three buttons is ntfy's limit and buy, message and open fill it, so the
+            # dashboard link has nowhere to go.
+            listing = view(notification, dashboard_url=None)
+            body = push(listing, topic=self._topic, default_priority=self._priority)
+            remaining = [n.outbox_id for n in batch if n.outbox_id not in delivered]
 
             await self._bucket.acquire()
             try:
-                response = await self._client.post(
-                    f"{self._server}/{self._topic}",
-                    content=item.price_line().encode(),
-                    headers=headers,
-                )
+                response = await self._client.post(self._server, json=body, headers=self._headers())
             except httpx.HTTPError as exc:
-                remaining = [n.outbox_id for n in batch if n.outbox_id not in delivered]
                 return SendResult(
                     delivered=delivered, retry=remaining, error=f"could not reach ntfy: {exc}"
                 )
@@ -74,15 +158,21 @@ class NtfySender:
             if response.is_success:
                 delivered.append(notification.outbox_id)
                 continue
+            if response.status_code in (httpx.codes.UNAUTHORIZED, httpx.codes.FORBIDDEN):
+                # A reserved topic or a revoked token; asking again gets the same answer.
+                return SendResult(
+                    delivered=delivered,
+                    permanent_error=(
+                        f"ntfy answered {response.status_code}: check the topic and token"
+                    ),
+                )
             if response.status_code == httpx.codes.TOO_MANY_REQUESTS:
-                remaining = [n.outbox_id for n in batch if n.outbox_id not in delivered]
                 return SendResult(
                     delivered=delivered,
                     retry=remaining,
                     retry_after_s=60.0,
                     error="ntfy daily allowance reached",
                 )
-            remaining = [n.outbox_id for n in batch if n.outbox_id not in delivered]
             return SendResult(
                 delivered=delivered,
                 retry=remaining,
@@ -94,11 +184,18 @@ class NtfySender:
         await self._bucket.acquire()
         try:
             await self._client.post(
-                f"{self._server}/{self._topic}",
-                content=message.encode(),
-                headers={"Title": "vinted-sniper", "Tags": "warning", "Priority": "low"},
+                self._server,
+                json={
+                    "topic": self._topic,
+                    "title": BOT_NAME,
+                    "message": message,
+                    "tags": ["warning"],
+                    "priority": SILENT_PRIORITY,
+                },
+                headers=self._headers(),
             )
         except httpx.HTTPError:
+            # A status notice is best effort; the same warning is already in the log.
             return
 
     async def aclose(self) -> None:
