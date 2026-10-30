@@ -1,0 +1,450 @@
+{% extends "base.html" %}
+{% macro icon(name, cls="i") %}<svg class="{{ cls }}" aria-hidden="true"><use href="{{ icons }}#i-{{ name }}"></use></svg>{% endmacro %}
+{% macro copybtn(label=None) %}<button class="copy" type="button" data-copy>{{ icon('copy') }}<span>{{ label or t.install.copy }}</span></button>{% endmacro %}
+{% macro code(text) %}<div class="code"><pre><code>{{ text }}</code></pre>{{ copybtn() }}</div>{% endmacro %}
+{% block main %}
+
+<section class="hero" aria-labelledby="hero-title">
+  <div class="wrap hero__grid">
+    <div class="hero__text">
+      <p class="eyebrow">{{ icon('check') }}{{ t.hero.eyebrow }}</p>
+      <h1 class="h1" id="hero-title">{{ t.hero.h1 }}</h1>
+      <p class="lead">{{ t.hero.lead }}</p>
+      <div class="btn-row">
+        <a class="btn btn--primary btn--lg" href="#install">{{ icon('arrow-right') }}{{ t.hero.cta_install }}</a>
+        <a class="btn btn--secondary btn--lg" href="https://github.com/jasp-nerd/vinted-sniper">{{ icon('github') }}{{ t.hero.cta_github }}</a>
+      </div>
+      <p class="hero__note">{{ t.hero.note }}</p>
+      <ul class="trust" aria-label="{{ t.hero.trust_aria|a }}">
+        {%- for item in t.hero.trust %}
+        <li>{{ icon('check') }}{{ item }}</li>
+        {%- endfor %}
+      </ul>
+    </div>
+
+    <figure class="stage" data-stage>
+      <figcaption class="sr-only">{{ t.hero.stage_caption }}</figcaption>
+      {%- set first = demo[0] %}
+      <div class="push" data-push aria-hidden="true">
+        <img class="push__icon" src="/assets/img/icon-96.webp" width="38" height="38" alt="">
+        <div class="push__body">
+          <div class="push__top"><span class="push__app">vinted-sniper</span><span>{{ t.hero.push_now }}</span></div>
+          <div class="push__title" data-push-title>{{ t.demo.match }} · {{ first.search }}</div>
+          <div class="push__text" data-push-text>{{ first.title }} · {{ first.total }} {{ t.demo.fees }} · {{ t.demo.under|replace('{n}', first.deal|string) }}</div>
+        </div>
+        <img class="push__thumb" data-push-img src="/assets/img/demo/{{ first.img }}.webp" width="46" height="58" alt="">
+      </div>
+      <div class="stage__app" aria-hidden="true">
+        <div class="stage__bar">
+          <img src="/assets/img/icon-96.webp" width="24" height="24" alt="">
+          <span class="stage__title">{{ t.hero.stage_title }}</span>
+          <span class="stage__live"><i class="pulse"></i><span>{{ t.hero.watching }}</span></span>
+        </div>
+        <div class="mini-grid" data-grid>
+          {%- for item in demo[:6] %}
+          <div class="mini{% if loop.first %} is-new{% endif %}">
+            <div class="mini__media"><img src="/assets/img/demo/{{ item.img }}.webp" width="240" height="360" alt=""{% if loop.index > 2 %} loading="lazy"{% endif %}>{% if loop.first or item.deal %}<div class="mini__flags">{% if loop.first %}<span class="badge badge--new">{{ t.demo.new }}</span>{% endif %}{% if item.deal %}<span class="badge badge--deal">{{ t.demo.under|replace('{n}', item.deal|string) }}</span>{% endif %}</div>{% endif %}</div>
+            <div><div class="mini__title">{{ item.title }}</div><div class="mini__meta">{{ item.meta }}</div><div class="mini__total">{{ item.total }} <small>{{ t.demo.fees }}</small></div><div class="mini__foot"><span><i class="sdot" style="--sc: var(--s-{{ item.s }})"></i>{{ item.search }}</span><time>{{ t.demo.initial_ages[loop.index0] }}</time></div></div>
+          </div>
+          {%- endfor %}
+        </div>
+      </div>
+      <img class="stage__mags" src="/assets/img/mags-watch.webp" width="308" height="400" alt="">
+      <div class="stage__ctl" data-stage-ctl hidden>
+        <button type="button" data-stage-toggle aria-pressed="false">{{ icon('pause') }}<span>{{ t.demo.pause }}</span></button>
+      </div>
+    </figure>
+  </div>
+</section>
+
+<section class="section" id="how" aria-labelledby="how-title">
+  <div class="wrap">
+    <div class="head">
+      <h2 class="h2" id="how-title">{{ t.how.title }}</h2>
+      <p class="lead">{{ t.how.lead }}</p>
+    </div>
+    <ol class="steps">
+      <li class="step">
+        <div class="step__demo" aria-hidden="true">
+          <div class="fake-input">{{ icon('link') }}<span>vinted.fr/catalog?search_text=levi's 501&amp;size_ids[]=…</span></div>
+          <div class="read">
+            <span class="pill">vinted.fr</span><span class="pill">levi's 501</span><span class="pill">W31</span><span class="pill">{{ t.how.pill_price }}</span>
+          </div>
+          <div class="okline">{{ icon('circle-check-big') }}{{ t.how.okline }}</div>
+        </div>
+        <div class="step__text">
+          <p class="step__when">{{ t.how.steps[0].when }}</p>
+          <h3 class="h3">{{ t.how.steps[0].title }}</h3>
+          <p>{{ t.how.steps[0].text }}</p>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step__demo" aria-hidden="true">
+          {%- set channels = [('discord', 'message-circle', 'Discord'), ('telegram', 'send', 'Telegram'), ('ntfy', 'smartphone', t.how.dest_phone)] %}
+          {%- if lang == 'it' %}{% set channels = [channels[1], channels[0], channels[2]] %}{% endif %}
+          {%- for key, ic, label in channels %}
+          <div class="dest{% if loop.first %} is-on{% endif %}"><span class="dest__icon bg-{{ key }}"><svg class="i"><use href="{{ icons }}#i-{{ ic }}"></use></svg></span>{{ label }}<span class="dest__tick">{% if loop.first %}<svg class="i"><use href="{{ icons }}#i-check"></use></svg>{% endif %}</span></div>
+          {%- endfor %}
+        </div>
+        <div class="step__text">
+          <p class="step__when">{{ t.how.steps[1].when }}</p>
+          <h3 class="h3">{{ t.how.steps[1].title }}</h3>
+          <p>{{ t.how.steps[1].text }}</p>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step__demo" aria-hidden="true">
+          <div class="mini-push"><img src="/assets/img/icon-96.webp" width="34" height="34" alt=""><div><b>{{ t.demo.match }} · {{ demo[0].search }}</b><span>{{ demo[0].title }} · {{ demo[0].total }}</span></div></div>
+          <div class="mini-push mini-push--faint"><img src="/assets/img/icon-96.webp" width="34" height="34" alt=""><div><b>{{ t.demo.match }} · {{ demo[1].search }}</b><span>{{ demo[1].title }} · {{ demo[1].total }}</span></div></div>
+        </div>
+        <div class="step__text">
+          <p class="step__when">{{ t.how.steps[2].when }}</p>
+          <h3 class="h3">{{ t.how.steps[2].title }}</h3>
+          <p>{{ t.how.steps[2].text }}</p>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="section" id="compare" aria-labelledby="compare-title">
+  <div class="wrap">
+    <div class="head">
+      <h2 class="h2" id="compare-title">{{ t.compare.title }}</h2>
+      <p class="lead">{{ t.compare.lead }}</p>
+    </div>
+    <div class="compare-wrap">
+      <table class="compare">
+        <thead>
+          <tr><th scope="col"><span class="sr-only">{{ t.compare.col_question }}</span></th><th scope="col" class="is-us">vinted-sniper</th><th scope="col">{{ t.compare.col_paid }}</th></tr>
+        </thead>
+        <tbody>
+          {%- for row in t.compare.rows %}
+          <tr><th scope="row">{{ row.q }}</th><td class="is-us" data-label="vinted-sniper">{% if row.yes %}<svg class="i yes" aria-hidden="true"><use href="{{ icons }}#i-check"></use></svg>{% endif %}{{ row.us }}</td><td data-label="{{ t.compare.label_paid|a }}">{{ row.them }}</td></tr>
+          {%- endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="compare-note">{{ icon('triangle-alert') }}<span>{{ t.compare.win }}</span></p>
+  </div>
+</section>
+
+<section class="section" id="alerts" aria-labelledby="alerts-title">
+  <div class="wrap">
+    <div class="head">
+      <h2 class="h2" id="alerts-title">{{ t.alerts.title }}</h2>
+      <p class="lead">{{ t.alerts.lead }}</p>
+    </div>
+    {%- set A = t.alerts %}
+    {%- set order = ['telegram', 'discord'] if lang == 'it' else ['discord', 'telegram'] %}
+    <div class="field field--lilac">
+      <div class="alerts">
+      {%- for which in order %}
+      {%- if which == 'discord' %}
+        <div class="alerts__col">
+          <p class="alerts__label"><span class="dest__icon bg-discord" aria-hidden="true"><svg class="i"><use href="{{ icons }}#i-message-circle"></use></svg></span>{{ A.in_discord }}</p>
+          <div class="dc" role="img" aria-label="{{ A.dc_aria|a }}">
+            <img class="dc__avatar" src="/assets/img/icon-96.webp" width="40" height="40" alt="" loading="lazy">
+            <div>
+              <div class="dc__head"><span class="dc__name">vinted-sniper</span><span class="dc__tag">APP</span><span class="dc__time">{{ A.dc_time }}</span></div>
+              <div class="dc__box">
+                <div class="dc__sub">{{ A.sub_match }} <i class="flag"></i> {{ A.sub_listed }}</div>
+                <div class="dc__h3"><a href="#alerts" tabindex="-1">{{ A.item_title }}</a></div>
+                <div class="dc__gallery">
+                  <img src="/assets/img/demo/alert-straight-leg-jeans.webp" width="320" height="480" alt="" loading="lazy">
+                  <img src="/assets/img/demo/alert-straight-leg-jeans-2.webp" width="320" height="480" alt="" loading="lazy">
+                  <img src="/assets/img/demo/alert-straight-leg-jeans-3.webp" width="320" height="480" alt="" loading="lazy">
+                </div>
+                <div>
+                  <div class="dc__price"><b>{{ A.price }}</b><code>{{ A.deal }}</code></div>
+                  <div class="dc__sub">{{ A.price_sub }}</div>
+                </div>
+                <div class="dc__hr"></div>
+                <div class="dc__facts"><strong>{{ A.f_size }}</strong> W31 L32 · <strong>{{ A.f_condition }}</strong> {{ A.condition }} · <strong>{{ A.f_brand }}</strong> Levi's<br><strong>{{ A.f_seller }}</strong> <a href="#alerts" tabindex="-1">denimdrawer</a> · <span class="star">★</span> 4.9 (128) · ♥ 7</div>
+                <div class="dc__btns">
+                  <span class="dc__btn">{{ A.buy }}<svg class="i"><use href="{{ icons }}#i-external-link"></use></svg></span>
+                  <span class="dc__btn">{{ A.message }}<svg class="i"><use href="{{ icons }}#i-external-link"></use></svg></span>
+                  <span class="dc__btn">{{ A.open }}<svg class="i"><use href="{{ icons }}#i-external-link"></use></svg></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      {%- else %}
+        <div class="alerts__col">
+          <p class="alerts__label"><span class="dest__icon bg-telegram" aria-hidden="true"><svg class="i"><use href="{{ icons }}#i-send"></use></svg></span>{{ A.in_telegram }}</p>
+          <div class="tg" role="img" aria-label="{{ A.tg_aria|a }}">
+            <div class="tg__bubble">
+              <img class="tg__photo" src="/assets/img/demo/alert-straight-leg-jeans.webp" width="320" height="480" alt="" loading="lazy">
+              <div class="tg__cap">
+                <div><b>{{ A.price }}</b>&nbsp; <i>{{ A.deal }}</i></div>
+                <div><b><a href="#alerts" tabindex="-1">{{ A.item_title }}</a></b></div>
+                <div>W31 L32 · {{ A.condition }} · Levi's</div>
+                <div>denimdrawer&nbsp; <span class="star">★</span> 4.9 (128)</div>
+                <div><i class="flag"></i> {{ A.tg_age }}</div>
+                <div class="tg__quote">{{ A.price_sub }}</div>
+                <div><i>{{ A.search }}</i></div>
+                <span class="tg__time">14:02</span>
+              </div>
+            </div>
+            <div class="tg__kb">
+              <span class="tg__key tg__key--success">{{ A.buy }}</span><span class="tg__key">{{ A.message }}</span>
+              <span class="tg__key tg__key--primary tg__key--wide">{{ A.open }}</span>
+            </div>
+          </div>
+        </div>
+      {%- endif %}
+      {%- endfor %}
+      </div>
+      <div class="alerts__foot">
+        <img class="alerts__mags" src="/assets/img/mags-alert.webp" width="356" height="400" alt="" loading="lazy">
+        <span>{{ A.also }}</span>
+        {%- for ic, label in [('smartphone', A.pills[0]), ('mail', A.pills[1]), ('sparkles', A.pills[2]), ('link', A.pills[3])] %}
+        <span class="pill">{{ icon(ic) }}{{ label }}</span>
+        {%- endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="health" aria-labelledby="health-title">
+  <div class="wrap">
+    <div class="field field--deep health">
+      <div class="health__text">
+        <h2 class="h2" id="health-title">{{ t.health.title }}</h2>
+        <p class="lead">{{ t.health.lead }}</p>
+        <p class="health__quote">{{ t.health.quote }}</p>
+        <img class="health__mags" src="/assets/img/mags-worried.webp" width="309" height="400" alt="" loading="lazy">
+      </div>
+      <div class="status-card" role="group" aria-label="{{ t.health.card_aria|a }}">
+        <div class="status-card__head"><b>{{ t.health.card_title }}</b><span>{{ t.health.card_last }}</span></div>
+        {%- for row, sc, st in zip(t.health.rows, [1, 4, 5, 7], ['watching', 'quiet', 'stuck', 'blocked']) %}
+        <div class="srow" style="--sc: var(--s-{{ sc }})"><i class="srow__bar"></i><div><div class="srow__name">{{ row.name }}</div><div class="srow__state"><span class="status status--{{ st }}">{{ row.status }}</span><span>{{ row.text }}</span></div></div></div>
+        {%- endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="features" aria-labelledby="features-title">
+  <div class="wrap">
+    <div class="head">
+      <h2 class="h2" id="features-title">{{ t.features.title }}</h2>
+      <p class="lead">{{ t.features.lead }}</p>
+    </div>
+    <ul class="features">
+      {%- for item, ic in zip(t.features.items, ['shield-check', 'heart-pulse', 'lock', 'trending-down', 'filter', 'user-x', 'moon', 'eye', 'globe', 'send', 'layout-grid', 'circle-help']) %}
+      <li class="feature"><span class="feature__icon" aria-hidden="true"><svg class="i"><use href="{{ icons }}#i-{{ ic }}"></use></svg></span><div><h3>{{ item.title }}</h3><p>{{ item.text }}</p></div></li>
+      {%- endfor %}
+    </ul>
+  </div>
+</section>
+
+<section class="section" id="screens" aria-labelledby="screens-title">
+  <div class="wrap">
+    <div class="head">
+      <h2 class="h2" id="screens-title">{{ t.screens.title }}</h2>
+      <p class="lead">{{ t.screens.lead }}</p>
+    </div>
+    {%- set shots = [
+      ('finds', 'localhost:8000', true, true),
+      ('searches', 'localhost:8000/searches', false, true),
+      ('health', 'localhost:8000/searches/1', false, false),
+      ('editor', 'localhost:8000/searches/1/edit', true, true),
+      ('places', 'localhost:8000/alerts', true, true),
+    ] %}
+    <div class="tabs" role="tablist" aria-label="{{ t.screens.tabs_aria|a }}" data-tabs="screens">
+      {%- for key, url, mdark, dark in shots %}
+      <button role="tab" id="tab-{{ key }}" aria-controls="panel-{{ key }}" aria-selected="{{ 'true' if loop.first else 'false' }}"{% if not loop.first %} tabindex="-1"{% endif %}>{{ t.screens.tabs[loop.index0].label }}</button>
+      {%- endfor %}
+    </div>
+    {%- for key, url, mdark, dark in shots %}
+    {%- set file = 'alerts' if key == 'places' else key %}
+    <div class="screens__panel" role="tabpanel" id="panel-{{ key }}" aria-labelledby="tab-{{ key }}" tabindex="0"{% if not loop.first %} hidden{% endif %}>
+      <div class="window">
+        <div class="window__bar" aria-hidden="true"><span class="window__dots"><i></i><i></i><i></i></span><span class="window__url">{{ url }}</span></div>
+        <picture>{% if mdark %}<source media="(max-width: 620px) and (prefers-color-scheme: dark)" srcset="/assets/shots/{{ file }}-m-dark.webp" width="780" height="1440">{% endif %}<source media="(max-width: 620px)" srcset="/assets/shots/{{ file }}-m.webp" width="780" height="1440">{% if dark %}<source media="(prefers-color-scheme: dark)" srcset="/assets/shots/{{ file }}-dark.webp">{% endif %}<img src="/assets/shots/{{ file }}.webp" width="1280" height="800" loading="lazy" decoding="async" alt="{{ t.screens.tabs[loop.index0].alt|a }}"></picture>
+      </div>
+      <p class="screens__cap">{{ t.screens.tabs[loop.index0].cap }}</p>
+    </div>
+    {%- endfor %}
+    {%- if lang != 'en' %}
+    <p class="fine screens__note">{{ t.screens.note }}</p>
+    {%- endif %}
+  </div>
+</section>
+
+<section class="section" id="install" aria-labelledby="install-title">
+  <div class="wrap">
+    <div class="head">
+      <h2 class="h2" id="install-title">{{ t.install.title }}</h2>
+      <p class="lead">{{ t.install.lead }}</p>
+    </div>
+    {%- set I = t.install %}
+    {%- set PS = 'powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.ps1 | iex"' %}
+    {%- set PS_RM = "powershell -ExecutionPolicy ByPass -c '$env:VINTED_SNIPER_UNINSTALL=1; irm https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.ps1 | iex'" %}
+    {%- set SH = 'curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.sh | sh' %}
+    {%- set SH_RM = 'curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.sh | sh -s -- --uninstall' %}
+    <div class="install">
+      <div class="tabs" role="tablist" aria-label="{{ I.tabs_aria|a }}" data-tabs="os">
+        <button role="tab" id="tab-win" aria-controls="os-win" aria-selected="true" data-os="windows">{{ icon('monitor') }}{{ I.os_windows }}</button>
+        <button role="tab" id="tab-mac" aria-controls="os-mac" aria-selected="false" tabindex="-1" data-os="mac">{{ icon('laptop') }}{{ I.os_mac }}</button>
+        <button role="tab" id="tab-linux" aria-controls="os-linux" aria-selected="false" tabindex="-1" data-os="linux">{{ icon('server') }}{{ I.os_linux }}</button>
+        <button role="tab" id="tab-docker" aria-controls="os-docker" aria-selected="false" tabindex="-1" data-os="docker">{{ icon('package') }}{{ I.os_docker }}</button>
+        <button role="tab" id="tab-nas" aria-controls="os-nas" aria-selected="false" tabindex="-1" data-os="nas">{{ icon('server') }}{{ I.os_nas }}</button>
+      </div>
+
+      <div class="install__panel" role="tabpanel" id="os-win" aria-labelledby="tab-win" tabindex="0">
+        <ol>
+          <li><p>{{ I.win_1 }}</p></li>
+          <li><p>{{ I.paste }}</p>
+            {{ code(PS) }}</li>
+          <li><p>{{ I.win_3 }}</p></li>
+          <li><p>{{ I.win_4 }}</p></li>
+        </ol>
+        <p class="fine">{{ I.win_fine }}</p>
+        <details class="more"><summary>{{ I.update_summary }}</summary>
+          <p>{{ I.update_text }}</p>
+          {{ code(PS_RM) }}
+        </details>
+      </div>
+
+      <div class="install__panel" role="tabpanel" id="os-mac" aria-labelledby="tab-mac" tabindex="0" hidden>
+        <ol>
+          <li><p>{{ I.mac_1 }}</p></li>
+          <li><p>{{ I.paste }}</p>
+            {{ code(SH) }}</li>
+          <li><p>{{ I.mac_3 }}</p></li>
+          <li><p>{{ I.open_dashboard }}</p></li>
+        </ol>
+        <details class="more"><summary>{{ I.update_summary }}</summary>
+          <p>{{ I.update_text }}</p>
+          {{ code(SH_RM) }}
+        </details>
+      </div>
+
+      <div class="install__panel" role="tabpanel" id="os-linux" aria-labelledby="tab-linux" tabindex="0" hidden>
+        <ol>
+          <li><p>{{ I.linux_1 }}</p>
+            {{ code(SH) }}</li>
+          <li><p>{{ I.linux_2 }}</p>
+            {{ code('sudo loginctl enable-linger $USER') }}</li>
+          <li><p>{{ I.linux_3 }}</p>
+            {{ code('ssh -L 8000:localhost:8000 pi@raspberrypi.local') }}</li>
+        </ol>
+        <p class="fine">{{ I.python_fine }}</p>
+        <details class="more"><summary>{{ I.update_summary }}</summary>
+          <p>{{ I.update_text }}</p>
+          {{ code(SH_RM) }}
+        </details>
+      </div>
+
+      <div class="install__panel" role="tabpanel" id="os-docker" aria-labelledby="tab-docker" tabindex="0" hidden>
+        <ol>
+          <li><p>{{ I.docker_1 }}</p>
+            <div class="code"><pre><code>mkdir vinted-sniper &amp;&amp; cd vinted-sniper
+curl -O https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docker-compose.yml
+docker compose up -d</code></pre>{{ copybtn() }}</div></li>
+          <li><p>{{ I.docker_2 }}</p></li>
+        </ol>
+        <p class="fine">{{ I.docker_fine }}</p>
+      </div>
+
+      <div class="install__panel" role="tabpanel" id="os-nas" aria-labelledby="tab-nas" tabindex="0" hidden>
+        <ol>
+          <li><p>{{ I.nas_unraid }}</p></li>
+          <li><p>{{ I.nas_umbrel }}</p></li>
+          <li><p>{{ I.nas_casa }}</p>
+            {{ code('https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/deploy/casaos/docker-compose.yml') }}</li>
+          <li><p>{{ I.nas_synology }}</p></li>
+        </ol>
+        <p class="fine">{{ I.nas_fine }}</p>
+      </div>
+
+      <div class="install__aside">
+        <div class="text">
+          <h3 class="h3">{{ I.aside_title }}</h3>
+          <p>{{ I.aside_text }}</p>
+          <p class="fine">{{ I.aside_fine }}</p>
+        </div>
+        <img src="/assets/img/mags-sleep.webp" width="420" height="240" alt="" loading="lazy">
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="ai" aria-labelledby="ai-title">
+  <div class="wrap">
+    <div class="field field--sun ai">
+      <div class="ai__text">
+        <h2 class="h2" id="ai-title">{{ t.ai.title }}</h2>
+        <p class="lead" style="color: var(--field-ink)">{{ t.ai.lead }}</p>
+        <img class="ai__mags" src="/assets/img/mags-think.webp" width="297" height="400" alt="" loading="lazy">
+      </div>
+      <div>
+        <div class="prompt">
+          <pre id="ai-prompt" tabindex="0" aria-label="{{ t.ai.prompt_aria|a }}">{{ t.ai.prompt }}</pre>
+          <div class="prompt__foot">
+            <button class="copy" type="button" data-copy="#ai-prompt">{{ icon('copy') }}<span>{{ t.ai.copy_prompt }}</span></button>
+            <a class="btn btn--secondary" href="https://claude.ai/new?q={{ t.ai.prompt|q }}" rel="noopener">{{ icon('external-link') }}{{ t.ai.open_claude }}</a>
+            <a class="btn btn--secondary" href="https://chatgpt.com/?q={{ t.ai.prompt|q }}" rel="noopener">{{ icon('external-link') }}{{ t.ai.open_chatgpt }}</a>
+          </div>
+        </div>
+        <p class="ai__fine">{{ t.ai.fine }}</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="faq" aria-labelledby="faq-title">
+  <div class="wrap faq">
+    <div class="head">
+      <h2 class="h2" id="faq-title">{{ t.faq.title }}</h2>
+      <p class="lead">{{ t.faq.lead }}</p>
+    </div>
+    <div class="faq__list">
+      {%- for item in t.faq.items %}
+      <details{% if loop.first %} open{% endif %}>
+        <summary>{{ item.q }}{{ icon('chevron-down') }}</summary>
+        <div class="faq__body">{{ item.a }}</div>
+      </details>
+      {%- endfor %}
+    </div>
+  </div>
+</section>
+
+{%- if guides %}
+<section class="section" id="guides" aria-labelledby="guides-title">
+  <div class="wrap">
+    <div class="head">
+      <h2 class="h2" id="guides-title">{{ t.guides_teaser.title }}</h2>
+      <p class="lead">{{ t.guides_teaser.lead }}</p>
+    </div>
+    <ul class="guide-list">
+      {%- for g in guides[:6] %}
+      <li class="guide-card"><a href="{{ g.path }}"><span class="guide-card__title">{{ g.title }}</span><span class="guide-card__desc">{{ g.description }}</span></a></li>
+      {%- endfor %}
+    </ul>
+    {%- if guides|length > 6 %}
+    <p><a class="link-arrow" href="{{ guides_url }}">{{ t.guides_teaser.all }}{{ icon('arrow-right') }}</a></p>
+    {%- endif %}
+  </div>
+</section>
+{%- endif %}
+
+<section class="section" aria-labelledby="closer-title">
+  <div class="wrap">
+    <div class="field field--teal closer">
+      <div class="closer__text">
+        <h2 class="h2" id="closer-title">{{ t.closer.title }}</h2>
+        <p class="lead" style="color: var(--field-ink)">{{ t.closer.lead }}</p>
+        <div class="btn-row">
+          <a class="btn btn--primary btn--lg" href="#install">{{ t.closer.cta }}</a>
+          <a class="btn btn--secondary btn--lg" href="https://github.com/jasp-nerd/vinted-sniper">{{ icon('github') }}{{ t.closer.github }}</a>
+        </div>
+      </div>
+      <img src="/assets/img/mags-cheer.webp" width="346" height="400" alt="" loading="lazy">
+    </div>
+  </div>
+</section>
+{% endblock %}

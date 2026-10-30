@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block main %}
+<article class="article">
+  <div class="wrap wrap--text">
+    {% include "_crumbs.html" %}
+    <header class="article__head">
+      <h1 class="h1 h1--page">{{ g.title }}</h1>
+      <p class="lead">{{ g.description }}</p>
+      <p class="article__meta">
+        {{ t.common.by }} <a href="{{ prefix }}about/">jasp-nerd</a> ·
+        {%- if g.updated != g.date %} {{ t.common.updated }} <time datetime="{{ g.updated }}">{{ g.updated_h }}</time> ·{% else %} <time datetime="{{ g.date }}">{{ g.date_h }}</time> ·{% endif %}
+        {{ t.common.min_read|replace('{n}', g.minutes|string) }}
+      </p>
+    </header>
+    {%- if g.toc|length >= 3 %}
+    <nav class="toc" aria-labelledby="toc-title">
+      <p class="toc__title" id="toc-title">{{ t.guides.on_this_page }}</p>
+      <ol>
+        {%- for h in g.toc %}
+        <li><a href="#{{ h.id }}">{{ h.name }}</a></li>
+        {%- endfor %}
+      </ol>
+    </nav>
+    {%- endif %}
+    <div class="prose">
+      {{ g.html }}
+    </div>
+    {%- if g.faq %}
+    <section class="article__faq faq__list" aria-labelledby="guide-faq">
+      <h2 class="h2 h2--page" id="guide-faq">{{ t.guides.faq }}</h2>
+      {%- for item in g.faq %}
+      <details{% if loop.first %} open{% endif %}>
+        <summary>{{ item.q }}<svg class="i" aria-hidden="true"><use href="{{ icons }}#i-chevron-down"></use></svg></summary>
+        <div class="faq__body"><p>{{ item.a }}</p></div>
+      </details>
+      {%- endfor %}
+    </section>
+    {%- endif %}
+    {%- if not g.has_cta %}
+    {% include "_install_cta.html" %}
+    {%- endif %}
+    {%- if related %}
+    <section class="related" aria-labelledby="related-title">
+      <h2 class="h3" id="related-title">{{ t.guides.related }}</h2>
+      <ul class="guide-list guide-list--compact">
+        {%- for r in related %}
+        <li class="guide-card"><a href="{{ r.path }}"><span class="guide-card__title">{{ r.title }}</span><span class="guide-card__desc">{{ r.description }}</span></a></li>
+        {%- endfor %}
+      </ul>
+    </section>
+    {%- endif %}
+  </div>
+</article>
+{% endblock %}

@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="{{ lang }}" class="no-js" data-icons="{{ icons }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ page.title }}</title>
+<meta name="description" content="{{ page.description }}">
+{%- if page.noindex %}
+<meta name="robots" content="noindex">
+{%- else %}
+<link rel="canonical" href="{{ page.url }}">
+{%- for alt in page.hreflang %}
+<link rel="alternate" hreflang="{{ alt.hreflang }}" href="{{ alt.url }}">
+{%- endfor %}
+{%- endif %}
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101515" media="(prefers-color-scheme: dark)">
+{%- if not page.noindex %}
+<meta property="og:type" content="{{ page.og_type or 'website' }}">
+<meta property="og:site_name" content="vinted-sniper">
+<meta property="og:url" content="{{ page.url }}">
+<meta property="og:title" content="{{ page.og_title or page.title }}">
+<meta property="og:description" content="{{ page.og_description or page.description }}">
+<meta property="og:image" content="{{ page.og_image }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="{{ t.meta.og_image_alt }}">
+<meta property="og:locale" content="{{ t.meta.locale }}">
+{%- for loc in page.og_locale_alternates %}
+<meta property="og:locale:alternate" content="{{ loc }}">
+{%- endfor %}
+{%- if page.article %}
+<meta property="article:published_time" content="{{ page.article.date }}">
+<meta property="article:modified_time" content="{{ page.article.updated }}">
+{%- endif %}
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ page.og_title or page.title }}">
+<meta name="twitter:description" content="{{ page.og_description or page.description }}">
+<meta name="twitter:image" content="{{ page.og_image }}">
+{%- endif %}
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preload" href="{{ asset('fonts/Gabarito-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="{{ asset('css/site.css') }}">
+<script>document.documentElement.classList.replace('no-js', 'js');</script>
+{%- if page.jsonld %}
+<script type="application/ld+json">{{ page.jsonld }}</script>
+{%- endif %}
+</head>
+<body>
+<a class="skip" href="#main">{{ t.common.skip }}</a>
+
+<header class="nav" data-nav>
+  <div class="wrap nav__row">
+    <a class="brand" href="{{ prefix }}" aria-label="{{ t.common.home_aria|a }}">
+      <img src="/assets/img/icon-96.webp" width="34" height="34" alt="">
+      <span>vinted-sniper</span>
+    </a>
+    <nav aria-label="{{ t.common.nav_aria|a }}">
+      <ul class="nav__links">
+        <li><a href="{{ home_anchor }}#how">{{ t.common.nav_how }}</a></li>
+        <li><a href="{{ home_anchor }}#compare">{{ t.common.nav_compare }}</a></li>
+        <li><a href="{{ home_anchor }}#faq">{{ t.common.nav_faq }}</a></li>
+        {%- if guides_url %}
+        <li><a href="{{ guides_url }}"{% if page.section == 'guides' %} aria-current="page"{% endif %}>{{ t.common.nav_guides }}</a></li>
+        {%- endif %}
+      </ul>
+    </nav>
+    <div class="nav__end">
+      <details class="lang" data-lang>
+        <summary aria-label="{{ t.common.language|a }}: {{ t.meta.name|a }}"><svg class="i" aria-hidden="true"><use href="{{ icons }}#i-globe"></use></svg><span>{{ lang|upper }}</span></summary>
+        <ul class="lang__menu">
+          {%- for l in switcher %}
+          <li><a href="{{ l.href }}" hreflang="{{ l.lang }}" lang="{{ l.lang }}"{% if l.current %} aria-current="true"{% endif %}>{{ l.name }}</a></li>
+          {%- endfor %}
+        </ul>
+      </details>
+      <a class="btn btn--ghost nav__gh" href="https://github.com/jasp-nerd/vinted-sniper" aria-label="{{ t.common.github_aria|a }}"><svg class="i" aria-hidden="true"><use href="{{ icons }}#i-github"></use></svg></a>
+      <a class="btn btn--primary btn--sm" href="{{ home_anchor }}#install">{{ t.common.install }}</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+{% block main %}{% endblock %}
+</main>
+
+<footer class="footer">
+  <div class="wrap footer__grid">
+    <div class="footer__legal">
+      <a class="brand" href="{{ prefix }}"><img src="/assets/img/icon-96.webp" width="34" height="34" alt="" loading="lazy"><span>vinted-sniper</span></a>
+      <p>{{ t.footer.legal_1 }}</p>
+      <p>{{ t.footer.legal_2 }}</p>
+    </div>
+    <div>
+      <h2>{{ t.footer.project }}</h2>
+      <ul>
+        <li><a href="https://github.com/jasp-nerd/vinted-sniper">{{ t.footer.source }}</a></li>
+        <li><a href="/changelog/"{% if lang != 'en' %} hreflang="en"{% endif %}>{{ t.footer.changelog }}</a>{% if lang != 'en' %} <span class="muted">(EN)</span>{% endif %}</li>
+        <li><a href="{{ prefix }}about/">{{ t.footer.about }}</a></li>
+        <li><a href="https://github.com/jasp-nerd/vinted-sniper/issues">{{ t.footer.report }}</a></li>
+        <li><a href="/llms.txt">{{ t.footer.llms }}</a></li>
+      </ul>
+    </div>
+    <div>
+      <h2>{{ t.footer.help }}</h2>
+      <ul>
+        {%- if guides_url %}
+        <li><a href="{{ guides_url }}">{{ t.footer.guides }}</a></li>
+        {%- endif %}
+        <li><a href="/docs/troubleshooting/"{% if lang != 'en' %} hreflang="en"{% endif %}>{{ t.footer.troubleshooting }}</a>{% if lang != 'en' %} <span class="muted">(EN)</span>{% endif %}</li>
+        <li><a href="/docs/self-hosting/"{% if lang != 'en' %} hreflang="en"{% endif %}>{{ t.footer.self_hosting }}</a>{% if lang != 'en' %} <span class="muted">(EN)</span>{% endif %}</li>
+        <li><a href="/docs/legal/"{% if lang != 'en' %} hreflang="en"{% endif %}>{{ t.footer.legal }}</a>{% if lang != 'en' %} <span class="muted">(EN)</span>{% endif %}</li>
+      </ul>
+    </div>
+    <div>
+      <h2>{{ t.common.language }}</h2>
+      <ul>
+        {%- for l in switcher %}
+        <li><a href="{{ l.href }}" hreflang="{{ l.lang }}" lang="{{ l.lang }}"{% if l.current %} aria-current="true"{% endif %}>{{ l.name }}</a></li>
+        {%- endfor %}
+      </ul>
+    </div>
+  </div>
+</footer>
+
+{%- if page.i18n_json %}
+<script type="application/json" id="site-i18n">{{ page.i18n_json }}</script>
+{%- endif %}
+<script src="{{ asset('js/site.js') }}" defer></script>
+</body>
+</html>
