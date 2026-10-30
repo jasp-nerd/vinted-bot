@@ -1,0 +1,28 @@
+# documentation: https://github.com/jasp-nerd/vinted-sniper
+# slogan: Alerts on Discord, Telegram and more when a new Vinted listing matches your search.
+# category: monitoring
+# tags: vinted, alerts, notifications, discord, telegram, secondhand
+# logo: svgs/vinted-sniper.png
+# port: 8000
+
+# Coolify one-click template. Paste it as a Docker Compose resource in Coolify, or submit it
+# to coollabsio/coolify under templates/compose/ (with the icon in svgs/).
+
+services:
+  vinted-sniper:
+    image: ghcr.io/jasp-nerd/vinted-sniper:latest
+    volumes:
+      - vinted-sniper-data:/data
+    environment:
+      - SERVICE_URL_VINTEDSNIPER_8000
+      - VINTED_SNIPER_WEB_PUBLIC_URL=${SERVICE_URL_VINTEDSNIPER}
+      # The dashboard gets a public address here, so it gets a password. Coolify generates
+      # one and shows it under Environment Variables.
+      - VINTED_SNIPER_WEB_AUTH_TOKEN=${SERVICE_PASSWORD_64_DASHBOARD}
+      - TZ=${TZ:-Europe/Paris}
+    healthcheck:
+      test: ["CMD", "vinted-sniper", "heartbeat"]
+      interval: 60s
+      timeout: 10s
+      start_period: 45s
+      retries: 3
