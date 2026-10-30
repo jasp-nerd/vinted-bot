@@ -173,24 +173,43 @@ function Test-VsPortInUse([string]$Port) {
 # with no window, writing everything it prints to the log, and keeps that log from growing
 # without limit. cmd.exe does the log redirection because it writes the text as-is, where
 # Windows PowerShell 5.1 would turn it into UTF-16.
-function Write-VsLauncher($S, [string]$Exe) {
+#
+# It also stays, hidden, for as long as the app runs, because of updates. The app cannot
+# replace its own files while it runs (Windows locks them), so when the dashboard's Update
+# button is pressed the app exits with code 75 and the launcher runs the upgrade with
+# nothing running, then starts it again. Any other exit, or a 75 within ten seconds of
+# starting, ends the launcher too, so a broken start can never loop.
+function Write-VsLauncher($S, [string]$Exe, [string]$Uv) {
     $exeQ = ConvertTo-VsLiteral $Exe
+    $uvQ = ConvertTo-VsLiteral $Uv
     $dirQ = ConvertTo-VsLiteral $S.DataDir
     $dbQ = ConvertTo-VsLiteral $S.DbPath
     $logQ = ConvertTo-VsLiteral $S.LogPath
     $portQ = ConvertTo-VsLiteral $S.Port
     $content = @"
-# Starts vinted-sniper in the background. Written by install.ps1; run by the shortcut in
-# your Startup folder when you sign in. Running the installer again rewrites this file.
+# Starts vinted-sniper in the background, and again after an update. Written by
+# install.ps1; run by the shortcut in your Startup folder when you sign in. Running the
+# installer again rewrites this file.
 `$exe = $exeQ
+`$uv = $uvQ
 `$log = $logQ
 `$env:VINTED_SNIPER_DB_PATH = $dbQ
 `$env:VINTED_SNIPER_WEB_PORT = $portQ
+`$env:VINTED_SNIPER_SUPERVISED = 'windows-launcher'
 if ((Test-Path -LiteralPath `$log) -and ((Get-Item -LiteralPath `$log).Length -gt 5MB)) {
     Move-Item -LiteralPath `$log -Destination "`$log.old" -Force
 }
 `$command = '/d /s /c ""' + `$exe + '" run >> "' + `$log + '" 2>&1"'
-Start-Process -FilePath `$env:ComSpec -ArgumentList `$command -WorkingDirectory $dirQ -WindowStyle Hidden
+`$upgrade = '/d /s /c ""' + `$uv + '" tool upgrade vinted-sniper --no-progress --color never >> "' + `$log + '" 2>&1"'
+while (`$true) {
+    `$started = Get-Date
+    `$app = Start-Process -FilePath `$env:ComSpec -ArgumentList `$command -WorkingDirectory $dirQ -WindowStyle Hidden -PassThru
+    # Reading the handle now is what keeps ExitCode readable after it exits (PowerShell 5.1).
+    `$null = `$app.Handle
+    `$app.WaitForExit()
+    if (`$app.ExitCode -ne 75 -or ((Get-Date) - `$started).TotalSeconds -lt 10) { break }
+    Start-Process -FilePath `$env:ComSpec -ArgumentList `$upgrade -WorkingDirectory $dirQ -WindowStyle Hidden -Wait
+}
 "@
     # UTF-8 with a byte order mark: the only way Windows PowerShell 5.1 reads a non-ASCII
     # user name in these paths correctly.
@@ -292,7 +311,7 @@ function Install-VsApp($S, [string]$AutostartSetting, [bool]$OpenBrowser) {
         throw "Port $($S.Port) is taken."
     }
 
-    Write-VsLauncher $S $exe
+    Write-VsLauncher $S $exe $uv
     $autostarted = Test-VsWantAutostart $AutostartSetting
     if ($autostarted) {
         New-VsStartupShortcut $S
@@ -322,7 +341,7 @@ function Install-VsApp($S, [string]$AutostartSetting, [bool]$OpenBrowser) {
     Write-Host 'a Vinted search. Alerts arrive while this PC is on, awake and online: in Settings,'
     Write-Host 'System, Power, set "Make my device sleep" to Never while plugged in.'
     Write-Host ''
-    Write-Host '  Update:        run the install command again'
+    Write-Host "  Update:        the dashboard's Update button, or run the install command again"
     if (-not $autostarted) {
         Write-Host '  Start again:   run the install command again (after a restart, for example)'
     }
