@@ -1,10 +1,10 @@
 <div align="center">
 
-[English](README.md) · **Français**
+[English](https://github.com/jasp-nerd/vinted-sniper/blob/main/README.md) · **Français**
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/media/banner-dark.png">
-  <img src="docs/media/banner.png" alt="vinted-sniper : des alertes pour vos recherches Vinted" width="820">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/817aafe56c2093f4b45c8d4492f258ce06a569d3/docs/media/banner-dark.png">
+  <img src="https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/817aafe56c2093f4b45c8d4492f258ce06a569d3/docs/media/banner.png" alt="vinted-sniper : des alertes pour vos recherches Vinted" width="820">
 </picture>
 
 ### Vinted ne vous prévient pas quand votre recherche enregistrée a du nouveau. Cet outil, si.
@@ -16,11 +16,11 @@ et le prix que vous paierez vraiment dès qu'une nouvelle annonce apparaît. Gra
 [![Version](https://img.shields.io/github/v/release/jasp-nerd/vinted-sniper?color=007782&label=version)](https://github.com/jasp-nerd/vinted-sniper/releases)
 [![Image du conteneur](https://img.shields.io/badge/ghcr.io-vinted--sniper-2496ED?logo=docker&logoColor=white)](https://github.com/jasp-nerd/vinted-sniper/pkgs/container/vinted-sniper)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![MIT](https://img.shields.io/badge/licence-MIT-green)](LICENSE)
+[![MIT](https://img.shields.io/badge/licence-MIT-green)](https://github.com/jasp-nerd/vinted-sniper/blob/main/LICENSE)
 
 **[Installer](#installer)** · **[Se faire aider par une IA](#se-faire-guider-par-une-ia)** · [Site web](https://vinted-sniper.jaspnerd.dev) · [Documentation](#documentation) · [Signaler un problème](https://github.com/jasp-nerd/vinted-sniper/issues/new/choose)
 
-<img src="docs/media/dashboard.png" width="820" alt="Le tableau de bord : un bandeau qui montre les recherches surveillées et l'état de chacune, puis les nouvelles trouvailles en fiches photo avec le prix frais compris, les badges de bonne affaire et la recherche qui les a trouvées">
+<img src="https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/817aafe56c2093f4b45c8d4492f258ce06a569d3/docs/media/dashboard.png" width="820" alt="Le tableau de bord : un bandeau qui montre les recherches surveillées et l'état de chacune, puis les nouvelles trouvailles en fiches photo avec le prix frais compris, les badges de bonne affaire et la recherche qui les a trouvées">
 
 </div>
 
@@ -74,7 +74,7 @@ La même commande fonctionne sur tout Linux et sur un Raspberry Pi sous Raspberr
 curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.sh | sh
 ```
 
-Vous préférez lire un script avant de le lancer ? Téléchargez d'abord [install.sh](install.sh) ou [install.ps1](install.ps1) ; chacun explique ses étapes en tête de fichier.
+Vous préférez lire un script avant de le lancer ? Téléchargez d'abord [install.sh](https://github.com/jasp-nerd/vinted-sniper/blob/main/install.sh) ou [install.ps1](https://github.com/jasp-nerd/vinted-sniper/blob/main/install.ps1) ; chacun explique ses étapes en tête de fichier.
 
 ### Docker
 
@@ -88,11 +88,11 @@ Ouvrez ensuite http://localhost:8000. Les images tournent sur x86 et ARM. Dans W
 
 ### NAS
 
-Unraid, Umbrel, CasaOS, Synology et Portainer acceptent chacun un modèle prêt à l'emploi ou le fichier compose : voir [On a NAS](docs/self-hosting.md#on-a-nas) (en anglais).
+Unraid, Umbrel, CasaOS, Synology et Portainer acceptent chacun un modèle prêt à l'emploi ou le fichier compose : voir [On a NAS](https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/self-hosting.md#on-a-nas) (en anglais).
 
 ### Cloud
 
-Un petit serveur loué ou une plateforme comme Render ou Railway fonctionne, mais aucun n'est gratuit dès qu'il doit rester allumé. Vinted refuse certaines adresses de centres de données, alors [lisez ceci d'abord](docs/self-hosting.md#on-a-vps-or-a-cloud-host) (en anglais).
+Un petit serveur loué ou une plateforme comme Render ou Railway fonctionne, mais aucun n'est gratuit dès qu'il doit rester allumé. Vinted refuse certaines adresses de centres de données, alors [lisez ceci d'abord](https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/self-hosting.md#on-a-vps-or-a-cloud-host) (en anglais).
 
 ## Se faire guider par une IA
 
@@ -172,9 +172,9 @@ Ou ouvrez-le directement : **[Ouvrir dans Claude](https://claude.ai/new?q=Aide-m
 
 <table>
 <tr>
-<td align="center" valign="top"><img src="docs/media/alert-discord.png" height="420" alt="Une alerte Discord pour un jean Levi's 501 : trois photos, le prix total de 23,80 € avec un badge bonne affaire à 24 % sous le prix habituel, le prix demandé plus la protection acheteurs, taille, état, marque, note du vendeur, et les boutons Buy, Message seller et Open on Vinted"><br><sub><b>Discord</b></sub></td>
-<td align="center" valign="top"><img src="docs/media/alert-telegram.png" height="420" alt="La même alerte dans Telegram : la photo, le prix total et la note de bonne affaire, le titre, la taille, l'état, la marque, la note du vendeur, le site et l'heure, avec un bouton vert Buy et un bouton bleu Open on Vinted"><br><sub><b>Telegram</b></sub></td>
-<td align="center" valign="top"><img src="docs/media/phone.png" height="420" alt="Le tableau de bord sur téléphone : les recherches surveillées, les filtres et les dernières trouvailles en fiches photo, avec une barre d'onglets en bas"><br><sub><b>Le tableau de bord sur téléphone</b></sub></td>
+<td align="center" valign="top"><img src="https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/817aafe56c2093f4b45c8d4492f258ce06a569d3/docs/media/alert-discord.png" height="420" alt="Une alerte Discord pour un jean Levi's 501 : trois photos, le prix total de 23,80 € avec un badge bonne affaire à 24 % sous le prix habituel, le prix demandé plus la protection acheteurs, taille, état, marque, note du vendeur, et les boutons Buy, Message seller et Open on Vinted"><br><sub><b>Discord</b></sub></td>
+<td align="center" valign="top"><img src="https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/817aafe56c2093f4b45c8d4492f258ce06a569d3/docs/media/alert-telegram.png" height="420" alt="La même alerte dans Telegram : la photo, le prix total et la note de bonne affaire, le titre, la taille, l'état, la marque, la note du vendeur, le site et l'heure, avec un bouton vert Buy et un bouton bleu Open on Vinted"><br><sub><b>Telegram</b></sub></td>
+<td align="center" valign="top"><img src="https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/817aafe56c2093f4b45c8d4492f258ce06a569d3/docs/media/phone.png" height="420" alt="Le tableau de bord sur téléphone : les recherches surveillées, les filtres et les dernières trouvailles en fiches photo, avec une barre d'onglets en bas"><br><sub><b>Le tableau de bord sur téléphone</b></sub></td>
 </tr>
 </table>
 
@@ -183,10 +183,10 @@ Ou ouvrez-le directement : **[Ouvrir dans Claude](https://claude.ai/new?q=Aide-m
 <details>
 <summary>Plus de captures d'écran</summary>
 <br>
-<img src="docs/media/setup.png" width="820" alt="La mise en route : une première recherche construite avec des mots, une catégorie, une marque, des tailles, un état et un prix maximum, à côté du nombre d'annonces correspondantes et de ce que chaque filtre a retiré">
+<img src="https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/817aafe56c2093f4b45c8d4492f258ce06a569d3/docs/media/setup.png" width="820" alt="La mise en route : une première recherche construite avec des mots, une catégorie, une marque, des tailles, un état et un prix maximum, à côté du nombre d'annonces correspondantes et de ce que chaque filtre a retiré">
 <br><sub>Une première recherche, avec en direct le nombre d'annonces qu'elle trouverait</sub>
 <br><br>
-<img src="docs/media/stats.png" width="820" alt="La page de statistiques : trouvailles, alertes envoyées, délai médian entre l'annonce et l'alerte, taux de livraison, trouvailles par jour, une carte des jours et des heures et la rapidité des alertes">
+<img src="https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/817aafe56c2093f4b45c8d4492f258ce06a569d3/docs/media/stats.png" width="820" alt="La page de statistiques : trouvailles, alertes envoyées, délai médian entre l'annonce et l'alerte, taux de livraison, trouvailles par jour, une carte des jours et des heures et la rapidité des alertes">
 <br><sub>Les statistiques</sub>
 </details>
 
@@ -196,7 +196,7 @@ Ou ouvrez-le directement : **[Ouvrir dans Claude](https://claude.ai/new?q=Aide-m
 - **Docker :** `docker compose pull && docker compose up -d`
 - **Magasins d'applications des NAS :** le bouton de mise à jour du magasin.
 
-Le tableau de bord vous signale une nouvelle version. Les changements de base de données s'appliquent tout seuls au démarrage. Le détail est dans le [journal des modifications](CHANGELOG.md).
+Le tableau de bord vous signale une nouvelle version. Les changements de base de données s'appliquent tout seuls au démarrage. Le détail est dans le [journal des modifications](https://github.com/jasp-nerd/vinted-sniper/blob/main/CHANGELOG.md).
 
 ## Questions fréquentes
 
@@ -204,25 +204,25 @@ Le tableau de bord vous signale une nouvelle version. Les changements de base de
 
 **C'est vraiment gratuit ?** Oui. Licence MIT, pas d'offre payante, pas d'inscription. Les services d'alertes Vinted payants coûtent à partir d'environ 5 € par mois, et certains jusqu'à 300 €.
 
-**Mon ordinateur doit-il rester allumé ?** Oui. Les alertes partent de la machine où il tourne, donc elles s'arrêtent quand elle se met en veille. Un Raspberry Pi, un NAS ou un vieux portable branché en permanence règle la question : voir [le guide d'hébergement](docs/self-hosting.md) (en anglais).
+**Mon ordinateur doit-il rester allumé ?** Oui. Les alertes partent de la machine où il tourne, donc elles s'arrêtent quand elle se met en veille. Un Raspberry Pi, un NAS ou un vieux portable branché en permanence règle la question : voir [le guide d'hébergement](https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/self-hosting.md) (en anglais).
 
 **Pourquoi ce n'est pas instantané ?** Vinted ajoute les nouvelles annonces à sa recherche quelques minutes après leur mise en ligne, donc tout outil qui lit la recherche, payant ou gratuit, les voit à ce moment-là. Vérifier plus souvent n'y change rien. C'est assez rapide pour les collectionneurs et ceux qui cherchent une taille précise, pas pour rivaliser avec les robots d'achat automatique.
 
-**Est-ce autorisé ?** Les conditions de Vinted interdisent l'accès automatisé : à vous de juger. L'outil lit des annonces publiques comme un visiteur non connecté, sans se presser. Plus de détails dans [docs/legal.md](docs/legal.md) (en anglais).
+**Est-ce autorisé ?** Les conditions de Vinted interdisent l'accès automatisé : à vous de juger. L'outil lit des annonces publiques comme un visiteur non connecté, sans se presser. Plus de détails dans [docs/legal.md](https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/legal.md) (en anglais).
 
 ## Documentation
 
 En anglais :
 
-- [Running it somewhere](docs/self-hosting.md) : votre ordinateur, un Raspberry Pi, Docker, un NAS, un serveur dans le cloud, sauvegardes et mises à jour.
-- [Configuration](docs/configuration.md) : tous les réglages, la ligne de commande, chaque type de destination et le mot de passe du tableau de bord. Rien n'est nécessaire pour démarrer.
-- [Troubleshooting](docs/troubleshooting.md) : rien n'arrive, « stale », les 403, et le test en une ligne qui montre si Vinted répond à votre connexion.
-- [How it works](docs/architecture.md) et [les règles](docs/legal.md), pour les curieux.
-- [llms.txt](llms.txt) : le guide d'installation que lit un assistant IA.
+- [Running it somewhere](https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/self-hosting.md) : votre ordinateur, un Raspberry Pi, Docker, un NAS, un serveur dans le cloud, sauvegardes et mises à jour.
+- [Configuration](https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/configuration.md) : tous les réglages, la ligne de commande, chaque type de destination et le mot de passe du tableau de bord. Rien n'est nécessaire pour démarrer.
+- [Troubleshooting](https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/troubleshooting.md) : rien n'arrive, « stale », les 403, et le test en une ligne qui montre si Vinted répond à votre connexion.
+- [How it works](https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/architecture.md) et [les règles](https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/legal.md), pour les curieux.
+- [llms.txt](https://github.com/jasp-nerd/vinted-sniper/blob/main/llms.txt) : le guide d'installation que lit un assistant IA.
 
 ## Contribuer
 
-Les rapports de bug avec le journal joint sont les plus utiles : le [formulaire](https://github.com/jasp-nerd/vinted-sniper/issues/new/choose) demande ce qu'il faut. Pour le code, voir [CONTRIBUTING.md](CONTRIBUTING.md). Les problèmes de sécurité passent par [SECURITY.md](SECURITY.md).
+Les rapports de bug avec le journal joint sont les plus utiles : le [formulaire](https://github.com/jasp-nerd/vinted-sniper/issues/new/choose) demande ce qu'il faut. Pour le code, voir [CONTRIBUTING.md](https://github.com/jasp-nerd/vinted-sniper/blob/main/CONTRIBUTING.md). Les problèmes de sécurité passent par [SECURITY.md](https://github.com/jasp-nerd/vinted-sniper/blob/main/SECURITY.md).
 
 ---
 
