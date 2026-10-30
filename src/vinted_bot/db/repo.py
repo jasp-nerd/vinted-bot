@@ -202,6 +202,8 @@ class PendingNotification:
     watch_id: int | None = None
     # What reselling it would leave, from the search's resale price; None without one.
     margin: Decimal | None = None
+    # The seller's country (ISO code), when a seller lookup has told us.
+    seller_country: str | None = None
 
     @property
     def deal_pct(self) -> int | None:
@@ -615,8 +617,17 @@ def _feed_item(row: aiosqlite.Row) -> FeedItem:
 
 
 def _pending(row: aiosqlite.Row) -> PendingNotification:
-    """A claimed outbox row, joined with its listing and search, ready to render."""
+    """A claimed outbox row, joined with its listing and search, ready to render.
+
+    The catalog stopped carrying seller ratings, so a listing's seller details come from
+    the seller cache when a lookup (for a country or rating filter) has filled it.
+    """
     item = _item_from_row(row)
+    if item.seller_rating is None and row["cached_stars"] is not None:
+        # The cache keeps stars out of five; a listing carries Vinted's 0..1 fraction.
+        item = item.model_copy(update={"seller_rating": row["cached_stars"] / 5})
+    if item.seller_feedback_count is None and row["cached_reviews"] is not None:
+        item = item.model_copy(update={"seller_feedback_count": row["cached_reviews"]})
     return PendingNotification(
         outbox_id=row["outbox_id"],
         destination_id=row["destination_id"],
@@ -639,6 +650,7 @@ def _pending(row: aiosqlite.Row) -> PendingNotification:
             fee_pct=row["resale_fee_pct"],
             shipping=_money(row["resale_shipping"]),
         ),
+        seller_country=row["known_seller_country"],
     )
 
 
@@ -1381,8 +1393,12 @@ class Repo:
                 "q.tld AS query_tld, q.resale_price, q.resale_fee_pct, q.resale_shipping, "
                 "w.label AS watch_label, qi.first_seen_at AS search_first_seen_at, "
                 "CASE WHEN o.query_id IS NULL THEN i.typical_price ELSE qi.typical_price END "
-                "AS search_typical_price, i.* FROM outbox o "
+                "AS search_typical_price, sc.rating AS cached_stars, "
+                "sc.reviews AS cached_reviews, "
+                "COALESCE(i.seller_country, sc.country) AS known_seller_country, "
+                "i.* FROM outbox o "
                 "JOIN items i ON i.item_id = o.item_id "
+                "LEFT JOIN seller_cache sc ON sc.seller_id = i.seller_id "
                 "LEFT JOIN queries q ON q.id = o.query_id "
                 "LEFT JOIN query_items qi ON qi.query_id = o.query_id AND qi.item_id = o.item_id "
                 "LEFT JOIN watches w ON w.id = o.watch_id "

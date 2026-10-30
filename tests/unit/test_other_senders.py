@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import hmac
 import sys
@@ -235,6 +236,15 @@ async def test_the_webhook_carries_the_previous_price_of_a_drop() -> None:
 
     item = recorder.payload()["items"][0]
     assert (item["kind"], item["previous_price"]) == ("price_drop", "20.00")
+
+
+async def test_the_webhook_names_the_seller_s_country_when_a_lookup_found_it() -> None:
+    recorder = Recorder()
+    with_country = dataclasses.replace(notification(1), seller_country="BE")
+
+    await hook(recorder).send([with_country])
+
+    assert recorder.payload()["items"][0]["seller_profile"]["country"] == "BE"
 
 
 async def test_webhook_prices_always_have_two_decimals() -> None:

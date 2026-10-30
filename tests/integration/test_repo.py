@@ -322,6 +322,22 @@ async def test_a_second_search_fills_in_the_seller_country(repo: Repo) -> None:
     assert entry.seller_country == "FR"
 
 
+async def test_a_notification_carries_what_a_seller_lookup_learned(repo: Repo) -> None:
+    """The catalog no longer carries ratings; the lookup for a filter did, then was dropped."""
+    query = await add(repo)
+    destination_id = await repo.add_destination(kind="ntfy", name="n", config={"topic": "t"})
+    await repo.cache_seller(
+        SellerProfile(seller_id=5, tld="fr", country_code="DE", rating=4.9, feedback_count=351)
+    )
+    await repo.record_new_items(query, [listing(1, seller_id=5)], [destination_id])
+
+    (notification,) = await repo.claim_batch(destination_id, 10)
+
+    item = notification.item
+    stars = round((item.seller_rating or 0) * 5, 1)
+    assert (stars, item.seller_feedback_count, notification.seller_country) == (4.9, 351, "DE")
+
+
 async def test_held_notifications_wait_and_do_not_expire_while_held(repo: Repo) -> None:
     query = await add(repo)
     destination_id = await repo.add_destination(kind="ntfy", name="n", config={"topic": "t"})

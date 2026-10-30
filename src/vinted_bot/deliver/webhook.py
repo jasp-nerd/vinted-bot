@@ -73,7 +73,7 @@ def item_json(notification: PendingNotification) -> dict[str, Any]:
         "deal_tier": tier_for(pct),
         "margin": _money(notification.margin),
         "favourites": item.favourite_count,
-        "seller_profile": _seller(item),
+        "seller_profile": _seller(item, notification.seller_country),
     }
 
 
@@ -96,7 +96,7 @@ def _money(amount: Any) -> str | None:
     return money_text(amount) if amount is not None else None
 
 
-def _seller(item: Item) -> dict[str, Any] | None:
+def _seller(item: Item, country: str | None) -> dict[str, Any] | None:
     if item.seller_id is None and item.seller_login is None:
         return None
     return {
@@ -106,6 +106,8 @@ def _seller(item: Item) -> dict[str, Any] | None:
         # Out of five, as people read it; seller_rating above stays Vinted's 0..1.
         "stars": round(item.seller_rating * 5, 1) if item.seller_rating is not None else None,
         "reviews": item.seller_feedback_count,
+        # ISO code, when a seller lookup has told us; None otherwise.
+        "country": country,
     }
 
 
