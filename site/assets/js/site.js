@@ -4,6 +4,20 @@
   'use strict';
 
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const FR = document.documentElement.lang === 'fr';
+  const T = FR ? {
+    copied: 'Copié', copyFail: 'Sélectionnez et copiez', copiedSr: 'Copié dans le presse-papiers',
+    copyFailSr: 'La copie a échoué. Sélectionnez le texte et copiez-le vous-même.',
+    pause: 'Mettre en pause', play: 'Relancer la démo', match: 'Nouvelle annonce',
+    fees: 'frais compris', under: (n) => `${n} % sous l'habituel`, isNew: 'Nouveau',
+    ages: ["à l'instant", 'il y a 2 min', 'il y a 4 min', 'il y a 6 min', 'il y a 9 min', 'il y a 12 min'],
+  } : {
+    copied: 'Copied', copyFail: 'Select and copy', copiedSr: 'Copied to the clipboard',
+    copyFailSr: 'Could not copy. Select the text and copy it yourself.',
+    pause: 'Pause demo', play: 'Play demo', match: 'New match',
+    fees: 'incl. fees', under: (n) => `${n}% under typical`, isNew: 'New',
+    ages: ['just now', '2 min ago', '4 min ago', '6 min ago', '9 min ago', '12 min ago'],
+  };
   const ICONS = '/assets/icons.svg';
 
   /* ───────── Sticky nav gets a hairline once you scroll ───────── */
@@ -93,9 +107,9 @@
     const label = btn.querySelector('span');
     const before = label.textContent;
     btn.classList.toggle('is-done', ok);
-    label.textContent = ok ? 'Copied' : 'Select and copy';
+    label.textContent = ok ? T.copied : T.copyFail;
     btn.querySelector('use').setAttribute('href', `${ICONS}#${ok ? 'i-check' : 'i-copy'}`);
-    status.textContent = ok ? 'Copied to the clipboard' : 'Could not copy. Select the text and copy it yourself.';
+    status.textContent = ok ? T.copiedSr : T.copyFailSr;
     clearTimeout(btn._t);
     btn._t = setTimeout(() => {
       btn.classList.remove('is-done');
@@ -127,7 +141,23 @@
     { img: 'breton-top', title: 'Striped Breton top', meta: 'Petit Bateau · S · Very good', total: '€10.15', s: 2, search: 'Coats under €60' },
     { img: 'suede-boots', title: 'Tan suede ankle boots', meta: '38 · Good', total: '€32.20', s: 3, search: 'Jackets under €40' },
   ];
-  const AGES = ['just now', '2 min ago', '4 min ago', '6 min ago', '9 min ago', '12 min ago'];
+  const AGES = T.ages;
+  // On the French page the same invented listings read as they would on vinted.fr.
+  const L_FR = [
+    ["Jean Levi's 501 coupe droite", 'W31 L32 · Très bon état', '23,80 €', 'Levi\'s à moins de 35 €'],
+    ['Long manteau en laine camel', 'Mango · 38 · Très bon état', '47,95 €', 'Manteaux à moins de 60 €'],
+    ['Coupe-vent colour block années 90', 'L · Bon état', '20,65 €', 'Vestes à moins de 40 €'],
+    ["Veste en jean Levi's", 'M · Bon état', '30,10 €', 'Levi\'s à moins de 35 €'],
+    ['Pull torsadé crème', 'M · Très bon état', '19,60 €', 'Manteaux à moins de 60 €'],
+    ['Trench beige classique', 'S · Très bon état', '40,60 €', 'Manteaux à moins de 60 €'],
+    ['Ciré jaune enfant, 104', 'Petit Bateau · Très bon état', '13,30 €', 'Cirés enfant 98 à 110'],
+    ['Bonnet côtelé moutarde', 'Neuf sans étiquette', '7,00 €', 'Manteaux à moins de 60 €'],
+    ['Perfecto en cuir noir', 'M · Bon état', '36,40 €', 'Vestes à moins de 40 €'],
+    ['Doudoune noire', 'Uniqlo · M · Très bon état', '34,30 €', 'Vestes à moins de 40 €'],
+    ['Marinière rayée', 'Petit Bateau · S · Très bon état', '10,15 €', 'Manteaux à moins de 60 €'],
+    ['Bottines en daim camel', '38 · Bon état', '32,20 €', 'Vestes à moins de 40 €'],
+  ];
+  if (FR) L.forEach((item, i) => { [item.title, item.meta, item.total, item.search] = L_FR[i]; });
   const SHOWN = 6;
   let shown = [0, 1, 2, 3, 4, 5];
   let nextIndex = 6;
@@ -146,19 +176,19 @@
     img.width = 240; img.height = 360; img.alt = '';
     media.append(img);
     const flags = el('div', 'mini__flags');
-    flags.append(el('span', 'badge badge--new', 'New'));
-    if (item.deal) flags.append(el('span', 'badge badge--deal', `${item.deal}% under typical`));
+    flags.append(el('span', 'badge badge--new', T.isNew));
+    if (item.deal) flags.append(el('span', 'badge badge--deal', T.under(item.deal)));
     media.append(flags);
     const body = el('div');
     body.append(el('div', 'mini__title', item.title), el('div', 'mini__meta', item.meta));
     const total = el('div', 'mini__total', `${item.total} `);
-    total.append(el('small', null, 'incl. fees'));
+    total.append(el('small', null, T.fees));
     const foot = el('div', 'mini__foot');
     const s = el('span');
     const dot = el('i', 'sdot');
     dot.style.setProperty('--sc', `var(--s-${item.s})`);
     s.append(dot, document.createTextNode(item.search));
-    foot.append(s, el('time', null, 'just now'));
+    foot.append(s, el('time', null, T.ages[0]));
     body.append(total, foot);
     c.append(media, body);
     return c;
@@ -175,9 +205,9 @@
     });
   }
   function showPush(item) {
-    stage.querySelector('[data-push-title]').textContent = `New match · ${item.search}`;
+    stage.querySelector('[data-push-title]').textContent = `${T.match} · ${item.search}`;
     stage.querySelector('[data-push-text]').textContent =
-      `${item.title} · ${item.total} incl. fees` + (item.deal ? ` · ${item.deal}% under typical` : '');
+      `${item.title} · ${item.total} ${T.fees}` + (item.deal ? ` · ${T.under(item.deal)}` : '');
     stage.querySelector('[data-push-img]').src = `/assets/img/demo/${item.img}.webp`;
     push.classList.remove('is-out');
   }
@@ -220,7 +250,7 @@
   toggle.addEventListener('click', () => {
     paused = !paused;
     toggle.setAttribute('aria-pressed', String(paused));
-    toggle.querySelector('span').textContent = paused ? 'Play demo' : 'Pause demo';
+    toggle.querySelector('span').textContent = paused ? T.play : T.pause;
     toggle.querySelector('use').setAttribute('href', `${ICONS}#${paused ? 'i-play' : 'i-pause'}`);
     if (paused) stop(); else { tick(); run(); }
   });
