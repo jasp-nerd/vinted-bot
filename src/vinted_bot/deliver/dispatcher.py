@@ -95,10 +95,17 @@ def skip_reason(notification: PendingNotification, config: dict[str, Any]) -> st
     """Why this destination should not get this listing, if it should not.
 
     Decided here, at delivery, rather than when the listing is found: one listing goes to
-    several destinations, and only some of them may be picky. Watch alerts (price drops,
-    sales) and a followed seller's uploads were asked for one by one, so they always pass.
+    several destinations, and only some of them may be picky.
+
+    The tiers (`tiers`, `silent_tiers`, `min_deal_pct`) are about search results only.
+    Watch alerts (price drops, sales, reservations, removals) and a followed seller's
+    uploads were asked for one by one, so a "steals only" channel still gets them; a
+    destination that wants none of them says `watch_alerts: false`, and a watch can be
+    routed to chosen destinations instead of all of them.
     """
     if notification.kind != "listing":
+        if config.get("watch_alerts") is False:
+            return "skipped: this destination does not take watch alerts"
         return None
     routing = Routing.from_config(config)
     pct = _deal_pct(notification)

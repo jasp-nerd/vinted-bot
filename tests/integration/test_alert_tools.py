@@ -72,6 +72,17 @@ def test_a_watched_price_drop_always_gets_through() -> None:
     assert skip_reason(drop, {"deals_only": True}) is None
 
 
+@pytest.mark.parametrize("kind", ["price_drop", "sold", "seller_upload"])
+def test_a_destination_can_turn_watch_alerts_off(kind: str) -> None:
+    assert skip_reason(notification(1, kind=kind), {"watch_alerts": False}) == (
+        "skipped: this destination does not take watch alerts"
+    )
+
+
+def test_turning_watch_alerts_off_leaves_search_listings_alone() -> None:
+    assert skip_reason(notification(1), {"watch_alerts": False}) is None
+
+
 def test_an_unpicky_destination_skips_nothing() -> None:
     assert skip_reason(notification(1), {}) is None
 

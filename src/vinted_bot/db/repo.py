@@ -1817,17 +1817,33 @@ class Repo:
     async def delete_watch(self, watch_id: int) -> None:
         await self._db.execute("DELETE FROM watches WHERE id = ?", (watch_id,))
 
-    async def route_watch(self, watch_id: int, destination_id: int) -> None:
-        await self._db.execute(
-            "INSERT OR IGNORE INTO watch_destinations (watch_id, destination_id) VALUES (?, ?)",
-            (watch_id, destination_id),
-        )
+    async def set_watch_routes(self, watch_id: int, destination_ids: Iterable[int]) -> list[int]:
+        """Replace a watch's routes in one go; empty means "every destination".
 
-    async def unroute_watch(self, watch_id: int, destination_id: int) -> None:
-        await self._db.execute(
-            "DELETE FROM watch_destinations WHERE watch_id = ? AND destination_id = ?",
-            (watch_id, destination_id),
+        Like `set_routes` for searches: ids that name no destination are dropped. Returns
+        the routes as stored.
+        """
+        wanted = sorted(set(destination_ids))
+        async with self._db.transaction() as conn:
+            await conn.execute("DELETE FROM watch_destinations WHERE watch_id = ?", (watch_id,))
+            if wanted:
+                placeholders = ",".join("?" * len(wanted))
+                await conn.execute(
+                    "INSERT INTO watch_destinations (watch_id, destination_id) "
+                    f"SELECT ?, id FROM destinations WHERE id IN ({placeholders}) "
+                    "AND EXISTS (SELECT 1 FROM watches WHERE id = ?)",
+                    (watch_id, *wanted, watch_id),
+                )
+        return await self.watch_routes(watch_id)
+
+    async def watch_routes(self, watch_id: int) -> list[int]:
+        """The destinations someone picked for a watch; empty means "all of them"."""
+        rows = await self._db.fetch_all(
+            "SELECT destination_id FROM watch_destinations WHERE watch_id = ? "
+            "ORDER BY destination_id",
+            (watch_id,),
         )
+        return [row["destination_id"] for row in rows]
 
     async def destination_ids_for_watch(self, watch_id: int) -> list[int]:
         """Where a watch's alerts go: its routes, or every active destination if it has none."""
@@ -1900,10 +1916,21 @@ class Repo:
             await conn.execute(
                 _INSERT_ITEM, (*_item_values(item, now, keep_raw=False), None, None, None, None)
             )
+            # A new asking price makes the stored total, which a search recorded with the
+            # old one, wrong: the listing page has no buyer-protection figure, so the total
+            # is only kept when the price did not change.
             await conn.execute(
-                "UPDATE items SET price = COALESCE(?, price), "
-                "total_price = COALESCE(?, total_price) WHERE item_id = ?",
-                (_real(item.price), _real(item.total_price), item.item_id),
+                "UPDATE items SET total_price = CASE WHEN ? IS NULL OR price IS ? "
+                "THEN COALESCE(?, total_price) ELSE ? END, "
+                "price = COALESCE(?, price) WHERE item_id = ?",
+                (
+                    _real(item.price),
+                    _real(item.price),
+                    _real(item.total_price),
+                    _real(item.total_price),
+                    _real(item.price),
+                    item.item_id,
+                ),
             )
             await conn.executemany(
                 "INSERT INTO outbox (item_id, watch_id, destination_id, kind, previous_price, "
