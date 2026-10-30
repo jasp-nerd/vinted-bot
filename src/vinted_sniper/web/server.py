@@ -34,6 +34,7 @@ from fastapi.staticfiles import StaticFiles
 
 from vinted_sniper.config import Settings
 from vinted_sniper.db.repo import Repo
+from vinted_sniper.engine.self_update import Updater
 from vinted_sniper.log import get_logger
 from vinted_sniper.vinted.client import VintedClient
 from vinted_sniper.vinted.taxonomy import Taxonomy
@@ -47,6 +48,7 @@ from vinted_sniper.web.routes import (
     searches,
     settings_page,
     stats,
+    updating,
     watchlist,
     welcome,
 )
@@ -76,19 +78,23 @@ def create_app(
     watch_kinds: frozenset[str] = frozenset(),
     stop: asyncio.Event | None = None,
     http: httpx.AsyncClient | None = None,
+    updater: Updater | None = None,
 ) -> FastAPI:
     """The dashboard. `client` enables live previews and the reachability check.
 
     `http` is used for test sends and the Telegram lookup; one is opened with the app
-    when not given.
+    when not given. `updater` is the running app's; a dashboard on its own gets one that
+    stops only itself.
     """
+    stop = stop or asyncio.Event()
     context = core.WebContext(
         settings=settings,
         repo=repo,
+        updater=updater or Updater(settings, repo, stop),
         taxonomy=taxonomy,
         client=client,
         watch_kinds=watch_kinds,
-        stop=stop or asyncio.Event(),
+        stop=stop,
         previews=PreviewService(client) if client is not None else None,
     )
     token = settings.web_auth_token
@@ -142,7 +148,18 @@ def create_app(
         return response
 
     app.mount("/static", StaticFiles(directory=core.STATIC_DIR), name="static")
-    for module in (auth, api, finds, searches, alerts, watchlist, stats, settings_page, welcome):
+    for module in (
+        auth,
+        api,
+        finds,
+        searches,
+        alerts,
+        watchlist,
+        stats,
+        settings_page,
+        updating,
+        welcome,
+    ):
         app.include_router(module.router)
 
     @app.exception_handler(RequestValidationError)
@@ -255,10 +272,20 @@ async def serve(
     *,
     client: VintedClient | None = None,
     watch_kinds: frozenset[str] = frozenset(),
+    updater: Updater | None = None,
 ) -> None:
     """Run the web UI until the app shuts down."""
+    app = create_app(
+        settings,
+        repo,
+        taxonomy,
+        client=client,
+        watch_kinds=watch_kinds,
+        stop=stop,
+        updater=updater,
+    )
     config = uvicorn.Config(
-        create_app(settings, repo, taxonomy, client=client, watch_kinds=watch_kinds, stop=stop),
+        app,
         host=settings.web_host,
         port=settings.web_port,
         log_config=None,

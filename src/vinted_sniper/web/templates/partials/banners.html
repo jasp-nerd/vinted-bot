@@ -23,12 +23,24 @@
 </div>
 {%- endmacro %}
 
+{#
+  The update banner. Where this copy can update itself it offers the button, and app.js
+  fills in progress from /api/update; elsewhere it shows the command to run. data-update-busy
+  marks a page rendered mid-update, so the script picks the progress up again.
+#}
 {% macro update(info) -%}
-<div class="banner banner--teal" role="status" data-update="{{ info.version }}">
+{% set st = info.status %}
+<div class="banner banner--teal" role="status" data-update="{{ info.version }}"{% if st.phase != "idle" %} data-update-busy="{{ st.boot }}"{% endif %}>
   <div class="container banner__row">
     {{ ui.icon("download") }}
-    <p class="banner__text"><b>Version {{ info.version }} is out.</b> Updating keeps your searches and finds.</p>
-    <a class="btn btn--secondary btn--sm" href="{{ info.url }}" target="_blank" rel="noopener">How to update</a>
+    {% if info.can_upgrade %}
+    <p class="banner__text" data-update-text>{% if st.message %}{{ st.message }}{% else %}<b>Version {{ info.version }} is out.</b> Updating keeps your searches and finds{% if info.restarts %}, and takes about a minute{% else %}. You restart vinted-sniper yourself afterwards{% endif %}.{% endif %}</p>
+    <button class="btn btn--primary btn--sm" type="button" data-update-now{% if st.phase in ("upgrading", "restarting", "installed") %} hidden{% endif %}>{{ "Try again" if st.phase == "failed" else "Update now" }}</button>
+    {% else %}
+    <p class="banner__text"><b>Version {{ info.version }} is out.</b> {{ info.hint }} <span class="code">{{ info.command }}</span></p>
+    <button class="btn btn--icon btn--sm" type="button" data-copy="{{ info.command }}" aria-label="Copy the command">{{ ui.icon("copy", "i-sm") }}</button>
+    {% endif %}
+    <a class="btn btn--secondary btn--sm" href="{{ info.notes }}" target="_blank" rel="noopener">What's new</a>
     <button class="btn btn--icon btn--sm" type="button" aria-label="Hide until the next version" data-dismiss-update>{{ ui.icon("x", "i-sm") }}</button>
   </div>
 </div>

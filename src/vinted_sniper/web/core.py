@@ -26,9 +26,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from vinted_sniper import __version__
-from vinted_sniper.config import Settings
+from vinted_sniper.config import Settings, in_container
 from vinted_sniper.db.repo import Repo
 from vinted_sniper.engine import health, updates
+from vinted_sniper.engine.self_update import Phase, Updater
 from vinted_sniper.vinted.client import VintedClient
 from vinted_sniper.vinted.taxonomy import Taxonomy
 from vinted_sniper.web import views
@@ -39,7 +40,6 @@ HERE = Path(__file__).parent
 STATIC_DIR = HERE / "static"
 SESSION_COOKIE = "vinted_sniper_session"
 FLASH_COOKIE = "vs_toast"
-RELEASES_URL = "https://github.com/jasp-nerd/vinted-sniper/releases/latest"
 TROUBLESHOOTING_URL = "https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/troubleshooting.md"
 SELF_HOSTING_URL = "https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/self-hosting.md"
 
@@ -48,6 +48,7 @@ SELF_HOSTING_URL = "https://github.com/jasp-nerd/vinted-sniper/blob/main/docs/se
 class WebContext:
     settings: Settings
     repo: Repo
+    updater: Updater
     taxonomy: Taxonomy | None = None
     client: VintedClient | None = None
     # Which watch kinds this build can run (Watcher.available_kinds).
@@ -149,9 +150,7 @@ async def shell(context: WebContext, snapshot: health.Snapshot | None = None) ->
         sites = sorted({f"vinted.{search.tld}" for search in refused})
         blocked = {"site": ", ".join(sites), "searches": len(refused)}
 
-    update = None
-    if prefs.update_check and updates.is_newer(prefs.latest_version):
-        update = {"version": prefs.latest_version, "url": RELEASES_URL}
+    update = update_offer(context.updater, prefs.latest_version if prefs.update_check else None)
 
     return {
         "version": __version__,
@@ -168,6 +167,28 @@ async def shell(context: WebContext, snapshot: health.Snapshot | None = None) ->
         "new_count": 0,
         "troubleshooting": TROUBLESHOOTING_URL,
         "guess_timezone": await needs_timezone(context),
+    }
+
+
+def update_offer(updater: Updater, latest: str | None) -> dict[str, Any] | None:
+    """What the update banner and the settings page offer, or None for nothing to say.
+
+    An update under way is shown even with the check switched off, since someone started it.
+    """
+    busy = updater.phase is not Phase.IDLE
+    if not busy and not updates.is_newer(latest):
+        return None
+    version = updater.target if busy and updater.target else latest
+    assert version is not None  # is_newer(None) is False
+    install = updater.install
+    return {
+        "version": version,
+        "notes": updates.release_notes_url(version),
+        "can_upgrade": install.can_upgrade,
+        "restarts": install.restarts_itself,
+        "command": install.manual_command,
+        "hint": install.manual_hint,
+        "status": updater.status(),
     }
 
 
@@ -222,7 +243,3 @@ def phone_address(settings: Settings) -> str | None:
         probe.connect(("192.0.2.1", 9))
         return f"http://{probe.getsockname()[0]}:{settings.web_port}"
     return None
-
-
-def in_container() -> bool:
-    return Path("/.dockerenv").exists() or Path("/run/.containerenv").exists()

@@ -213,13 +213,38 @@ thirty days anyway.
 
 ## Updating
 
-- **Installer:** run the install command again. It stops vinted-sniper, updates it and starts
-  it again.
-- **Docker:** `docker compose pull && docker compose up -d`
-- **NAS app stores:** use the store's update button.
+The dashboard tells you when a new version is out (it asks GitHub once a day; Settings,
+Updates turns that off). What it offers depends on how vinted-sniper was installed:
 
-The dashboard tells you when a new version is out. Database changes are applied
-automatically at startup. If an update misbehaves, see
+| Installed with | What updating looks like |
+|---|---|
+| The installer, starting by itself at login | **Update now** in the banner or under Settings, Updates. It installs the new version, restarts into it and the page reloads, all in about a minute. |
+| The installer, without starting at login | **Update now** installs it; then restart vinted-sniper (`vinted-sniper run`, or run the install command again). On Windows the installer's launcher always restarts it. |
+| `uv tool install` or `pipx install` yourself | The same button; restart it yourself afterwards, unless your own service sets `VINTED_SNIPER_SUPERVISED` (see [configuration](configuration.md#updating)). |
+| Docker | `docker compose pull && docker compose up -d`, or the nightly updater below. A container never updates itself: whatever it changed inside itself would be lost the next time it is recreated. |
+| `uvx` | `uvx vinted-sniper@latest run` |
+| A copy of the source | `git pull && uv sync`, then restart. |
+| A NAS app store | The store's update button. |
+
+Running the install command again always works too: it stops vinted-sniper, updates it
+and starts it again.
+
+**Updating by itself.** Where the button restarts the app, Settings, Updates also offers
+"Install updates by itself". It is off unless you turn it on. When it is on, a new release
+is installed between 4 and 5 at night (by the time zone in Settings), never while an alert is
+on its way out, and destinations that get status alerts are told afterwards. If an update
+fails, it tries again the next night. With Docker, the optional nightly updater in the
+compose file does the same job (`docker compose --profile autoupdate up -d`).
+
+**What it runs.** The button runs `uv tool upgrade vinted-sniper` (or
+`pipx upgrade vinted-sniper`), the same command you would type, and only when GitHub's
+latest release is newer than what is running. The new version comes from PyPI, like the
+first install did. If the command fails, or installs nothing newer, the app keeps running
+the version it was on and the page says why, with uv's own output underneath. On Windows a
+running program cannot replace its own files, so the app closes and the installer's launcher
+runs the upgrade, then starts it again; the log file has uv's output.
+
+Database changes are applied automatically at startup. If an update misbehaves, see
 [Everything is broken after an update](troubleshooting.md#everything-is-broken-after-an-update).
 
 ## Running from source

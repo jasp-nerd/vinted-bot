@@ -145,11 +145,66 @@
     band.classList.toggle("is-open", open); b.setAttribute("aria-expanded", open);
   }));
   const upd = $("[data-update]");
-  if (upd && store.get("vs-hide-update") === upd.dataset.update) upd.hidden = true;
+  if (upd && !upd.dataset.updateBusy && store.get("vs-hide-update") === upd.dataset.update) upd.hidden = true;
   document.addEventListener("click", (e) => {
     if (!e.target.closest("[data-dismiss-update]")) return;
     store.set("vs-hide-update", upd.dataset.update); upd.hidden = true;
   });
+
+  /* ── Updating from the dashboard ──────────────────── */
+  /* The upgrade runs in the app; this only shows its progress. When the app restarts
+   * into the new version the status answers with a different boot id, and the page
+   * reloads into it. */
+  function paintUpdate(s) {
+    const underway = ["upgrading", "restarting", "installed"].includes(s.phase);
+    $$("[data-update-text]").forEach((el) => { if (s.message) el.textContent = s.message; });
+    $$("[data-update-log]").forEach((el) => {
+      el.hidden = !s.output.length; el.textContent = s.output.join("\n"); el.scrollTop = el.scrollHeight;
+    });
+    $$("[data-update-now]").forEach((b) => {
+      b.hidden = underway; b.disabled = underway;
+      if (s.phase === "failed") b.lastChild.textContent = "Try again";
+    });
+  }
+  let watchingUpdate = false;
+  function watchUpdate(boot) {
+    if (watchingUpdate) return;
+    watchingUpdate = true;
+    const since = Date.now();
+    const tick = async () => {
+      let s = null;
+      try {
+        const res = await fetch("/api/update", { headers: { Accept: "application/json" }, credentials: "same-origin", cache: "no-store" });
+        if (res.ok) s = await res.json();
+      } catch (e) { s = null; /* down while it restarts */ }
+      if (s && s.boot !== boot) { store.set("vs-updated", "1"); location.reload(); return; }
+      if (s) paintUpdate(s);
+      if (s && !["upgrading", "restarting"].includes(s.phase)) { watchingUpdate = false; return; }
+      if (!s && Date.now() - since > 120000) {
+        $$("[data-update-text]").forEach((el) => { el.textContent = "vinted-sniper hasn't come back yet. If it still isn't back in a few minutes, start it again the way you usually do."; });
+      }
+      setTimeout(tick, 1500);
+    };
+    tick();
+  }
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-update-now]");
+    if (!b || b.disabled) return;
+    b.disabled = true;
+    const r = await post("/api/update").catch(() => ({ ok: false, error: "Couldn't reach vinted-sniper. Is it still running?" }));
+    if (!r.ok) { b.disabled = false; toast(r.error || "That didn't work.", { bad: true }); return; }
+    paintUpdate(r);
+    watchUpdate(r.boot);
+  });
+  const updBusy = $("[data-update-busy]");
+  if (updBusy) watchUpdate(updBusy.dataset.updateBusy);
+  if (store.get("vs-updated")) {
+    store.set("vs-updated", "");
+    fetch("/api/update", { headers: { Accept: "application/json" }, credentials: "same-origin" })
+      .then((res) => res.json())
+      .then((s) => { if (s.last) toast(s.last.message, { ok: s.last.ok, bad: !s.last.ok, ms: 8000 }); })
+      .catch(() => {});
+  }
   $$("[data-steps-toggle]").forEach((g) => g.addEventListener("click", (e) => {
     const b = e.target.closest("[data-steps]"); if (!b) return;
     $$("[data-steps]", g).forEach((x) => x.setAttribute("aria-pressed", x === b));

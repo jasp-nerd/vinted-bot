@@ -170,6 +170,11 @@ xml_escape() {
 
 # Writes the LaunchAgent to stdout. caffeinate -s holds off sleep only while the Mac is on
 # power and only while vinted-sniper runs; a closed MacBook lid still sleeps.
+#
+# KeepAlive=true starts it again after any exit, including the clean exit (code 75) that
+# ends an update from the dashboard; VINTED_SNIPER_SUPERVISED tells the app it can count
+# on that. ThrottleInterval only delays a restart when the app exits within 30 seconds of
+# starting, which keeps a crash at startup from spinning.
 write_plist() {
     exe=$(xml_escape "$1")
     dir=$(xml_escape "$2")
@@ -199,6 +204,8 @@ EOF
     <string>$dir/app.db</string>
     <key>VINTED_SNIPER_WEB_PORT</key>
     <string>$PORT</string>
+    <key>VINTED_SNIPER_SUPERVISED</key>
+    <string>launchd</string>
   </dict>
   <key>RunAtLoad</key>
   <true/>
@@ -236,6 +243,11 @@ autostart_macos() {
     say "macOS may show a \"Background Items Added\" notice. That's this; it's expected."
 }
 
+# Restart=always starts it again after any exit, including the clean exit (code 75) that
+# ends an update from the dashboard; VINTED_SNIPER_SUPERVISED tells the app it can count
+# on that. `systemctl --user stop` is not an exit systemd restarts from. Three seconds
+# between starts keeps a crash at startup under systemd's limit of five starts in ten
+# seconds, so it keeps trying instead of giving up.
 write_unit() {
     exe=$1
     dir=$2
@@ -248,8 +260,9 @@ ExecStart="$exe" run
 WorkingDirectory=$dir
 Environment="VINTED_SNIPER_DB_PATH=$dir/app.db"
 Environment="VINTED_SNIPER_WEB_PORT=$PORT"
+Environment="VINTED_SNIPER_SUPERVISED=systemd"
 Restart=always
-RestartSec=10
+RestartSec=3
 
 [Install]
 WantedBy=default.target
@@ -444,7 +457,12 @@ install() {
     say "Next: in the dashboard, add where alerts should go (Discord or Telegram), then paste"
     say "a Vinted search. Alerts arrive while this computer is on, awake and online."
     say ""
-    say "  Update:        run the install command again"
+    if [ $autostarted = no ]; then
+        say "  Update:        the dashboard's Update button, then start it again; or run the"
+        say "                 install command again"
+    else
+        say "  Update:        the dashboard's Update button, or run the install command again"
+    fi
     if [ $autostarted = no ]; then
         say "  Start again:   run the install command again (after a restart, for example)"
         say "  Stop:          pkill -f 'vinted-sniper run'"
