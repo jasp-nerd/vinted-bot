@@ -36,6 +36,43 @@ and destinations carry over: the database upgrades itself on the first start.
 - A locked database no longer stops the whole app from its heartbeat.
 - A search that has failed since it was added shows as failing, not as starting.
 - Restarting no longer fires every search in the same second.
+- Starting again after the app was off, the computer asleep or Vinted refusing for a while no
+  longer announces a whole page of old listings as new. The first check back records what it
+  missed quietly. The same goes for the first check after upgrading from 1.x, which now
+  carries on from the newest listing 1.x had seen.
+- "Ignore listings older than" (and `watch --max-age`, and `FRESHNESS_WINDOW_MIN`) works
+  again: it skips listings the app can tell were already on Vinted that long ago, such as an
+  old listing whose price was just cut into range.
+- Changing a search's link or sites starts it over quietly, instead of announcing everything
+  above where the old search had got to, and its typical price starts again too.
+- A listing still for sale after the retention period (30 days) is no longer announced again,
+  by a search or by a seller watch.
+- A listing two searches match is judged by each search's own typical price, so a narrow
+  search's steal is no longer reported as overpriced because a broader search found it
+  first.
+- When Vinted refuses the homepage itself, a search backs off like for any other refusal
+  instead of retrying every 15 seconds. A search that crashes is restarted with growing
+  pauses, and tokens that keep being rejected are no longer retried every five seconds.
+- When Vinted refuses or rate-limits seller lookups, the app stops asking for a while
+  (honouring `Retry-After`), and the listings waiting on one are listed in "Not sent" as
+  "seller unknown".
+- Alerts a destination did not want (for example a normal listing for a steals-only
+  channel) no longer count as failed deliveries on the alerts and stats pages.
+- An open dashboard tab no longer misses finds after a quiet month emptied the stored
+  listings.
+- Watch alerts sent to a webhook are posted one watch at a time, so `search` names the right
+  watch.
+- **Security:** the dashboard only answers to localhost, IP addresses, the `WEB_PUBLIC_URL`
+  host and the new `WEB_ALLOWED_HOSTS`, however it is bound. Before, the Docker image's
+  `0.0.0.0` bind switched that check off, which let a web page use a password-less
+  dashboard through your browser (DNS rebinding). If you reach the dashboard by a name, add
+  it to `VINTED_SNIPER_WEB_ALLOWED_HOSTS`; the error page says so too.
+- **Security:** a search name can no longer run script in the stats page's chart tooltips.
+- **Security:** in a CSV export, a cell that would start a spreadsheet formula (a title such
+  as `=HYPERLINK(...)`) is prefixed with an apostrophe so it shows as text.
+- **Security:** signing in to the dashboard gives each browser its own random session, which
+  signing out revokes, and changing the password signs everyone out. After five wrong
+  passwords from one address, sign-in waits 15 minutes.
 
 ### Added
 
@@ -93,7 +130,12 @@ and destinations carry over: the database upgrades itself on the first start.
   stricter copy somewhere else.
 - The webhook payload is version 2: every version 1 field is still there, with the alert
   kind, deal, photos and seller details added beside them. Each POST holds one search's
-  listings.
+  listings, or one watch's. The fields and the signature headers are documented in
+  docs/configuration.md.
+- **RSS feeds of a password-protected dashboard need the new feed key** instead of the
+  password: `?key=<your password>` no longer works, because feed addresses end up in reader
+  settings and proxy logs. Copy the new address from the "RSS feed of this search" link on
+  the search's page.
 
 ## [0.1.0] - 2026-08-16
 

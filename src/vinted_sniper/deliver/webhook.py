@@ -7,7 +7,8 @@ people's automations, so it changes only with a version bump.
 
 Version 2 is a strict superset of version 1: every v1 field keeps its name and meaning,
 and the new ones (kind, deal, photos, seller details) are added beside them. Each POST
-carries listings from one search only, so the top-level `search` is always right.
+carries listings from one search, or from one watch, only, so the top-level `search` is
+always right: for watch alerts it is the watch's label and `search_id` is null.
 
 With a `secret` configured, every request is signed so the receiver can tell it came from
 here: `X-Vinted-Sniper-Signature: sha256=<hex>` is the HMAC-SHA256 of
@@ -109,9 +110,11 @@ def _seller(item: Item) -> dict[str, Any] | None:
 
 
 def _by_search(batch: list[PendingNotification]) -> list[list[PendingNotification]]:
-    groups: dict[int | None, list[PendingNotification]] = {}
+    """Split a batch so each POST is one search's listings, or one watch's."""
+    groups: dict[tuple[int | None, int | None], list[PendingNotification]] = {}
     for notification in batch:
-        groups.setdefault(notification.query_id, []).append(notification)
+        key = (notification.query_id, notification.watch_id)
+        groups.setdefault(key, []).append(notification)
     return list(groups.values())
 
 

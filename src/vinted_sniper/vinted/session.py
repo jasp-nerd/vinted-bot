@@ -150,11 +150,20 @@ class SessionManager:
         a new cookie down the same blocked path buys nothing. A replacement minted moments
         ago is kept, as in `invalidate`.
         """
+        await self.discard(tld, blocked=blocked)
+        return await self.get(tld)
+
+    async def discard(self, tld: str, *, blocked: bool = False) -> None:
+        """Drop a refused session without minting its replacement.
+
+        Like `rotate`, but the homepage load is left to whoever next needs the site. A
+        poller that has just been refused would otherwise make that load from inside its
+        error handler, where a homepage that refuses too has nowhere to go.
+        """
         async with self._lock(tld):
             previous = await self._drop(tld)
             if blocked and previous is not None:
                 self._proxies.bench(previous.proxy, QUARANTINE_BLOCKED_S, "refused by Vinted")
-        return await self.get(tld)
 
     async def _drop(self, tld: str) -> Session | None:
         """Forget the current session unless it is a fresh replacement. Returns it if dropped."""

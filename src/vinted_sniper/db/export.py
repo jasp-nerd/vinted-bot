@@ -77,5 +77,22 @@ def render(entries: list[FeedItem], fmt: ExportFormat) -> str:
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=COLUMNS, lineterminator="\n")
     writer.writeheader()
-    writer.writerows(records)
+    writer.writerows({key: _cell(value) for key, value in record.items()} for record in records)
     return buffer.getvalue()
+
+
+# What makes a spreadsheet read a cell as a formula rather than text.
+_FORMULA_STARTS = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _cell(value: Any) -> Any:
+    """A CSV cell that a spreadsheet will show, not run.
+
+    Titles and seller names are whatever a Vinted seller typed, and a title such as
+    `=HYPERLINK(...)` would otherwise run as a formula when the export is opened in Excel
+    or LibreOffice. A leading apostrophe is the convention both read as "this is text".
+    Only strings are touched, so a negative deal percentage stays a number.
+    """
+    if isinstance(value, str) and value.startswith(_FORMULA_STARTS):
+        return "'" + value
+    return value

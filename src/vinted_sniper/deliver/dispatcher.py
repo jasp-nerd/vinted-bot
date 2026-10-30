@@ -340,9 +340,9 @@ class Dispatcher:
                     notification = dataclasses.replace(notification, silent=True)  # noqa: PLW2901
                 wanted.append(notification)
             else:
-                # The only per-row way out of the queue the repo offers; the reason text
-                # makes clear this was the destination's choice, not a delivery error.
-                await self._repo.mark_failed([notification.outbox_id], reason)
+                # The destination's own choice, not a delivery error: cancelled, so it
+                # does not count against the destination's delivery rate.
+                await self._repo.mark_cancelled([notification.outbox_id], reason)
         return wanted
 
     async def _drop_sender(self, destination_id: int) -> None:

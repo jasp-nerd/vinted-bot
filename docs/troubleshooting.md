@@ -157,8 +157,17 @@ running at all. The log says why; see [where the logs are](#where-the-logs-are).
 
 Also worth grepping the logs for `web.no_password`: that warning means the dashboard is
 listening on an address other than localhost with no sign-in, so anyone who can reach the
-port can read your webhook URLs. Either set `VINTED_SNIPER_WEB_AUTH_TOKEN` or check that the
-published port is not public.
+port can change your searches and where alerts go. Either set `VINTED_SNIPER_WEB_AUTH_TOKEN`
+or check that the published port is not public.
+
+## The dashboard says "Unknown address"
+
+It only answers to names it was told about, so that another website cannot point its own
+name at your computer and use the dashboard through your browser. Localhost and any IP
+address always work. If you reach it by a name (a reverse proxy, a tunnel, `nas.local`),
+add that name to `VINTED_SNIPER_WEB_ALLOWED_HOSTS`, or set `VINTED_SNIPER_WEB_PUBLIC_URL` to
+the full address, and restart. Behind a reverse proxy that does not pass the original
+`Host` on, add the name it forwards instead (often the container's name).
 
 ## Telegram never connects
 

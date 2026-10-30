@@ -17,7 +17,7 @@ from fastapi.responses import Response
 from vinted_sniper.db.repo import Query
 from vinted_sniper.engine import health
 from vinted_sniper.engine.validation import InvalidInputError
-from vinted_sniper.web import core, data, forms, views
+from vinted_sniper.web import core, data, forms, security, views
 
 router = APIRouter()
 
@@ -281,7 +281,12 @@ async def search_detail(request: Request, query_id: int) -> Response:
             "quiet": views.quiet_summary(query),
             "timeline": _timeline(state, query, now, tz),
             "state": state,
-            "rss": core.url("search_detail", id=query_id) and f"/rss/{query_id}.xml",
+            "rss": f"/rss/{query_id}.xml"
+            + (
+                f"?key={await security.feed_key(repo)}"
+                if context.settings.web_auth_token is not None
+                else ""
+            ),
             "vinted_url": query.url,
         },
         snapshot=snapshot,
