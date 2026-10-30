@@ -10,11 +10,11 @@ from typing import Any
 import httpx
 import pytest
 
-from vinted_sniper.botctl.telegram_bot import claim_pairing, create_pairing
-from vinted_sniper.config import Settings
-from vinted_sniper.db.repo import Query, Repo
-from vinted_sniper.deliver.dispatcher import MAX_ATTEMPTS, Dispatcher
-from vinted_sniper.vinted.models import Item
+from vinted_bot.botctl.telegram_bot import claim_pairing, create_pairing
+from vinted_bot.config import Settings
+from vinted_bot.db.repo import Query, Repo
+from vinted_bot.deliver.dispatcher import MAX_ATTEMPTS, Dispatcher
+from vinted_bot.vinted.models import Item
 
 
 def listing(item_id: int) -> Item:

@@ -4,8 +4,8 @@ import time
 from pathlib import Path
 
 from tests.conftest import ScriptedTransport
-from vinted_sniper.vinted.proxies import QUARANTINE_BLOCKED_S, ProxyRotation
-from vinted_sniper.vinted.transport import TransportPool
+from vinted_bot.vinted.proxies import QUARANTINE_BLOCKED_S, ProxyRotation
+from vinted_bot.vinted.transport import TransportPool
 
 
 def write_proxies(tmp_path: Path, *lines: str) -> Path:

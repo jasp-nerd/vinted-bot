@@ -9,10 +9,10 @@ from collections.abc import Callable
 
 import httpx
 
-from vinted_sniper.db.connection import Database
-from vinted_sniper.db.repo import Repo
-from vinted_sniper.engine import health, updates
-from vinted_sniper.engine.health import Heartbeat
+from vinted_bot.db.connection import Database
+from vinted_bot.db.repo import Repo
+from vinted_bot.engine import health, updates
+from vinted_bot.engine.health import Heartbeat
 
 
 def recording_client(

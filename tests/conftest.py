@@ -7,10 +7,10 @@ from typing import Any
 
 import pytest
 
-from vinted_sniper.config import Settings
-from vinted_sniper.db import Database, apply_pending
-from vinted_sniper.db.repo import Repo
-from vinted_sniper.vinted.transport import Response
+from vinted_bot.config import Settings
+from vinted_bot.db import Database, apply_pending
+from vinted_bot.db.repo import Repo
+from vinted_bot.vinted.transport import Response
 
 
 class ScriptedTransport:

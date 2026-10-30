@@ -9,7 +9,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from vinted_sniper.vinted.transport import HttpxTransport, MockTransport, TransportError
+from vinted_bot.vinted.transport import HttpxTransport, MockTransport, TransportError
 
 Handler = Callable[[httpx.Request], httpx.Response]
 

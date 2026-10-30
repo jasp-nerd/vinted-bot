@@ -1,11 +1,11 @@
 services:
-  vinted-sniper:
+  vinted-bot:
     # `latest` is the newest release. `edge` follows the main branch: newer, less tested.
-    image: ghcr.io/jasp-nerd/vinted-sniper:latest
+    image: ghcr.io/jasp-nerd/vinted-bot:latest
     # To run your own build instead of the published image, comment out `image:` above
     # and uncomment this:
     # build: .
-    container_name: vinted-sniper
+    container_name: vinted-bot
     restart: unless-stopped
     # Optional: everything runs on defaults without one. Grab .env.example if you want
     # Telegram or any tuning.
@@ -22,12 +22,12 @@ services:
       # PUID: "10001"
       # PGID: "10001"
     volumes:
-      - vinted-sniper-data:/data
+      - vinted-bot-data:/data
       # A folder next to this file instead, easier to back up (set PUID/PGID above):
       # - ./data:/data
     ports:
       # The dashboard, reachable from this machine only. If you widen this beyond
-      # 127.0.0.1, set VINTED_SNIPER_WEB_AUTH_TOKEN first — the dashboard has no other
+      # 127.0.0.1, set VINTED_BOT_WEB_AUTH_TOKEN first — the dashboard has no other
       # lock, and it shows your webhook URLs.
       - "127.0.0.1:8000:8000"
     # Nothing in here writes outside /data, so the rest of the filesystem can stay
@@ -66,4 +66,4 @@ services:
     command: --label-enable --cleanup --schedule "0 0 4 * * *"
 
 volumes:
-  vinted-sniper-data:
+  vinted-bot-data:

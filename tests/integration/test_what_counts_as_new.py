@@ -14,10 +14,10 @@ from typing import Any
 
 from tests.conftest import ScriptedTransport
 from tests.integration.test_poller import poller_for
-from vinted_sniper.config import Settings
-from vinted_sniper.db import Database, apply_pending
-from vinted_sniper.db.migrations import discover
-from vinted_sniper.db.repo import Query, Repo
+from vinted_bot.config import Settings
+from vinted_bot.db import Database, apply_pending
+from vinted_bot.db.migrations import discover
+from vinted_bot.db.repo import Query, Repo
 
 DAY = 86_400
 

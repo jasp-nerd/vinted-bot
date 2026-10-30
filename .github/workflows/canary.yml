@@ -52,8 +52,8 @@ jobs:
       - name: Search, filter and read listings for real
         run: |
           for attempt in 1 2 3; do
-            if uv run vinted-sniper check --url "https://www.vinted.com/catalog?search_text=nike" \
-              && uv run python -m vinted_sniper.vinted.canary com; then
+            if uv run vinted-bot check --url "https://www.vinted.com/catalog?search_text=nike" \
+              && uv run python -m vinted_bot.vinted.canary com; then
               exit 0
             fi
             echo "::warning::attempt $attempt failed, retrying"

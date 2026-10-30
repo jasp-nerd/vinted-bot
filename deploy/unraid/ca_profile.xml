@@ -1,7 +1,7 @@
 <CommunityApplications>
   <Profile>
-    vinted-sniper: alerts on Discord, Telegram and more when a new Vinted listing matches your search. Support and bug reports go to the GitHub issues of the project.
+    vinted-bot: alerts on Discord, Telegram and more when a new Vinted listing matches your search. Support and bug reports go to the GitHub issues of the project.
   </Profile>
-  <Icon>https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docs/media/icon.png</Icon>
-  <WebPage>https://github.com/jasp-nerd/vinted-sniper</WebPage>
+  <Icon>https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docs/media/icon.png</Icon>
+  <WebPage>https://github.com/jasp-nerd/vinted-bot</WebPage>
 </CommunityApplications>

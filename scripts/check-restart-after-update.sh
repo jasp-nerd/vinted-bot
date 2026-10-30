@@ -1,6 +1,6 @@
 #!/bin/sh
 # Checks that the start-at-login entry install.sh writes starts the app again after the
-# exit an update ends with (code 75), and tells the app it will (VINTED_SNIPER_SUPERVISED).
+# exit an update ends with (code 75), and tells the app it will (VINTED_BOT_SUPERVISED).
 #
 # Uses install.sh's own write_plist / write_unit, under a different name so a real
 # install on the same machine is never touched, with a stand-in for the app: it exits 75
@@ -11,7 +11,7 @@ set -eu
 
 here=$(cd "$(dirname "$0")/.." && pwd)
 work=$(mktemp -d)
-name=vinted-sniper-restart-check
+name=vinted-bot-restart-check
 
 # install.sh, minus its last line (`main "$@"`), is just the functions.
 sed '$d' "$here/install.sh" >"$work/install-functions.sh"
@@ -20,7 +20,7 @@ sed '$d' "$here/install.sh" >"$work/install-functions.sh"
 
 cat >"$work/app" <<EOF
 #!/bin/sh
-echo "\${VINTED_SNIPER_SUPERVISED:-unset}" >>"$work/starts"
+echo "\${VINTED_BOT_SUPERVISED:-unset}" >>"$work/starts"
 if [ "\$(wc -l <"$work/starts")" -eq 1 ]; then
     exit 75
 fi
@@ -71,4 +71,4 @@ if [ "$(sort -u "$work/starts")" != "$supervisor" ]; then
     echo "The app was not told it is supervised: got $(sort -u "$work/starts" | tr '\n' ' ')"
     exit 1
 fi
-echo "Started again after exit code 75, with VINTED_SNIPER_SUPERVISED=$supervisor."
+echo "Started again after exit code 75, with VINTED_BOT_SUPERVISED=$supervisor."

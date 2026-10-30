@@ -19,12 +19,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tests.integration.test_web import SEARCH_URL, Outgoing, _found, _item, _search, _state_of
-from vinted_sniper.config import Settings
-from vinted_sniper.db.repo import Query, Repo
-from vinted_sniper.deliver.preview import sample_notification
-from vinted_sniper.web import core, data, views
-from vinted_sniper.web.routes import stats
-from vinted_sniper.web.server import create_app
+from vinted_bot.config import Settings
+from vinted_bot.db.repo import Query, Repo
+from vinted_bot.deliver.preview import sample_notification
+from vinted_bot.web import core, data, views
+from vinted_bot.web.routes import stats
+from vinted_bot.web.server import create_app
 
 TEMPLATES = Path(core.__file__).parent / "templates"
 SCRIPT = Path(core.__file__).parent / "static" / "js" / "app.js"

@@ -11,11 +11,11 @@ from pathlib import Path
 
 import pytest
 
-from vinted_sniper import cli
-from vinted_sniper.config import Settings
-from vinted_sniper.db import Database, apply_pending
-from vinted_sniper.db.repo import Query, Repo
-from vinted_sniper.vinted.models import Item
+from vinted_bot import cli
+from vinted_bot.config import Settings
+from vinted_bot.db import Database, apply_pending
+from vinted_bot.db.repo import Query, Repo
+from vinted_bot.vinted.models import Item
 
 URL = "https://www.vinted.fr/catalog?search_text=barbour"
 
@@ -23,7 +23,7 @@ URL = "https://www.vinted.fr/catalog?search_text=barbour"
 @pytest.fixture
 def db_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     path = tmp_path / "cli.db"
-    monkeypatch.setenv("VINTED_SNIPER_DB_PATH", str(path))
+    monkeypatch.setenv("VINTED_BOT_DB_PATH", str(path))
     return path
 
 

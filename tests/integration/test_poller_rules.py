@@ -12,14 +12,14 @@ from decimal import Decimal
 from typing import Any
 
 from tests.conftest import ScriptedTransport
-from vinted_sniper.config import Settings
-from vinted_sniper.db.connection import Database
-from vinted_sniper.db.repo import Repo
-from vinted_sniper.engine.poller import Poller, SellerLookup
-from vinted_sniper.vinted.client import VintedClient
-from vinted_sniper.vinted.errors import BlockedError, NetworkError, RateLimitedError
-from vinted_sniper.vinted.models import SellerProfile
-from vinted_sniper.vinted.session import SessionManager
+from vinted_bot.config import Settings
+from vinted_bot.db.connection import Database
+from vinted_bot.db.repo import Repo
+from vinted_bot.engine.poller import Poller, SellerLookup
+from vinted_bot.vinted.client import VintedClient
+from vinted_bot.vinted.errors import BlockedError, NetworkError, RateLimitedError
+from vinted_bot.vinted.models import SellerProfile
+from vinted_bot.vinted.session import SessionManager
 
 MakeItem = Callable[..., dict[str, Any]]
 

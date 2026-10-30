@@ -5,9 +5,9 @@ from __future__ import annotations
 import asyncio
 
 from tests.conftest import ScriptedTransport
-from vinted_sniper.db import Database
-from vinted_sniper.vinted.session import SessionManager
-from vinted_sniper.vinted.transport import Response
+from vinted_bot.db import Database
+from vinted_bot.vinted.session import SessionManager
+from vinted_bot.vinted.transport import Response
 
 
 def homepage_loads(transport: ScriptedTransport) -> int:

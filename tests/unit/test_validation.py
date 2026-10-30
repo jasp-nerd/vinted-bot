@@ -6,8 +6,8 @@ from decimal import Decimal
 
 import pytest
 
-from vinted_sniper.engine import validation
-from vinted_sniper.engine.validation import InvalidInputError
+from vinted_bot.engine import validation
+from vinted_bot.engine.validation import InvalidInputError
 
 
 @pytest.mark.parametrize(

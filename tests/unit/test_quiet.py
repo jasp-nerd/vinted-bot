@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from vinted_sniper.engine.quiet import window_end
+from vinted_bot.engine.quiet import window_end
 
 PARIS = ZoneInfo("Europe/Paris")
 
