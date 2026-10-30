@@ -5,9 +5,9 @@ from decimal import Decimal
 
 import pytest
 
-from vinted_sniper.db.repo import Query
-from vinted_sniper.engine import dedup, filters
-from vinted_sniper.vinted.models import Item
+from vinted_bot.db.repo import Query
+from vinted_bot.engine import dedup, filters
+from vinted_bot.vinted.models import Item
 
 NOW = 1_760_000_000
 

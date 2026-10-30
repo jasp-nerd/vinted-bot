@@ -53,23 +53,23 @@ A search for "Nike" sorted by newest first changes every few seconds. You'll nev
 
 ### Get alerts that check the search themselves
 
-The biggest improvement over saved-search notifications is a tool that loads your search every minute and messages you about anything new. vinted-sniper does this for free from your own computer and sends new listings to Discord, Telegram or your phone. It skips bumped listings, compares listing ids so old items resurfacing aren't announced as new, and the first check of a new search stays silent so you don't get a flood.
+The biggest improvement over saved-search notifications is a tool that loads your search every minute and messages you about anything new. vinted-bot does this for free from your own computer and sends new listings to Discord, Telegram or your phone. It skips bumped listings, compares listing ids so old items resurfacing aren't announced as new, and the first check of a new search stays silent so you don't get a flood.
 
 It won't beat Vinted's own search delay, and neither will anything else. In practice you'll hear about most listings within a few minutes of upload.
 
 {{install}}
 
-### Write searches like a sniper, not a browser
+### Write searches to hunt, not to browse
 
 - Include your size, the conditions you'd accept and a realistic maximum price.
 - Make the price limit the total including buyer protection. A listing that's €1.70 over your budget isn't a deal (see [the buyer protection fee explained](/guides/vinted-buyer-protection-fee/)).
 - Add words to skip, such as "replica", "box only", "for parts" or "damaged".
 - Search common misspellings separately ("carhart", "ralph loren"). Fewer people watch those.
-- In vinted-sniper, combine alternatives in one search, such as `501|505`, instead of running several.
+- In vinted-bot, combine alternatives in one search, such as `501|505`, instead of running several.
 
 ### Follow sellers who list what you want
 
-Following a seller gets you a Vinted notification when they upload, and users generally find those more dependable than saved-search alerts. If a few sellers keep listing your size or brand, follow them. vinted-sniper can follow a seller too and alert you about everything new they list.
+Following a seller gets you a Vinted notification when they upload, and users generally find those more dependable than saved-search alerts. If a few sellers keep listing your size or brand, follow them. vinted-bot can follow a seller too and alert you about everything new they list.
 
 ### Make checkout fast
 
@@ -82,11 +82,11 @@ When the alert arrives, the race is about seconds:
 
 ### Watch more than one country
 
-Each Vinted country site has a different mix of sellers. The same search on a neighbouring country's site can surface listings fewer people are watching. vinted-sniper can run one search across several sites and announces a listing seen on two of them only once.
+Each Vinted country site has a different mix of sellers. The same search on a neighbouring country's site can surface listings fewer people are watching. vinted-bot can run one search across several sites and announces a listing seen on two of them only once.
 
 ### Know when sellers list
 
-Many sellers list when they have free time, in the evening or at the weekend, but it varies by category and country. Rather than guess, look at your own data: vinted-sniper's stats page shows finds per day and the busiest hours for your searches, so you know when to keep your phone close.
+Many sellers list when they have free time, in the evening or at the weekend, but it varies by category and country. Rather than guess, look at your own data: vinted-bot's stats page shows finds per day and the busiest hours for your searches, so you know when to keep your phone close.
 
 ## When you shouldn't bother racing
 

@@ -20,7 +20,7 @@ faq:
   - q: "Comment avoir les notifications Vinted sur iPhone ?"
     a: "Dans Réglages, Notifications, Vinted, activez Autoriser les notifications. Vérifiez qu'aucun mode Concentration ne bloque Vinted et sortez l'appli du résumé programmé. Dans l'appli Vinted, activez les notifications dans Profil, Paramètres, Notifications."
   - q: "Que faire si la recherche sauvegardée Vinted ne marche pas ?"
-    a: "Recréez la recherche et vérifiez ses filtres après l'avoir sauvegardée. Si les alertes restent absentes, utilisez un outil qui consulte la recherche lui-même, comme vinted-sniper, gratuit, qui vérifie chaque minute et vous envoie les nouvelles annonces."
+    a: "Recréez la recherche et vérifiez ses filtres après l'avoir sauvegardée. Si les alertes restent absentes, utilisez un outil qui consulte la recherche lui-même, comme vinted-bot, gratuit, qui vérifie chaque minute et vous envoie les nouvelles annonces."
 ---
 
 Si vos notifications Vinted pour une recherche sauvegardée n'arrivent pas, ce n'est souvent pas votre téléphone. Beaucoup de membres qui ont tout activé reçoivent ces alertes en retard ou jamais, et Vinted n'a jamais vraiment expliqué comment il les envoie. Vérifiez d'abord les réglages ci-dessous, car ils règlent certains cas. Sinon, la solution fiable est un outil d'alerte qui consulte la recherche lui-même.
@@ -72,7 +72,7 @@ Ce que vous pouvez changer, c'est qui consulte la recherche. Au lieu d'attendre 
 
 ## L'alternative gratuite : des alertes qui consultent la recherche elles-mêmes
 
-vinted-sniper est une application gratuite et open source qui fait exactement ça. Vous collez le même lien de recherche Vinted, et elle le consulte chaque minute depuis votre propre ordinateur. Chaque nouvelle annonce arrive sur Discord, Telegram, ntfy sur votre téléphone ou un webhook, avec les photos, le prix total protection acheteurs comprise, la taille, l'état, la note du vendeur et un bouton pour ouvrir l'annonce.
+vinted-bot est une application gratuite et open source qui fait exactement ça. Vous collez le même lien de recherche Vinted, et elle le consulte chaque minute depuis votre propre ordinateur. Chaque nouvelle annonce arrive sur Discord, Telegram, ntfy sur votre téléphone ou un webhook, avec les photos, le prix total protection acheteurs comprise, la taille, l'état, la note du vendeur et un bouton pour ouvrir l'annonce.
 
 Elle corrige aussi ce que les recherches sauvegardées de Vinted ne font pas :
 

@@ -1,8 +1,8 @@
-# vinted-sniper
+# vinted-bot
 
-> Free, open-source app that watches Vinted searches and sends a message (Discord, Telegram, ntfy, RSS or a webhook) when a new listing matches. It runs on the user's own computer or server, never logs in to Vinted, and has a web dashboard at http://localhost:8000 where all setup happens. Not affiliated with Vinted. MIT licensed. Source: https://github.com/jasp-nerd/vinted-sniper
+> Free, open-source app that watches Vinted searches and sends a message (Discord, Telegram, ntfy, RSS or a webhook) when a new listing matches. It runs on the user's own computer or server, never logs in to Vinted, and has a web dashboard at http://localhost:8000 where all setup happens. Not affiliated with Vinted. MIT licensed. Source: https://github.com/jasp-nerd/vinted-bot
 
-This file is a complete guide for an AI assistant helping someone install and use vinted-sniper. The person is often not technical. Use only the commands in this file; do not invent commands, flags or settings. If something here doesn't match what the person sees, say so and point them to the issue tracker rather than guessing.
+This file is a complete guide for an AI assistant helping someone install and use vinted-bot. The person is often not technical. Use only the commands in this file; do not invent commands, flags or settings. If something here doesn't match what the person sees, say so and point them to the issue tracker rather than guessing.
 
 ## How to help
 
@@ -13,10 +13,10 @@ This file is a complete guide for an AI assistant helping someone install and us
 
 ## Facts that matter
 
-- Alerts only arrive while the computer running vinted-sniper is on, awake and online. A laptop that sleeps sends nothing while asleep. Always-on options: a Raspberry Pi, a NAS, a mini PC, an old laptop left plugged in, or a small rented server (a few euros a month).
+- Alerts only arrive while the computer running vinted-bot is on, awake and online. A laptop that sleeps sends nothing while asleep. Always-on options: a Raspberry Pi, a NAS, a mini PC, an old laptop left plugged in, or a small rented server (a few euros a month).
 - No Vinted account is involved. It never asks for Vinted login details. Anything asking for Vinted credentials is not this app.
 - No configuration file is needed. Searches and alert destinations are added in the dashboard.
-- The dashboard is at http://localhost:8000 on the computer it runs on. It has no password unless one is set (VINTED_SNIPER_WEB_AUTH_TOKEN). That is fine on the person's own computer and required anywhere the dashboard can be reached from other devices.
+- The dashboard is at http://localhost:8000 on the computer it runs on. It has no password unless one is set (VINTED_BOT_WEB_AUTH_TOKEN). That is fine on the person's own computer and required anywhere the dashboard can be reached from other devices.
 - Price limits include Vinted's buyer protection fee, so they match what the person actually pays.
 - The first check of a new search is silent on purpose, so there is no flood of old listings. Alerts start with listings that appear after that.
 - New listings usually arrive within a few minutes. Vinted itself shows new listings to its search with a delay, so nothing can be instant.
@@ -24,14 +24,14 @@ This file is a complete guide for an AI assistant helping someone install and us
 
 ## Install
 
-Pick exactly one. The installers need no admin rights and no Docker. They install uv (a helper that downloads Python) and vinted-sniper into the user's own folder, ask whether to start at login, start the app, and open the dashboard.
+Pick exactly one. The installers need no admin rights and no Docker. They install uv (a helper that downloads Python) and vinted-bot into the user's own folder, ask whether to start at login, start the app, and open the dashboard.
 
 ### Windows 10 or 11
 
 1. Open PowerShell: Start menu, type PowerShell, press Enter.
 2. Paste this and press Enter:
 
-    powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.ps1 | iex"
+    powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.ps1 | iex"
 
 3. Answer the question about starting at sign-in (Y is recommended).
 4. The browser opens http://localhost:8000. The app runs in the background with no window.
@@ -43,14 +43,14 @@ Keep the PC awake: Settings, System, Power, set "Make my device sleep" to Never 
 1. Open Terminal: press Cmd+Space, type Terminal, press Enter.
 2. Paste this and press Enter:
 
-    curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.sh | sh
+    curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.sh | sh
 
 3. It asks whether to keep the Mac awake while plugged in, and whether to start at login. Yes to both is recommended for reliable alerts. macOS may then show a "Background Items Added" notice; that is expected.
 4. The browser opens http://localhost:8000.
 
 ### Linux, or a Raspberry Pi (64-bit Raspberry Pi OS)
 
-    curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.sh | sh
+    curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.sh | sh
 
 To make it start at boot with nobody logged in (useful on a Pi), the installer may ask them to run:
 
@@ -62,20 +62,20 @@ A Pi without a screen: open the dashboard from another computer by running this 
 
 ### Docker (any computer that already has Docker)
 
-    mkdir vinted-sniper && cd vinted-sniper
-    curl -O https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docker-compose.yml
+    mkdir vinted-bot && cd vinted-bot
+    curl -O https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docker-compose.yml
     docker compose up -d
 
-Then open http://localhost:8000 on that computer. With Docker, put `docker compose exec vinted-sniper` in front of any `vinted-sniper` command below.
+Then open http://localhost:8000 on that computer. With Docker, put `docker compose exec vinted-bot` in front of any `vinted-bot` command below.
 
 ### NAS
 
-- Unraid: Apps (Community Applications), search vinted-sniper.
-- Umbrel: add the community app store listed in https://github.com/jasp-nerd/vinted-sniper/blob/main/deploy/README.md
-- CasaOS or ZimaOS: App Store, Custom Install, import https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/deploy/casaos/docker-compose.yml
+- Unraid: Apps (Community Applications), search vinted-bot.
+- Umbrel: add the community app store listed in https://github.com/jasp-nerd/vinted-bot/blob/main/deploy/README.md
+- CasaOS or ZimaOS: App Store, Custom Install, import https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/deploy/casaos/docker-compose.yml
 - Synology (DSM 7.2+): Container Manager, Project, Create, paste the docker-compose.yml from the Docker section.
 
-On a NAS the dashboard is reachable from the whole home network, so a dashboard password (VINTED_SNIPER_WEB_AUTH_TOKEN) should be set in the app's settings on the NAS.
+On a NAS the dashboard is reachable from the whole home network, so a dashboard password (VINTED_BOT_WEB_AUTH_TOKEN) should be set in the app's settings on the NAS.
 
 ## First use
 
@@ -93,7 +93,7 @@ On a NAS the dashboard is reachable from the whole home network, so a dashboard 
 
 1. In Discord, the person needs a server where they can manage channels (they can create their own server for free with the + button).
 2. Right-click the channel, Edit Channel, Integrations, Webhooks, New Webhook, Copy Webhook URL.
-3. In the vinted-sniper dashboard, add a Discord destination and paste the link there. <!-- TODO(web): exact button name. -->
+3. In the vinted-bot dashboard, add a Discord destination and paste the link there. <!-- TODO(web): exact button name. -->
 4. Send a test message from the dashboard.
 
 The webhook link works like a password for posting into that channel. It goes only into the dashboard.
@@ -101,12 +101,12 @@ The webhook link works like a password for posting into that channel. It goes on
 ### Telegram
 
 1. In Telegram, open @BotFather, send /newbot, choose a name and a username ending in "bot". BotFather replies with a token.
-2. Give the token to vinted-sniper. <!-- TODO(web): if the dashboard gets a field for the bot token, describe it here and drop the .env route. --> Today that is a line in a file named .env in vinted-sniper's data folder:
+2. Give the token to vinted-bot. <!-- TODO(web): if the dashboard gets a field for the bot token, describe it here and drop the .env route. --> Today that is a line in a file named .env in vinted-bot's data folder:
 
-        VINTED_SNIPER_TELEGRAM_BOT_TOKEN=the-token-from-botfather
+        VINTED_BOT_TELEGRAM_BOT_TOKEN=the-token-from-botfather
 
-   Data folder: Windows %LOCALAPPDATA%\vinted-sniper, macOS ~/Library/Application Support/vinted-sniper, Linux ~/.local/share/vinted-sniper, Docker a .env file next to docker-compose.yml. Then restart vinted-sniper (run the install command again, or `docker compose up -d` with Docker).
-3. Connect the chat: in the dashboard, add a Telegram destination and open the link it shows, or run `vinted-sniper pair-telegram --bot-username THEBOTNAME` and tap the link. The link opens the bot; press Start. For a group, add the bot to the group first and tap the link inside the group. The link expires after 30 minutes. <!-- TODO(web): exact dashboard wording for pairing. -->
+   Data folder: Windows %LOCALAPPDATA%\vinted-bot, macOS ~/Library/Application Support/vinted-bot, Linux ~/.local/share/vinted-bot, Docker a .env file next to docker-compose.yml. Then restart vinted-bot (run the install command again, or `docker compose up -d` with Docker).
+3. Connect the chat: in the dashboard, add a Telegram destination and open the link it shows, or run `vinted-bot pair-telegram --bot-username THEBOTNAME` and tap the link. The link opens the bot; press Start. For a group, add the bot to the group first and tap the link inside the group. The link expires after 30 minutes. <!-- TODO(web): exact dashboard wording for pairing. -->
 
 A Telegram bot cannot message someone first; that is a Telegram rule, which is why the link step exists.
 
@@ -118,51 +118,51 @@ A Telegram bot cannot message someone first; that is a Telegram rule, which is w
 
 ## Updating
 
-- Installed with the Windows, macOS or Linux installer: click "Update now" in the dashboard's banner (or Settings, Updates), or run the same install command again. Both keep all searches. If the dashboard then asks for a restart (it was not set to start at login), run `vinted-sniper run` again.
+- Installed with the Windows, macOS or Linux installer: click "Update now" in the dashboard's banner (or Settings, Updates), or run the same install command again. Both keep all searches. If the dashboard then asks for a restart (it was not set to start at login), run `vinted-bot run` again.
 - Docker: `docker compose pull && docker compose up -d`
 - NAS app stores: the store's update button.
 
-The dashboard says when a new version is out. Check the version with `vinted-sniper --version`.
+The dashboard says when a new version is out. Check the version with `vinted-bot --version`.
 
 ## Stopping and removing
 
 Stop:
-- Windows (PowerShell): `Get-Process vinted-sniper | Stop-Process`
-- macOS: `launchctl bootout gui/$(id -u)/io.github.jasp-nerd.vinted-sniper`
-- Linux: `systemctl --user stop vinted-sniper`
+- Windows (PowerShell): `Get-Process vinted-bot | Stop-Process`
+- macOS: `launchctl bootout gui/$(id -u)/io.github.jasp-nerd.vinted-bot`
+- Linux: `systemctl --user stop vinted-bot`
 - Docker: `docker compose down`
 
 Remove (searches are kept in the data folder until it is deleted):
-- Windows: `powershell -ExecutionPolicy ByPass -c '$env:VINTED_SNIPER_UNINSTALL=1; irm https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.ps1 | iex'`
-- macOS and Linux: `curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.sh | sh -s -- --uninstall`
+- Windows: `powershell -ExecutionPolicy ByPass -c '$env:VINTED_BOT_UNINSTALL=1; irm https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.ps1 | iex'`
+- macOS and Linux: `curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.sh | sh -s -- --uninstall`
 - Docker: `docker compose down -v` (the -v also deletes the searches)
 
 ## Troubleshooting
 
 Go in this order.
 
-1. Old version: run `vinted-sniper --version`. Anything below 2.0.0 stopped working in September 2026. Update.
+1. Old version: run `vinted-bot --version`. Anything below 2.0.0 stopped working in September 2026. Update.
 2. Is it running? Open http://localhost:8000. If the page doesn't load, start it again by running the install command again (Docker: `docker compose up -d`) and look at the log (step 6).
-3. Search health: the dashboard shows each search's state, or run `vinted-sniper status`. States: ok (working, just nothing new matched), stale (Vinted stopped updating that search; it repairs itself, restart if it lasts over an hour), failing (see the error shown).
-4. Vinted reachable from this machine: run `vinted-sniper check --url "PASTE A VINTED SEARCH URL"`. Listings printed = connection fine. "Blocked" = Vinted refuses this internet connection. Confirm with (use their country's site):
+3. Search health: the dashboard shows each search's state, or run `vinted-bot status`. States: ok (working, just nothing new matched), stale (Vinted stopped updating that search; it repairs itself, restart if it lasts over an hour), failing (see the error shown).
+4. Vinted reachable from this machine: run `vinted-bot check --url "PASTE A VINTED SEARCH URL"`. Listings printed = connection fine. "Blocked" = Vinted refuses this internet connection. Confirm with (use their country's site):
        macOS/Linux:  curl -s -c - -L "https://www.vinted.fr/" | grep access_token_web
        Windows:      curl.exe -s -c - -L "https://www.vinted.fr/" | Select-String access_token_web
    A line printed = fine. Nothing printed = this connection is refused by Vinted (common on cloud servers and some VPNs). Fixes: wait (often temporary), check less often, turn off a VPN, or run it at home.
 5. "ok" but nothing arrives: the price limit includes buyer protection; excluded words may catch more than intended; the search may simply have nothing new (compare on the Vinted website). Promoted (bumped) listings are skipped on purpose.
-6. Logs: Windows %LOCALAPPDATA%\vinted-sniper\vinted-sniper.log; macOS ~/Library/Application Support/vinted-sniper/vinted-sniper.log; Linux `journalctl --user -u vinted-sniper`; Docker `docker compose logs --tail 200 vinted-sniper`.
+6. Logs: Windows %LOCALAPPDATA%\vinted-bot\vinted-bot.log; macOS ~/Library/Application Support/vinted-bot/vinted-bot.log; Linux `journalctl --user -u vinted-bot`; Docker `docker compose logs --tail 200 vinted-bot`.
 7. Alerts stopped but searches are fine: the destination may have been switched off because Discord or Telegram said it no longer exists (deleted webhook, blocked bot). Remove it and add it again in the dashboard.
-8. "Port 8000 is taken" during install: another program (often an older Docker copy) uses it. Stop that, or install with VINTED_SNIPER_WEB_PORT=8001 (macOS/Linux: put it before `sh` in the install command; Windows: run `$env:VINTED_SNIPER_WEB_PORT = 8001` first) and use http://localhost:8001.
+8. "Port 8000 is taken" during install: another program (often an older Docker copy) uses it. Stop that, or install with VINTED_BOT_WEB_PORT=8001 (macOS/Linux: put it before `sh` in the install command; Windows: run `$env:VINTED_BOT_WEB_PORT = 8001` first) and use http://localhost:8001.
 9. "command not found" right after installing: open a new terminal window.
 10. Windows "running scripts is disabled": use the install command exactly as given, including -ExecutionPolicy ByPass.
 11. Docker "unable to open database file": set PUID and PGID in docker-compose.yml to the owner of the data folder (`id` prints it).
 
-Still stuck: open an issue at https://github.com/jasp-nerd/vinted-sniper/issues/new/choose with the output of `vinted-sniper status` and the last part of the log. Check the log has no tokens or webhook links before posting.
+Still stuck: open an issue at https://github.com/jasp-nerd/vinted-bot/issues/new/choose with the output of `vinted-bot status` and the last part of the log. Check the log has no tokens or webhook links before posting.
 
 ## More detail
 
-- [README](https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/README.md)
-- [Self-hosting: Pi, NAS, VPS, backups, updating](https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docs/self-hosting.md)
-- [Troubleshooting](https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docs/troubleshooting.md)
-- [Configuration: every setting](https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docs/configuration.md)
-- [NAS and cloud templates](https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/deploy/README.md)
-- [Legal notes](https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docs/legal.md)
+- [README](https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/README.md)
+- [Self-hosting: Pi, NAS, VPS, backups, updating](https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docs/self-hosting.md)
+- [Troubleshooting](https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docs/troubleshooting.md)
+- [Configuration: every setting](https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docs/configuration.md)
+- [NAS and cloud templates](https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/deploy/README.md)
+- [Legal notes](https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docs/legal.md)

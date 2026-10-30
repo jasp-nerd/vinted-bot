@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from vinted_sniper.deliver.ratelimit import Gate, TokenBucket
+from vinted_bot.deliver.ratelimit import Gate, TokenBucket
 
 # --- Pacing ------------------------------------------------------------------------
 

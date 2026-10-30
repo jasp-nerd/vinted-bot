@@ -18,7 +18,7 @@ faq:
   - q: "Perché le notifiche di Vinted arrivano in ritardo?"
     a: "Si sommano due ritardi. Vinted aggiunge i nuovi annunci alla ricerca qualche minuto dopo il caricamento, e le notifiche delle ricerche salvate partono un po' dopo. Risparmio batteria e modalità Full immersion o Non disturbare possono trattenerle ancora."
   - q: "Come ricevere notifiche Vinted affidabili per una ricerca?"
-    a: "Usa uno strumento esterno che controlla la ricerca e ti scrive. vinted-sniper lo fa gratis: controlla ogni minuto, manda i nuovi annunci su Telegram, Discord o sul telefono e ti dice quando una ricerca smette di funzionare."
+    a: "Usa uno strumento esterno che controlla la ricerca e ti scrive. vinted-bot lo fa gratis: controlla ogni minuto, manda i nuovi annunci su Telegram, Discord o sul telefono e ti dice quando una ricerca smette di funzionare."
 ---
 
 Se le notifiche Vinted delle tue ricerche salvate non arrivano, spesso non è colpa del telefono. Molti utenti con tutte le impostazioni attive ricevono questi avvisi in ritardo o mai, e Vinted non ha mai spiegato bene come li invia. Controlla prima le impostazioni qui sotto, perché in alcuni casi risolvono. Se non bastano, la soluzione affidabile è uno strumento che controlla la ricerca da solo.
@@ -70,7 +70,7 @@ Puoi però cambiare chi controlla la ricerca. Invece di aspettare la notifica di
 
 ## L'alternativa gratuita: avvisi che controllano la ricerca da soli
 
-vinted-sniper è un'app gratuita e open source che fa proprio questo. Incolli lo stesso link della ricerca Vinted e lui la controlla ogni minuto dal tuo computer. Ogni nuovo annuncio arriva come messaggio su Telegram, Discord, ntfy sul telefono o un webhook, con le foto, il prezzo totale con la protezione acquisti, taglia e condizioni, la valutazione del venditore e un pulsante per aprire l'annuncio.
+vinted-bot è un'app gratuita e open source che fa proprio questo. Incolli lo stesso link della ricerca Vinted e lui la controlla ogni minuto dal tuo computer. Ogni nuovo annuncio arriva come messaggio su Telegram, Discord, ntfy sul telefono o un webhook, con le foto, il prezzo totale con la protezione acquisti, taglia e condizioni, la valutazione del venditore e un pulsante per aprire l'annuncio.
 
 Sistema anche alcune cose che le ricerche salvate di Vinted non fanno:
 

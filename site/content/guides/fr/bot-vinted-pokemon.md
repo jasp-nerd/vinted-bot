@@ -14,7 +14,7 @@ keywords:
   - lot cartes pokemon vinted
 faq:
   - q: "Existe-t-il un bot Vinted pour les cartes Pokémon ?"
-    a: "Oui. N'importe quel bot d'alerte Vinted fonctionne pour les cartes Pokémon si on lui donne de bonnes recherches. vinted-sniper est gratuit : il vérifie vos recherches de cartes chaque minute et envoie les nouvelles annonces sur Discord, Telegram ou votre téléphone, en excluant des mots comme proxy ou custom."
+    a: "Oui. N'importe quel bot d'alerte Vinted fonctionne pour les cartes Pokémon si on lui donne de bonnes recherches. vinted-bot est gratuit : il vérifie vos recherches de cartes chaque minute et envoie les nouvelles annonces sur Discord, Telegram ou votre téléphone, en excluant des mots comme proxy ou custom."
   - q: "Les cartes Pokémon sur Vinted sont-elles fausses ?"
     a: "La plupart ne le sont pas, mais des contrefaçons et des proxys circulent, surtout dans les lots bon marché et les cartes chères. Demandez des photos nettes du recto, du verso et des bords, comparez avec une carte que vous possédez et regardez les évaluations du vendeur."
   - q: "Acheter des cartes Pokémon sur Vinted, c'est sûr ?"
@@ -62,9 +62,9 @@ Ajoutez en exclusion : `proxy`, `custom`, `faux`, `fake`, `replique`, `fan art`,
 
 Le filtre de prix de Vinted utilise le prix affiché. Ce que vous payez, c'est ce prix plus la protection acheteurs (en général 0,70 € plus 5 % du prix), plus le port. Sur une carte à 10 €, ça fait 11,20 € avant le port ; sur une carte gradée à 100 €, 105,70 €.
 
-Quand vous fixez un plafond, utilisez le total. Dans vinted-sniper, la limite de prix inclut déjà la protection acheteurs : « max 40 € » veut dire 40 € au paiement, hors port. Pour faire le calcul vous-même : prix × 1,05 + 0,70.
+Quand vous fixez un plafond, utilisez le total. Dans vinted-bot, la limite de prix inclut déjà la protection acheteurs : « max 40 € » veut dire 40 € au paiement, hors port. Pour faire le calcul vous-même : prix × 1,05 + 0,70.
 
-Un meilleur test qu'un plafond fixe, c'est « sous le prix habituel de cette recherche ». vinted-sniper apprend le prix total habituel de chaque recherche et signale les annonces nettement en dessous, une fois qu'il a vu assez de trouvailles (15 sur deux semaines).
+Un meilleur test qu'un plafond fixe, c'est « sous le prix habituel de cette recherche ». vinted-bot apprend le prix total habituel de chaque recherche et signale les annonces nettement en dessous, une fois qu'il a vu assez de trouvailles (15 sur deux semaines).
 
 ## Repérer les fausses cartes et les arnaques
 
@@ -76,13 +76,13 @@ Les contrefaçons ne sont pas partout, mais elles existent, surtout à deux endr
 - Pour le scellé, méfiez-vous des boosters à l'unité à bas prix : les boosters refermés sont un problème connu. Les boîtes sous blister d'un vendeur bien noté sont plus sûres.
 - Regardez le vendeur : nombre d'évaluations, note, et si son dressing ressemble à la collection d'une vraie personne ou à une série de cartes « rares » identiques.
 
-Ce dernier point s'automatise. vinted-sniper peut écarter les vendeurs sous une note minimale ou avec trop peu d'évaluations, ignorer ceux qui n'en ont encore aucune, et bloquer un vendeur pour de bon.
+Ce dernier point s'automatise. vinted-bot peut écarter les vendeurs sous une note minimale ou avec trop peu d'évaluations, ignorer ceux qui n'en ont encore aucune, et bloquer un vendeur pour de bon.
 
 Achetez toujours via le paiement Vinted, pour que la protection acheteurs s'applique. N'acceptez jamais de payer un vendeur directement.
 
 ## Mettre en place vos alertes Pokémon
 
-vinted-sniper est une application gratuite et open source qui tourne sur votre ordinateur, vérifie vos recherches Vinted chaque minute et envoie les nouvelles annonces sur Discord, Telegram ou votre téléphone. Elle ne se connecte jamais à Vinted.
+vinted-bot est une application gratuite et open source qui tourne sur votre ordinateur, vérifie vos recherches Vinted chaque minute et envoie les nouvelles annonces sur Discord, Telegram ou votre téléphone. Elle ne se connecte jamais à Vinted.
 
 1. Installez-la avec la commande d'une ligne de la page d'accueil.
 2. Collez chaque lien de recherche Vinted, ou construisez la recherche dans le tableau de bord en choisissant la catégorie des cartes à collectionner.
@@ -96,7 +96,7 @@ Chaque alerte affiche les photos, le prix total, la note du vendeur et des bouto
 
 ## Chercher dans plusieurs pays
 
-Les cartes sont les mêmes partout, mais pas les vendeurs. La même recherche sur vinted.fr, vinted.be, vinted.de, vinted.it et vinted.es fait remonter des annonces différentes, et les cartes d'une langue donnée sont plus faciles à trouver, parfois moins chères, sur le site du pays concerné. Une recherche vinted-sniper peut couvrir plusieurs pays à la fois, et une annonce vue sur deux sites n'est signalée qu'une fois.
+Les cartes sont les mêmes partout, mais pas les vendeurs. La même recherche sur vinted.fr, vinted.be, vinted.de, vinted.it et vinted.es fait remonter des annonces différentes, et les cartes d'une langue donnée sont plus faciles à trouver, parfois moins chères, sur le site du pays concerné. Une recherche vinted-bot peut couvrir plusieurs pays à la fois, et une annonce vue sur deux sites n'est signalée qu'une fois.
 
 ## Rester réaliste sur la vitesse
 

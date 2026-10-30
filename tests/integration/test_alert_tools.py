@@ -11,12 +11,12 @@ import httpx
 import pytest
 
 from tests.unit.sending import cv2_problems, notification, telegram_length
-from vinted_sniper.config import Settings
-from vinted_sniper.db.repo import Destination, Repo
-from vinted_sniper.deliver import preview_payload, send_test
-from vinted_sniper.deliver.base import SenderConfigError
-from vinted_sniper.deliver.dispatcher import Dispatcher, Routing, deliver_silently, skip_reason
-from vinted_sniper.vinted.models import Item
+from vinted_bot.config import Settings
+from vinted_bot.db.repo import Destination, Repo
+from vinted_bot.deliver import preview_payload, send_test
+from vinted_bot.deliver.base import SenderConfigError
+from vinted_bot.deliver.dispatcher import Dispatcher, Routing, deliver_silently, skip_reason
+from vinted_bot.vinted.models import Item
 
 
 class Endpoint:

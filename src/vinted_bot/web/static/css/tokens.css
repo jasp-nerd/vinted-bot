@@ -1,0 +1,276 @@
+/* vinted-bot design tokens
+ *
+ * Layout idea: Vinted's flat white marketplace (teal action colour, teal-tinted greys,
+ * photo-led 2:3 cards, hairline surfaces) plus the owner's house moves (one loud colour,
+ * lipped pill buttons, big rounded colour fields that hold Mags, no resting shadows).
+ *
+ * Colour values for the neutrals, teal ramp and semantic colours are Vinted's own
+ * (research F §1). Contrast notes are against --c-surface unless stated.
+ * Every token is defined here on :root first; the dark blocks only redefine.
+ */
+
+@font-face {
+  font-family: "Figtree";
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url("../fonts/Figtree-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Figtree";
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url("../fonts/Figtree-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Gabarito";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("../fonts/Gabarito-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Gabarito";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("../fonts/Gabarito-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+  color-scheme: light;
+
+  /* ── Action colour: Vinted teal. Nothing else on screen is this colour. ── */
+  --c-primary: #007782;          /* white on it 5.2:1; as text on white 5.2:1 */
+  --c-primary-rgb: 0, 119, 130;
+  --c-primary-hover: #006872;
+  --c-primary-lip: #004f57;      /* the solid lip under primary pills */
+  --c-on-primary: #ffffff;
+  --c-primary-medium: #86cdcf;
+  --c-primary-light: #c9f0ee;
+  --c-primary-tint: #e6fafa;     /* selected chip / choice background */
+
+  /* ── Neutrals (Vinted greyscale, slightly teal-biased) ── */
+  --c-ink: #15191a;              /* titles, values: 17.6:1 */
+  --c-ink-rgb: 21, 25, 26;
+  --c-text-2: #5a6566;           /* body, meta: 6.1:1 */
+  --c-text-3: #7b8687;           /* hints only, 3.9:1, never for body text */
+  --c-control: #b6bebf;          /* chip and secondary-button rings: the label names the control */
+  --c-control-input: #858f90;    /* input, select, token and checkbox borders: 3.3:1 */
+  --c-control-strong: #7b8687;   /* checkbox / switch off: 3.9:1 */
+  --c-line: #e1e6e6;
+  --c-fill: #edf2f2;             /* search bar, placeholders, tracks */
+  --c-page: #ffffff;
+  --c-surface: #ffffff;
+  --c-surface-2: #f5f7f7;        /* sunken sections, settings nav */
+  --c-border: rgba(21, 25, 26, .12);
+  --c-border-faint: rgba(21, 25, 26, .07);
+  --c-scrim: rgba(21, 25, 26, .48);
+  --c-on-photo: #ffffff;         /* buttons sitting on photos */
+  /* Ink on those white buttons and pills. The same in both themes, because the white is. */
+  --c-on-photo-ink: #15191a;
+  --c-on-photo-ink-2: #5a6566;
+
+  /* ── Semantic (Vinted naming translated) ── */
+  --c-success: #28865a;          /* 4.6:1 */
+  --c-success-ink: #1f6e49;
+  --c-success-tint: #ebfcef;
+  --c-success-light: #c0eed0;
+  --c-danger: #c23a4a;           /* slightly darker than Vinted's #D04555 so text passes 4.5:1 */
+  --c-danger-ink: #a8303f;
+  --c-danger-tint: #fff4f4;
+  --c-danger-light: #fddcdc;
+  --c-amber: #f9bb42;            /* ink text on it, never white */
+  --c-amber-ink: #7a5300;        /* amber-family text on white: 6.4:1 */
+  --c-amber-tint: #fff5e5;
+  --c-amber-light: #ffeecb;
+
+  /* ── Colour fields (32px-radius stages that hold Mags and live previews).
+       Each one means something:
+       teal = watching / general, sun = money and searches, lilac = alerts,
+       mint = it worked, rose = something needs you. ── */
+  --field-teal: #c9f0ee;
+  --field-sun: #ffeecb;
+  --field-lilac: #e3e2ff;
+  --field-mint: #d6f5df;
+  --field-rose: #fde2e0;
+  --field-ink: #15191a;          /* text on any field */
+
+  /* ── Search colours: categorical, validated with the dataviz validator
+       (light: adjacent CVD ΔE ≥ 16, normal ≥ 19). Fixed order, assigned on create. ── */
+  --s-1: #2a78d6; --s-2: #eb6834; --s-3: #eda100; --s-4: #e87ba4;
+  --s-5: #008300; --s-6: #6250d6; --s-7: #1baf7a;
+
+  /* ── Status (search health). Always paired with an icon or word. ── */
+  --st-watching: #28865a;
+  --st-quiet: #7b8687;
+  --st-stuck: #d08a00;
+  --st-paused: #7b8687;
+  --st-blocked: #c23a4a;
+
+  /* ── Type ── */
+  --font-ui: "Figtree", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: "Gabarito", "Figtree", "Helvetica Neue", Arial, sans-serif;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 580;            /* Vinted's semibold */
+  --fw-display: 800;
+
+  --fs-display: clamp(32px, 4.2vw, 46px);  /* onboarding questions */
+  --lh-display: 1.04;
+  --fs-h1: clamp(26px, 2.6vw, 32px);       /* page titles */
+  --fs-h2: 21px;                           /* section heads, Gabarito 700 */
+  --fs-h3: 16px;                           /* card titles, Inter 580 */
+  --fs-lead: 17px;
+  --fs-body: 15px;
+  --fs-sm: 13px;
+  --fs-xs: 12px;
+
+  /* ── Space (4px grid, Vinted's --space scale) ── */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px;
+  --sp-6: 24px; --sp-8: 32px; --sp-10: 40px; --sp-12: 48px; --sp-16: 64px;
+
+  /* ── Radii: Vinted's small radii for photos and inputs, the owner's big ones for fields ── */
+  --r-photo: 8px;
+  --r-control: 10px;
+  --r-card: 14px;
+  --r-choice: 16px;
+  --r-field: 28px;
+  --r-pill: 999px;
+
+  /* ── Elevation: none at rest. Blur only on things that float. ── */
+  --ring: inset 0 0 0 1px var(--c-border);
+  --shadow-float: 0 12px 32px rgba(21, 25, 26, .16), 0 2px 6px rgba(21, 25, 26, .08);
+  --shadow-thumb: 0 1px 2px rgba(21, 25, 26, .16);
+  --focus: 0 0 0 2px var(--c-page), 0 0 0 4px var(--c-primary);
+
+  /* ── Motion ── */
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+  --dur-press: 80ms;
+  --dur: 180ms;
+  --dur-arrive: 320ms;
+
+  /* ── Layout ── */
+  --container: 1280px;
+  --gutter: 20px;
+  --topbar-h: 60px;
+  --tabbar-h: 64px;
+  --photo-ratio: 2 / 3;          /* Vinted's card ratio; listing photos are 2:3 portrait */
+}
+
+/* Dark: Vinted's own dark ramp (research F §7), inverted tints, teal lifted for contrast. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --c-primary: #4aa6b2;
+    --c-primary-rgb: 74, 166, 178;
+    --c-primary-hover: #66b8c3;
+    --c-primary-lip: #164c53;
+    --c-on-primary: #0d1314;
+    --c-primary-medium: #1e6670;
+    --c-primary-light: #134a52;
+    --c-primary-tint: #12302f;
+    --c-ink: #eef2f2;
+    --c-ink-rgb: 238, 242, 242;
+    --c-text-2: #a9b3b4;
+    --c-text-3: #869192;
+    --c-control: #4a5556;
+    --c-control-input: #667273;
+    --c-control-strong: #869192;
+    --c-line: #2a3233;
+    --c-fill: #232a2b;
+    --c-page: #101515;
+    --c-surface: #171d1e;
+    --c-surface-2: #131919;
+    --c-border: rgba(238, 242, 242, .12);
+    --c-border-faint: rgba(238, 242, 242, .07);
+    --c-scrim: rgba(5, 8, 8, .66);
+    --c-on-photo: #ffffff;
+    --c-success: #43b883;
+    --c-success-ink: #6fd0a2;
+    --c-success-tint: #142a1f;
+    --c-success-light: #1d4a33;
+    --c-danger: #ec6b7a;
+    --c-danger-ink: #f39aa4;
+    --c-danger-tint: #2c1a1d;
+    --c-danger-light: #5c303b;
+    --c-amber: #f9bb42;
+    --c-amber-ink: #f6cd7a;
+    --c-amber-tint: #2e2514;
+    --c-amber-light: #4a3a1c;
+    --field-teal: #1d4448;
+    --field-sun: #463920;
+    --field-lilac: #2f2d55;
+    --field-mint: #1c4029;
+    --field-rose: #4a272d;
+    --field-ink: #eef2f2;
+    --s-1: #3987e5; --s-2: #d95926; --s-3: #c98500; --s-4: #d55181;
+    --s-5: #2f9a2f; --s-6: #9085e9; --s-7: #199e70;
+    --st-watching: #43b883;
+    --st-quiet: #869192;
+    --st-stuck: #f0a82a;
+    --st-paused: #869192;
+    --st-blocked: #ec6b7a;
+    --shadow-float: 0 12px 32px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .3);
+    --shadow-thumb: 0 1px 2px rgba(0, 0, 0, .5);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --c-primary: #4aa6b2;
+  --c-primary-rgb: 74, 166, 178;
+  --c-primary-hover: #66b8c3;
+  --c-primary-lip: #164c53;
+  --c-on-primary: #0d1314;
+  --c-primary-medium: #1e6670;
+  --c-primary-light: #134a52;
+  --c-primary-tint: #12302f;
+  --c-ink: #eef2f2;
+  --c-ink-rgb: 238, 242, 242;
+  --c-text-2: #a9b3b4;
+  --c-text-3: #869192;
+  --c-control: #4a5556;
+  --c-control-input: #667273;
+  --c-control-strong: #869192;
+  --c-line: #2a3233;
+  --c-fill: #232a2b;
+  --c-page: #101515;
+  --c-surface: #171d1e;
+  --c-surface-2: #131919;
+  --c-border: rgba(238, 242, 242, .12);
+  --c-border-faint: rgba(238, 242, 242, .07);
+  --c-scrim: rgba(5, 8, 8, .66);
+  --c-on-photo: #ffffff;
+  --c-success: #43b883;
+  --c-success-ink: #6fd0a2;
+  --c-success-tint: #142a1f;
+  --c-success-light: #1d4a33;
+  --c-danger: #ec6b7a;
+  --c-danger-ink: #f39aa4;
+  --c-danger-tint: #2c1a1d;
+  --c-danger-light: #5c303b;
+  --c-amber: #f9bb42;
+  --c-amber-ink: #f6cd7a;
+  --c-amber-tint: #2e2514;
+  --c-amber-light: #4a3a1c;
+  --field-teal: #1d4448;
+  --field-sun: #463920;
+  --field-lilac: #2f2d55;
+  --field-mint: #1c4029;
+  --field-rose: #4a272d;
+  --field-ink: #eef2f2;
+  --s-1: #3987e5; --s-2: #d95926; --s-3: #c98500; --s-4: #d55181;
+  --s-5: #2f9a2f; --s-6: #9085e9; --s-7: #199e70;
+  --st-watching: #43b883;
+  --st-quiet: #869192;
+  --st-stuck: #f0a82a;
+  --st-paused: #869192;
+  --st-blocked: #ec6b7a;
+  --shadow-float: 0 12px 32px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .3);
+  --shadow-thumb: 0 1px 2px rgba(0, 0, 0, .5);
+}

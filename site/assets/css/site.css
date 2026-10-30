@@ -1,4 +1,4 @@
-/* vinted-sniper landing site.
+/* vinted-bot landing site.
  *
  * Same design system as the dashboard (tokens copied from web/static/css/tokens.css):
  * Vinted-like teal as the one action colour, teal-tinted greys, Gabarito for display,
@@ -256,6 +256,8 @@ code, kbd, pre { font-family: var(--font-mono); }
 .trust { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 4px 0 0; padding: 0; list-style: none; font-size: 14px; color: var(--c-text-2); }
 .trust li { display: inline-flex; align-items: center; gap: 6px; }
 .trust .i { width: 16px; height: 16px; color: var(--c-success); }
+.hero__indep { font-size: 14px; font-weight: 600; color: var(--c-text-2); }
+.hero__indep + .hero__note { margin-top: -16px; }
 @media (max-width: 960px) {
   .hero__grid { grid-template-columns: minmax(0, 1fr); }
 }

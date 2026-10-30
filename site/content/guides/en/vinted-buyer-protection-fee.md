@@ -74,7 +74,7 @@ It sounds small, but for anyone who watches a price closely, such as collectors 
 
 Do the maths on each listing, or use the total Vinted shows next to the asking price. That works when browsing but not for saved searches or alerts.
 
-vinted-sniper, a free and open-source alert tool, filters on the total. Set a maximum of €35 and it means €35 with buyer protection included. It takes that total straight from Vinted, so it matches what Vinted charges in your country without you entering a formula. Every alert shows the total first, with the asking price and buyer protection broken down underneath, and its "skipped" list tells you when a listing was left out for being over your limit.
+vinted-bot, a free and open-source alert tool, filters on the total. Set a maximum of €35 and it means €35 with buyer protection included. It takes that total straight from Vinted, so it matches what Vinted charges in your country without you entering a formula. Every alert shows the total first, with the asking price and buyer protection broken down underneath, and its "skipped" list tells you when a listing was left out for being over your limit.
 
 It also learns the typical total price for each search and flags listings that are clearly under it, which is a better test of a bargain than a fixed number. If you resell, you can add your resale price, the selling platform's fee and your postage, and alerts show the margin left.
 

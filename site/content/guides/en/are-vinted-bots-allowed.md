@@ -76,9 +76,9 @@ It affects your connection, not your account, but if you also browse Vinted on t
 
 People ask this a lot. Vinted doesn't publish how it identifies devices, so nobody outside Vinted can answer it precisely. What's clear is that account restrictions follow accounts, and connection blocks follow internet addresses. A tool that never logs in and checks politely stays out of both, as far as anyone can tell.
 
-## How vinted-sniper stays on the safe side
+## How vinted-bot stays on the safe side
 
-vinted-sniper is a free, open-source alert tool built around this distinction:
+vinted-bot is a free, open-source alert tool built around this distinction:
 
 - It never logs in, never asks for your Vinted password and never touches your account.
 - It doesn't buy, message or relist. Buying for you is deliberately not a feature and won't become one. Alerts include a Buy button that opens Vinted's own checkout, so you buy as yourself.

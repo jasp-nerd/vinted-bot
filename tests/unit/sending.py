@@ -16,9 +16,9 @@ from typing import Any
 
 import httpx
 
-from vinted_sniper.db.repo import PendingNotification
-from vinted_sniper.deliver.ratelimit import TokenBucket
-from vinted_sniper.vinted.models import Item
+from vinted_bot.db.repo import PendingNotification
+from vinted_bot.deliver.ratelimit import TokenBucket
+from vinted_bot.vinted.models import Item
 
 
 def notification(item_id: int, **kwargs: Any) -> PendingNotification:

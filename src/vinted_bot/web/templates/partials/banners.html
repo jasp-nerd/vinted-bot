@@ -1,0 +1,57 @@
+{% import "partials/macros.html" as ui %}
+{#
+  App-wide banners above the top bar. At most one of offline / slowed down / update, in that
+  order; offline is shown by the page script when the live stream drops.
+#}
+{% macro offline() -%}
+<div class="banner banner--ink" role="status" id="offline-banner" hidden>
+  <div class="container banner__row">
+    {{ ui.icon("wifi-off") }}
+    <p class="banner__text"><b>This page lost touch with vinted-bot.</b> Your searches keep running if the app is still open. Reconnecting on its own.</p>
+    <button class="btn btn--secondary btn--sm" type="button" data-reload>Reload</button>
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro blocked(info) -%}
+<div class="banner banner--sun" role="status">
+  <div class="container banner__row">
+    {{ ui.icon("hourglass") }}
+    <p class="banner__text"><b>{{ info.site }} is slowing us down.</b> {{ info.searches }} {{ "search waits" if info.searches == 1 else "searches wait" }} a few minutes before trying again. This usually clears up on its own within an hour. Your Vinted account is not affected.</p>
+    <a class="btn btn--secondary btn--sm" href="{{ url('settings') }}#vinted">What can I do?</a>
+  </div>
+</div>
+{%- endmacro %}
+
+{#
+  The update banner. Where this copy can update itself it offers the button, and app.js
+  fills in progress from /api/update; elsewhere it shows the command to run. data-update-busy
+  marks a page rendered mid-update, so the script picks the progress up again.
+#}
+{% macro update(info) -%}
+{% set st = info.status %}
+<div class="banner banner--teal" role="status" data-update="{{ info.version }}"{% if st.phase != "idle" %} data-update-busy="{{ st.boot }}"{% endif %}>
+  <div class="container banner__row">
+    {{ ui.icon("download") }}
+    {% if info.can_upgrade %}
+    <p class="banner__text" data-update-text>{% if st.message %}{{ st.message }}{% else %}<b>Version {{ info.version }} is out.</b> Updating keeps your searches and finds{% if info.restarts %}, and takes about a minute{% else %}. You restart vinted-bot yourself afterwards{% endif %}.{% endif %}</p>
+    <button class="btn btn--primary btn--sm" type="button" data-update-now{% if st.phase in ("upgrading", "restarting", "installed") %} hidden{% endif %}>{{ "Try again" if st.phase == "failed" else "Update now" }}</button>
+    {% else %}
+    <p class="banner__text"><b>Version {{ info.version }} is out.</b> {{ info.hint }} <span class="code">{{ info.command }}</span></p>
+    <button class="btn btn--icon btn--sm" type="button" data-copy="{{ info.command }}" aria-label="Copy the command">{{ ui.icon("copy", "i-sm") }}</button>
+    {% endif %}
+    <a class="btn btn--secondary btn--sm" href="{{ info.notes }}" target="_blank" rel="noopener">What's new</a>
+    <button class="btn btn--icon btn--sm" type="button" aria-label="Hide until the next version" data-dismiss-update>{{ ui.icon("x", "i-sm") }}</button>
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro exposed() -%}
+<div class="banner banner--danger" role="alert">
+  <div class="container banner__row">
+    {{ ui.icon("lock") }}
+    <p class="banner__text"><b>Anyone on your network can open this page.</b> It shows your alert addresses. Set a password with VINTED_BOT_WEB_AUTH_TOKEN, or keep it on this computer only.</p>
+    <a class="btn btn--secondary btn--sm" href="{{ url('settings') }}#access">How</a>
+  </div>
+</div>
+{%- endmacro %}

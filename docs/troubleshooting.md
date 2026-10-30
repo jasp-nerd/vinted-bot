@@ -6,17 +6,17 @@ Vinted moved its search to a new address in September 2026. Versions before 2.0.
 the old one and find nothing, or report errors such as a 404 or "malformed" on every search.
 No setting fixes that; [updating](self-hosting.md#updating) does.
 
-Check the version you run with `vinted-sniper --version` (Docker:
-`docker compose exec vinted-sniper vinted-sniper --version`). The dashboard also says when a
+Check the version you run with `vinted-bot --version` (Docker:
+`docker compose exec vinted-bot vinted-bot --version`). The dashboard also says when a
 newer version is out.
 
 ## Then: how is each search doing?
 
 The dashboard shows the state of every search. <!-- TODO(web): name the exact page and
 badge wording once the dashboard redesign settles. --> On the command line,
-`vinted-sniper status` prints the same: each search with a one-word state, when it last
+`vinted-bot status` prints the same: each search with a one-word state, when it last
 succeeded, and what went wrong if anything did. With Docker, put
-`docker compose exec vinted-sniper` in front of any `vinted-sniper` command.
+`docker compose exec vinted-bot` in front of any `vinted-bot` command.
 
 ```
 Running.
@@ -36,15 +36,15 @@ The state tells you which of the following sections to read.
 ## Vinted reachable from this machine
 
 Most "it finds nothing" reports come down to one question: does Vinted answer the computer
-vinted-sniper runs on? <!-- TODO(web): describe the dashboard's reachability indicator here
+vinted-bot runs on? <!-- TODO(web): describe the dashboard's reachability indicator here
 (where it is, what "yes" and "no" look like). --> To test it by hand, try one search once:
 
 ```bash
-vinted-sniper check --url "https://www.vinted.fr/catalog?search_text=nike"
+vinted-bot check --url "https://www.vinted.fr/catalog?search_text=nike"
 ```
 
 Listings printed means the connection works. "Blocked" means Vinted is refusing this
-address. To confirm without vinted-sniper at all, ask Vinted for a session cookie, using the
+address. To confirm without vinted-bot at all, ask Vinted for a session cookie, using the
 country site you watch:
 
 ```bash
@@ -55,15 +55,15 @@ curl -s -c - -L "https://www.vinted.fr/" | grep access_token_web
 curl.exe -s -c - -L "https://www.vinted.fr/" | Select-String access_token_web
 
 # Docker
-docker compose exec vinted-sniper sh -c 'curl -s -c - -L "https://www.vinted.fr/" | grep access_token_web'
+docker compose exec vinted-bot sh -c 'curl -s -c - -L "https://www.vinted.fr/" | grep access_token_web'
 ```
 
 **A line with `access_token_web` in it** means your address is fine. If searches still fail,
-the problem is in the app: please [open an issue](https://github.com/jasp-nerd/vinted-sniper/issues/new/choose)
-with the output of `vinted-sniper status` and the log.
+the problem is in the app: please [open an issue](https://github.com/jasp-nerd/vinted-bot/issues/new/choose)
+with the output of `vinted-bot status` and the log.
 
 **Nothing printed** means Vinted is challenging this address, and no setting inside
-vinted-sniper changes that. See [the 403 section](#failing-with-403) for what does.
+vinted-bot changes that. See [the 403 section](#failing-with-403) for what does.
 
 ## "ok" but nothing is arriving
 
@@ -72,7 +72,7 @@ checking:
 
 **Your price limit includes buyer protection.** A limit of 20 rejects a listing priced at 18
 that costs 20.50 to actually buy. That is the intended behaviour, but it surprises people.
-Check what you set with `vinted-sniper searches`.
+Check what you set with `vinted-bot searches`.
 
 **The search itself is narrow.** Open the URL in a browser. If Vinted shows nothing new
 either, there is nothing wrong.
@@ -91,7 +91,7 @@ which looks like success from the outside.
 
 The app starts a fresh session on its own when it notices. If it stays stale for more than
 an hour, restart it: run the install command again if you used the installer, or
-`docker compose restart vinted-sniper` with Docker.
+`docker compose restart vinted-bot` with Docker.
 
 If it persists after that, the search may have genuinely dried up. Compare with the same URL
 in a browser.
@@ -106,15 +106,15 @@ If the check passes, your address is fine and the problem is the app: please ope
 with your logs. If it fails, your address is being challenged. Options, cheapest first:
 
 1. **Wait.** These are usually temporary. The app backs off on its own.
-2. **Slow down.** Raise `VINTED_SNIPER_POLL_DEFAULT_INTERVAL_S` to 120 or 300. Ten searches
+2. **Slow down.** Raise `VINTED_BOT_POLL_DEFAULT_INTERVAL_S` to 120 or 300. Ten searches
    at once from one address is a lot more traffic than one search.
 3. **Move it home.** Residential connections are challenged far less than datacenter ones. A
    Raspberry Pi is enough.
-4. **Turn on TLS impersonation.** Set `VINTED_SNIPER_HTTP_IMPERSONATE=true`. This makes
+4. **Turn on TLS impersonation.** Set `VINTED_BOT_HTTP_IMPERSONATE=true`. This makes
    requests look like a real browser at the connection level rather than like Python. It
    needs the `impersonate` extra installed, and it is not a magic fix — if your address is
    blocked outright, it stays blocked.
-5. **Use a proxy.** `VINTED_SNIPER_PROXY_FILE` points at a text file with one proxy URL per
+5. **Use a proxy.** `VINTED_BOT_PROXY_FILE` points at a text file with one proxy URL per
    line. Free proxy lists are already blocked; if you go this route, use residential proxies
    in the same country as the site you are watching. Most people never need this.
 
@@ -137,7 +137,7 @@ logged error.
 Check the destination:
 
 ```bash
-vinted-sniper destinations
+vinted-bot destinations
 ```
 
 A destination marked `disabled` was switched off because the other end said it was gone — a
@@ -157,7 +157,7 @@ running at all. The log says why; see [where the logs are](#where-the-logs-are).
 
 Also worth grepping the logs for `web.no_password`: that warning means the dashboard is
 listening on an address other than localhost with no sign-in, so anyone who can reach the
-port can change your searches and where alerts go. Either set `VINTED_SNIPER_WEB_AUTH_TOKEN`
+port can change your searches and where alerts go. Either set `VINTED_BOT_WEB_AUTH_TOKEN`
 or check that the published port is not public.
 
 ## The dashboard says "Unknown address"
@@ -165,14 +165,14 @@ or check that the published port is not public.
 It only answers to names it was told about, so that another website cannot point its own
 name at your computer and use the dashboard through your browser. Localhost and any IP
 address always work. If you reach it by a name (a reverse proxy, a tunnel, `nas.local`),
-add that name to `VINTED_SNIPER_WEB_ALLOWED_HOSTS`, or set `VINTED_SNIPER_WEB_PUBLIC_URL` to
+add that name to `VINTED_BOT_WEB_ALLOWED_HOSTS`, or set `VINTED_BOT_WEB_PUBLIC_URL` to
 the full address, and restart. Behind a reverse proxy that does not pass the original
 `Host` on, add the name it forwards instead (often the container's name).
 
 ## Telegram never connects
 
 The bot cannot message you first — that is a Telegram rule, not a limitation here. Run
-`vinted-sniper pair-telegram --bot-username yourbot`, then tap the link it prints, in the chat
+`vinted-bot pair-telegram --bot-username yourbot`, then tap the link it prints, in the chat
 or group you want alerts in. The app must be running for the link to work, and the link
 expires after thirty minutes.
 
@@ -186,10 +186,10 @@ it (on Windows it is in the log file instead). The two usual causes:
 
 - **"Nothing newer was installed."** A release reaches GitHub a few minutes before PyPI, where
   updates are downloaded from. Try again later.
-- **"uv stopped with an error."** Often no internet, or a full disk. vinted-sniper keeps running
+- **"uv stopped with an error."** Often no internet, or a full disk. vinted-bot keeps running
   the version it was on.
 
-On Windows, if vinted-sniper comes back still on the old version, the upgrade that runs
+On Windows, if vinted-bot comes back still on the old version, the upgrade that runs
 while it is closed failed, and the log file says why. Running the install command again does
 the same update by hand, on any system.
 
@@ -199,15 +199,15 @@ Go back to the previous release and open an issue. With Docker, pin its tag in
 `docker-compose.yml`, then `docker compose up -d`:
 
 ```yaml
-image: ghcr.io/jasp-nerd/vinted-sniper:2.0.0
+image: ghcr.io/jasp-nerd/vinted-bot:2.1.0
 ```
 
 With the installer, run it with the release you want (macOS and Linux shown; on Windows set
-the same variable with `$env:VINTED_SNIPER_PACKAGE = "..."` first):
+the same variable with `$env:VINTED_BOT_PACKAGE = "..."` first):
 
 ```bash
-curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.sh | \
-  VINTED_SNIPER_PACKAGE="vinted-sniper[web] @ https://github.com/jasp-nerd/vinted-sniper/archive/refs/tags/v2.0.0.zip" sh
+curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.sh | \
+  VINTED_BOT_PACKAGE="vinted-bot==2.1.0" sh
 ```
 
 Your searches carry over either way. The weekly canary tests against the live site, so an
@@ -216,14 +216,14 @@ useful thing to attach.
 
 ## Installing
 
-**"vinted-sniper: command not found"** (or "not recognized" on Windows) right after
+**"vinted-bot: command not found"** (or "not recognized" on Windows) right after
 installing: open a new terminal window. The installer adds its folder to your PATH, and
 windows that were already open don't see that.
 
 **The installer says port 8000 is taken.** Something else listens there, often an older copy
-of vinted-sniper running in Docker. Stop that, or install on another port: put
-`VINTED_SNIPER_WEB_PORT=8001` before `sh` in the install command (Windows:
-`$env:VINTED_SNIPER_WEB_PORT = 8001` first). The dashboard is then on
+of vinted-bot running in Docker. Stop that, or install on another port: put
+`VINTED_BOT_WEB_PORT=8001` before `sh` in the install command (Windows:
+`$env:VINTED_BOT_WEB_PORT = 8001` first). The dashboard is then on
 http://localhost:8001.
 
 **"running scripts is disabled on this system"** on Windows: use the install command exactly
@@ -244,11 +244,11 @@ folder's owner (`id` on the host prints yours) and start the container normally,
 
 | Installed with | Log |
 |---|---|
-| Installer, Windows | `%LOCALAPPDATA%\vinted-sniper\vinted-sniper.log` |
-| Installer, macOS | `~/Library/Application Support/vinted-sniper/vinted-sniper.log` |
-| Installer, Linux | `journalctl --user -u vinted-sniper` (or `~/.local/share/vinted-sniper/vinted-sniper.log` if it isn't started at login) |
-| Docker | `docker compose logs --tail 200 vinted-sniper` |
+| Installer, Windows | `%LOCALAPPDATA%\vinted-bot\vinted-bot.log` |
+| Installer, macOS | `~/Library/Application Support/vinted-bot/vinted-bot.log` |
+| Installer, Linux | `journalctl --user -u vinted-bot` (or `~/.local/share/vinted-bot/vinted-bot.log` if it isn't started at login) |
+| Docker | `docker compose logs --tail 200 vinted-bot` |
 
 When you open an issue, attach the last couple of hundred lines and the output of
-`vinted-sniper status`. The app keeps tokens and webhook links out of both, but glance over
+`vinted-bot status`. The app keeps tokens and webhook links out of both, but glance over
 them before posting anyway.

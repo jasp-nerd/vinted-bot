@@ -39,7 +39,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     env:
-      VINTED_SNIPER_KEEP_AWAKE: "no"
+      VINTED_BOT_KEEP_AWAKE: "no"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -69,17 +69,17 @@ jobs:
 
       - name: Install
         run: |
-          export VINTED_SNIPER_PACKAGE="vinted-sniper[web] @ file://$GITHUB_WORKSPACE"
+          export VINTED_BOT_PACKAGE="vinted-bot @ file://$GITHUB_WORKSPACE"
           sh install.sh --no-autostart --no-browser
 
       - name: Check it runs
         run: |
           curl -sS --max-time 5 http://localhost:8000/healthz | grep '"alive"'
-          "$HOME/.local/bin/vinted-sniper" --version
+          "$HOME/.local/bin/vinted-bot" --version
 
       - name: Run it again, as an update would
         run: |
-          export VINTED_SNIPER_PACKAGE="vinted-sniper[web] @ file://$GITHUB_WORKSPACE"
+          export VINTED_BOT_PACKAGE="vinted-bot @ file://$GITHUB_WORKSPACE"
           sh install.sh --no-autostart --no-browser
           curl -sS --max-time 5 http://localhost:8000/healthz | grep '"alive"'
 
@@ -87,7 +87,7 @@ jobs:
         run: |
           sh install.sh --uninstall
           sleep 3
-          if [ -e "$HOME/.local/bin/vinted-sniper" ]; then echo "still installed"; exit 1; fi
+          if [ -e "$HOME/.local/bin/vinted-bot" ]; then echo "still installed"; exit 1; fi
           if curl -s --max-time 2 http://localhost:8000/healthz; then echo "still running"; exit 1; fi
 
   windows:
@@ -108,7 +108,7 @@ jobs:
       - name: Install
         shell: powershell
         run: |
-          $env:VINTED_SNIPER_PACKAGE = 'vinted-sniper[web] @ file:///' + ($env:GITHUB_WORKSPACE -replace '\\', '/')
+          $env:VINTED_BOT_PACKAGE = 'vinted-bot @ file:///' + ($env:GITHUB_WORKSPACE -replace '\\', '/')
           powershell -NoProfile -NonInteractive -ExecutionPolicy ByPass -File install.ps1 -NoAutostart -NoBrowser
 
       - name: Check it runs
@@ -116,14 +116,14 @@ jobs:
         run: |
           $response = Invoke-WebRequest -UseBasicParsing -Uri http://localhost:8000/healthz -TimeoutSec 5
           if ($response.Content -notmatch '"alive"') { throw "unexpected answer: $($response.Content)" }
-          & "$env:USERPROFILE\.local\bin\vinted-sniper.exe" --version
+          & "$env:USERPROFILE\.local\bin\vinted-bot.exe" --version
 
       - name: Install through irm | iex, as an update would
         shell: powershell
         run: |
-          $env:VINTED_SNIPER_PACKAGE = 'vinted-sniper[web] @ file:///' + ($env:GITHUB_WORKSPACE -replace '\\', '/')
-          $env:VINTED_SNIPER_AUTOSTART = 'no'
-          $env:VINTED_SNIPER_NO_BROWSER = '1'
+          $env:VINTED_BOT_PACKAGE = 'vinted-bot @ file:///' + ($env:GITHUB_WORKSPACE -replace '\\', '/')
+          $env:VINTED_BOT_AUTOSTART = 'no'
+          $env:VINTED_BOT_NO_BROWSER = '1'
           Get-Content -Raw install.ps1 | Invoke-Expression
           $response = Invoke-WebRequest -UseBasicParsing -Uri http://localhost:8000/healthz -TimeoutSec 5
           if ($response.Content -notmatch '"alive"') { throw "unexpected answer: $($response.Content)" }
@@ -133,11 +133,11 @@ jobs:
         run: |
           powershell -NoProfile -NonInteractive -ExecutionPolicy ByPass -File install.ps1 -Uninstall
           Start-Sleep -Seconds 3
-          if (Test-Path "$env:USERPROFILE\.local\bin\vinted-sniper.exe") { throw 'still installed' }
-          if (Get-Process vinted-sniper -ErrorAction SilentlyContinue) { throw 'still running' }
+          if (Test-Path "$env:USERPROFILE\.local\bin\vinted-bot.exe") { throw 'still installed' }
+          if (Get-Process vinted-bot -ErrorAction SilentlyContinue) { throw 'still running' }
 
       # The app runs hidden on Windows, so its own log is the only record of why it stopped.
       - name: Show the app's log
         if: failure()
         shell: powershell
-        run: Get-Content -Tail 80 "$env:LOCALAPPDATA\vinted-sniper\vinted-sniper.log" -ErrorAction SilentlyContinue
+        run: Get-Content -Tail 80 "$env:LOCALAPPDATA\vinted-bot\vinted-bot.log" -ErrorAction SilentlyContinue

@@ -5,13 +5,21 @@ on:
     branches: [main]
     tags: ["v*"]
   workflow_dispatch:
+  # The Release workflow calls this with the tag it just created: a tag pushed with a
+  # workflow's own token starts no other workflow, so the push above never fires for it.
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag to publish the image for, such as v2.1.0.
+        type: string
+        required: true
 
 permissions:
   contents: read
 
 concurrency:
   # Never cancel a half-finished publish, and never let two runs race to move `latest`.
-  group: publish-${{ github.ref }}
+  group: publish-${{ inputs.tag || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -27,6 +35,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # When called by Release, the tagged commit; otherwise whatever triggered the run.
+          ref: ${{ inputs.tag }}
           # No job here pushes, so the token has no reason to stay in .git/config.
           persist-credentials: false
 
@@ -47,13 +57,15 @@ jobs:
           # versions that went through a release. `edge` is every push to main, for anyone
           # who wants fixes before they are released. Release tags also get `2.1.0`,
           # `2.1` and `2`, so a compose file can pin as tightly as its owner likes.
+          # Called by Release, github.ref is the branch it ran from, so the version comes
+          # from the tag passed in (`value`), and `edge` stays where it is.
           flavor: |
             latest=auto
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
-            type=edge,branch=main
+            type=semver,pattern={{version}},value=${{ inputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.tag }}
+            type=semver,pattern={{major}},value=${{ inputs.tag }},enable=${{ !startsWith(inputs.tag || github.ref_name, 'v0.') }}
+            type=edge,branch=main,enable=${{ !inputs.tag }}
 
       - id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0

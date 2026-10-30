@@ -1,11 +1,11 @@
-# vinted-sniper for CasaOS and ZimaOS. In the CasaOS dashboard: App Store, Custom Install,
+# vinted-bot for CasaOS and ZimaOS. In the CasaOS dashboard: App Store, Custom Install,
 # then the import button, and paste this file. The same file is the starting point for a
-# pull request to a community store such as BigBear's (Apps/vinted-sniper/).
-name: vinted-sniper
+# pull request to a community store such as BigBear's (Apps/vinted-bot/).
+name: vinted-bot
 services:
   app:
-    image: ghcr.io/jasp-nerd/vinted-sniper:latest
-    container_name: vinted-sniper
+    image: ghcr.io/jasp-nerd/vinted-bot:latest
+    container_name: vinted-bot
     restart: unless-stopped
     environment:
       # CasaOS app folders usually belong to 1000:1000.
@@ -15,7 +15,7 @@ services:
       # The dashboard is reachable from your whole network here and shows your webhook
       # links, so set a password: uncomment this and put any long random text in place of
       # the example. You type it once to sign in.
-      # VINTED_SNIPER_WEB_AUTH_TOKEN: "change-me-to-something-long-and-random"
+      # VINTED_BOT_WEB_AUTH_TOKEN: "change-me-to-something-long-and-random"
     volumes:
       - /DATA/AppData/$AppID:/data
     ports:
@@ -46,9 +46,9 @@ x-casaos:
   author: jasp-nerd
   developer: jasp-nerd
   category: Utilities
-  icon: https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/docs/media/icon.png
+  icon: https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docs/media/icon.png
   title:
-    en_US: vinted-sniper
+    en_US: vinted-bot
   tagline:
     en_US: Alerts for new Vinted listings
   description:

@@ -3,9 +3,9 @@
 ## Reporting a problem
 
 Please report security problems privately, through
-[GitHub's private vulnerability reporting](https://github.com/jasp-nerd/vinted-sniper/security/advisories/new),
+[GitHub's private vulnerability reporting](https://github.com/jasp-nerd/vinted-bot/security/advisories/new),
 not in a public issue. Include what you found, how to reproduce it, and which version
-(`vinted-sniper --version`) or image tag you ran.
+(`vinted-bot --version`) or image tag you ran.
 
 You should get a first reply within a week. Fixes go out as a new release, with the advisory
 published once people have had a chance to update.
@@ -35,7 +35,7 @@ computer can read its data either way.
 - The dashboard listens on `localhost` only unless you change it, and warns in its log when
   it is reachable from elsewhere without a password.
 - It only answers to host names it was told about (localhost, IP addresses,
-  `VINTED_SNIPER_WEB_PUBLIC_URL` and `VINTED_SNIPER_WEB_ALLOWED_HOSTS`), and only accepts
+  `VINTED_BOT_WEB_PUBLIC_URL` and `VINTED_BOT_WEB_ALLOWED_HOSTS`), and only accepts
   changes from its own pages, so another website cannot use it through your browser, by DNS
   rebinding or otherwise.
 - Sign-in sessions are random tokens kept on the server: signing out revokes them, and
@@ -52,5 +52,5 @@ and it is why the dashboard needs a password before it is reachable by anyone yo
 hand your server to.
 - The Docker image runs the app as a non-root user and works with a read-only filesystem.
 - Release images carry signed build provenance: `gh attestation verify
-  oci://ghcr.io/jasp-nerd/vinted-sniper:latest --owner jasp-nerd`. Python packages on PyPI
+  oci://ghcr.io/jasp-nerd/vinted-bot:latest --owner jasp-nerd`. Python packages on PyPI
   are published with trusted publishing and attestations.

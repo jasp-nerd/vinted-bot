@@ -23,7 +23,7 @@ faq:
     a: "You need the Manage Webhooks permission, which on someone else's server usually means being an admin. Making your own server is free and takes under a minute."
 ---
 
-To get Vinted alerts on Discord, you need a Discord webhook URL: a private link that lets an app post into one channel. Create a server (free), open the channel's settings, go to Integrations, then Webhooks, then New Webhook, and copy the URL. Paste it into your Vinted bot and send a test. With vinted-sniper the whole thing is free and takes about two minutes.
+To get Vinted alerts on Discord, you need a Discord webhook URL: a private link that lets an app post into one channel. Create a server (free), open the channel's settings, go to Integrations, then Webhooks, then New Webhook, and copy the URL. Paste it into your Vinted bot and send a test. With vinted-bot the whole thing is free and takes about two minutes.
 
 ## Why a webhook and not a Discord bot
 
@@ -65,9 +65,9 @@ The URL starts with `https://discord.com/api/webhooks/` followed by two long cod
 
 A small trap: Discord refuses webhook names that contain the word "discord". If renaming fails, that's why.
 
-## Step 3: paste it into vinted-sniper
+## Step 3: paste it into vinted-bot
 
-vinted-sniper is a free, open-source app that watches your Vinted searches and sends new listings to places like Discord. After installing it, the dashboard opens at `http://localhost:8000`.
+vinted-bot is a free, open-source app that watches your Vinted searches and sends new listings to places like Discord. After installing it, the dashboard opens at `http://localhost:8000`.
 
 1. Open the Alerts page and add a new place for alerts.
 2. Choose Discord and paste the webhook URL.
@@ -103,7 +103,7 @@ Discord notifications are where most "I never got the alert" problems come from,
 
 ### The webhook was deleted
 
-If someone deletes the webhook or the channel, Discord tells vinted-sniper it no longer exists, and the app switches that destination off. That's deliberate: sending repeatedly to a dead webhook is what gets an address rate-limited by Discord itself. Create a new webhook and add it again.
+If someone deletes the webhook or the channel, Discord tells vinted-bot it no longer exists, and the app switches that destination off. That's deliberate: sending repeatedly to a dead webhook is what gets an address rate-limited by Discord itself. Create a new webhook and add it again.
 
 ### The URL got out
 

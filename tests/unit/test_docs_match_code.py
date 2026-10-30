@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from vinted_sniper.cli import build_parser
-from vinted_sniper.config import Settings
+from vinted_bot.cli import build_parser
+from vinted_bot.config import Settings
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_DOC = (ROOT / "docs" / "configuration.md").read_text(encoding="utf-8")
@@ -24,18 +24,18 @@ def test_every_setting_is_documented(field: str) -> None:
 
 @pytest.mark.parametrize("field", sorted(Settings.model_fields))
 def test_every_setting_appears_in_the_example_env(field: str) -> None:
-    assert f"VINTED_SNIPER_{field.upper()}" in ENV_EXAMPLE, (
+    assert f"VINTED_BOT_{field.upper()}" in ENV_EXAMPLE, (
         f"{field} exists in Settings but is missing from .env.example"
     )
 
 
 def test_documented_settings_all_exist() -> None:
     """The opposite direction: nothing documented that was removed from the code."""
-    known = {f"VINTED_SNIPER_{name.upper()}" for name in Settings.model_fields}
+    known = {f"VINTED_BOT_{name.upper()}" for name in Settings.model_fields}
     mentioned = {
         line.split("=")[0].removeprefix("# ").strip()
         for line in ENV_EXAMPLE.splitlines()
-        if "VINTED_SNIPER_" in line and "=" in line
+        if "VINTED_BOT_" in line and "=" in line
     }
 
     assert mentioned <= known, f"documented but gone from the code: {sorted(mentioned - known)}"

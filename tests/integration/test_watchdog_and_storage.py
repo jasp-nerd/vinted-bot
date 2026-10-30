@@ -7,13 +7,13 @@ import time
 from typing import Any
 
 from tests.conftest import ScriptedTransport
-from vinted_sniper.config import Settings
-from vinted_sniper.db.connection import Database
-from vinted_sniper.db.repo import Repo
-from vinted_sniper.engine import health
-from vinted_sniper.engine.watchdog import Watchdog
-from vinted_sniper.vinted.models import Item
-from vinted_sniper.vinted.session import SessionManager
+from vinted_bot.config import Settings
+from vinted_bot.db.connection import Database
+from vinted_bot.db.repo import Repo
+from vinted_bot.engine import health
+from vinted_bot.engine.watchdog import Watchdog
+from vinted_bot.vinted.models import Item
+from vinted_bot.vinted.session import SessionManager
 
 
 async def add_search(repo: Repo, name: str, tld: str = "fr") -> int:

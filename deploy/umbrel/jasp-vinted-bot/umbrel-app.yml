@@ -1,0 +1,35 @@
+manifestVersion: 1
+id: jasp-vinted-bot
+category: utilities
+name: vinted-bot
+version: "2.1.0"
+tagline: Get a message the moment a new Vinted listing matches
+icon: https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docs/media/icon.png
+description: >-
+  Watch your Vinted searches and get a message on Discord, Telegram, ntfy or another
+  app as soon as a new listing matches.
+
+
+  Paste a Vinted search into the dashboard, or build one there. Filters on the price
+  you actually pay, buyer protection included, notices when a search goes quiet, and
+  never logs in to Vinted, so there is no account to put at risk.
+
+
+  Not affiliated with Vinted.
+developer: jasp-nerd
+website: https://github.com/jasp-nerd/vinted-bot
+submitter: jasp-nerd
+submission: https://github.com/jasp-nerd/vinted-bot
+repo: https://github.com/jasp-nerd/vinted-bot
+support: https://github.com/jasp-nerd/vinted-bot/issues
+port: 8765
+gallery:
+  - https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docs/media/builder.png
+  - https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docs/media/alert-discord.png
+  - https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docs/media/alert-telegram.png
+releaseNotes: >-
+  See https://github.com/jasp-nerd/vinted-bot/blob/main/CHANGELOG.md
+dependencies: []
+path: ""
+defaultUsername: ""
+defaultPassword: ""

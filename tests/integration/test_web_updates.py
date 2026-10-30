@@ -11,11 +11,11 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from vinted_sniper import __version__
-from vinted_sniper.config import Settings
-from vinted_sniper.db.repo import Repo
-from vinted_sniper.engine.self_update import Install, InstallKind, Updater
-from vinted_sniper.web.server import create_app
+from vinted_bot import __version__
+from vinted_bot.config import Settings
+from vinted_bot.db.repo import Repo
+from vinted_bot.engine.self_update import Install, InstallKind, Updater
+from vinted_bot.web.server import create_app
 
 BASE = "http://127.0.0.1"
 NEWER = "99.0.0"
@@ -74,7 +74,7 @@ async def test_the_banner_links_the_release_notes(
 ) -> None:
     page = dashboard(uv_install(tmp_path)).get("/").text
 
-    assert f"https://github.com/jasp-nerd/vinted-sniper/releases/tag/v{NEWER}" in page
+    assert f"https://github.com/jasp-nerd/vinted-bot/releases/tag/v{NEWER}" in page
 
 
 async def test_docker_gets_the_command_instead_of_the_button(

@@ -21,13 +21,13 @@ from typing import Any
 import httpx
 import pytest
 
-from vinted_sniper import __version__
-from vinted_sniper.app import Application
-from vinted_sniper.config import Settings
-from vinted_sniper.db.repo import Repo
-from vinted_sniper.engine import self_update
-from vinted_sniper.engine.self_update import Install, InstallKind, Phase, Updater
-from vinted_sniper.vinted.models import Item
+from vinted_bot import __version__
+from vinted_bot.app import Application
+from vinted_bot.config import Settings
+from vinted_bot.db.repo import Repo
+from vinted_bot.engine import self_update
+from vinted_bot.engine.self_update import Install, InstallKind, Phase, Updater
+from vinted_bot.vinted.models import Item
 
 NEWER = "99.0.0"
 QUIET = self_update.QUIET_HOUR
@@ -48,7 +48,7 @@ def fake_uv(tmp_path: Path, *, exit_code: int = 0, sleep_s: float = 0) -> Path:
         "{'argv': sys.argv[1:], 'tool_dir': os.environ.get('UV_TOOL_DIR')}))\n"
         f"time.sleep({sleep_s})\n"
         "print('Resolved 40 packages in 812ms')\n"
-        f"print('Updated vinted-sniper v{__version__} -> v{NEWER}')\n"
+        f"print('Updated vinted-bot v{__version__} -> v{NEWER}')\n"
         f"sys.exit({exit_code})",
     )
 
@@ -112,7 +112,7 @@ async def test_the_upgrade_runs_uv_on_this_copys_tool_folder(
 
     call = json.loads((tmp_path / "uv-call.json").read_text())
     assert call == {
-        "argv": ["tool", "upgrade", "vinted-sniper", "--no-progress"],
+        "argv": ["tool", "upgrade", "vinted-bot", "--no-progress"],
         "tool_dir": str(tmp_path / "tools"),
     }
 
@@ -122,7 +122,7 @@ async def test_what_uv_prints_is_kept_for_the_dashboard(
 ) -> None:
     updater = await update(updater_for(settings, released, uv_install(tmp_path)))
 
-    assert f"Updated vinted-sniper v{__version__} -> v{NEWER}" in updater.status()["output"]
+    assert f"Updated vinted-bot v{__version__} -> v{NEWER}" in updater.status()["output"]
 
 
 async def test_a_note_is_left_for_the_next_start(
@@ -144,7 +144,7 @@ async def test_without_a_supervisor_it_installs_and_says_how_to_restart(
     )
 
     assert (updater.phase, stop.is_set()) == (Phase.INSTALLED, False)
-    assert "vinted-sniper run" in updater.status()["message"]
+    assert "vinted-bot run" in updater.status()["message"]
 
 
 async def test_a_failing_upgrade_keeps_the_app_running_and_says_so(
@@ -219,7 +219,7 @@ async def test_pipx_installs_upgrade_with_pipx(
 
     assert json.loads((tmp_path / "uv-call.json").read_text())["argv"] == [
         "upgrade",
-        "vinted-sniper",
+        "vinted-bot",
     ]
 
 

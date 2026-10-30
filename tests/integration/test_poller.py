@@ -16,13 +16,13 @@ from typing import Any
 import pytest
 
 from tests.conftest import ScriptedTransport
-from vinted_sniper.config import Settings
-from vinted_sniper.db.repo import Repo
-from vinted_sniper.engine.poller import Poller
-from vinted_sniper.vinted.client import VintedClient
-from vinted_sniper.vinted.proxies import ProxyRotation
-from vinted_sniper.vinted.session import SessionManager
-from vinted_sniper.vinted.transport import Response, TransportPool
+from vinted_bot.config import Settings
+from vinted_bot.db.repo import Repo
+from vinted_bot.engine.poller import Poller
+from vinted_bot.vinted.client import VintedClient
+from vinted_bot.vinted.proxies import ProxyRotation
+from vinted_bot.vinted.session import SessionManager
+from vinted_bot.vinted.transport import Response, TransportPool
 
 
 async def make_poller(

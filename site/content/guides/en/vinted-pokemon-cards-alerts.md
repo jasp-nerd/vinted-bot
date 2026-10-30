@@ -14,7 +14,7 @@ keywords:
   - vinted trading cards
 faq:
   - q: "Is there a bot for Pokémon cards on Vinted?"
-    a: "Yes. Any Vinted alert bot works for Pokémon cards if you give it good searches. vinted-sniper is free: it checks your card searches every minute and sends new listings to Discord, Telegram or your phone, with words to skip like proxy or custom."
+    a: "Yes. Any Vinted alert bot works for Pokémon cards if you give it good searches. vinted-bot is free: it checks your card searches every minute and sends new listings to Discord, Telegram or your phone, with words to skip like proxy or custom."
   - q: "Are Pokémon cards on Vinted fake?"
     a: "Most aren't, but fakes and proxies do turn up, especially in cheap bulk lots and high-value singles. Ask for clear photos of the front, back and edges, compare with a card you own, and check the seller's reviews."
   - q: "Is it safe to buy Pokémon cards on Vinted?"
@@ -62,9 +62,9 @@ Add these as exclusions: `proxy`, `custom`, `fake`, `replica`, `fan art`, `stick
 
 Vinted's price filter uses the asking price. What you pay is the price plus buyer protection (usually €0.70 plus 5%) plus postage. On a €10 card that's €11.20 before postage; on a €100 slab it's €105.70.
 
-When you set a cap, use the total. In vinted-sniper the price limit already includes buyer protection, so "max €40" means €40 at checkout before postage. The full maths is in [the buyer protection fee explained](/guides/vinted-buyer-protection-fee/).
+When you set a cap, use the total. In vinted-bot the price limit already includes buyer protection, so "max €40" means €40 at checkout before postage. The full maths is in [the buyer protection fee explained](/guides/vinted-buyer-protection-fee/).
 
-A better test than a fixed cap is "under what this search usually costs". vinted-sniper learns the typical total for each search and badges listings that are clearly below it, once it has seen enough finds (15 in two weeks).
+A better test than a fixed cap is "under what this search usually costs". vinted-bot learns the typical total for each search and badges listings that are clearly below it, once it has seen enough finds (15 in two weeks).
 
 ## Spotting fakes and scams
 
@@ -76,13 +76,13 @@ Fakes aren't everywhere, but they do show up, mostly in two places: cheap "100 c
 - For sealed packs and boxes, watch for loose booster packs at low prices. Resealed packs are a known problem. Shrink-wrapped boxes from established sellers are safer.
 - Look at the seller: number of reviews, rating, and whether their wardrobe looks like a real person's collection or a stream of identical "rare" cards.
 
-You can automate the last check. vinted-sniper can skip sellers below a minimum rating or with too few reviews, skip sellers with no reviews yet, and block a seller for good.
+You can automate the last check. vinted-bot can skip sellers below a minimum rating or with too few reviews, skip sellers with no reviews yet, and block a seller for good.
 
 Always buy through Vinted's checkout, so buyer protection applies. Never agree to pay a seller directly.
 
 ## Setting up Pokémon card alerts
 
-vinted-sniper is a free, open-source app that runs on your computer, checks your Vinted searches every minute and sends new listings to Discord, Telegram or your phone. It never logs in to Vinted.
+vinted-bot is a free, open-source app that runs on your computer, checks your Vinted searches every minute and sends new listings to Discord, Telegram or your phone. It never logs in to Vinted.
 
 1. Install it with the one-line command from the homepage.
 2. Paste each search link from Vinted, or build the search in the dashboard and pick the trading cards category.
@@ -96,7 +96,7 @@ Each alert shows the photos, the total price, the seller's rating and Buy and Me
 
 ## Search more than one country
 
-Cards are the same in every country, but sellers aren't. The same search on vinted.fr, vinted.de, vinted.it and vinted.es surfaces different listings, and cards in a given language can be easier to find, and sometimes cheaper, on that country's site. One vinted-sniper search can cover several country sites at once, and a listing seen on two of them is announced once.
+Cards are the same in every country, but sellers aren't. The same search on vinted.fr, vinted.de, vinted.it and vinted.es surfaces different listings, and cards in a given language can be easier to find, and sometimes cheaper, on that country's site. One vinted-bot search can cover several country sites at once, and a listing seen on two of them is announced once.
 
 ## Be realistic about speed
 

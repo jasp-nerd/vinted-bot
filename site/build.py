@@ -55,10 +55,18 @@ from markupsafe import Markup, escape
 SITE = Path(__file__).resolve().parent
 ROOT = SITE.parent
 DIST = SITE / "dist"
-BASE_URL = "https://vinted-sniper.jaspnerd.dev"
-REPO = "https://github.com/jasp-nerd/vinted-sniper"
-REPO_BLOB = f"{REPO}/blob/main"
-REPO_RAW = "https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main"
+sys.path.insert(0, str(SITE))
+from siteconfig import (
+    BASE_URL,
+    HOST,
+    NAME,
+    PYPI,
+    REPO,
+    REPO_BLOB,
+    REPO_RAW,
+    UMAMI_SCRIPT,
+    UMAMI_WEBSITE_ID,
+)
 
 # Language order on the site: English is the root and x-default.
 LANG_ORDER = ["en", "fr", "de", "it", "es", "pl", "nl"]
@@ -93,18 +101,18 @@ MONTHS = {
 DOCS = {
     "troubleshooting": {
         "src": "docs/troubleshooting.md",
-        "title": "Troubleshooting: Vinted alerts not arriving | vinted-sniper",
-        "description": "Fix vinted-sniper when it stops finding listings or sending alerts: search status, 403 and 429 errors, Telegram, Discord, updates and logs.",
+        "title": "Troubleshooting: Vinted alerts not arriving | vinted-bot",
+        "description": "Fix vinted-bot when it stops finding listings or sending alerts: search status, 403 and 429 errors, Telegram, Discord, updates and logs.",
     },
     "self-hosting": {
         "src": "docs/self-hosting.md",
-        "title": "Run a free Vinted bot 24/7: Pi, NAS, Docker, VPS | vinted-sniper",
-        "description": "Keep vinted-sniper running all day on your computer, a Raspberry Pi, Docker, a NAS (Unraid, Synology, Umbrel, CasaOS) or a small VPS. Backups and updates.",
+        "title": "Run a free Vinted bot 24/7: Pi, NAS, Docker, VPS | vinted-bot",
+        "description": "Keep vinted-bot running all day on your computer, a Raspberry Pi, Docker, a NAS (Unraid, Synology, Umbrel, CasaOS) or a small VPS. Backups and updates.",
     },
     "legal": {
         "src": "docs/legal.md",
-        "title": "Rules and risks of running a Vinted bot | vinted-sniper",
-        "description": "What Vinted's terms say about bots, what that means in practice, how vinted-sniper stays a polite guest, and handling other people's data. Not legal advice.",
+        "title": "Rules and risks of running a Vinted bot | vinted-bot",
+        "description": "What Vinted's terms say about bots, what that means in practice, how vinted-bot stays a polite guest, and handling other people's data. Not legal advice.",
     },
 }
 
@@ -279,6 +287,15 @@ class Site:
         self.env.filters["a"] = lambda s: escape(str(s))
         self.env.filters["q"] = lambda s: urllib.parse.quote(str(s), safe="")
         self.env.globals["zip"] = zip
+        self.env.globals.update(
+            name=NAME,
+            repo=REPO,
+            repo_raw=REPO_RAW,
+            base_url=BASE_URL,
+            host=HOST,
+            umami_script=UMAMI_SCRIPT,
+            umami_website_id=UMAMI_WEBSITE_ID,
+        )
 
     # ── content discovery ──
 
@@ -331,7 +348,7 @@ class Site:
         title = g.get("seo_title") or g["title"]
         if len(title) > 62 and title.endswith(")") and " (" in title:
             title = title[: title.rindex(" (")]
-        return f"{title} | vinted-sniper" if len(title) <= 44 else title
+        return f"{title} | {NAME}" if len(title) <= 44 else title
 
     def guide_link(self, lang: str, slug: str) -> str | None:
         """Where /guides/<slug>/ should point on a page in `lang`: that language's version of
@@ -462,8 +479,8 @@ class Site:
             kind="changelog",
             lang="en",
             path="/changelog/",
-            title="What's new in vinted-sniper: changelog",
-            description="Every vinted-sniper release, newest first: what changed, what was fixed, and what to know before you update.",
+            title="What's new in vinted-bot: changelog",
+            description="Every vinted-bot release, newest first: what changed, what was fixed, and what to know before you update.",
             sources=[ROOT / "CHANGELOG.md"],
         )
 
@@ -485,7 +502,7 @@ class Site:
             "@type": "WebSite",
             "@id": f"{BASE_URL}/#website",
             "url": BASE_URL + "/",
-            "name": "vinted-sniper",
+            "name": NAME,
             "description": self.i18n["en"]["meta"]["site_description"],
             "inLanguage": self.langs,
             "publisher": {"@id": f"{BASE_URL}/#author"},
@@ -511,14 +528,14 @@ class Site:
                 {
                     "@type": "SoftwareApplication",
                     "@id": f"{BASE_URL}/#app",
-                    "name": "vinted-sniper",
+                    "name": NAME,
                     "description": t["meta"]["app_description"],
                     "url": url,
                     "inLanguage": lang,
                     "applicationCategory": "UtilitiesApplication",
                     "operatingSystem": "Windows, macOS, Linux",
                     "softwareVersion": self.version,
-                    "downloadUrl": "https://pypi.org/project/vinted-sniper/",
+                    "downloadUrl": PYPI,
                     "installUrl": url + "#install",
                     "license": "https://opensource.org/licenses/MIT",
                     "isAccessibleForFree": True,
@@ -527,7 +544,7 @@ class Site:
                     "image": og_image,
                     "author": {"@id": f"{BASE_URL}/#author"},
                     "publisher": {"@id": f"{BASE_URL}/#author"},
-                    "sameAs": [REPO, "https://pypi.org/project/vinted-sniper/"],
+                    "sameAs": [REPO, PYPI],
                 }
             )
             graph.append(
@@ -561,7 +578,7 @@ class Site:
                     "about": {
                         "@type": "SoftwareApplication",
                         "@id": f"{BASE_URL}/#app",
-                        "name": "vinted-sniper",
+                        "name": NAME,
                     },
                 }
             )
@@ -770,7 +787,7 @@ class Site:
             return {
                 "h1": "What's new",
                 "lead": Markup(
-                    "Every release of vinted-sniper, newest first. To update, run the install command again "
+                    "Every release of vinted-bot, newest first. To update, run the install command again "
                     '(see <a href="/#install">install</a>), or follow the <a href="/docs/self-hosting/#updating">update notes</a>.'
                 ),
                 "html": Markup(body),
@@ -900,7 +917,6 @@ def main():
     content = SITE / "content" / "guides"
     if "--content" in sys.argv:  # build against another guides folder, e.g. for testing
         content = Path(sys.argv[sys.argv.index("--content") + 1]).resolve()
-    sys.path.insert(0, str(SITE))
     Site().build(content)
 
 

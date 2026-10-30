@@ -1,0 +1,24 @@
+version: "3.7"
+
+services:
+  app_proxy:
+    environment:
+      # <app-id>_<service-name>_1
+      APP_HOST: jasp-vinted-bot_web_1
+      APP_PORT: 8000
+
+  web:
+    # Pin the release tag and its digest here when publishing to the store, so every
+    # Umbrel runs the version that was tested:
+    #   docker buildx imagetools inspect ghcr.io/jasp-nerd/vinted-bot:2.1.0
+    image: ghcr.io/jasp-nerd/vinted-bot:2.1.0
+    restart: on-failure
+    stop_grace_period: 30s
+    environment:
+      # Umbrel's app folders belong to 1000:1000; the image hands /data to this user and
+      # runs as it.
+      PUID: "1000"
+      PGID: "1000"
+      TZ: Europe/Paris
+    volumes:
+      - ${APP_DATA_DIR}/data:/data

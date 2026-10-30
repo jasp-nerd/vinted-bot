@@ -76,9 +76,9 @@ Dat raakt je verbinding, niet je account. Gebruik je Vinted op dezelfde verbindi
 
 Dat wordt vaak gevraagd. Vinted publiceert niet hoe het apparaten herkent, dus buiten Vinted kan niemand dat precies beantwoorden. Wat wel duidelijk is: accountblokkades volgen het account, verbindingsblokkades het internetadres. Een tool die nooit inlogt en rustig controleert, blijft voor zover bekend buiten allebei.
 
-## Hoe vinted-sniper aan de veilige kant blijft
+## Hoe vinted-bot aan de veilige kant blijft
 
-vinted-sniper is een gratis open-source meldingstool die rond precies dit verschil is gebouwd:
+vinted-bot is een gratis open-source meldingstool die rond precies dit verschil is gebouwd:
 
 - Het logt nooit in, vraagt nooit om je Vinted-wachtwoord en komt niet aan je account.
 - Het koopt niet, stuurt geen berichten en plaatst niets opnieuw. Kopen is bewust geen functie en wordt het ook niet. Elk bericht heeft een Kopen-knop die de kassa van Vinted opent, zodat je als jezelf koopt.

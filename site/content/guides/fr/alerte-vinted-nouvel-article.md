@@ -19,9 +19,9 @@ faq:
   - q: "Comment activer les notifications Vinted ?"
     a: "Dans l'appli Vinted, allez dans Profil, Paramètres, Notifications et activez les notifications push. Sur le téléphone, autorisez les notifications de Vinted et retirez l'appli de l'optimisation de batterie et des résumés de notifications."
   - q: "Existe-t-il une application d'alerte Vinted gratuite ?"
-    a: "Les applis d'alerte dédiées sont en général payantes, quelques euros par mois. Une alternative gratuite : faire tourner vinted-sniper sur un ordinateur et recevoir ses alertes dans l'appli gratuite ntfy sur votre téléphone, sans créer de compte."
+    a: "Les applis d'alerte dédiées sont en général payantes, quelques euros par mois. Une alternative gratuite : faire tourner vinted-bot sur un ordinateur et recevoir ses alertes dans l'appli gratuite ntfy sur votre téléphone, sans créer de compte."
   - q: "Comment avoir les notifications Vinted sur PC ?"
-    a: "Vinted n'envoie pas de notifications sur ordinateur pour les recherches. Avec vinted-sniper, les alertes peuvent arriver dans Discord ou Telegram sur PC, et le tableau de bord affiche les trouvailles en direct dans votre navigateur."
+    a: "Vinted n'envoie pas de notifications sur ordinateur pour les recherches. Avec vinted-bot, les alertes peuvent arriver dans Discord ou Telegram sur PC, et le tableau de bord affiche les trouvailles en direct dans votre navigateur."
 ---
 
 Pour être prévenu quand un nouvel article est publié sur Vinted, il y a trois façons : sauvegarder la recherche dans l'appli Vinted, suivre les membres qui vendent ce que vous cherchez, ou utiliser un outil d'alerte qui consulte votre recherche et vous envoie un message. Les deux premières sont intégrées et gratuites mais limitées. La troisième est la seule vraiment fiable pour une recherche, et elle peut être gratuite aussi.
@@ -50,7 +50,7 @@ Mais ça ne couvre que les vendeurs que vous connaissez déjà. Ça ne vous aide
 
 Un outil d'alerte, souvent appelé bot Vinted ou moniteur, charge les annonces les plus récentes de votre recherche à intervalle régulier et vous envoie tout ce qu'il n'a pas encore vu. Vous choisissez où arrivent les messages : un salon Discord, une conversation Telegram, une notification sur votre téléphone, un e-mail.
 
-Les services payants le font depuis leurs serveurs pour environ 5 à 30 € par mois (en octobre 2026). vinted-sniper le fait gratuitement depuis votre propre ordinateur. La mise en place ressemble à ceci :
+Les services payants le font depuis leurs serveurs pour environ 5 à 30 € par mois (en octobre 2026). vinted-bot le fait gratuitement depuis votre propre ordinateur. La mise en place ressemble à ceci :
 
 1. Installez-le avec la commande d'une ligne de la page d'accueil. Le tableau de bord s'ouvre dans votre navigateur.
 2. Collez le lien de votre recherche Vinted, ou construisez la recherche dans le tableau de bord avec les catégories, marques et tailles de Vinted.
@@ -64,7 +64,7 @@ Chaque alerte affiche les photos, le prix total, la taille, l'état, la marque, 
 
 ## Laquelle choisir ?
 
-| | Recherche sauvegardée (Vinted) | Suivre un membre | Alerte gratuite (vinted-sniper) | Service d'alerte payant |
+| | Recherche sauvegardée (Vinted) | Suivre un membre | Alerte gratuite (vinted-bot) | Service d'alerte payant |
 |---|---|---|---|---|
 | Prix | Gratuit | Gratuit | Gratuit | Environ 5 à 30 € par mois |
 | Fiabilité | Souvent en retard ou absente | Plutôt correcte | Vérifie chaque minute, prévient s'il s'arrête | Selon le service |
@@ -83,11 +83,11 @@ Une recherche qu'on parcourt peut être large, parce qu'on survole. Une recherch
 
 ### « Ceci ou cela » au lieu de cinq recherches
 
-« Levi's 501 ou 505 » peut tenir en une seule recherche : dans vinted-sniper, un mot obligatoire peut avoir des alternatives, écrites `501|505`. Moins de recherches, c'est moins de requêtes vers Vinted et moins de risque d'être ralenti.
+« Levi's 501 ou 505 » peut tenir en une seule recherche : dans vinted-bot, un mot obligatoire peut avoir des alternatives, écrites `501|505`. Moins de recherches, c'est moins de requêtes vers Vinted et moins de risque d'être ralenti.
 
 ### Plusieurs pays d'un coup
 
-Chaque site Vinted national montre un mélange un peu différent de vendeurs. Une recherche vinted-sniper peut surveiller plusieurs sites, et une annonce vue sur deux d'entre eux n'est signalée qu'une fois.
+Chaque site Vinted national montre un mélange un peu différent de vendeurs. Une recherche vinted-bot peut surveiller plusieurs sites, et une annonce vue sur deux d'entre eux n'est signalée qu'une fois.
 
 ### Des heures de silence
 

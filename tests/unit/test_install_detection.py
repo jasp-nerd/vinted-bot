@@ -9,8 +9,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from vinted_sniper.config import Settings
-from vinted_sniper.engine.self_update import Install, InstallKind, detect
+from vinted_bot.config import Settings
+from vinted_bot.engine.self_update import Install, InstallKind, detect
 
 
 def settings(**overrides: Any) -> Settings:
@@ -19,14 +19,14 @@ def settings(**overrides: Any) -> Settings:
 
 def uv_tool_env(tmp_path: Path, bin_dir: Path | None = None) -> Path:
     """A uv tool environment as `uv tool install` lays it out."""
-    prefix = tmp_path / "tools" / "vinted-sniper"
+    prefix = tmp_path / "tools" / "vinted-bot"
     prefix.mkdir(parents=True)
-    command = (bin_dir or tmp_path / "bin") / "vinted-sniper"
+    command = (bin_dir or tmp_path / "bin") / "vinted-bot"
     (prefix / "uv-receipt.toml").write_text(
         "[tool]\n"
-        'requirements = [{ name = "vinted-sniper" }]\n'
+        'requirements = [{ name = "vinted-bot" }]\n'
         "entrypoints = [\n"
-        f'    {{ name = "vinted-sniper", install-path = "{command}", from = "vinted-sniper" }},\n'
+        f'    {{ name = "vinted-bot", install-path = "{command}", from = "vinted-bot" }},\n'
         "]\n"
     )
     return prefix
@@ -42,7 +42,7 @@ def executable(path: Path) -> Path:
 def detect_in(tmp_path: Path, prefix: Path, **overrides: Any) -> Install:
     kwargs: dict[str, Any] = {
         "prefix": prefix,
-        "package_dir": tmp_path / "site-packages" / "vinted_sniper",
+        "package_dir": tmp_path / "site-packages" / "vinted_bot",
         "container": False,
         "environ": {"PATH": ""},
         "home": tmp_path / "home",
@@ -103,7 +103,7 @@ def test_without_uv_anywhere_it_cannot_update_itself(tmp_path: Path) -> None:
 
 
 def test_a_pipx_install_is_recognised_by_its_metadata(tmp_path: Path) -> None:
-    prefix = tmp_path / "pipx" / "venvs" / "vinted-sniper"
+    prefix = tmp_path / "pipx" / "venvs" / "vinted-bot"
     prefix.mkdir(parents=True)
     (prefix / "pipx_metadata.json").write_text("{}")
     pipx = executable(tmp_path / "home" / ".local" / "bin" / "pipx")
@@ -132,7 +132,7 @@ def test_a_git_checkout_is_a_source_install(tmp_path: Path) -> None:
     (root / ".git").mkdir(parents=True)
     (root / "pyproject.toml").write_text("")
 
-    install = detect_in(tmp_path, tmp_path / ".venv", package_dir=root / "src" / "vinted_sniper")
+    install = detect_in(tmp_path, tmp_path / ".venv", package_dir=root / "src" / "vinted_bot")
 
     assert install.kind is InstallKind.SOURCE
 
@@ -148,7 +148,7 @@ def test_anything_else_is_a_plain_pip_install(tmp_path: Path) -> None:
 
     assert (install.kind, install.manual_command) == (
         InstallKind.OTHER,
-        "pip install --upgrade vinted-sniper",
+        "pip install --upgrade vinted-bot",
     )
 
 
@@ -190,6 +190,6 @@ def test_the_upgrade_command_is_fixed_and_names_only_the_package(tmp_path: Path)
         str(uv),
         "tool",
         "upgrade",
-        "vinted-sniper",
+        "vinted-bot",
         "--no-progress",
     ]

@@ -76,9 +76,9 @@ C'est pour ça que les services d'alerte mettent en avant « sans connexion Vint
 
 La question revient souvent. Vinted ne publie pas sa façon d'identifier les appareils, donc personne en dehors de Vinted ne peut y répondre précisément. Ce qui est clair : les restrictions de compte suivent les comptes, et les blocages de connexion suivent les adresses IP. Un outil qui ne se connecte jamais et qui vérifie poliment reste à l'écart des deux, autant qu'on puisse en juger.
 
-## Comment vinted-sniper reste du bon côté
+## Comment vinted-bot reste du bon côté
 
-vinted-sniper est un outil d'alerte gratuit et open source construit autour de cette distinction :
+vinted-bot est un outil d'alerte gratuit et open source construit autour de cette distinction :
 
 - Il ne se connecte jamais, ne demande jamais votre mot de passe Vinted et ne touche jamais à votre compte.
 - Il n'achète pas, n'envoie pas de messages et ne republie pas. L'achat automatique n'est volontairement pas une fonction et n'en deviendra pas une. Les alertes ont un bouton Acheter qui ouvre la page de paiement de Vinted : c'est vous qui achetez.

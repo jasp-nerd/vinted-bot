@@ -21,7 +21,7 @@ faq:
   - q: "Why are my Vinted saved searches not updating?"
     a: "Users have reported several changes in 2026: saved searches capped at 20 brands, the count of new items no longer shown, some filters silently dropped and old items showing under newest first. Re-create the search and check its filters after saving it."
   - q: "How do I get reliable alerts for a Vinted search?"
-    a: "Use an external alert tool that checks the search itself and messages you. vinted-sniper does this for free: it checks every minute and sends new listings to Discord, Telegram or your phone, and it tells you when a search stops working."
+    a: "Use an external alert tool that checks the search itself and messages you. vinted-bot does this for free: it checks every minute and sends new listings to Discord, Telegram or your phone, and it tells you when a search stops working."
 ---
 
 If your Vinted saved search notifications aren't arriving, it's often not your phone. Many users with every notification setting switched on still get saved-search alerts late or not at all, and Vinted has never said much about how these alerts are batched. Check the settings below first, since they do fix some cases. If they don't, the reliable fix is an alert tool that checks the search itself.
@@ -73,7 +73,7 @@ What you can control is who checks the search. Instead of waiting for Vinted to 
 
 ## The free alternative: alerts that check the search themselves
 
-vinted-sniper is a free, open-source app that does exactly that. You paste the same Vinted search link, and it checks it every minute from your own computer. Each new listing arrives as a message on Discord, Telegram, ntfy on your phone or a webhook, with the photos, the total price including buyer protection, the size and condition, the seller's rating and a button that opens the listing.
+vinted-bot is a free, open-source app that does exactly that. You paste the same Vinted search link, and it checks it every minute from your own computer. Each new listing arrives as a message on Discord, Telegram, ntfy on your phone or a webhook, with the photos, the total price including buyer protection, the size and condition, the seller's rating and a button that opens the listing.
 
 It also fixes a few things Vinted's saved searches don't do:
 

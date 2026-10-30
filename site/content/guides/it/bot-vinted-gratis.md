@@ -14,16 +14,16 @@ keywords:
   - vinted bot github
 faq:
   - q: "Esiste un bot Vinted gratis?"
-    a: "Sì. vinted-sniper è gratuito e open source (licenza MIT), senza versioni a pagamento. Controlla le tue ricerche Vinted e manda i nuovi annunci su Telegram, Discord, sul telefono con ntfy o a un webhook. Gira sul tuo computer, che deve restare acceso."
+    a: "Sì. vinted-bot è gratuito e open source (licenza MIT), senza versioni a pagamento. Controlla le tue ricerche Vinted e manda i nuovi annunci su Telegram, Discord, sul telefono con ntfy o a un webhook. Gira sul tuo computer, che deve restare acceso."
   - q: "Un bot Vinted gratis ha bisogno del mio login Vinted?"
     a: "Un bot di avvisi no: i risultati di ricerca si leggono anche senza essere loggati. Solo gli strumenti che comprano, scrivono o ripubblicano per te hanno bisogno del tuo account, ed è lì che l'account rischia."
   - q: "Un bot Vinted gratis può comprare per me?"
-    a: "Questo no. Comprare in automatico richiede il tuo account loggato, ed è da lì che arrivano le restrizioni. vinted-sniper mette invece un pulsante per comprare in ogni avviso, così l'acquisto resta tuo."
+    a: "Questo no. Comprare in automatico richiede il tuo account loggato, ed è da lì che arrivano le restrizioni. vinted-bot mette invece un pulsante per comprare in ogni avviso, così l'acquisto resta tuo."
   - q: "Un bot Vinted per acquistare conviene?"
     a: "Raramente, a meno che tu non rivenda in grandi volumi. I bot che acquistano costano molto di più e usano il tuo account, che Vinted può limitare se sospetta l'automazione. Per chi cerca articoli precisi bastano gli avvisi."
 ---
 
-Sì, un bot Vinted gratis esiste. vinted-sniper è un'app gratuita e open source che controlla le tue ricerche Vinted e manda ogni nuovo annuncio su Telegram, Discord o sul telefono, con il prezzo che pagheresti davvero. Gira sul tuo computer invece che sul server di qualcun altro, per questo non costa niente, e non chiede mai il login di Vinted.
+Sì, un bot Vinted gratis esiste. vinted-bot è un'app gratuita e open source che controlla le tue ricerche Vinted e manda ogni nuovo annuncio su Telegram, Discord o sul telefono, con il prezzo che pagheresti davvero. Gira sul tuo computer invece che sul server di qualcun altro, per questo non costa niente, e non chiede mai il login di Vinted.
 
 Qui sotto trovi cosa si intende di solito per "bot Vinted", quali opzioni gratuite esistono, come configurarne uno in una decina di minuti e i limiti da conoscere prima di affidartici.
 
@@ -31,7 +31,7 @@ Qui sotto trovi cosa si intende di solito per "bot Vinted", quali opzioni gratui
 
 La parola copre strumenti molto diversi, e la differenza conta sia per il prezzo sia per il rischio.
 
-Un bot di avvisi (detto anche monitor o sniper) osserva una ricerca e ti dice quando compare qualcosa di nuovo. Poi apri l'annuncio e compri tu. È quello che serve a chi è deluso dalle notifiche delle ricerche salvate di Vinted.
+Un bot di avvisi (detto anche monitor) osserva una ricerca e ti dice quando compare qualcosa di nuovo. Poi apri l'annuncio e compri tu. È quello che serve a chi è deluso dalle notifiche delle ricerche salvate di Vinted.
 
 Un bot per acquistare (autobuy) entra con il tuo account e conclude l'acquisto appena un annuncio corrisponde. Sono quelli costosi, e hanno bisogno del tuo account e dei tuoi dati di pagamento.
 
@@ -55,9 +55,9 @@ Canali condivisi che pubblicano annunci per le categorie più popolari. Vedi que
 
 ### Strumenti open source da far girare in proprio
 
-Gratis e senza limite di ricerche, ma serve un computer che resti acceso. vinted-sniper è uno di questi. È pensato per essere facile da installare e per dirti quando smette di funzionare, che è la lamentela più comune sui bot gratuiti.
+Gratis e senza limite di ricerche, ma serve un computer che resti acceso. vinted-bot è uno di questi. È pensato per essere facile da installare e per dirti quando smette di funzionare, che è la lamentela più comune sui bot gratuiti.
 
-## Perché vinted-sniper è gratis
+## Perché vinted-bot è gratis
 
 Dalla nostra parte non c'è nessun server. L'app gira sul tuo portatile, sul fisso, su un Raspberry Pi o su un NAS, controlla le ricerche dalla tua connessione e manda gli avvisi da lì. Niente costi di hosting, quindi niente da far pagare. Il codice è su GitHub con licenza MIT: chiunque può leggere cosa fa.
 
@@ -89,7 +89,7 @@ Gli avvisi partono dalla macchina su cui gira. Un portatile in stop non manda ni
 
 ### Non è istantaneo, e niente lo è
 
-Vinted aggiunge i nuovi annunci alla sua ricerca qualche minuto dopo il caricamento. Ogni strumento che legge la ricerca, gratuito o a pagamento, li vede in quel momento. vinted-sniper controlla ogni minuto. Controllare più spesso non trova niente prima e fa rallentare la tua connessione. Se gareggi con i bot autobuy per le console sottoprezzo, nessun bot di avvisi vincerà. Se cerchi una taglia, una marca o un pezzo da collezione, un minuto basta e avanza.
+Vinted aggiunge i nuovi annunci alla sua ricerca qualche minuto dopo il caricamento. Ogni strumento che legge la ricerca, gratuito o a pagamento, li vede in quel momento. vinted-bot controlla ogni minuto. Controllare più spesso non trova niente prima e fa rallentare la tua connessione. Se gareggi con i bot autobuy per le console sottoprezzo, nessun bot di avvisi vincerà. Se cerchi una taglia, una marca o un pezzo da collezione, un minuto basta e avanza.
 
 ### La tua connessione conta
 

@@ -8,17 +8,17 @@ from typing import Any
 import pytest
 
 from tests.conftest import ScriptedTransport
-from vinted_sniper.db import Database
-from vinted_sniper.db.repo import Repo
-from vinted_sniper.vinted.errors import MalformedResponseError
-from vinted_sniper.vinted.session import SessionManager
-from vinted_sniper.vinted.taxonomy import (
+from vinted_bot.db import Database
+from vinted_bot.db.repo import Repo
+from vinted_bot.vinted.errors import MalformedResponseError
+from vinted_bot.vinted.session import SessionManager
+from vinted_bot.vinted.taxonomy import (
     Taxonomy,
     compact_tree,
     extract_catalog_tree,
     flatten_options,
 )
-from vinted_sniper.vinted.transport import Response
+from vinted_bot.vinted.transport import Response
 
 TREE = [
     {

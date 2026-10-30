@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from vinted_sniper.vinted import urls
+from vinted_bot.vinted import urls
 
 
 @pytest.mark.parametrize(

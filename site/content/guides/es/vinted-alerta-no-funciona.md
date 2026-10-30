@@ -18,7 +18,7 @@ faq:
   - q: "¿Por qué las notificaciones de Vinted llegan tarde?"
     a: "Se suman dos retrasos. Vinted añade los anuncios nuevos a su búsqueda unos minutos después de subirlos, y los avisos de búsquedas guardadas salen algo después. El ahorro de batería y los modos de concentración o No molestar pueden retenerlos aún más."
   - q: "¿Cómo consigo alertas fiables de una búsqueda de Vinted?"
-    a: "Usa una herramienta externa que revise la búsqueda por sí misma y te escriba. vinted-sniper lo hace gratis: revisa cada minuto, envía los artículos nuevos a Telegram, Discord o el móvil y te avisa cuando una búsqueda deja de funcionar."
+    a: "Usa una herramienta externa que revise la búsqueda por sí misma y te escriba. vinted-bot lo hace gratis: revisa cada minuto, envía los artículos nuevos a Telegram, Discord o el móvil y te avisa cuando una búsqueda deja de funcionar."
 ---
 
 Si la alerta de tu búsqueda guardada en Vinted no funciona, muchas veces no es culpa de tu móvil. Muchos usuarios con todas las notificaciones activadas reciben estos avisos tarde o nunca, y Vinted no ha explicado nunca bien cómo los envía. Revisa primero los ajustes de abajo, porque en algunos casos lo arreglan. Si no, la solución fiable es una herramienta que revise la búsqueda por sí misma.
@@ -70,7 +70,7 @@ Lo que sí puedes cambiar es quién revisa la búsqueda. En lugar de esperar a q
 
 ## La alternativa gratis: alertas que revisan la búsqueda por sí mismas
 
-vinted-sniper es una aplicación gratuita y de código abierto que hace exactamente eso, sin suscripción. Pegas el mismo enlace de tu búsqueda de Vinted y la revisa cada minuto desde tu ordenador. Cada artículo nuevo llega como mensaje a Telegram, Discord, ntfy en el móvil o un webhook, con las fotos, el precio total con la protección al comprador, talla y estado, la valoración del vendedor y un botón para abrir el anuncio.
+vinted-bot es una aplicación gratuita y de código abierto que hace exactamente eso, sin suscripción. Pegas el mismo enlace de tu búsqueda de Vinted y la revisa cada minuto desde tu ordenador. Cada artículo nuevo llega como mensaje a Telegram, Discord, ntfy en el móvil o un webhook, con las fotos, el precio total con la protección al comprador, talla y estado, la valoración del vendedor y un botón para abrir el anuncio.
 
 También arregla cosas que las búsquedas guardadas de Vinted no hacen:
 

@@ -1,48 +1,48 @@
 #!/bin/sh
-# Installs vinted-sniper on macOS or Linux (including a Raspberry Pi). No Docker, no admin
+# Installs vinted-bot on macOS or Linux (including a Raspberry Pi). No Docker, no admin
 # password, nothing outside your home folder.
 #
-#   curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.sh | sh
+#   curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.sh | sh
 #
 # What it does, in order:
 #   1. installs uv (https://docs.astral.sh/uv/), the tool that fetches Python and
-#      vinted-sniper, if you don't have it yet
-#   2. installs vinted-sniper with its own private copy of Python
+#      vinted-bot, if you don't have it yet
+#   2. installs vinted-bot with its own private copy of Python
 #   3. asks whether it should start by itself when you log in
 #   4. starts it and opens the dashboard in your browser
 #
 # Run the same command again to update. To remove it (your searches are kept):
 #
-#   curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.sh | sh -s -- --uninstall
+#   curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.sh | sh -s -- --uninstall
 #
 # Options (after `sh -s --` when piping):
-#   --uninstall        remove vinted-sniper and its start-at-login entry
+#   --uninstall        remove vinted-bot and its start-at-login entry
 #   --autostart        start at login without asking
 #   --no-autostart     don't start at login, and don't ask
 #   --no-browser       don't open the dashboard at the end
 #
 # Environment variables, for anyone scripting this:
-#   VINTED_SNIPER_AUTOSTART=yes|no    same as --autostart / --no-autostart
-#   VINTED_SNIPER_KEEP_AWAKE=yes|no   macOS: keep the Mac awake while plugged in
-#   VINTED_SNIPER_NO_BROWSER=1        same as --no-browser
-#   VINTED_SNIPER_DATA_DIR=...        where the database and log live
-#   VINTED_SNIPER_WEB_PORT=...        dashboard port, if 8000 is taken
-#   VINTED_SNIPER_PACKAGE=...         what to install (see PACKAGE below)
+#   VINTED_BOT_AUTOSTART=yes|no    same as --autostart / --no-autostart
+#   VINTED_BOT_KEEP_AWAKE=yes|no   macOS: keep the Mac awake while plugged in
+#   VINTED_BOT_NO_BROWSER=1        same as --no-browser
+#   VINTED_BOT_DATA_DIR=...        where the database and log live
+#   VINTED_BOT_WEB_PORT=...        dashboard port, if 8000 is taken
+#   VINTED_BOT_PACKAGE=...         what to install (see PACKAGE below)
 #   UV_NO_MODIFY_PATH=1               leave your shell's PATH settings alone
-#   VINTED_SNIPER_ALLOW_ROOT=1        install as root anyway (not recommended)
+#   VINTED_BOT_ALLOW_ROOT=1        install as root anyway (not recommended)
 
 # Everything is inside functions and only `main "$@"` at the very end runs anything, so a
 # download cut off halfway can never run half an install.
 
 set -eu
 
-# Where vinted-sniper comes from: the latest release on PyPI. Set VINTED_SNIPER_PACKAGE to
+# Where vinted-bot comes from: the latest release on PyPI. Set VINTED_BOT_PACKAGE to
 # install something else, such as a GitHub archive of an unreleased branch.
-PACKAGE="${VINTED_SNIPER_PACKAGE:-vinted-sniper}"
-PORT="${VINTED_SNIPER_WEB_PORT:-8000}"
+PACKAGE="${VINTED_BOT_PACKAGE:-vinted-bot}"
+PORT="${VINTED_BOT_WEB_PORT:-8000}"
 URL="http://localhost:$PORT"
-LABEL="io.github.jasp-nerd.vinted-sniper"
-SCRIPT_URL="https://raw.githubusercontent.com/jasp-nerd/vinted-sniper/main/install.sh"
+LABEL="io.github.jasp-nerd.vinted-bot"
+SCRIPT_URL="https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.sh"
 
 say() { printf '%s\n' "$*"; }
 warn() { printf '%s\n' "$*" >&2; }
@@ -50,24 +50,24 @@ die() {
     warn ""
     warn "Sorry, that didn't work: $*"
     warn "If you're stuck, open an issue and paste everything above:"
-    warn "  https://github.com/jasp-nerd/vinted-sniper/issues/new/choose"
+    warn "  https://github.com/jasp-nerd/vinted-bot/issues/new/choose"
     exit 1
 }
 
 os() { uname -s; }
 
 data_dir() {
-    if [ -n "${VINTED_SNIPER_DATA_DIR:-}" ]; then
-        printf '%s\n' "$VINTED_SNIPER_DATA_DIR"
+    if [ -n "${VINTED_BOT_DATA_DIR:-}" ]; then
+        printf '%s\n' "$VINTED_BOT_DATA_DIR"
     elif [ "$(os)" = Darwin ]; then
-        printf '%s\n' "$HOME/Library/Application Support/vinted-sniper"
+        printf '%s\n' "$HOME/Library/Application Support/vinted-bot"
     else
-        printf '%s\n' "${XDG_DATA_HOME:-$HOME/.local/share}/vinted-sniper"
+        printf '%s\n' "${XDG_DATA_HOME:-$HOME/.local/share}/vinted-bot"
     fi
 }
 
 systemd_unit() {
-    printf '%s\n' "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/vinted-sniper.service"
+    printf '%s\n' "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/vinted-bot.service"
 }
 
 launchd_plist() {
@@ -95,7 +95,7 @@ ensure_uv() {
     if find_uv; then
         return 0
     fi
-    warn "Installing uv, the helper that downloads Python and vinted-sniper for you..."
+    warn "Installing uv, the helper that downloads Python and vinted-bot for you..."
     curl -LsSf https://astral.sh/uv/install.sh | sh >&2 || die "uv could not be installed."
     find_uv || die "uv installed but can't be found. Open a new terminal and run this again."
 }
@@ -139,11 +139,11 @@ stop_everything() {
     if [ "$(os)" = Darwin ]; then
         launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
     elif command -v systemctl >/dev/null 2>&1 && [ -f "$(systemd_unit)" ]; then
-        systemctl --user stop vinted-sniper.service 2>/dev/null || true
+        systemctl --user stop vinted-bot.service 2>/dev/null || true
     fi
     # A copy started in the background by an earlier run of this script.
     if command -v pkill >/dev/null 2>&1; then
-        pkill -f "$bin/vinted-sniper run" 2>/dev/null || true
+        pkill -f "$bin/vinted-bot run" 2>/dev/null || true
     fi
     # Give it a moment to let go of the port.
     i=0
@@ -158,7 +158,7 @@ remove_autostart() {
         launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
         rm -f "$(launchd_plist)"
     elif [ -f "$(systemd_unit)" ]; then
-        systemctl --user disable --now vinted-sniper.service >/dev/null 2>&1 || true
+        systemctl --user disable --now vinted-bot.service >/dev/null 2>&1 || true
         rm -f "$(systemd_unit)"
         systemctl --user daemon-reload >/dev/null 2>&1 || true
     fi
@@ -169,10 +169,10 @@ xml_escape() {
 }
 
 # Writes the LaunchAgent to stdout. caffeinate -s holds off sleep only while the Mac is on
-# power and only while vinted-sniper runs; a closed MacBook lid still sleeps.
+# power and only while vinted-bot runs; a closed MacBook lid still sleeps.
 #
 # KeepAlive=true starts it again after any exit, including the clean exit (code 75) that
-# ends an update from the dashboard; VINTED_SNIPER_SUPERVISED tells the app it can count
+# ends an update from the dashboard; VINTED_BOT_SUPERVISED tells the app it can count
 # on that. ThrottleInterval only delays a restart when the app exits within 30 seconds of
 # starting, which keeps a crash at startup from spinning.
 write_plist() {
@@ -200,11 +200,11 @@ EOF
   <string>$dir</string>
   <key>EnvironmentVariables</key>
   <dict>
-    <key>VINTED_SNIPER_DB_PATH</key>
+    <key>VINTED_BOT_DB_PATH</key>
     <string>$dir/app.db</string>
-    <key>VINTED_SNIPER_WEB_PORT</key>
+    <key>VINTED_BOT_WEB_PORT</key>
     <string>$PORT</string>
-    <key>VINTED_SNIPER_SUPERVISED</key>
+    <key>VINTED_BOT_SUPERVISED</key>
     <string>launchd</string>
   </dict>
   <key>RunAtLoad</key>
@@ -214,9 +214,9 @@ EOF
   <key>ThrottleInterval</key>
   <integer>30</integer>
   <key>StandardOutPath</key>
-  <string>$dir/vinted-sniper.log</string>
+  <string>$dir/vinted-bot.log</string>
   <key>StandardErrorPath</key>
-  <string>$dir/vinted-sniper.log</string>
+  <string>$dir/vinted-bot.log</string>
 </dict>
 </plist>
 EOF
@@ -244,7 +244,7 @@ autostart_macos() {
 }
 
 # Restart=always starts it again after any exit, including the clean exit (code 75) that
-# ends an update from the dashboard; VINTED_SNIPER_SUPERVISED tells the app it can count
+# ends an update from the dashboard; VINTED_BOT_SUPERVISED tells the app it can count
 # on that. `systemctl --user stop` is not an exit systemd restarts from. Three seconds
 # between starts keeps a crash at startup under systemd's limit of five starts in ten
 # seconds, so it keeps trying instead of giving up.
@@ -253,14 +253,14 @@ write_unit() {
     dir=$2
     cat <<EOF
 [Unit]
-Description=vinted-sniper (alerts for new Vinted listings)
+Description=vinted-bot (alerts for new Vinted listings)
 
 [Service]
 ExecStart="$exe" run
 WorkingDirectory=$dir
-Environment="VINTED_SNIPER_DB_PATH=$dir/app.db"
-Environment="VINTED_SNIPER_WEB_PORT=$PORT"
-Environment="VINTED_SNIPER_SUPERVISED=systemd"
+Environment="VINTED_BOT_DB_PATH=$dir/app.db"
+Environment="VINTED_BOT_WEB_PORT=$PORT"
+Environment="VINTED_BOT_SUPERVISED=systemd"
 Restart=always
 RestartSec=3
 
@@ -278,8 +278,8 @@ autostart_linux() {
     mkdir -p "$(dirname "$(systemd_unit)")"
     write_unit "$exe" "$dir" >"$(systemd_unit)"
     systemctl --user daemon-reload
-    systemctl --user enable vinted-sniper.service >/dev/null 2>&1
-    systemctl --user restart vinted-sniper.service
+    systemctl --user enable vinted-bot.service >/dev/null 2>&1
+    systemctl --user restart vinted-bot.service
     say "It will now start by itself whenever you log in."
     # Without "lingering", a user service only runs while you are logged in, so a Raspberry
     # Pi with nobody logged in would never start it.
@@ -302,8 +302,8 @@ start_in_background() {
     fi
     (
         cd "$dir"
-        VINTED_SNIPER_DB_PATH="$dir/app.db" VINTED_SNIPER_WEB_PORT="$PORT" \
-            nohup "$@" >>"$dir/vinted-sniper.log" 2>&1 &
+        VINTED_BOT_DB_PATH="$dir/app.db" VINTED_BOT_WEB_PORT="$PORT" \
+            nohup "$@" >>"$dir/vinted-bot.log" 2>&1 &
     )
 }
 
@@ -311,7 +311,7 @@ port_answers() {
     curl -s -o /dev/null --max-time 2 "$URL/" 2>/dev/null
 }
 
-# Waits for vinted-sniper's own health endpoint, not just anything on the port, so another
+# Waits for vinted-bot's own health endpoint, not just anything on the port, so another
 # program on 8000 isn't mistaken for a successful start. It answers 503 until the first
 # check completes, which still counts as up.
 wait_for_dashboard() {
@@ -327,7 +327,7 @@ wait_for_dashboard() {
 }
 
 open_dashboard() {
-    if [ -n "${VINTED_SNIPER_NO_BROWSER:-}" ]; then
+    if [ -n "${VINTED_BOT_NO_BROWSER:-}" ]; then
         return 0
     fi
     if [ -n "${SSH_CONNECTION:-}" ]; then
@@ -345,17 +345,17 @@ open_dashboard() {
 # --- The two things this script does --------------------------------------------------
 
 uninstall() {
-    say "Removing vinted-sniper..."
+    say "Removing vinted-bot..."
     remove_autostart
     if uv=$(find_uv); then
         bin=$("$uv" tool dir --bin 2>/dev/null || true)
         if [ -n "$bin" ]; then
             stop_everything "$bin"
         fi
-        "$uv" tool uninstall vinted-sniper >/dev/null 2>&1 || true
+        "$uv" tool uninstall vinted-bot >/dev/null 2>&1 || true
     fi
     say ""
-    say "vinted-sniper is removed."
+    say "vinted-bot is removed."
     say "Your searches and settings are still here, in case you come back:"
     say "  $(data_dir)"
     say "Delete that folder if you want them gone too."
@@ -372,47 +372,47 @@ install() {
     mkdir -p "$dir"
     uv=$(ensure_uv)
     bin=$("$uv" tool dir --bin)
-    exe="$bin/vinted-sniper"
+    exe="$bin/vinted-bot"
 
     already=no
     if [ -x "$exe" ]; then
         already=yes
-        say "vinted-sniper is already installed. Updating it to the newest version..."
+        say "vinted-bot is already installed. Updating it to the newest version..."
         stop_everything "$bin"
     else
-        say "Installing vinted-sniper. The first time this also downloads Python (about 30 MB),"
+        say "Installing vinted-bot. The first time this also downloads Python (about 30 MB),"
         say "so give it a minute..."
     fi
 
     # --managed-python: a Python that uv looks after itself, so a system or Homebrew Python
     # update can never break the install. --reinstall-package: the archive URL never
     # changes, so without it a re-run would keep the old copy.
-    "$uv" tool install --quiet --upgrade --reinstall-package vinted-sniper \
+    "$uv" tool install --quiet --upgrade --reinstall-package vinted-bot \
         --managed-python --python 3.13 "$PACKAGE" ||
         die "the download or install failed (see the messages above)."
     [ -x "$exe" ] || die "the install finished, but $exe is missing."
 
-    # So that typing `vinted-sniper` in a new terminal works.
+    # So that typing `vinted-bot` in a new terminal works.
     if [ -z "${UV_NO_MODIFY_PATH:-}" ]; then
         "$uv" tool update-shell >/dev/null 2>&1 || true
     fi
-    version=$("$exe" --version 2>/dev/null || echo "vinted-sniper")
+    version=$("$exe" --version 2>/dev/null || echo "vinted-bot")
 
     if port_answers; then
         warn ""
         warn "Something else is already using port $PORT on this computer (maybe an older copy"
         warn "running in Docker?). Stop it, or choose another port by running this again as:"
-        warn "  curl -LsSf $SCRIPT_URL | VINTED_SNIPER_WEB_PORT=8001 sh"
+        warn "  curl -LsSf $SCRIPT_URL | VINTED_BOT_WEB_PORT=8001 sh"
         die "port $PORT is taken."
     fi
 
     keep_awake=no
     if [ "$(os)" = Darwin ]; then
-        if [ "${VINTED_SNIPER_KEEP_AWAKE:-ask}" = ask ]; then
+        if [ "${VINTED_BOT_KEEP_AWAKE:-ask}" = ask ]; then
             say ""
             say "Alerts only arrive while this Mac is awake."
         fi
-        if wants "${VINTED_SNIPER_KEEP_AWAKE:-ask}" "Keep the Mac from sleeping while it's plugged in and vinted-sniper runs?"; then
+        if wants "${VINTED_BOT_KEEP_AWAKE:-ask}" "Keep the Mac from sleeping while it's plugged in and vinted-bot runs?"; then
             keep_awake=yes
         fi
     fi
@@ -421,7 +421,7 @@ install() {
     if [ "$autostart_setting" = ask ]; then
         say ""
     fi
-    if wants "$autostart_setting" "Start vinted-sniper by itself whenever you log in?"; then
+    if wants "$autostart_setting" "Start vinted-bot by itself whenever you log in?"; then
         if [ "$(os)" = Darwin ]; then
             autostart_macos "$exe" "$dir" "$keep_awake" && autostarted=yes
         else
@@ -440,7 +440,7 @@ install() {
 
     say ""
     if ! wait_for_dashboard; then
-        die "it installed, but didn't start. The log may say why: $dir/vinted-sniper.log"
+        die "it installed, but didn't start. The log may say why: $dir/vinted-bot.log"
     fi
 
     if [ $already = yes ]; then
@@ -452,7 +452,7 @@ install() {
     say ""
     say "  Dashboard:     $URL   (bookmark it)"
     say "  Your data:     $dir"
-    say "  Log file:      $dir/vinted-sniper.log"
+    say "  Log file:      $dir/vinted-bot.log"
     say ""
     say "Next: in the dashboard, add where alerts should go (Discord or Telegram), then paste"
     say "a Vinted search. Alerts arrive while this computer is on, awake and online."
@@ -465,12 +465,12 @@ install() {
     fi
     if [ $autostarted = no ]; then
         say "  Start again:   run the install command again (after a restart, for example)"
-        say "  Stop:          pkill -f 'vinted-sniper run'"
+        say "  Stop:          pkill -f 'vinted-bot run'"
     elif [ "$(os)" = Darwin ]; then
         say "  Stop:          launchctl bootout gui/$(id -u)/$LABEL"
         say "                 (it starts again the next time you log in)"
     else
-        say "  Stop:          systemctl --user stop vinted-sniper"
+        say "  Stop:          systemctl --user stop vinted-bot"
         say "                 (it starts again the next time you log in)"
     fi
     say "  Uninstall:     curl -LsSf $SCRIPT_URL | sh -s -- --uninstall"
@@ -481,14 +481,14 @@ usage() {
 }
 
 main() {
-    autostart="${VINTED_SNIPER_AUTOSTART:-ask}"
+    autostart="${VINTED_BOT_AUTOSTART:-ask}"
     action=install
     for arg in "$@"; do
         case "$arg" in
             --uninstall) action=uninstall ;;
             --autostart) autostart=yes ;;
             --no-autostart) autostart=no ;;
-            --no-browser) VINTED_SNIPER_NO_BROWSER=1 ;;
+            --no-browser) VINTED_BOT_NO_BROWSER=1 ;;
             -h | --help)
                 usage
                 return 0
@@ -501,7 +501,7 @@ main() {
         Darwin | Linux) ;;
         *) die "this installer is for macOS and Linux. On Windows, use install.ps1 (see the README)." ;;
     esac
-    if [ "$(id -u)" = 0 ] && [ -z "${VINTED_SNIPER_ALLOW_ROOT:-}" ]; then
+    if [ "$(id -u)" = 0 ] && [ -z "${VINTED_BOT_ALLOW_ROOT:-}" ]; then
         die "please run this as your normal user, without sudo. It installs into your home folder."
     fi
 

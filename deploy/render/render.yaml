@@ -1,4 +1,4 @@
-# Render Blueprint for vinted-sniper. In the Render dashboard: New, Blueprint, connect a fork
+# Render Blueprint for vinted-bot. In the Render dashboard: New, Blueprint, connect a fork
 # of this repository and set "Blueprint Path" to deploy/render/render.yaml.
 #
 # This is a paid setup. A persistent disk, which holds your searches, only attaches to a
@@ -10,10 +10,10 @@
 # refused more often than home connections.
 services:
   - type: web
-    name: vinted-sniper
+    name: vinted-bot
     runtime: image
     image:
-      url: ghcr.io/jasp-nerd/vinted-sniper:latest
+      url: ghcr.io/jasp-nerd/vinted-bot:latest
     # Render's smallest paid instance; the app needs well under 512 MB.
     plan: 0.5c-512mb
     # Closest to most Vinted country sites.
@@ -29,14 +29,14 @@ services:
     envVars:
       # The dashboard is on the public internet here, so it gets a password. Render makes
       # one up; find it under Environment in the Render dashboard and use it to sign in.
-      - key: VINTED_SNIPER_WEB_AUTH_TOKEN
+      - key: VINTED_BOT_WEB_AUTH_TOKEN
         generateValue: true
       # Render sends traffic to port 10000 unless told otherwise.
-      - key: VINTED_SNIPER_WEB_PORT
+      - key: VINTED_BOT_WEB_PORT
         value: "10000"
       - key: TZ
         value: Europe/Paris
       # Your https://<name>.onrender.com address, so links in alerts lead back to the
       # dashboard. Render asks for it when the Blueprint is first created.
-      - key: VINTED_SNIPER_WEB_PUBLIC_URL
+      - key: VINTED_BOT_WEB_PUBLIC_URL
         sync: false
