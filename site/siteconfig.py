@@ -10,6 +10,16 @@ REPO = "https://github.com/jasp-nerd/vinted-bot"
 REPO_BLOB = f"{REPO}/blob/main"
 REPO_RAW = "https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main"
 PYPI = "https://pypi.org/project/vinted-bot/"
+KO_FI = "https://ko-fi.com/jaspnerd"
+SPONSORS = "https://github.com/sponsors/jasp-nerd"
+
+
+def tracked(url: str, campaign: str) -> str:
+    """A link that says where on the site it was clicked, so Ko-fi's and GitHub's traffic
+    stats show what works. The same tag for everyone; it says nothing about who clicked."""
+    return f"{url}?utm_source={HOST}&utm_medium=site&utm_campaign={campaign}"
+
+
 # Google Search Console ownership check (HTML tag method).
 GOOGLE_SITE_VERIFICATION = "yChsP16tHi1XLf1-EY9hMxyY4OE3GFXmSheJnLbx9TE"
 # Visit counts on the owner's self-hosted Umami: cookieless, no personal data. The script

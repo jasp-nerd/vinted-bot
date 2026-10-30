@@ -258,6 +258,7 @@
     "releases": "Versions",
     "changelog": "Nouveautés",
     "report": "Signaler un problème",
+    "coffee": "M'offrir un café",
     "llms": "Guide pour les assistants IA",
     "about": "À propos",
     "help": "Aide",
@@ -292,6 +293,7 @@
     "sections": [
       {"h": "Qui le fait", "body": "<p>vinted-bot est développé et maintenu par <a href=\"https://github.com/jasp-nerd\">jasp-nerd</a>, un développeur aux Pays-Bas. Il a commencé en août 2026 comme un petit outil en ligne de commande, et il est devenu l'appli qu'il est aujourd'hui, avec un tableau de bord, des badges bonnes affaires, des vérifications d'état et des installeurs en une ligne.</p>"},
       {"h": "Pourquoi c'est gratuit", "body": "<p>Des alertes pour vos propres recherches ne devraient pas coûter un abonnement mensuel. Comme vinted-bot tourne sur votre propre ordinateur, il n'y a aucun serveur à payer, donc rien à facturer. Pas de formule payante, pas d'essai, pas de compte et pas de publicité, et il n'y en aura pas. Le code est sous licence MIT : vous pouvez le lire, le modifier et le faire tourner comme vous voulez.</p>"},
+      {"h": "Comment il est financé", "body": "<p>Il ne l'est pas. Pas de publicité, pas de version payante, et rien sur vous n'est collecté ni vendu. Si l'outil vous a fait dénicher une bonne affaire, vous pouvez <a href=\"{kofi}\">m'offrir un café</a> ou <a href=\"{sponsors}\">le sponsoriser sur GitHub</a>. Une étoile sur GitHub aide aussi d'autres personnes à le trouver.</p>"},
       {"h": "Ce qu'il ne fera jamais", "body": "<p>Il ne vous demandera jamais vos identifiants Vinted, et il n'achètera, ne publiera, n'aimera et n'écrira jamais à votre place. Tout cela demande votre compte, et c'est de là que viennent les restrictions. Il lit les annonces publiques anonymement, sans se presser, et ralentit de lui-même quand Vinted le demande. Plus de détails dans <a href=\"/docs/legal/\">règles et risques</a> (en anglais).</p>"},
       {"h": "Sans lien avec Vinted", "body": "<p>vinted-bot est un projet indépendant. Il n'est ni affilié à Vinted UAB, ni soutenu par Vinted UAB, ni lié à Vinted UAB. Vinted est une marque de son propriétaire. Le nom dit ce qu'il fait, un bot pour Vinted. Il ne vient pas de Vinted pour autant.</p>"},
       {"h": "Contact", "body": "<p>Vous avez trouvé un bug, ou vous avez une idée ? <a href=\"https://github.com/jasp-nerd/vinted-bot/issues\">Ouvrez un ticket sur GitHub</a>. Les problèmes de sécurité passent par la <a href=\"https://github.com/jasp-nerd/vinted-bot/blob/main/SECURITY.md\">politique de sécurité</a> (en anglais). Tous les changements sont dans le <a href=\"/changelog/\">journal des modifications</a> (en anglais).</p>"}
