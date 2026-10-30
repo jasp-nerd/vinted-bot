@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import itertools
 import json
 import random
 import secrets
@@ -179,9 +180,12 @@ async def seed(
                     * Decimal("1.12")
                 ).quantize(Decimal("0.01"))
             }
+            # Walk the search's photos in a shuffled cycle rather than picking at random,
+            # so neighbouring finds in the feed are different listings.
+            order = itertools.cycle(rng.sample(slugs, len(slugs)))
             for day in range(days, -1, -1):
                 for _ in range(rng.randint(0, 3 if day else 4)):
-                    slug = rng.choice(slugs)
+                    slug = next(order)
                     entry = catalog[slug]
                     price = (
                         Decimal(str(entry["price"])) * Decimal(str(rng.uniform(0.7, 1.2)))
