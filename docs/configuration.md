@@ -14,12 +14,18 @@ question about which copy wins.
 Every variable is prefixed `VINTED_SNIPER_`. All of them are optional except where noted.
 [`.env.example`](../.env.example) has the same list with comments, ready to copy.
 
+Besides the environment, the app reads a file called `.env` **in the folder you start it
+from** (the current directory, not the folder the app is installed in). Variables set in
+the environment win over the file. So start it from the folder that holds your own `.env`,
+and be aware that starting it inside another checkout of this project picks up that
+checkout's `.env`, Telegram token and all.
+
 ### Storage
 
 | Variable | Default | What it does |
 |---|---|---|
 | `DB_PATH` | see below | Where the SQLite file lives. Already set to `/data/app.db` in the container. |
-| `ITEM_RETENTION_DAYS` | `30` | Delete stored listings older than this. Does not cause anything to be re-sent. |
+| `ITEM_RETENTION_DAYS` | `30` | Delete stored listings older than this. Does not cause anything to be re-sent: what each search and each seller watch has already seen is kept separately, in a much smaller form. |
 | `KEEP_RAW_JSON` | `false` | Keep each listing's full API payload. Handy when debugging a parsing problem; stores more seller data than notifications need. |
 
 Unset outside a container, the database goes in `./data/app.db` **if that file already
@@ -40,9 +46,17 @@ folder you start the app from. `vinted-sniper migrate` prints the path it used.
 | Variable | Default | What it does |
 |---|---|---|
 | `POLL_DEFAULT_INTERVAL_S` | `60` | Seconds between checks for a newly added search. Per-search values override it. Anything under 10 is refused. |
-| `FRESHNESS_WINDOW_MIN` | `20` | Ignore listings whose photo is older than this. Stops a restart from replaying old results. |
+| `FRESHNESS_WINDOW_MIN` | `20` | How old a listing can be and still count as new. Two things use it. A listing the app can tell was already on Vinted longer ago than this is skipped (see below). And when a search has not completed a check for longer than this (or three of its intervals, if that is longer), because the app was off, the computer asleep or Vinted refusing, the first check back records what is there **without announcing it**, then carries on as normal. A search's own "ignore listings older than" setting overrides it. |
 | `FIRST_RUN_MODE` | `silent` | What a brand-new search does first time: `silent` notifies nothing, `newest` sends exactly one listing so you can confirm delivery works. |
 | `REQUEST_TIMEOUT_S` | `15` | How long to wait for Vinted before giving up on one request. |
+
+How "already on Vinted" is known: Vinted's search results no longer say when a listing was
+posted, but listing ids are handed out in upload order across the whole site. Every check
+remembers the newest id it saw and when, so any lower id was provably online by then. That
+is enough to skip, say, a month-old listing whose price was just cut into a search's range.
+It cannot date a listing newer than anything the app has seen, which is why a gap in
+checking is caught up quietly rather than guessed at: anything uploaded while the app was
+not looking is recorded, not announced.
 
 The 10-second floor is not caution for its own sake: Vinted's own API lags minutes behind
 what people upload, sometimes longer, so checking faster finds nothing sooner and does get
@@ -76,10 +90,11 @@ was found, so you can see the real delay yourself.
 | Variable | Default | What it does |
 |---|---|---|
 | `WEB_ENABLED` | `true` | The dashboard. Turn it off if you only use the CLI. |
-| `WEB_AUTH_TOKEN` | unset | Optional. With no token the dashboard has no sign-in, which is fine while it listens on localhost. **Set one before exposing it further** — it shows your webhook URLs and chat ids. Generate with `openssl rand -hex 32`. |
+| `WEB_AUTH_TOKEN` | unset | Optional. With no token the dashboard has no sign-in, which is fine while it listens on localhost. **Set one before exposing it further**: anyone who can open the dashboard can add, remove and reroute your alerts. Generate with `openssl rand -hex 32`. Signing in gives that browser a random session (30 days) that signing out revokes; changing the token signs every browser out. After five wrong passwords from one address, sign-in waits 15 minutes. |
 | `WEB_HOST` | `127.0.0.1` | Loopback by default. Only widen behind a reverse proxy you trust. |
 | `WEB_PORT` | `8000` | |
-| `WEB_PUBLIC_URL` | unset | The address the dashboard is reachable at from wherever you read your alerts — set it when the dashboard sits behind a reverse proxy or a tunnel. It becomes the Dashboard link in Discord messages; unset, that link points at `http://<WEB_HOST>:<WEB_PORT>`. While the dashboard listens on localhost it only answers to localhost names and this address, which is what stops another website reading it through DNS rebinding, so set it when a proxy forwards a different host name. |
+| `WEB_PUBLIC_URL` | unset | The address the dashboard is reachable at from wherever you read your alerts — set it when the dashboard sits behind a reverse proxy or a tunnel. It becomes the Dashboard link in Discord messages; unset, that link points at `http://<WEB_HOST>:<WEB_PORT>`. Its host name is also one the dashboard answers to (see `WEB_ALLOWED_HOSTS`). |
+| `WEB_ALLOWED_HOSTS` | unset | Extra host names the dashboard answers to, comma-separated, such as `nas.local,finds.example.org`. The dashboard always answers to `localhost`, `127.0.0.1`, `[::1]`, any IP address (so `http://192.168.1.20:8000` from a phone works) and the host of `WEB_PUBLIC_URL`. Any other name gets a 400 page that names this setting. That is what stops another website from pointing its own name at your computer and using the dashboard through your browser (DNS rebinding), and it applies however the dashboard is bound, the Docker image's `0.0.0.0` included. Add the name your reverse proxy forwards, if it does not pass the original one on. |
 
 ### Logging and development
 
@@ -125,7 +140,7 @@ Options for `watch`:
 | `--skip-unrated` | Skip sellers with no reviews yet. |
 | `--countries FR,BE` | Only sellers in these countries. |
 | `--deal N` | Only alert when the total is at least N% under what this search usually finds. Everything is still recorded, which is how "usually" is learned; it needs 15 finds in two weeks before it alerts at all. |
-| `--max-age N` | Ignore listings older than N minutes (overrides `FRESHNESS_WINDOW_MIN`). |
+| `--max-age N` | Ignore listings the app can tell were already on Vinted N minutes ago, and catch up quietly after a gap longer than that (overrides `FRESHNESS_WINDOW_MIN` for this search; see above for how age is known). |
 | `--quiet 23:00-07:00` | Quiet hours, in `TIMEZONE`. Windows through midnight work. |
 | `--quiet-mode hold\|drop\|silent` | During quiet hours: hold alerts until the window ends (default), drop them (they still show in the dashboard), or send them without a sound. |
 | `--also-on de,be` | Run the same search on other country sites too. A listing seen on two sites is announced once. |
@@ -168,20 +183,33 @@ for you:
 
 | Kind | Fields |
 |---|---|
-| `discord` | `webhook_url` |
-| `telegram` | `chat_id`, optionally `message_thread_id` for a forum topic |
-| `ntfy` | `topic`, optionally `server` and `token` |
-| `webhook` | `url`, optionally `headers` |
+| `discord` | `url` (destinations made by 1.x stored it as `webhook_url`, which still works), optionally `style` (`card` or `compact`), `mention` (such as `<@&role id>`), `thread_id`, `username`, `avatar_url` |
+| `telegram` | `chat_id`, optionally `thread_id` for a forum topic (1.x's `message_thread_id` still works), `style` (`photo` or `gallery`), `silent` |
+| `ntfy` | `topic` (or a full topic `url`), optionally `server`, `token` and `priority` (1 to 5) |
+| `webhook` | `url`, optionally `secret` (signs every request, see below) and `headers` |
+| `apprise` | `urls`: a list of [Apprise](https://github.com/caronc/apprise/wiki) addresses, for email, Slack, Pushover, Gotify, Matrix and the rest. Needs the `apprise` extra. |
+
+Every kind also takes `tiers`, the kinds of listing it wants (`steal`, `deal`, `normal`; all
+three by default), and `silent_tiers`, the ones to deliver without a sound. A listing a
+destination did not want is set aside as skipped, with the reason, and not counted as a
+failed delivery. 1.x's `deals_only` (the same as `tiers: [steal, deal]`) and `min_deal_pct`
+still work.
 
 ## The webhook payload
 
 A plain webhook destination receives a POST like this. The shape is treated as a contract:
 it changes only with a version bump, because other people's automations depend on it.
 
+Each POST carries the listings of **one search**, or of **one watch**, so `search` always
+names where they came from. For watch alerts (price drops, sales, a followed seller's new
+uploads) `search` is the watch's label and `search_id` is `null`. A status notice, for
+destinations that asked for them, is `{"version": 2, "status": "<message>"}` with no items.
+
 ```json
 {
-  "version": 1,
+  "version": 2,
   "search": "nike air max",
+  "search_id": 3,
   "items": [
     {
       "id": 9683334896,
@@ -195,20 +223,77 @@ it changes only with a version bump, because other people's automations depend o
       "total_price": "16.45",
       "currency": "EUR",
       "photo_url": "https://images.vinted.net/...",
-      "listed_at": "2026-08-16T20:14:00+00:00",
+      "listed_at": null,
       "seller": "someone",
       "seller_rating": 0.93,
       "links": {
         "message_seller": "https://www.vinted.fr/items/9683334896/want_it/new",
         "buy": "https://www.vinted.fr/transaction/buy/new?..."
+      },
+      "kind": "listing",
+      "search_id": 3,
+      "detected_at": 1792000000,
+      "photos": ["https://images.vinted.net/...", "https://images.vinted.net/..."],
+      "previous_price": null,
+      "typical_price": "27.50",
+      "deal_pct": 40,
+      "deal_tier": "steal",
+      "margin": null,
+      "favourites": 12,
+      "seller_profile": {
+        "id": 12345678,
+        "login": "someone",
+        "url": "https://www.vinted.fr/member/12345678",
+        "stars": 4.7,
+        "reviews": 128
       }
     }
   ]
 }
 ```
 
+Version 2 keeps every version 1 field with the same name and meaning, and adds the rest:
+
+| Field | Meaning |
+|---|---|
+| `kind` | `listing` (a search found it), `price_drop`, `sold`, `reserved`, `removed` (a watched listing changed) or `seller_upload` (a followed seller listed it). |
+| `search_id` | The search's id, or `null` for watch alerts. Also at the top level. |
+| `detected_at` | When this search found the listing, as Unix seconds. |
+| `photos` | Every photo, largest size. |
+| `previous_price` | For `price_drop`: the total price before the drop. |
+| `typical_price` | This search's median total price for what it finds, when the listing was found. `null` until it has 15 finds in two weeks. |
+| `deal_pct` | How far under `typical_price` the total is, in percent (negative when over). |
+| `deal_tier` | `steal`, `deal` or `normal`: the tiers a destination's `tiers` setting names. |
+| `margin` | What reselling would leave, from the search's resale price, fee and shipping. `null` without one. |
+| `favourites` | How many people favourited the listing. |
+| `seller_profile` | The seller's id, login, profile link, rating out of five and review count, as far as known. |
+
 `price` is what the seller asks. `total_price` is what you pay. Filters and displays use the
-second one.
+second one. `listed_at` is the photo time, which Vinted's search results no longer give, so
+it is usually `null`; `detected_at` is the honest "found it" time.
+
+### Signed requests
+
+With a `secret` set on the destination, every request carries two headers:
+
+```
+X-Vinted-Sniper-Timestamp: 1792000000
+X-Vinted-Sniper-Signature: sha256=<hex>
+```
+
+The signature is the HMAC-SHA256, under the secret, of the timestamp, a full stop, and the
+raw request body: `"<timestamp>." + body`. Recompute it over the body exactly as received
+(before parsing the JSON) and compare in constant time. Refusing timestamps more than a few
+minutes old stops someone replaying a request they captured. In Python:
+
+```python
+import hashlib, hmac
+
+
+def genuine(secret: str, timestamp: str, body: bytes, signature: str) -> bool:
+    expected = hmac.new(secret.encode(), f"{timestamp}.".encode() + body, hashlib.sha256)
+    return hmac.compare_digest(f"sha256={expected.hexdigest()}", signature)
+```
 
 ## RSS
 
@@ -218,6 +303,8 @@ Each search has a feed at `/rss/<search id>.xml`, so with the defaults:
 http://localhost:8000/rss/1.xml
 ```
 
-If `WEB_AUTH_TOKEN` is set, feed readers cannot sign in, so the token goes in the URL
-instead: `/rss/1.xml?key=<your token>`. Anyone with that URL can read the feed, so treat it
-like a password.
+If `WEB_AUTH_TOKEN` is set, feed readers cannot sign in, so the feed address carries a key
+instead: `/rss/1.xml?key=<feed key>`. The key is a random value of its own, not your
+password, made the first time it is needed. Copy the whole address from the "RSS feed of
+this search" link on the search's page in the dashboard. Anyone with that address can read
+the feed, so keep it to yourself.

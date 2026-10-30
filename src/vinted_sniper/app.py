@@ -22,7 +22,7 @@ import webbrowser
 
 import httpx
 
-from vinted_sniper.config import Settings
+from vinted_sniper.config import MAX_BACKOFF_S, Settings
 from vinted_sniper.db import Database, apply_pending
 from vinted_sniper.db.repo import Query, Repo
 from vinted_sniper.deliver.dispatcher import Dispatcher
@@ -74,6 +74,9 @@ class Application:
         # The search as its poller was started with it. Any edit makes it unequal, and
         # the poller is restarted with the new rules on the next pass.
         self._poller_signatures: dict[int, Query] = {}
+        # Crashes in a row per search, for spacing out restarts. A crash after at least
+        # one good check starts the count again.
+        self._crashes: dict[int, int] = {}
 
     def request_stop(self) -> None:
         self._stop.set()
@@ -207,6 +210,9 @@ class Application:
                 task.cancel()
                 del self._poller_tasks[query_id]
                 self._poller_signatures.pop(query_id, None)
+                if query is None or changed:
+                    # An edit is a reason to try again straight away.
+                    self._crashes.pop(query_id, None)
                 if query is None:
                     log.info("poller.stopped", query_id=query_id)
 
@@ -219,6 +225,9 @@ class Application:
             delay = position * STARTUP_SPACING_S
             if position:
                 delay += self._rng.uniform(0, STARTUP_SPACING_S)
+            delay = min(delay, float(query.poll_interval_s))
+            if crashes := self._crashes.get(query_id, 0):
+                delay = self._restart_delay(query, crashes)
             poller = Poller(
                 query,
                 repo=repo,
@@ -228,7 +237,7 @@ class Application:
                 stop=self._stop,
                 work_available=self._work_available,
                 seller_lookup=client.seller,
-                start_delay_s=min(delay, float(query.poll_interval_s)),
+                start_delay_s=delay,
             )
             self._poller_tasks[query_id] = tg.create_task(
                 self._guard(poller), name=f"poll:{query_id}"
@@ -241,17 +250,34 @@ class Application:
                 tld=query.tld,
                 sites=query.sites,
                 every_s=query.poll_interval_s,
-                start_in_s=round(min(delay, float(query.poll_interval_s)), 1),
+                start_in_s=round(delay, 1),
             )
+
+    def _restart_delay(self, query: Query, crashes: int) -> float:
+        """How long a crashed search waits before its next start: the backoff ladder.
+
+        Restarting at once would turn a search that crashes on every check into one that
+        asks Vinted for something every supervisor pass, forever.
+        """
+        step = min(2.0 ** (crashes - 1) * query.poll_interval_s, MAX_BACKOFF_S)
+        return step + self._rng.uniform(0, step * 0.15)
 
     async def _guard(self, poller: Poller) -> None:
         """Run a search's loop so that its failure cannot take the others down with it."""
+        query_id = poller.query.id
         try:
             await poller.run()
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            log.exception("poller.crashed", query_id=poller.query.id, error=str(exc))
+            crashes = 1 if poller.successes else self._crashes.get(query_id, 0) + 1
+            self._crashes[query_id] = crashes
+            log.exception(
+                "poller.crashed",
+                query_id=query_id,
+                error=str(exc),
+                crashes_in_a_row=crashes,
+            )
 
     # --- Background chores ---------------------------------------------------------
 

@@ -9,6 +9,7 @@ from typing import Literal
 
 import pytest
 
+from vinted_sniper.db.connection import Database
 from vinted_sniper.db.repo import Repo
 from vinted_sniper.engine.watcher import Watcher
 from vinted_sniper.vinted.errors import BlockedError
@@ -162,6 +163,36 @@ async def test_a_seller_watch_announces_only_uploads_after_the_first_look(
     notifications = await repo.claim_batch(destination_id, 10)
     assert [(n.kind, n.item.item_id) for n in notifications] == [("seller_upload", 3)]
     assert [e.item.item_id for e in await repo.items_feed()] == [3, 2, 1]
+
+
+async def test_a_seller_watch_does_not_reannounce_listings_after_pruning(
+    repo: Repo, pages: Pages, db: Database
+) -> None:
+    """Month-old listings still for sale are not new uploads once their copies are pruned."""
+    destination_id = await repo.add_destination(kind="ntfy", name="n", config={"topic": "t"})
+    watch_id = await repo.add_watch(kind="seller", tld="fr", target_id=77, label="Good seller")
+    wardrobe = [upload(n) for n in range(5, 0, -1)]
+    pages.seller_pages += [wardrobe, wardrobe]
+    await check(repo, pages, watch_id)
+    await db.execute("UPDATE items SET first_seen_at = first_seen_at - 31 * 86400")
+    await repo.prune_items(30)
+
+    await check(repo, pages, watch_id)
+
+    assert await repo.claim_batch(destination_id, 10) == []
+
+
+async def test_a_seller_watch_announces_the_first_upload_to_an_empty_wardrobe(
+    repo: Repo, pages: Pages
+) -> None:
+    destination_id = await repo.add_destination(kind="ntfy", name="n", config={"topic": "t"})
+    watch_id = await repo.add_watch(kind="seller", tld="fr", target_id=77, label="New seller")
+    pages.seller_pages += [[], [upload(1)]]
+    await check(repo, pages, watch_id)
+
+    await check(repo, pages, watch_id)
+
+    assert [n.item.item_id for n in await repo.claim_batch(destination_id, 10)] == [1]
 
 
 async def test_watches_are_spread_out_after_a_check(repo: Repo, pages: Pages) -> None:

@@ -270,6 +270,23 @@ async def test_a_mixed_batch_is_split_so_each_post_names_its_own_search() -> Non
     ] == [("nike", [1, 3]), ("levis", [2])]
 
 
+async def test_alerts_from_two_watches_are_posted_apart() -> None:
+    """Watch alerts have no search; each POST still names the one watch it is about."""
+    recorder = Recorder()
+
+    await hook(recorder).send(
+        [
+            notification(1, query_id=None, watch_id=7, query_name="Barbour", kind="price_drop"),
+            notification(2, query_id=None, watch_id=8, query_name="Good seller", kind="sold"),
+        ]
+    )
+
+    assert [recorder.payload(i)["search"] for i in range(len(recorder.requests))] == [
+        "Barbour",
+        "Good seller",
+    ]
+
+
 async def test_a_secret_signs_the_body_and_timestamp() -> None:
     recorder = Recorder()
 

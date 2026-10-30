@@ -309,7 +309,7 @@
     const level = path.length ? path[path.length - 1].children : treeData;
     const crumbs = ['<nav class="crumbtrail" aria-label="Category path"><button type="button" data-crumb="-1">All</button>',
       ...path.map((n, i) => `${icon("chevron-right")}<button type="button" data-crumb="${i}"${i === path.length - 1 ? ' aria-current="true"' : ""}>${esc(n.title)}</button>`), "</nav>"].join("");
-    const chips = level.map((n) => `<span class="chip chip--sm${picked.includes(String(n.id)) ? " is-on" : ""}"><label style="display:inline-flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" value="${n.id}"${picked.includes(String(n.id)) ? " checked" : ""}>${esc(n.title)}</label>${n.children && n.children.length ? `<button type="button" class="chip__x" data-into="${n.id}" aria-label="Open ${esc(n.title)}">${icon("chevron-right")}</button>` : ""}</span>`).join("");
+    const chips = level.map((n) => `<span class="chip chip--sm${picked.includes(String(n.id)) ? " is-on" : ""}"><label style="display:inline-flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" value="${esc(n.id)}"${picked.includes(String(n.id)) ? " checked" : ""}>${esc(n.title)}</label>${n.children && n.children.length ? `<button type="button" class="chip__x" data-into="${esc(n.id)}" aria-label="Open ${esc(n.title)}">${icon("chevron-right")}</button>` : ""}</span>`).join("");
     const names = picked.map((id) => (byId[id] ? byId[id].node.title : "#" + id));
     $$(".crumbtrail, .chips, [data-cattree-status]", tree).forEach((x) => x.remove());
     tree.insertAdjacentHTML("beforeend", crumbs + `<div class="chips">${chips}</div><p class="t-sm" data-cattree-status>${picked.length ? "Picked: " + esc(names.join(", ")) : "Any category. Open one to narrow it down."}</p>`);
@@ -341,7 +341,7 @@
     const opts = (data.options || []).slice(0, 80);
     const picked = (hidden.value || "").split(",").filter(Boolean);
     if (!opts.length) { box.innerHTML = `<span class="t-sm">${picked.length ? picked.length + " picked. " : ""}Couldn't load the choices from Vinted just now.</span>`; return; }
-    box.innerHTML = opts.map((o) => `<label class="chip chip--sm"><input type="checkbox" value="${o.id}"${picked.includes(String(o.id)) ? " checked" : ""}>${esc(o.title)}${o.group && code === "size" ? ` <small class="t-sm">${esc(o.group)}</small>` : ""}</label>`).join("");
+    box.innerHTML = opts.map((o) => `<label class="chip chip--sm"><input type="checkbox" value="${esc(o.id)}"${picked.includes(String(o.id)) ? " checked" : ""}>${esc(o.title)}${o.group && code === "size" ? ` <small class="t-sm">${esc(o.group)}</small>` : ""}</label>`).join("");
   }
   function loadFacets() { $$("[data-facet]").forEach(loadFacet); }
   $$("[data-facet]").forEach((set) => set.addEventListener("change", (e) => {
@@ -390,7 +390,7 @@
       r.receipt.map((x) => `<div class="receipt__row">${icon(x.icon)}<span>${esc(x.label)}</span><b>−${x.removed}</b></div>`).join("") +
       `<div class="receipt__row receipt__row--total">${icon("check")}<span>Would be sent</span><b>${r.count}</b></div>`;
     const note = $("[data-preview-note]", preview); if (note) note.hidden = !r.seller_filters;
-    const live = $("[data-livecount]"); if (live) live.innerHTML = `<b class="num">${r.count}</b> of the newest ${r.seen} on ${esc(r.site)} match right now.${r.newest ? " Newest " + esc(r.newest) + "." : ""}`;
+    const live = $("[data-livecount]"); if (live) live.innerHTML = `<b class="num">${esc(r.count)}</b> of the newest ${esc(r.seen)} on ${esc(r.site)} match right now.${r.newest ? " Newest " + esc(r.newest) + "." : ""}`;
     const sb = $("[data-savebar-count]"); if (sb) sb.textContent = `${r.count} match now`;
   }
   const schedule = debounce(runPreview, 900);
@@ -786,13 +786,24 @@
   }));
 
   /* ── Chart tooltips: any [data-tip] inside a .chart ── */
+  /* A tip reads "<b>headline</b><br>detail". It is built from text nodes only, never
+   * parsed as HTML: the detail can be a search name, which is whatever was typed or
+   * pasted (or sent to the Telegram bot), and the browser has already decoded the
+   * attribute's escaping by the time it is read here. */
+  function fillTip(tip, raw) {
+    tip.replaceChildren();
+    const parts = /^<b>([\s\S]*?)<\/b><br>([\s\S]*)$/.exec(raw || "");
+    if (!parts) { tip.textContent = raw || ""; return; }
+    const head = document.createElement("b"); head.textContent = parts[1];
+    tip.append(head, document.createElement("br"), document.createTextNode(parts[2]));
+  }
   $$(".chart").forEach((chart) => {
     const tip = document.createElement("div");
     tip.className = "tip"; tip.hidden = true; tip.setAttribute("role", "status");
     chart.appendChild(tip);
     const show = (el) => {
       const r = el.getBoundingClientRect(); const c = chart.getBoundingClientRect();
-      tip.innerHTML = el.dataset.tip; tip.hidden = false;
+      fillTip(tip, el.dataset.tip); tip.hidden = false;
       tip.style.left = Math.max(60, Math.min(c.width - 60, r.left - c.left + r.width / 2)) + "px";
       tip.style.top = (r.top - c.top) + "px";
       $$(".is-hot", chart).forEach((x) => x.classList.remove("is-hot"));

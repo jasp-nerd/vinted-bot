@@ -97,7 +97,8 @@ class Settings(BaseSettings):
     item_retention_days: int = Field(
         default=30,
         ge=1,
-        description="Delete stored items older than this. Does not cause re-notification.",
+        description="Delete stored items older than this. Does not cause re-notification: "
+        "what each search and seller watch has already seen is kept apart from the items.",
     )
     keep_raw_json: bool = Field(
         default=False,
@@ -146,8 +147,11 @@ class Settings(BaseSettings):
     freshness_window_min: int = Field(
         default=20,
         ge=1,
-        description="Ignore listings whose photo timestamp is older than this. Stops a restart "
-        "or a slow first poll from replaying yesterday's catalog.",
+        description="Skip listings the app can tell were already on Vinted this many minutes "
+        "ago (it saw a newer listing by then). And after a gap longer than this, such as "
+        "the app being off, the first check records what it missed without announcing it, "
+        "so a restart never replays yesterday's catalog. A search's own 'ignore listings "
+        "older than' overrides it.",
     )
     first_run_mode: Literal["silent", "newest"] = Field(
         default="silent",
@@ -195,7 +199,8 @@ class Settings(BaseSettings):
     web_auth_token: SecretStr | None = Field(
         default=None,
         description="Optional. When set, the dashboard asks for it as a password. Set it "
-        "before exposing the dashboard beyond localhost: it shows your webhook URLs.",
+        "before exposing the dashboard beyond localhost: anyone who can open it can add, "
+        "remove and reroute your alerts.",
     )
     web_public_url: str | None = Field(
         default=None,
@@ -203,6 +208,13 @@ class Settings(BaseSettings):
         "alerts — set it when the dashboard sits behind a reverse proxy or a tunnel. It "
         "becomes the Dashboard link in Discord messages. Unset, that link points at "
         "http://<web_host>:<web_port>.",
+    )
+    web_allowed_hosts: str | None = Field(
+        default=None,
+        description="Extra host names the dashboard answers to, comma-separated, such as "
+        "'nas.local,finds.example.org'. Loopback names, any IP address and the host of "
+        "web_public_url are always allowed; every other name gets a 400, which is what "
+        "stops a DNS-rebinding web page from reading or changing the dashboard.",
     )
 
     @property
@@ -216,6 +228,21 @@ class Settings(BaseSettings):
         # browser can open; loopback is the only honest guess left.
         host = "127.0.0.1" if self.web_host in {"0.0.0.0", "::"} else self.web_host
         return f"http://{host}:{self.web_port}"
+
+    @property
+    def allowed_host_names(self) -> list[str]:
+        """`web_allowed_hosts` as a list of lower-case names, ports dropped."""
+        names = []
+        for raw in (self.web_allowed_hosts or "").split(","):
+            name = raw.strip().lower()
+            if "://" in name:
+                name = name.split("://", 1)[1]
+            name = name.split("/", 1)[0]
+            if name.count(":") == 1:
+                name = name.split(":", 1)[0]
+            if name:
+                names.append(name)
+        return names
 
     @property
     def web_is_loopback(self) -> bool:

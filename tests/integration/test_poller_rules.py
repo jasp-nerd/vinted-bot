@@ -17,7 +17,7 @@ from vinted_sniper.db.connection import Database
 from vinted_sniper.db.repo import Repo
 from vinted_sniper.engine.poller import Poller, SellerLookup
 from vinted_sniper.vinted.client import VintedClient
-from vinted_sniper.vinted.errors import RateLimitedError
+from vinted_sniper.vinted.errors import BlockedError, NetworkError, RateLimitedError
 from vinted_sniper.vinted.models import SellerProfile
 from vinted_sniper.vinted.session import SessionManager
 
@@ -360,7 +360,7 @@ async def test_seller_lookups_are_cached_between_checks(
 async def test_a_failed_seller_lookup_is_tried_again_next_check(
     transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
 ) -> None:
-    sellers = FakeSellers(RateLimitedError(30), french())
+    sellers = FakeSellers(NetworkError("timed out"), french())
     poll = await poller(transport, repo, settings, db, countries=["FR"], seller_lookup=sellers)
     destination_id = await repo.add_destination(kind="webhook", name="w", config={"url": "x"})
     await seed(poll, transport, make_item)
@@ -428,3 +428,44 @@ async def test_network_backoff_keeps_its_jitter_past_the_cap(
         delays.append(await poll.tick())
 
     assert delays[-1] > 120.0
+
+
+async def test_a_rate_limited_seller_lookup_stops_lookups_for_as_long_as_asked(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    """A 429 on a member page ends lookups for the check and the Retry-After that follows."""
+    sellers = FakeSellers(RateLimitedError(30), french(), french(2))
+    poll = await poller(transport, repo, settings, db, countries=["FR"], seller_lookup=sellers)
+    await seed(poll, transport, make_item)
+    now = int(time.time())
+
+    transport.queue_catalog(
+        [make_item(200, photo_ts=now), make_item(201, photo_ts=now, user={"id": 2})]
+    )
+    await poll.tick()
+    transport.queue_catalog(
+        [make_item(200, photo_ts=now), make_item(201, photo_ts=now, user={"id": 2})]
+    )
+    await poll.tick()
+
+    assert sellers.calls == [1], "no lookup while Vinted asked us to wait"
+
+
+async def test_listings_waiting_on_paused_lookups_are_logged_as_undecided(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    sellers = FakeSellers(BlockedError("refused"), french(2))
+    poll = await poller(transport, repo, settings, db, countries=["FR"], seller_lookup=sellers)
+    await seed(poll, transport, make_item)
+    now = int(time.time())
+
+    transport.queue_catalog(
+        [make_item(200, photo_ts=now), make_item(201, photo_ts=now, user={"id": 2})]
+    )
+    await poll.tick()
+
+    rejections = await repo.rejections_for(poll.query.id)
+    assert sorted((r.item_id, r.reason) for r in rejections) == [
+        (200, "seller_unknown"),
+        (201, "seller_unknown"),
+    ]

@@ -274,6 +274,48 @@ async def test_an_expired_token_is_replaced_and_the_next_check_works(
     assert (await repo.get_state(poller.query.id)).last_status == "ok"
 
 
+async def test_a_refused_homepage_backs_off_instead_of_crashing(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Any
+) -> None:
+    """A 403 on the homepage used to escape the check and kill the search's task."""
+    poller, _ = await make_poller(transport, repo, settings, db=db)
+    for _ in range(3):
+        transport.queue_root(Response(status_code=403, text="", headers={}, cookies={}))
+
+    delays = [await poller.tick() for _ in range(3)]
+
+    assert delays[0] > settings.poll_default_interval_s
+    assert delays[0] < delays[1] < delays[2]
+
+
+async def test_a_refused_homepage_is_loaded_once_per_check(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Any
+) -> None:
+    poller, _ = await make_poller(transport, repo, settings, db=db)
+    for _ in range(2):
+        transport.queue_root(Response(status_code=403, text="", headers={}, cookies={}))
+
+    await poller.tick()
+
+    assert [r["url"] for r in transport.requests if "/svc-" not in r["url"]] == [
+        "https://www.vinted.fr/"
+    ]
+
+
+async def test_tokens_that_keep_being_rejected_back_off(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Any
+) -> None:
+    poller, _ = await make_poller(transport, repo, settings, db=db)
+    for _ in range(4):
+        transport.queue_status(401, "")
+
+    delays = [await poller.tick() for _ in range(4)]
+
+    assert delays[:2] == [5.0, 5.0]
+    assert delays[2] > settings.poll_default_interval_s
+    assert delays[3] > delays[2]
+
+
 async def test_a_response_that_is_not_a_catalog_is_reported_not_announced(
     transport: ScriptedTransport, repo: Repo, settings: Settings, db: Any
 ) -> None:

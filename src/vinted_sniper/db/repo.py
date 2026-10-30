@@ -47,6 +47,9 @@ REJECTIONS_MAX_AGE_S = 7 * 86_400
 
 _CENT = Decimal("0.01")
 
+# The id clock's resolution; see `Repo.note_listing_id`.
+_ID_CLOCK_STEP_S = 60
+
 Mark = Literal["saved", "hidden"]
 MarkFilter = Literal["visible", "saved", "hidden", "unmarked", "all"]
 NotificationKind = Literal["listing", "price_drop", "sold", "reserved", "removed", "seller_upload"]
@@ -282,6 +285,8 @@ class Watch:
     last_error: str | None
     active: bool
     created_at: int
+    # Seller watches: the newest listing id seen so far; see migration 0006.
+    seen_up_to: int | None = None
 
     @property
     def is_first_check(self) -> bool:
@@ -434,6 +439,10 @@ def _validated(query: Query) -> Query:
     )
 
 
+# The columns that decide what a search fetches, as opposed to how it judges the results.
+_FETCH_COLUMNS = ("url", "tld", "params_json", "extra_tlds_json")
+
+
 def _query_columns(query: Query) -> dict[str, Any]:
     """The editable columns of a search, in storage form."""
     return {
@@ -520,26 +529,41 @@ def _item_values(item: Item, now: int, *, keep_raw: bool) -> tuple[Any, ...]:
     )
 
 
+# The highest `seq` ever handed out, saved before housekeeping deletes listings. Without
+# it a quiet month empties `items` and numbering restarts at 1, below the cursor an open
+# dashboard tab resumes from, so it would miss every find until the count caught up.
+_SEQ_FLOOR_KEY = "items_seq_floor"
+
 # Every insert of a listing goes through this, so `seq` — the feed's cursor — is always
 # assigned. Writes are serialised on one connection, so MAX(seq) + 1 cannot race.
+# A second search finding a stored listing may know its seller's country when the first
+# did not, so that one column is filled in on a conflict.
 _INSERT_ITEM = (
     "INSERT INTO items (item_id, tld, title, brand, size, condition, price, total_price, "
     "currency, url, photo_url, photo_urls_json, photo_ts, seller_login, seller_id, "
     "seller_rating, seller_feedback_count, favourite_count, view_count, raw_json, "
     "first_seen_at, query_id, typical_price, seller_country, watch_id, seq) "
     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
-    "(SELECT COALESCE(MAX(seq), 0) + 1 FROM items)) "
-    "ON CONFLICT(item_id) DO NOTHING"
+    f"(SELECT MAX(COALESCE(MAX(seq), 0), "
+    f"COALESCE((SELECT CAST(value AS INTEGER) FROM app_state WHERE key = '{_SEQ_FLOOR_KEY}'), 0)"
+    ") + 1 FROM items)) "
+    "ON CONFLICT(item_id) DO UPDATE SET "
+    "seller_country = COALESCE(items.seller_country, excluded.seller_country)"
 )
 
+# A listing is shown under the first search that matched it, with that search's typical
+# price: two searches can disagree about what the same listing is worth.
 _FEED_SELECT = (
     "SELECT i.*, m.mark, q.id AS feed_query_id, q.name AS feed_query_name, "
-    "q.color AS feed_query_color FROM items i "
+    "q.color AS feed_query_color, "
+    "CASE WHEN fqi.query_id IS NULL THEN i.typical_price ELSE fqi.typical_price END "
+    "AS feed_typical_price FROM items i "
     "LEFT JOIN item_marks m ON m.item_id = i.item_id "
-    "LEFT JOIN queries q ON q.id = ("
-    "  SELECT qi.query_id FROM query_items qi "
+    "LEFT JOIN query_items fqi ON fqi.rowid = ("
+    "  SELECT qi.rowid FROM query_items qi "
     "  WHERE qi.item_id = i.item_id AND qi.status = 'matched' "
     "  ORDER BY qi.first_seen_at LIMIT 1) "
+    "LEFT JOIN queries q ON q.id = fqi.query_id "
 )
 
 # A listing belongs in the feed if a search matched it or a seller watch turned it up.
@@ -559,7 +583,7 @@ def _feed_item(row: aiosqlite.Row) -> FeedItem:
         query_name=row["feed_query_name"],
         query_color=row["feed_query_color"],
         watch_id=row["watch_id"],
-        typical_price=_money(row["typical_price"]),
+        typical_price=_money(row["feed_typical_price"]),
         seller_country=row["seller_country"],
         mark=row["mark"],
     )
@@ -575,9 +599,9 @@ def _pending(row: aiosqlite.Row) -> PendingNotification:
         query_name=row["query_name"] or row["watch_label"] or "search",
         attempts=row["attempts"],
         item=item,
-        detected_at=row["first_seen_at"],
+        detected_at=row["search_first_seen_at"] or row["first_seen_at"],
         query_color=row["query_color"],
-        typical_price=_money(row["typical_price"]),
+        typical_price=_money(row["search_typical_price"]),
         silent=bool(row["silent"]),
         kind=row["outbox_kind"],
         previous_price=_money(row["previous_price"]),
@@ -657,14 +681,32 @@ class Repo:
         Takes a whole `Query` — usually `dataclasses.replace(await get_query(id), ...)` —
         so an edit form cannot forget a field and blank it. The running poller notices
         the change on the supervisor's next pass and restarts with the new rules.
+
+        Changing what the search fetches (its link, site or extra sites) makes it a
+        different search as far as "new" goes: its floor belonged to the old results, so
+        the next check starts over and records the page without announcing it, and its
+        typical price starts again from the new results.
         """
         stored = _validated(query)
         columns = _query_columns(stored)
         assignments = ", ".join(f"{name} = ?" for name in columns)
-        await self._db.execute(
-            f"UPDATE queries SET {assignments}, updated_at = ? WHERE id = ?",
-            (*columns.values(), int(time.time()), stored.id),
-        )
+        now = int(time.time())
+        async with self._db.transaction() as conn:
+            async with conn.execute(
+                f"SELECT {', '.join(_FETCH_COLUMNS)} FROM queries WHERE id = ?", (stored.id,)
+            ) as cursor:
+                before = await cursor.fetchone()
+            await conn.execute(
+                f"UPDATE queries SET {assignments}, updated_at = ? WHERE id = ?",
+                (*columns.values(), now, stored.id),
+            )
+            if before is not None and any(before[name] != columns[name] for name in _FETCH_COLUMNS):
+                await conn.execute(
+                    "UPDATE query_state SET last_success_at = NULL, floor_item_id = NULL, "
+                    "newest_raw_id = NULL, raw_advanced_at = NULL, stale_cycles = 0, "
+                    "history_from = ? WHERE query_id = ?",
+                    (now, stored.id),
+                )
         return stored
 
     async def duplicate_query(self, query_id: int, *, name: str | None = None) -> int | None:
@@ -870,6 +912,40 @@ class Repo:
                 query_id,
             ),
         )
+        if newest_raw_id is not None:
+            await self.note_listing_id(newest_raw_id, now=now)
+
+    async def note_listing_id(self, item_id: int, *, now: int | None = None) -> None:
+        """Record that a listing id existed at this moment, if it is the newest seen yet.
+
+        Ids are handed out in upload order, so every lower id existed then too. Thinned to
+        one step a minute: a coarser step only makes the "already listed by" answer later,
+        never earlier, so it can never call a fresh listing old.
+        """
+        at = now if now is not None else int(time.time())
+        await self._db.execute(
+            "INSERT INTO id_clock (item_id, seen_at) SELECT ?, ? "
+            "WHERE ? > COALESCE((SELECT MAX(item_id) FROM id_clock), 0) "
+            "AND ? >= COALESCE((SELECT MAX(seen_at) FROM id_clock), 0) + ?",
+            (item_id, at, item_id, at, _ID_CLOCK_STEP_S),
+        )
+
+    async def listed_by(self, item_ids: list[int]) -> dict[int, int]:
+        """For each listing id, the earliest moment it is known to have been on Vinted.
+
+        Known because some check saw a newer id by then; ids are given out in upload
+        order. Missing for ids newer than anything seen, whose age nothing here can tell.
+        """
+        if not item_ids:
+            return {}
+        values = ",".join(["(?)"] * len(item_ids))
+        rows = await self._db.fetch_all(
+            f"WITH wanted(id) AS (VALUES {values}) SELECT id, "
+            "(SELECT c.seen_at FROM id_clock c WHERE c.item_id >= wanted.id "
+            " ORDER BY c.item_id LIMIT 1) AS seen_at FROM wanted",
+            item_ids,
+        )
+        return {row["id"]: row["seen_at"] for row in rows if row["seen_at"] is not None}
 
     # --- Destinations --------------------------------------------------------------
 
@@ -1102,7 +1178,8 @@ class Repo:
             )
             await conn.executemany(
                 "INSERT OR IGNORE INTO query_items "
-                "(query_id, item_id, status, announced, first_seen_at) VALUES (?, ?, ?, ?, ?)",
+                "(query_id, item_id, status, announced, first_seen_at, typical_price) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
                 [
                     (
                         query.id,
@@ -1110,6 +1187,7 @@ class Repo:
                         "seeded" if seeded and item.item_id not in announced_ids else "matched",
                         int(item.item_id in announced_ids),
                         now,
+                        _real(prices.get(item.currency or "")),
                     )
                     for item in items
                 ],
@@ -1192,7 +1270,9 @@ class Repo:
             "SELECT i.currency, i.total_price FROM query_items qi "
             "JOIN items i ON i.item_id = qi.item_id "
             "WHERE qi.query_id = ? AND qi.status IN ('seeded', 'matched') "
-            "AND qi.first_seen_at >= ? AND i.total_price IS NOT NULL AND i.currency IS NOT NULL",
+            "AND qi.first_seen_at >= ? AND qi.first_seen_at > COALESCE("
+            "  (SELECT s.history_from FROM query_state s WHERE s.query_id = qi.query_id), 0) "
+            "AND i.total_price IS NOT NULL AND i.currency IS NOT NULL",
             (query_id, since),
         )
         by_currency: dict[str, list[Decimal]] = defaultdict(list)
@@ -1205,10 +1285,34 @@ class Repo:
         }
 
     async def prune_items(self, older_than_days: int) -> int:
-        """Forget old listings, except the ones someone saved or is watching."""
+        """Forget old listings, except the ones someone saved or is watching.
+
+        A search's record of what it has decided about is only forgotten below its floor,
+        where the floor alone keeps a listing from being judged again. Above it, a match
+        still for sale after a month would otherwise come back as a new find.
+        """
         cutoff = int(time.time()) - older_than_days * 86_400
         async with self._db.transaction() as conn:
-            await conn.execute("DELETE FROM query_items WHERE first_seen_at < ?", (cutoff,))
+            await conn.execute(
+                "DELETE FROM query_items WHERE first_seen_at < ? AND item_id <= COALESCE("
+                "(SELECT s.floor_item_id FROM query_state s "
+                " WHERE s.query_id = query_items.query_id), -1)",
+                (cutoff,),
+            )
+            await conn.execute(
+                "DELETE FROM id_clock WHERE seen_at < ? "
+                "AND item_id < (SELECT MAX(item_id) FROM id_clock)",
+                (cutoff,),
+            )
+            async with conn.execute("SELECT MAX(seq) FROM items") as seq_cursor:
+                highest = await seq_cursor.fetchone()
+            if highest is not None and highest[0] is not None:
+                await conn.execute(
+                    "INSERT INTO app_state (key, value) VALUES (?, ?) "
+                    "ON CONFLICT(key) DO UPDATE SET value = CAST(MAX("
+                    "CAST(value AS INTEGER), CAST(excluded.value AS INTEGER)) AS TEXT)",
+                    (_SEQ_FLOOR_KEY, str(highest[0])),
+                )
             cursor = await conn.execute(
                 "DELETE FROM items WHERE first_seen_at < ? "
                 "AND item_id NOT IN (SELECT item_id FROM item_marks WHERE mark = 'saved') "
@@ -1250,9 +1354,12 @@ class Repo:
                 "o.watch_id AS outbox_watch_id, o.attempts, o.kind AS outbox_kind, "
                 "o.previous_price, o.silent, q.name AS query_name, q.color AS query_color, "
                 "q.tld AS query_tld, q.resale_price, q.resale_fee_pct, q.resale_shipping, "
-                "w.label AS watch_label, i.* FROM outbox o "
+                "w.label AS watch_label, qi.first_seen_at AS search_first_seen_at, "
+                "CASE WHEN o.query_id IS NULL THEN i.typical_price ELSE qi.typical_price END "
+                "AS search_typical_price, i.* FROM outbox o "
                 "JOIN items i ON i.item_id = o.item_id "
                 "LEFT JOIN queries q ON q.id = o.query_id "
+                "LEFT JOIN query_items qi ON qi.query_id = o.query_id AND qi.item_id = o.item_id "
                 "LEFT JOIN watches w ON w.id = o.watch_id "
                 "WHERE o.destination_id = ? AND o.status = 'pending' AND o.next_attempt_at <= ? "
                 "ORDER BY o.id LIMIT ?",
@@ -1295,6 +1402,21 @@ class Repo:
             "UPDATE outbox SET status = 'failed', lease_expires_at = NULL, last_error = ? "
             "WHERE id = ?",
             [(error[:500], outbox_id) for outbox_id in outbox_ids],
+        )
+
+    async def mark_cancelled(self, outbox_ids: list[int], reason: str) -> None:
+        """Take notifications out of the queue on purpose: not sent, and not a failure.
+
+        For alerts a destination asked not to get, such as a non-deal for a destination
+        that only wants steals. Counting those as failures made healthy destinations look
+        broken on the alerts and stats pages.
+        """
+        if not outbox_ids:
+            return
+        await self._db.execute_many(
+            "UPDATE outbox SET status = 'cancelled', lease_expires_at = NULL, last_error = ? "
+            "WHERE id = ?",
+            [(reason[:500], outbox_id) for outbox_id in outbox_ids],
         )
 
     async def discard_pending_for(self, destination_id: int, reason: str) -> int:
@@ -1575,7 +1697,12 @@ class Repo:
         )
 
     async def latest_seq(self) -> int:
-        return int(await self._db.fetch_value("SELECT COALESCE(MAX(seq), 0) FROM items") or 0)
+        value = await self._db.fetch_value(
+            "SELECT MAX(COALESCE((SELECT MAX(seq) FROM items), 0), "
+            "COALESCE((SELECT CAST(value AS INTEGER) FROM app_state WHERE key = ?), 0))",
+            (_SEQ_FLOOR_KEY,),
+        )
+        return int(value or 0)
 
     async def rss_items(self, query_id: int, *, limit: int = 50) -> list[FeedItem]:
         """A search's own matches for its RSS feed, without the listings it seeded silently."""
@@ -1739,12 +1866,22 @@ class Repo:
         *,
         notify: list[Item],
         destination_ids: list[int],
+        seen_up_to: int = 0,
     ) -> None:
-        """Store a watched seller's new listings and queue the ones worth announcing."""
-        if not items:
-            return
+        """Store a watched seller's new listings and queue the ones worth announcing.
+
+        `seen_up_to` is the newest id on the wardrobe page. The watch keeps the highest
+        it has seen, so a listing is announced once however long it stays for sale, even
+        after housekeeping has forgotten the stored copy.
+        """
         now = int(time.time())
         async with self._db.transaction() as conn:
+            await conn.execute(
+                "UPDATE watches SET seen_up_to = MAX(COALESCE(seen_up_to, 0), ?) WHERE id = ?",
+                (seen_up_to, watch.id),
+            )
+            if not items:
+                return
             await conn.executemany(
                 _INSERT_ITEM,
                 [
@@ -1778,6 +1915,7 @@ class Repo:
             last_error=row["last_error"],
             active=bool(row["active"]),
             created_at=row["created_at"],
+            seen_up_to=row["seen_up_to"],
         )
 
     # --- Stats ---------------------------------------------------------------------
