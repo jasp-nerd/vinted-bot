@@ -27,9 +27,9 @@ uv run python scripts/seed_demo.py /tmp/demo.db
 VINTED_SNIPER_DB_PATH=/tmp/demo.db uv run vinted-sniper run --open
 ```
 
-The second command also starts the searches, which then check Vinted for real. To only
-look at the pages, stop the app and open the database with the dashboard alone, or point
-`VINTED_SNIPER_FETCH_MODE=mock` at a scenario directory.
+The second command also starts the demo searches, which then check Vinted for real (and
+add real finds next to the invented ones). If you only want to look at the pages, select
+them all on the Searches page and pause them.
 
 The dashboard's templates live in `src/vinted_sniper/web/templates` and its CSS and
 script in `web/static`; they need no build step. Static files are served with a content
