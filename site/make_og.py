@@ -19,7 +19,6 @@ from pathlib import Path
 
 from fontTools.ttLib import TTFont
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
-
 from siteconfig import NAME
 
 SITE = Path(__file__).resolve().parent

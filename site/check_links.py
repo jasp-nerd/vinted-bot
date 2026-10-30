@@ -13,7 +13,7 @@ from pathlib import Path
 from urllib.parse import unquote, urljoin, urlparse
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from siteconfig import BASE_URL as BASE  # noqa: E402
+from siteconfig import BASE_URL as BASE
 
 DIST = Path(__file__).resolve().parent / "dist"
 

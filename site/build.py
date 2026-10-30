@@ -56,7 +56,7 @@ SITE = Path(__file__).resolve().parent
 ROOT = SITE.parent
 DIST = SITE / "dist"
 sys.path.insert(0, str(SITE))
-from siteconfig import (  # noqa: E402
+from siteconfig import (
     BASE_URL,
     HOST,
     NAME,

@@ -21,7 +21,7 @@ from pathlib import Path
 
 SITE = Path(__file__).resolve().parent
 sys.path.insert(0, str(SITE))
-from siteconfig import HOST  # noqa: E402
+from siteconfig import HOST
 
 ENDPOINT = "https://api.indexnow.org/IndexNow"
 
