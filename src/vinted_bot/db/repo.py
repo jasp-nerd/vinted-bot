@@ -22,6 +22,7 @@ import aiosqlite
 from vinted_bot.db.connection import Database
 from vinted_bot.deals import deal_percent, margin
 from vinted_bot.engine import validation
+from vinted_bot.vinted import urls
 from vinted_bot.vinted.models import Item, SellerProfile
 
 # New searches take the next colour from this, so a dashboard with several searches can
@@ -454,8 +455,17 @@ def _validated(query: Query) -> Query:
     )
 
 
-# The columns that decide what a search fetches, as opposed to how it judges the results.
-_FETCH_COLUMNS = ("url", "tld", "params_json", "extra_tlds_json")
+def _fetches_differently(before: aiosqlite.Row, after: Query) -> bool:
+    """Whether an edit changed what a search fetches, as opposed to how it judges results.
+
+    Compared by meaning, not stored text: the setup screen, the editor and a pasted link
+    each write the same search a little differently.
+    """
+    return (
+        before["tld"] != after.tld
+        or set(json.loads(before["extra_tlds_json"] or "[]")) != set(after.extra_tlds)
+        or not urls.same_search(json.loads(before["params_json"]), after.params)
+    )
 
 
 def _query_columns(query: Query) -> dict[str, Any]:
@@ -697,7 +707,7 @@ class Repo:
         so an edit form cannot forget a field and blank it. The running poller notices
         the change on the supervisor's next pass and restarts with the new rules.
 
-        Changing what the search fetches (its link, site or extra sites) makes it a
+        Changing what the search fetches (its filters, site or extra sites) makes it a
         different search as far as "new" goes: its floor belonged to the old results, so
         the next check starts over and records the page without announcing it, and its
         typical price starts again from the new results.
@@ -708,14 +718,14 @@ class Repo:
         now = int(time.time())
         async with self._db.transaction() as conn:
             async with conn.execute(
-                f"SELECT {', '.join(_FETCH_COLUMNS)} FROM queries WHERE id = ?", (stored.id,)
+                "SELECT tld, params_json, extra_tlds_json FROM queries WHERE id = ?", (stored.id,)
             ) as cursor:
                 before = await cursor.fetchone()
             await conn.execute(
                 f"UPDATE queries SET {assignments}, updated_at = ? WHERE id = ?",
                 (*columns.values(), now, stored.id),
             )
-            if before is not None and any(before[name] != columns[name] for name in _FETCH_COLUMNS):
+            if before is not None and _fetches_differently(before, stored):
                 await conn.execute(
                     "UPDATE query_state SET last_success_at = NULL, floor_item_id = NULL, "
                     "newest_raw_id = NULL, raw_advanced_at = NULL, stale_cycles = 0, "
