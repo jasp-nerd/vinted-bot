@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import random
 from decimal import Decimal
+from typing import Literal
 
 import pytest
 
@@ -12,6 +13,8 @@ from vinted_sniper.db.repo import Repo
 from vinted_sniper.engine.watcher import Watcher
 from vinted_sniper.vinted.errors import BlockedError
 from vinted_sniper.vinted.models import Item, ItemSnapshot
+
+SnapshotStatus = Literal["available", "reserved", "sold", "gone"]
 
 
 class Pages:
@@ -31,7 +34,7 @@ class Pages:
         return self.seller_pages.pop(0)
 
 
-def snapshot(price: str, status: str = "available") -> ItemSnapshot:
+def snapshot(price: str, status: SnapshotStatus = "available") -> ItemSnapshot:
     return ItemSnapshot(
         item_id=10,
         tld="fr",
