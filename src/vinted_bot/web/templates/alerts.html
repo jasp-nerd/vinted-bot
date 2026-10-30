@@ -19,13 +19,15 @@
       <div class="dest__name"><b id="dest-{{ dd.id }}">{{ dd.name }}</b><small>{{ dd.label }}</small></div>
       {# Green only when something actually arrived through it. #}
       {% if dd.status == "failing" %}<span class="badge badge--bad">{{ ui.icon("circle-alert") }}{{ dd.status_label }}</span>
-      {% elif dd.status in ("waiting", "warn") %}<span class="badge badge--warn">{{ ui.icon("hourglass" if dd.status == "waiting" else "triangle-alert") }}{{ dd.status_label }}</span>
+      {% elif dd.status in ("waiting", "warn", "paused") %}<span class="badge badge--warn">{{ ui.icon("triangle-alert" if dd.status == "warn" else "hourglass") }}{{ dd.status_label }}</span>
       {% elif dd.status == "untested" %}<span class="badge">{{ ui.icon("send") }}{{ dd.status_label }}</span>
       {% else %}<span class="badge badge--ok">{{ ui.icon("check") }}{{ dd.status_label }}</span>{% endif %}
     </div>
     <form class="dest__body" data-autosave="/destinations/{{ dd.id }}/options">
       {% if dd.status == "failing" %}
       <div class="notice notice--danger" style="margin-bottom:6px">{{ ui.icon("circle-alert") }}<div><p><strong>{{ dd.detail }}</strong></p><p>Send a test to see what's wrong. If it keeps failing, remove it and add it again, or use a notification on your phone instead.</p></div></div>
+      {% elif dd.status == "paused" %}
+      <div class="notice notice--sun" style="margin-bottom:6px">{{ ui.icon("hourglass") }}<div><p><strong>{{ dd.detail }}</strong></p></div></div>
       {% elif dd.status == "warn" %}
       <div class="notice notice--sun" style="margin-bottom:6px">{{ ui.icon("triangle-alert") }}<div><p><strong>{{ dd.detail }}</strong></p><p><a href="#telegram-bot" style="color:inherit">Add the token</a>, then send a test.</p></div></div>
       {% else %}
@@ -39,8 +41,7 @@
         <fieldset class="set set--stack" style="border:0;margin:0"><legend class="set__text"><span class="t-h3">Send these</span><span class="t-sm">Compared with the search's typical price. New searches count as "everything else" until they know it.</span></legend>
           <div class="chips">{% for key, label, hint in tier_names %}<label class="chip chip--sm chip--check" title="{{ hint }}"><input type="checkbox" name="tiers" value="{{ key }}"{% if key in dd.opts.tiers %} checked{% endif %}>{{ ui.icon("check", "chip__tick") }}{{ label }}{% if hint %} <small class="t-sm">{{ hint }}</small>{% endif %}</label>{% endfor %}</div>
           <p class="help help--error" data-error-for="tiers" hidden></p>
-          {# Set by older versions (and the CLI): it still filters, so it is shown and editable. #}
-          <div class="field" style="max-width:300px{% if not dd.opts.min_deal_pct %};display:none{% endif %}" data-min-deal><label class="label" for="md-{{ dd.id }}">And at least <small>% under the typical price, empty for no limit</small></label><div class="affix affix--post"><input class="input num" id="md-{{ dd.id }}" name="min_deal_pct" type="text" inputmode="numeric" value="{{ dd.opts.min_deal_pct }}" style="min-height:38px"><span class="affix__post">% cheaper</span></div><p class="help">Anything with no typical price yet is skipped too.</p><p class="help help--error" data-error-for="min_deal_pct" hidden></p></div>
+          {% if dd.opts.legacy_pct %}<p class="help">Set up before 2.2 to take listings {{ dd.opts.legacy_pct }}% or more under the typical price, shown here as the closest choice. Changing anything here keeps these choices instead.</p>{% endif %}
         </fieldset>
         <div class="set"><div class="set__text"><span class="t-h3" id="wa-{{ dd.id }}">Watchlist alerts</span><span class="t-sm">Price drops and sales of listings you watch, and new uploads from sellers you follow. These come whatever the choice above.</span></div><label class="switch"><input type="checkbox" name="watch_alerts" value="1"{% if dd.opts.watch_alerts %} checked{% endif %} aria-labelledby="wa-{{ dd.id }}"></label></div>
         <fieldset class="set set--stack" style="border:0;margin:0"><legend class="set__text"><span class="t-h3">Without sound</span><span class="t-sm">These arrive quietly, no buzz</span></legend>
@@ -103,7 +104,7 @@
     <div class="dest__body">
       {% if telegram.configured and not telegram.bot %}<p class="t-sm">Telegram didn't recognise this token just now, or couldn't be reached. If alerts don't arrive, make a new token with BotFather and paste it here.</p>{% endif %}
       {% if telegram.from_env %}
-      <p class="t-sm">Its token comes from <span class="code">VINTED_BOT_TELEGRAM_BOT_TOKEN</span> in this copy's environment, so it's changed there, not here.</p>
+      <p class="t-sm">Its token comes from <span class="code">VINTED_BOT_TELEGRAM_BOT_TOKEN</span> in this copy's environment, so it's changed there, not here. With Docker that's the <span class="code">environment:</span> section of docker-compose.yml (then <span class="code">docker compose up -d</span>), or the app's settings in a NAS app store.</p>
       {% else %}
       <p class="t-sm">Every Telegram place sends through this bot. {% if telegram.configured %}To use another bot, paste its token from BotFather.{% else %}Paste the token BotFather gave you: open <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a>, send <span class="code">/mybots</span>, pick your bot, then <b>API Token</b>.{% endif %}</p>
       <div class="field" data-tg-token>

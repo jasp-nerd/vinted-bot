@@ -16,8 +16,9 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
-from vinted_bot.db.repo import Query
+from vinted_bot.db.repo import DuplicateSearchError, Query
 from vinted_bot.engine import health
+from vinted_bot.engine.validation import InvalidInputError
 from vinted_bot.web import core, data, forms, security, views
 
 router = APIRouter()
@@ -83,6 +84,7 @@ async def _editor(
     query: Query | None,
     errors: dict[str, str] | None = None,
     status_code: int = 200,
+    existing: Query | None = None,
 ) -> Response:
     context = core.ctx(request)
     prefs = await context.repo.app_settings(default_timezone=context.settings.timezone)
@@ -111,6 +113,7 @@ async def _editor(
             "currencies": {t: views.symbol(views.currency_for(t)) for t, _, _ in views.COUNTRIES},
             "previews": context.previews is not None,
             "builder": context.taxonomy is not None,
+            "existing": existing,
         },
         status_code=status_code,
     )
@@ -183,10 +186,8 @@ async def create_search(request: Request) -> Response:
             poll_interval_s=parsed.poll_interval_s,
             **parsed.filters,
         )
-    except ValueError as exc:
-        return await _editor(
-            request, values, query=None, errors=refusal(exc, values), status_code=400
-        )
+    except InvalidInputError as exc:
+        return await _refused(request, values, None, exc)
     await context.repo.set_routes(query_id, parsed.destination_ids)
     await data.remember_brand_names(context.repo, values["labels"])
     return core.redirect(
@@ -261,10 +262,8 @@ async def update_search(request: Request, query_id: int) -> Response:
                 **parsed.filters,
             )
         )
-    except ValueError as exc:
-        return await _editor(
-            request, values, query=query, errors=refusal(exc, values), status_code=400
-        )
+    except InvalidInputError as exc:
+        return await _refused(request, values, query, exc)
     await context.repo.set_routes(query_id, parsed.destination_ids)
     await data.remember_brand_names(context.repo, values["labels"])
     if values["resume"] and query.paused:
@@ -280,15 +279,22 @@ async def update_search(request: Request, query_id: int) -> Response:
     )
 
 
-def refusal(exc: ValueError, values: dict[str, Any]) -> dict[str, str]:
-    """The repository's refusal of a search (the same link twice, say) as a field error.
-
-    Shown beside the field it names, or beside the link when it names something the form
-    has no field for. Any ValueError: the repository raises nothing else for bad input.
-    """
-    field = getattr(exc, "field", "link")
-    message = getattr(exc, "message", None) or str(exc)
-    return {field if field in values else "link": message}
+async def _refused(
+    request: Request, values: dict[str, Any], query: Query | None, exc: InvalidInputError
+) -> Response:
+    """The repository's refusal shown beside its field, or beside the link when it names
+    something the form has no field for. A link that is already watched also links to
+    the search that watches it."""
+    field = exc.field if exc.field in values else "link"
+    existing = exc.existing if isinstance(exc, DuplicateSearchError) else None
+    return await _editor(
+        request,
+        values,
+        query=query,
+        errors={field: exc.message},
+        status_code=400,
+        existing=existing,
+    )
 
 
 # --- One search ----------------------------------------------------------------------

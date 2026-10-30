@@ -106,7 +106,8 @@ def sample_notification(
     return PendingNotification(
         outbox_id=index,
         destination_id=0,
-        query_id=0,
+        # No search sent it, which is what null means in the webhook payload.
+        query_id=None,
         query_name=search_name,
         attempts=0,
         item=item,

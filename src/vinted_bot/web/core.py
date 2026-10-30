@@ -159,7 +159,9 @@ async def shell(context: WebContext, snapshot: health.Snapshot | None = None) ->
         sites = sorted({f"vinted.{search.tld}" for search in refused})
         blocked = {"site": ", ".join(sites), "searches": len(refused)}
 
-    update = update_offer(context.updater, prefs.latest_version if prefs.update_check else None)
+    # Installing updates by itself means checking for them too, whatever the other switch says.
+    checking = prefs.update_check or prefs.auto_update
+    update = update_offer(context.updater, prefs.latest_version if checking else None)
     access = await security.access(context.settings, context.repo)
 
     return {

@@ -24,11 +24,11 @@ from fastapi import APIRouter, Request
 from fastapi.datastructures import FormData
 from fastapi.responses import RedirectResponse, Response
 
-from vinted_bot.db.repo import Query, Repo
+from vinted_bot.db.repo import DuplicateSearchError, Query, Repo
 from vinted_bot.engine.validation import InvalidInputError
 from vinted_bot.vinted import urls
 from vinted_bot.web import core, data, destinations, forms, security, support, views
-from vinted_bot.web.routes import alerts, searches
+from vinted_bot.web.routes import alerts
 
 router = APIRouter()
 
@@ -409,8 +409,8 @@ async def _save(context: core.WebContext, state: dict[str, Any]) -> dict[str, st
     destination_id = await _save_destination(repo, state, _int(saved.get("destination_id")))
     try:
         query_id = await _save_query(repo, parsed, _int(saved.get("query_id")))
-    except ValueError as exc:
-        return searches.refusal(exc, _search_values(state, tld, interval))
+    except InvalidInputError as exc:
+        return {exc.field if exc.field in parsed.filters else "link": exc.message}
     await repo.set_routes(query_id, [destination_id] if destination_id else [])
     await data.remember_brand_names(repo, str((state.get("search") or {}).get("labels") or ""))
     await repo.set_onboarded(True)
@@ -426,17 +426,19 @@ def _int(value: Any) -> int | None:
 
 async def _save_query(repo: Repo, parsed: forms.ParsedSearch, query_id: int | None) -> int:
     existing = await repo.get_query(query_id) if query_id else None
-    # Setup run again with a search that already exists: that one, not a second copy.
-    existing = existing or await repo.find_query_by_url(parsed.url)
     if existing is None:
-        return await repo.add_query(
-            name=parsed.name,
-            url=parsed.url,
-            tld=parsed.tld,
-            params=parsed.params,
-            poll_interval_s=parsed.poll_interval_s,
-            **parsed.filters,
-        )
+        try:
+            return await repo.add_query(
+                name=parsed.name,
+                url=parsed.url,
+                tld=parsed.tld,
+                params=parsed.params,
+                poll_interval_s=parsed.poll_interval_s,
+                **parsed.filters,
+            )
+        except DuplicateSearchError as exc:
+            # Setup run again with a link already watched: that search, not a second copy.
+            existing = exc.existing
     await repo.update_query(
         replace(
             existing,
@@ -484,7 +486,7 @@ async def _save_destination(repo: Repo, state: dict[str, Any], saved_id: int | N
         await data.record_test(repo, wanted, ok=True, message="Setup's test arrived.")
     if wanted is not None:
         # Setup's place is where someone expects to hear that a search stopped working.
-        await data.set_notify_status(repo, wanted, on=True)
+        await repo.set_notify_status(wanted, True)
     if saved is not None and saved.id != wanted:
         await repo.deactivate_destination(saved.id, data.REMOVED)
     return wanted

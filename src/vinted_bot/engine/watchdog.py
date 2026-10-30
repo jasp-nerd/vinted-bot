@@ -9,6 +9,11 @@ The tell is comparative. A search whose newest listing has not moved for many ch
 just be a quiet corner of the market — but if a different search on the same site is still
 turning up new things, the quiet one is stuck rather than slow. That distinction is the
 whole trick, and it is why this runs across searches instead of inside the poller.
+
+The opposite case is loud in the log and silent everywhere else: every search on a site
+failing, usually because Vinted blocks this address. Each search backs off on its own and
+nothing tells you the whole site is down, so that gets a status notice of its own once it
+has lasted a while, and another when the site answers again.
 """
 
 from __future__ import annotations
@@ -16,11 +21,12 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import time
+from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 from vinted_bot.config import Settings
-from vinted_bot.db.repo import Repo
+from vinted_bot.db.repo import Query, QueryState, Repo
 from vinted_bot.log import get_logger
 from vinted_bot.vinted.session import SessionManager
 
@@ -28,6 +34,12 @@ log = get_logger(__name__)
 
 # How long a site must have been advancing for us to trust it as a comparison.
 _RECENT_MOVEMENT_S = 900
+
+# How long every search on a site must have been failing before it counts as down. Shorter
+# than this is the backoff ladder doing its job after a blip.
+SITE_DOWN_AFTER_S = 900
+
+_TROUBLESHOOTING = "https://github.com/jasp-nerd/vinted-bot/blob/main/docs/troubleshooting.md"
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +69,10 @@ class Watchdog:
         self._stop = stop
         self._announce = announce
         self._already_warned: set[int] = set()
+        # Site -> when every search on it was first seen failing; and the sites announced
+        # as down, so each incident gets one notice and one all-clear.
+        self._failing_since: dict[str, int] = {}
+        self._announced_down: set[str] = set()
 
     async def run(self, interval_s: float = 120.0) -> None:
         while not self._stop.is_set():
@@ -68,14 +84,17 @@ class Watchdog:
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(self._stop.wait(), timeout=interval_s)
 
-    async def check(self) -> list[StaleSearch]:
-        """Find searches that have gone quiet while their neighbours have not."""
+    async def check(self, *, now: int | None = None) -> list[StaleSearch]:
+        """Find searches that have gone quiet while their neighbours have not.
+
+        Also notices a whole site failing; see `_check_sites`.
+        """
         queries = {query.id: query for query in await self._repo.list_queries(include_paused=False)}
+        states = {state.query_id: state for state in await self._repo.all_states()}
+        now = now or int(time.time())
+        await self._check_sites(queries, states, now)
         if not queries:
             return []
-
-        states = {state.query_id: state for state in await self._repo.all_states()}
-        now = int(time.time())
 
         moving_sites = {
             queries[query_id].tld
@@ -110,6 +129,64 @@ class Watchdog:
         for search in stale:
             await self._react(search)
         return stale
+
+    async def _check_sites(
+        self, queries: dict[int, Query], states: dict[int, QueryState], now: int
+    ) -> None:
+        """Announce a site where every search has been failing a while, and its recovery."""
+        by_site: dict[str, list[QueryState]] = defaultdict(list)
+        for query_id, query in queries.items():
+            if (state := states.get(query_id)) is not None and state.last_status is not None:
+                by_site[query.tld].append(state)
+
+        for site in set(self._failing_since) | set(by_site):
+            site_states = by_site.get(site, [])
+            if not site_states:
+                # Its searches were paused or removed: nothing to announce either way.
+                self._failing_since.pop(site, None)
+                self._announced_down.discard(site)
+                continue
+            if any(state.last_status == "ok" for state in site_states):
+                await self._site_recovered(site, now)
+                continue
+            newest_success = max((s.last_success_at or 0 for s in site_states), default=0)
+            since = self._failing_since.setdefault(site, newest_success or now)
+            if now - since >= SITE_DOWN_AFTER_S and site not in self._announced_down:
+                self._announced_down.add(site)
+                await self._site_down(site, since, now, site_states)
+
+    async def _site_down(
+        self, site: str, since: int, now: int, site_states: list[QueryState]
+    ) -> None:
+        minutes = round((now - since) / 60)
+        last_error = next((s.last_error for s in site_states if s.last_error), None)
+        log.warning(
+            "watchdog.site_down",
+            tld=site,
+            searches=len(site_states),
+            failing_min=minutes,
+            last_error=last_error,
+        )
+        if self._announce is not None:
+            await self._announce(
+                f"Every search on vinted.{site} has been failing for {minutes} minutes, so "
+                f"nothing new is being found there. Last error: {last_error or 'unknown'}. "
+                "This usually means Vinted is blocking this address for a while; the app "
+                f"keeps trying on its own. More in {_TROUBLESHOOTING}"
+            )
+
+    async def _site_recovered(self, site: str, now: int) -> None:
+        since = self._failing_since.pop(site, None)
+        if site not in self._announced_down:
+            return
+        self._announced_down.discard(site)
+        minutes = round((now - since) / 60) if since is not None else None
+        log.info("watchdog.site_recovered", tld=site, down_min=minutes)
+        if self._announce is not None:
+            await self._announce(
+                f"vinted.{site} is answering again: searches there are back to normal"
+                + (f" after about {minutes} minutes." if minutes is not None else ".")
+            )
 
     async def _react(self, search: StaleSearch) -> None:
         if search.query_id in self._already_warned:

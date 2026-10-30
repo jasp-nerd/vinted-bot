@@ -264,3 +264,67 @@ async def test_the_warn_only_watchdog_does_not_claim_to_rotate(
     await watchdog.check()
 
     assert "fresh session" not in announcements[0]
+
+
+# --- A whole site failing -----------------------------------------------------------
+
+
+async def all_blocked(repo: Repo, db: Database, *, since: int) -> list[int]:
+    ids = [await add_search(repo, "one"), await add_search(repo, "two")]
+    for query_id in ids:
+        await set_state(db, query_id, last_success_at=since, last_status="http_403")
+        await repo.record_failure(query_id, "http_403", "Blocked: 403 from the catalog")
+    return ids
+
+
+async def test_every_search_on_a_site_failing_for_a_while_is_announced_once(
+    repo: Repo, db: Database, transport: ScriptedTransport, settings: Settings
+) -> None:
+    now = int(time.time())
+    await all_blocked(repo, db, since=now - 1200)
+    watchdog, announcements = make_watchdog(repo, db, transport, settings)
+
+    await watchdog.check(now=now)
+    await watchdog.check(now=now + 120)
+
+    assert len(announcements) == 1
+    assert announcements[0].startswith("Every search on vinted.fr has been failing for 20 min")
+
+
+async def test_a_short_outage_is_left_to_the_backoff(
+    repo: Repo, db: Database, transport: ScriptedTransport, settings: Settings
+) -> None:
+    now = int(time.time())
+    await all_blocked(repo, db, since=now - 300)
+    watchdog, announcements = make_watchdog(repo, db, transport, settings)
+
+    await watchdog.check(now=now)
+
+    assert announcements == []
+
+
+async def test_one_search_still_working_means_the_site_is_not_down(
+    repo: Repo, db: Database, transport: ScriptedTransport, settings: Settings
+) -> None:
+    now = int(time.time())
+    first, _ = await all_blocked(repo, db, since=now - 3600)
+    await set_state(db, first, last_status="ok", last_success_at=now)
+    watchdog, announcements = make_watchdog(repo, db, transport, settings)
+
+    await watchdog.check(now=now)
+
+    assert announcements == []
+
+
+async def test_a_site_that_answers_again_gets_an_all_clear(
+    repo: Repo, db: Database, transport: ScriptedTransport, settings: Settings
+) -> None:
+    now = int(time.time())
+    first, _ = await all_blocked(repo, db, since=now - 1200)
+    watchdog, announcements = make_watchdog(repo, db, transport, settings)
+    await watchdog.check(now=now)
+    await set_state(db, first, last_status="ok", last_success_at=now + 60)
+
+    await watchdog.check(now=now + 120)
+
+    assert announcements[-1].startswith("vinted.fr is answering again")

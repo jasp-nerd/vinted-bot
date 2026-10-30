@@ -216,7 +216,8 @@ def options(kind: str, form: Mapping[str, Any], config: dict[str, Any]) -> dict[
     updated["silent_tiers"] = _tier_list(form, "silent_tiers")
     if not updated["tiers"]:
         raise InvalidInputError("tiers", "Pick at least one kind of listing to receive.")
-    _set_or_drop(updated, "min_deal_pct", _percent(_field(form, "min_deal_pct")))
+    # The 1.x threshold is replaced by the tiers just picked; the card showed it as those.
+    updated.pop("min_deal_pct", None)
     updated["watch_alerts"] = bool(_field(form, "watch_alerts"))
     match kind:
         case "discord":
@@ -237,15 +238,6 @@ def _set_or_drop(config: dict[str, Any], key: str, value: Any) -> None:
         config.pop(key, None)
     else:
         config[key] = value
-
-
-def _percent(raw: str) -> int | None:
-    """The legacy "at least this much under typical" threshold, which still filters."""
-    if not raw:
-        return None
-    if not raw.isdigit() or not 1 <= int(raw) <= 95:  # noqa: PLR2004
-        raise InvalidInputError("min_deal_pct", "A whole percentage from 1 to 95, or empty.")
-    return int(raw)
 
 
 def _thread_id(raw: str) -> str | None:

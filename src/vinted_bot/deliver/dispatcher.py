@@ -16,6 +16,7 @@ import asyncio
 import contextlib
 import dataclasses
 import json
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -96,15 +97,27 @@ def skip_reason(notification: PendingNotification, config: dict[str, Any]) -> st
     """Why this destination should not get this listing, if it should not.
 
     Decided here, at delivery, rather than when the listing is found: one listing goes to
-    several destinations, and only some of them may be picky. Watch alerts (price drops,
-    sales) and a followed seller's uploads were asked for one by one, so they always pass.
+    several destinations, and only some of them may be picky.
+
+    The tiers (`tiers`, `silent_tiers`, `min_deal_pct`) are about search results only.
+    Watch alerts (price drops, sales, reservations, removals) and a followed seller's
+    uploads were asked for one by one, so a "steals only" channel still gets them; a
+    destination that wants none of them says `watch_alerts: false`, and a watch can be
+    routed to chosen destinations instead of all of them.
     """
     if notification.kind != "listing":
+        if config.get("watch_alerts") is False:
+            return "skipped: this destination does not take watch alerts"
         return None
     routing = Routing.from_config(config)
     pct = _deal_pct(notification)
     tier = tier_for(pct)
-    wants_threshold = routing.min_deal_pct is not None
+    # A custom threshold narrows what counts as a deal. Once the tiers have been chosen
+    # and include ordinary listings, the destination wants everything: a threshold left
+    # over from 1.x kept filtering there although the Alerts page showed "everything
+    # else" ticked.
+    takes_everything = "tiers" in config and "normal" in routing.tiers
+    wants_threshold = routing.min_deal_pct is not None and not takes_everything
     if pct is None and (tier not in routing.tiers or wants_threshold):
         return "skipped: this destination only wants deals and there is no typical price yet"
     if tier not in routing.tiers:
@@ -245,6 +258,11 @@ class Dispatcher:
         if destination is None or not destination.active:
             return 0
 
+        if destination.is_paused(int(time.time())):
+            # Its server asked for a break (ntfy's daily allowance); the reason is on the
+            # destination for the Alerts page, and the log said it once when it began.
+            return 0
+
         if awaiting_pairing(destination):
             # Created but nobody has tapped the link yet. Waiting is not a misconfiguration,
             # so this must not switch the destination off; notifications queue until it is
@@ -283,6 +301,20 @@ class Dispatcher:
             await self._repo.reset_destination_failures(destination_id)
 
         handled = set(result.delivered)
+
+        if result.pause_until is not None:
+            reason = result.error or "the server asked for a break"
+            await self._repo.pause_destination(
+                destination_id, until=result.pause_until, reason=reason
+            )
+            log.warning(
+                "destination.paused",
+                destination_id=destination_id,
+                name=destination.name,
+                reason=reason,
+                until=result.pause_until,
+            )
+            return len(result.delivered)
 
         if result.permanent_error:
             await self._repo.deactivate_destination(destination_id, result.permanent_error)

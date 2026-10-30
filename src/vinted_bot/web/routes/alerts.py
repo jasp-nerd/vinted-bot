@@ -185,11 +185,7 @@ async def add_destination(request: Request) -> Response:
         destinations.check(kind, config, context.settings, context.http)
     except InvalidInputError as exc:
         return JSONResponse({"ok": False, "field": exc.field, "error": exc.message}, 400)
-    # Status alerts on: a place someone adds is where they expect to hear that a search
-    # stopped working. The card's switch turns it off.
-    destination_id = await context.repo.add_destination(
-        kind=kind, name=name, config=config, notify_status=True
-    )
+    destination_id = await context.repo.add_destination(kind=kind, name=name, config=config)
     if _wants_json(request):
         return JSONResponse({"ok": True, "id": destination_id})
     return RedirectResponse(core.url("alerts"), status_code=303)
@@ -216,7 +212,7 @@ async def set_options(request: Request, destination_id: int) -> Response:
     await context.repo.update_destination_config(destination_id, config)
     notify = bool(form.get("notify_status"))
     if notify != destination.notify_status:
-        await data.set_notify_status(context.repo, destination_id, on=notify)
+        await context.repo.set_notify_status(destination_id, notify)
     return JSONResponse({"ok": True})
 
 
@@ -297,8 +293,6 @@ async def start_pairing(request: Request) -> JSONResponse:
             status_code=400,
         )
     destination_id, code = await create_pairing(context.repo, "Telegram")
-    # Like any place added here: it hears when something stops working, until switched off.
-    await data.set_notify_status(context.repo, destination_id, on=True)
     bot = await bot_username(context)
     return JSONResponse(
         {

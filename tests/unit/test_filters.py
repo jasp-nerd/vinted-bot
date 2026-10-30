@@ -64,6 +64,25 @@ def test_included_terms_ignore_accents_and_case() -> None:
     assert reason(item(title="Veste CAFÉ racer"), search(include_terms=["cafe"])) is None
 
 
+def test_an_included_word_matches_longer_words_starting_with_it() -> None:
+    assert reason(item(title="Levi's Jeans 501"), search(include_terms=["jean"])) is None
+
+
+def test_an_included_word_does_not_match_inside_another_word() -> None:
+    assert reason(item(title="Bluejeans"), search(include_terms=["jean"])) == "missing_keyword"
+
+
+@pytest.mark.parametrize("term", ['"jean"', "\u201cjean\u201d"])
+def test_a_quoted_included_word_must_appear_as_a_whole_word(term: str) -> None:
+    assert reason(item(title="Levi's Jeans 501"), search(include_terms=[term])) == (
+        "missing_keyword"
+    )
+
+
+def test_a_quoted_included_word_still_matches_that_word() -> None:
+    assert reason(item(title="Jean jacket"), search(include_terms=['"jean"'])) is None
+
+
 def test_the_brand_counts_as_part_of_the_title() -> None:
     """The title often leaves the brand out because Vinted shows it separately."""
     assert reason(item(title="Air Max 90", brand="Nike"), search(include_terms=["nike"])) is None
@@ -95,6 +114,44 @@ def test_a_minimum_total_price_skips_suspiciously_cheap_listings() -> None:
     query = search(min_total_price=Decimal("15"))
 
     assert reason(item(total_price=Decimal("9.99")), query) == "under_minimum"
+
+
+def test_a_price_limit_names_the_currencies_it_compared() -> None:
+    rejection = filters.Rules(search(max_total_price=Decimal("15"))).check(item())
+
+    assert rejection is not None and rejection.detail.startswith("20.00 EUR above limit 15 EUR")
+
+
+PLN_PER_EURO = {"PLN": Decimal("4.30")}
+
+
+def test_a_listing_in_another_currency_is_converted_before_the_limit() -> None:
+    """An 80 zł limit let a 39.45 € listing through as "39.45, under 80"."""
+    query = search(tld="pl", extra_tlds=["lt"], max_total_price=Decimal("80"))
+
+    rejection = filters.Rules(query).check(
+        item(tld="lt", total_price=Decimal("39.45"), currency="EUR"), rates=PLN_PER_EURO
+    )
+
+    assert rejection is not None and (rejection.reason, rejection.detail) == (
+        "over_budget",
+        "39.45 EUR (about 169.64 PLN) above limit 80 PLN (buyer protection included)",
+    )
+
+
+def test_a_converted_price_under_the_limit_passes() -> None:
+    query = search(tld="pl", extra_tlds=["lt"], max_total_price=Decimal("80"))
+
+    assert (
+        reason(item(tld="lt", total_price=Decimal("15"), currency="EUR"), query, rates=PLN_PER_EURO)
+        is None
+    )
+
+
+def test_without_an_exchange_rate_a_foreign_price_is_skipped_saying_why() -> None:
+    query = search(tld="pl", extra_tlds=["lt"], max_total_price=Decimal("80"))
+
+    assert reason(item(tld="lt", currency="EUR"), query) == "no_exchange_rate"
 
 
 def test_an_unknown_condition_is_not_a_mismatch() -> None:
@@ -230,3 +287,12 @@ def test_a_margin_in_another_currency_is_not_judged() -> None:
     rule = search(resale_price=Decimal("30"), min_margin=Decimal("15"))
 
     assert filters.check(item(tld="co.uk", currency="GBP"), rule) is None
+
+
+def test_a_listing_dearer_than_typical_is_called_above_it_not_negative_under() -> None:
+    rejection = filters.check_deal(
+        item(total_price=Decimal("21.76")), search(deal_only_pct=20), Decimal("19.60")
+    )
+
+    assert rejection is not None
+    assert rejection.detail == "11% above the typical 19.60 EUR, want at least 20% under"

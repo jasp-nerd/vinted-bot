@@ -11,13 +11,9 @@ from fastapi.responses import Response
 
 from vinted_bot.db.repo import Destination, Watch
 from vinted_bot.engine.validation import InvalidInputError
-from vinted_bot.log import get_logger
 from vinted_bot.vinted import urls
-from vinted_bot.vinted.errors import VintedError
 from vinted_bot.vinted.models import Item
 from vinted_bot.web import core, data, views
-
-log = get_logger(__name__)
 
 router = APIRouter()
 
@@ -123,12 +119,11 @@ async def _sends_to(
     context: core.WebContext, watch_id: int, places: list[Destination]
 ) -> dict[str, Any]:
     """Where a watch's alerts go, for its row: its own picks, or every place."""
-    ids = set(await context.repo.destination_ids_for_watch(watch_id))
-    picked = [d for d in places if d.id in ids]
-    every = len(picked) == len(places)
+    routes = await context.repo.watch_routes(watch_id)
+    picked = [d.name for d in places if d.id in routes]
     return {
-        "sends_to": "every place for alerts" if every else ", ".join(d.name for d in picked),
-        "routes": [] if every else [d.id for d in picked],
+        "sends_to": ", ".join(picked) if routes else "every place for alerts",
+        "routes": routes,
     }
 
 
@@ -159,7 +154,7 @@ async def add(request: Request) -> Response:
         if context.watch_kinds and kind not in context.watch_kinds:
             raise InvalidInputError("url", "This copy of vinted-bot can't run that kind of watch.")
         if kind == "item":
-            label = await _listing_title(context, tld, target_id) or label
+            label = await _listing_title(context, target_id) or label
         await context.repo.add_watch(
             kind=kind,
             tld=tld,
@@ -177,23 +172,11 @@ async def add(request: Request) -> Response:
     )
 
 
-async def _listing_title(context: core.WebContext, tld: str, item_id: int) -> str | None:
-    """A pasted listing's title, so the watch is named after it rather than its number.
-
-    One read of the listing's page, the same one the watcher makes. When Vinted doesn't
-    answer, the watch is still added under its number: the title is a nicety.
-    """
+async def _listing_title(context: core.WebContext, item_id: int) -> str | None:
+    """A pasted listing's title when it is one of the finds, so the watch is named after
+    it from the start. Otherwise the watcher names it at its first look."""
     stored = await context.repo.feed_item(item_id)
-    if stored is not None:
-        return stored.item.title
-    if context.client is None:
-        return None
-    try:
-        snapshot = await context.client.item_snapshot(tld, item_id)
-    except VintedError as exc:
-        log.info("watchlist.title_unavailable", error=type(exc).__name__)
-        return None
-    return snapshot.title
+    return stored.item.title if stored is not None else None
 
 
 @router.post("/watchlist/{watch_id}/routes")
@@ -202,12 +185,8 @@ async def set_routes(request: Request, watch_id: int) -> Response:
     context = core.ctx(request)
     await _watch_or_404(request, watch_id)
     form = await request.form()
-    wanted = {int(str(v)) for v in form.getlist("dest") if str(v).isdigit()}
-    for destination in await context.repo.list_destinations():
-        if destination.id in wanted:
-            await context.repo.route_watch(watch_id, destination.id)
-        else:
-            await context.repo.unroute_watch(watch_id, destination.id)
+    wanted = [int(str(v)) for v in form.getlist("dest") if str(v).isdigit()]
+    await context.repo.set_watch_routes(watch_id, wanted)
     return core.redirect(core.url("watchlist"), "Saved where its alerts go.")
 
 

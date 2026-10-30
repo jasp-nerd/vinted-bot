@@ -30,7 +30,7 @@ from vinted_bot.engine import self_update
 from vinted_bot.engine.validation import InvalidInputError
 from vinted_bot.vinted.client import PER_PAGE, VintedClient
 from vinted_bot.web import core, destinations, security, support, views
-from vinted_bot.web.routes import api, searches, watchlist
+from vinted_bot.web.routes import api, watchlist
 
 WEB = Path(core.__file__).parent
 
@@ -230,16 +230,29 @@ async def test_watch_alerts_show_as_on_by_default(client: TestClient, repo: Repo
     assert re.search(r'name="watch_alerts" value="1" checked', client.get("/alerts").text)
 
 
-async def test_an_old_deal_threshold_is_shown_where_it_can_be_changed(
+async def test_an_old_deal_threshold_shows_as_the_tiers_it_amounts_to(
     client: TestClient, repo: Repo
 ) -> None:
     await _destination(repo, topic="t1", min_deal_pct=30)
 
-    assert re.search(r'name="min_deal_pct"[^>]*value="30"', client.get("/alerts").text)
+    page = client.get("/alerts").text
+
+    assert (re.search(r'value="normal" checked', page), "30% or more" in page) == (None, True)
 
 
-def test_clearing_the_old_deal_threshold_removes_it() -> None:
+def test_saving_the_tiers_replaces_the_old_deal_threshold() -> None:
     assert "min_deal_pct" not in _options("ntfy", {"topic": "t1", "min_deal_pct": 30})
+
+
+async def test_a_paused_place_says_why_and_until_when(client: TestClient, repo: Repo) -> None:
+    destination_id = await _destination(repo)
+    await repo.pause_destination(
+        destination_id, until=int(time.time()) + 3600, reason="ntfy.sh's daily limit is used up"
+    )
+
+    page = client.get("/alerts").text
+
+    assert ("Paused until" in page, "daily limit is used up" in page) == (True, True)
 
 
 async def test_the_sample_alert_shows_the_buttons_an_alert_has(
@@ -290,12 +303,22 @@ async def test_saving_a_paused_search_keeps_it_paused(client: TestClient, repo: 
     assert stored is not None and stored.paused
 
 
-def test_a_refusal_about_the_link_shows_beside_the_link() -> None:
-    refused = InvalidInputError("url", "You already have a search for this link.")
+async def test_a_link_already_watched_points_to_its_search(client: TestClient, repo: Repo) -> None:
+    client.post("/searches", data={"link": SEARCH_URL, "interval": "60"})
+    (query,) = await repo.list_queries()
+    query_id = query.id
 
-    assert searches.refusal(refused, {"link": ""}) == {
-        "link": "You already have a search for this link."
-    }
+    page = client.post("/searches", data={"link": SEARCH_URL, "interval": "60"})
+
+    assert (
+        page.status_code,
+        'id="err-link"' in page.text,
+        f'href="/searches/{query_id}"' in page.text,
+    ) == (
+        400,
+        True,
+        True,
+    )
 
 
 async def test_a_brand_picked_once_keeps_its_name(client: TestClient, repo: Repo) -> None:
@@ -423,6 +446,10 @@ async def test_why_a_listing_was_not_sent_is_on_the_page_not_in_a_tooltip(
     page = client.get(f"/searches/{query_id}").text
 
     assert "€25.00 with fees, over your limit of €20.00" in page
+
+
+def test_new_reasons_for_not_sending_have_words() -> None:
+    assert {"too_old", "no_exchange_rate"} <= set(views.REJECTION_WORDS)
 
 
 # --- Finds -------------------------------------------------------------------------------
@@ -703,6 +730,17 @@ async def test_the_docker_update_hint_does_not_assume_a_compose_folder(
     offer = core.update_offer(updater, "99.0.0")
 
     assert offer is not None and "NAS app store" in offer["hint"]
+
+
+async def test_installing_updates_by_itself_shows_the_new_version(
+    client: TestClient, repo: Repo
+) -> None:
+    await repo.set_onboarded(True)
+    await repo.set_update_check(False)
+    await repo.set_auto_update(True)
+    await repo.set_latest_version("99.0.0")
+
+    assert "Version 99.0.0 is out" in client.get("/settings").text
 
 
 def test_the_unknown_address_page_says_compose_up_and_has_no_loop(

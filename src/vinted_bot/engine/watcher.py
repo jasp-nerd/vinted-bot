@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import random
+import re
 import sqlite3
 import time
 from collections.abc import Awaitable, Callable
@@ -43,6 +44,10 @@ PASS_INTERVAL_S = 60.0
 # A seller who lists twenty things at once gets one alert per listing up to this many;
 # past it, the rest are recorded quietly. Nobody wants forty pings.
 _MAX_UPLOADS_ANNOUNCED = 10
+
+# The labels a watch gets when nothing better is known: the dashboard's "Listing 123", the
+# Telegram bot's "listing 123" or "seller 123", the repository's own "item 123".
+_PLACEHOLDER = re.compile(r"(?i)(listing|item|seller) \d+")
 
 # A listing that is gone or sold has nothing left to watch.
 _FINAL_STATUSES = {"sold", "gone"}
@@ -123,6 +128,7 @@ class Watcher:
         if self._item_snapshot is None:  # pragma: no cover - filtered out by run_pass
             return
         snapshot = await self._item_snapshot(watch.tld, watch.target_id)
+        await self._name(watch, snapshot.title)
         price = snapshot.total_price or snapshot.price
         event = None if watch.is_first_check else _item_event(watch, snapshot.status, price)
         if event is not None:
@@ -160,6 +166,7 @@ class Watcher:
         if self._seller_items is None:  # pragma: no cover - filtered out by run_pass
             return
         listings = await self._seller_items(watch.tld, watch.target_id)
+        await self._name(watch, next((i.seller_login for i in listings if i.seller_login), None))
         known = await self._repo.known_item_ids([item.item_id for item in listings])
         # Above the watch's high-water id and not stored for another reason. The stored
         # copies are pruned after a while; the high-water id is not, so a listing that
@@ -185,6 +192,19 @@ class Watcher:
             self._announce()
             log.info("watcher.seller_uploads", watch_id=watch.id, count=len(notify))
         await self._repo.record_watch_check(watch.id, next_check_at=self._next_check(watch))
+
+    async def _name(self, watch: Watch, name: str | None) -> None:
+        """Replace a stand-in label ("Listing 123") with the real title or seller name.
+
+        A watch added from a bare link only knows the id, and its alerts were titled
+        "Listing 10595427692" for as long as it ran.
+        """
+        if (
+            name
+            and _PLACEHOLDER.fullmatch(watch.label.strip())
+            and str(watch.target_id) in (watch.label)
+        ):
+            await self._repo.update_watch(watch.id, label=name, active=watch.active)
 
     def _announce(self) -> None:
         if self._work_available is not None:

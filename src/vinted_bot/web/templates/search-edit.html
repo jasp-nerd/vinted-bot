@@ -36,6 +36,7 @@
         <label class="label" for="link">Vinted search link <small>easiest: copy it from Vinted</small></label>
         <input class="input" id="link" name="link" type="text" inputmode="url" spellcheck="false" autocomplete="off" placeholder="vinted.nl/catalog?search_text=regenjas" value="{{ f.link }}"{{ ui.invalid(E, 'link') }}>
         {{ ui.field_error(E, "link") }}
+        {% if existing %}<p class="help"><a href="{{ url('search_detail', id=existing.id) }}">Open “{{ existing.name }}”</a> · <a href="{{ url('search_edit', id=existing.id) }}">Change it</a></p>{% endif %}
         <p class="help">On Vinted, search and set your filters, then copy the address (in the app: Share, then Copy). Pasting a link replaces the filters below. Works without https:// too.</p>
         {% if s and not f.link %}<p class="help">Now: <a href="{{ s.url }}" target="_blank" rel="noopener" class="saved-link">{{ s.url }}</a></p>{% endif %}
       </div>

@@ -58,8 +58,9 @@ Getting into the official store is a pull request to
 ## CasaOS and ZimaOS
 
 In the CasaOS dashboard: App Store, Custom Install, the import button at the top right, and
-paste [casaos/docker-compose.yml](casaos/docker-compose.yml). Uncomment the password line
-first. The `x-casaos` block is the metadata community stores such as
+paste [casaos/docker-compose.yml](casaos/docker-compose.yml). Change the dashboard password
+(`VINTED_BOT_WEB_AUTH_TOKEN`) from the example before installing: the file always sets one,
+because CasaOS opens the app from every device on your network. The `x-casaos` block is the metadata community stores such as
 [BigBear's](https://github.com/bigbeartechworld/big-bear-casaos) expect, so the same file is
 the start of a pull request there (as `Apps/vinted-bot/docker-compose.yml` with a
 `config.json` beside it).

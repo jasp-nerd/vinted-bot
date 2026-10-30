@@ -65,6 +65,15 @@ class Database:
     ) -> None:
         await self.close()
 
+    async def backup_to(self, target: Path) -> None:
+        """Write a consistent copy of the whole database to `target`.
+
+        SQLite's online backup reads through this connection, so the copy includes what
+        is still in the write-ahead log, and other writers can carry on meanwhile.
+        """
+        async with aiosqlite.connect(target) as copy:
+            await self._live.backup(copy)
+
     @property
     def _live(self) -> aiosqlite.Connection:
         if self._conn is None:

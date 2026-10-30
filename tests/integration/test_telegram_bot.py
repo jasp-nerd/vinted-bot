@@ -663,3 +663,12 @@ async def test_shutting_down_stops_the_bot(repo: Repo, settings: Settings) -> No
     await asyncio.wait_for(task, 2)
 
     assert bots.running == set()
+
+
+async def test_add_points_at_the_search_already_watching_the_link(repo: Repo) -> None:
+    await add_search_text(repo, SEARCH_URL, chat_id=PAIRED_CHAT, interval_s=60)
+
+    reply = await add_search_text(repo, SEARCH_URL, chat_id=PAIRED_CHAT, interval_s=60)
+
+    assert reply.startswith("You already watch this search: “nike air”.")
+    assert len(await repo.list_queries()) == 1

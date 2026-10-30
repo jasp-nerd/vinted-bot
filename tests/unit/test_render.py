@@ -165,6 +165,15 @@ def test_the_rating_reads_as_stars_with_its_review_count() -> None:
     assert listing.rating == "★ 4.8 (128)"
 
 
+def test_the_rating_ends_with_the_seller_s_country_when_known() -> None:
+    listing = view(
+        pending(item={"seller_rating": 0.96, "seller_feedback_count": 128}, seller_country="DE"),
+        dashboard_url=None,
+    )
+
+    assert listing.rating == "★ 4.8 (128) · \U0001f1e9\U0001f1ea"
+
+
 @pytest.mark.parametrize("url", ["http://127.0.0.1:8000", "http://localhost:8000/"])
 def test_a_dashboard_only_this_machine_can_open_is_not_linked(url: str) -> None:
     assert reachable_dashboard(url) is None

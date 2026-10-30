@@ -283,7 +283,7 @@
     </div>
     {%- set I = t.install %}
     {%- set PS = 'powershell -ExecutionPolicy ByPass -c "irm ' ~ repo_raw ~ '/install.ps1 | iex"' %}
-    {%- set PS_RM = "powershell -ExecutionPolicy ByPass -c '$env:VINTED_BOT_UNINSTALL=1; irm ' ~ repo_raw ~ '/install.ps1 | iex'" %}
+    {%- set PS_RM = "powershell -ExecutionPolicy ByPass -c '$env:VINTED_BOT_UNINSTALL=1; irm " ~ repo_raw ~ "/install.ps1 | iex'" %}
     {%- set SH = 'curl -LsSf ' ~ repo_raw ~ '/install.sh | sh' %}
     {%- set SH_RM = 'curl -LsSf ' ~ repo_raw ~ '/install.sh | sh -s -- --uninstall' %}
     <div class="install">
@@ -344,7 +344,7 @@
         <ol>
           <li><p>{{ I.docker_1 }}</p>
             <div class="code"><pre><code>mkdir {{ name }} &amp;&amp; cd {{ name }}
-curl -O {{ repo_raw }}/docker-compose.yml
+curl -fsSLO {{ repo_raw }}/docker-compose.yml
 docker compose up -d</code></pre>{{ copybtn() }}</div></li>
           <li><p>{{ I.docker_2 }}</p></li>
         </ol>

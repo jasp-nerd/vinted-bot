@@ -197,17 +197,6 @@ def can_send(destination: Destination) -> bool:
     return destination.active and not awaiting_pairing(destination)
 
 
-async def set_notify_status(repo: Repo, destination_id: int, *, on: bool) -> None:
-    """Switch a place's status alerts (watchdog, "updated itself") on or off.
-
-    Adapter: Repo has no setter for `notify_status` on this branch. It moves into Repo
-    (db/repo.py, where SQL lives) when the backend branch that owns it is merged.
-    """
-    await repo._db.execute(
-        "UPDATE destinations SET notify_status = ? WHERE id = ?", (int(on), destination_id)
-    )
-
-
 def is_removed(destination: Destination) -> bool:
     """Removed from the Alerts page: kept for history, shown nowhere else."""
     return not destination.active and destination.deactivated_reason == REMOVED

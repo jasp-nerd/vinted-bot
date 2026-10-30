@@ -1,5 +1,3 @@
-version: "3.7"
-
 services:
   app_proxy:
     environment:
@@ -20,5 +18,10 @@ services:
       PUID: "1000"
       PGID: "1000"
       TZ: Europe/Paris
+      # Umbrel passes the name the browser used through to the app, and the dashboard only
+      # answers to names it knows (that is what stops DNS rebinding). Umbrel provides both
+      # of the device's names; the public URL also becomes the Dashboard link in alerts.
+      VINTED_BOT_WEB_ALLOWED_HOSTS: "${DEVICE_DOMAIN_NAME},${DEVICE_HOSTNAME}"
+      VINTED_BOT_WEB_PUBLIC_URL: "http://${DEVICE_DOMAIN_NAME}:${APP_PROXY_PORT}"
     volumes:
       - ${APP_DATA_DIR}/data:/data

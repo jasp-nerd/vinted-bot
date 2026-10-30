@@ -12,10 +12,11 @@ services:
       PUID: "1000"
       PGID: "1000"
       TZ: Europe/Paris
-      # The dashboard is reachable from your whole network here and shows your webhook
-      # links, so set a password: uncomment this and put any long random text in place of
-      # the example. You type it once to sign in.
-      # VINTED_BOT_WEB_AUTH_TOKEN: "change-me-to-something-long-and-random"
+      # The dashboard password. CasaOS opens the app from other devices on your network,
+      # and the dashboard shows your alert links, so it never runs without one here.
+      # Replace this example with any long random text before installing (the install
+      # dialog shows it under Environment variables). You type it once per browser.
+      VINTED_BOT_WEB_AUTH_TOKEN: "change-this-to-something-long-and-random"
     volumes:
       - /DATA/AppData/$AppID:/data
     ports:
@@ -30,6 +31,9 @@ services:
         - container: TZ
           description:
             en_US: Time zone, for example Europe/Paris
+        - container: VINTED_BOT_WEB_AUTH_TOKEN
+          description:
+            en_US: Dashboard password. Change it to something long and random
       volumes:
         - container: /data
           description:
@@ -52,7 +56,7 @@ x-casaos:
   tagline:
     en_US: Alerts for new Vinted listings
   description:
-    en_US: Get a message on Discord, Telegram or ntfy the moment a new Vinted listing matches your search. Never logs in to Vinted. Not affiliated with Vinted.
+    en_US: Get a message on Telegram, Discord or another app the moment a new Vinted listing matches your search. Never logs in to Vinted. Not affiliated with Vinted.
   port_map: "8000"
   scheme: http
   index: /

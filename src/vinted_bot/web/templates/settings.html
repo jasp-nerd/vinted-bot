@@ -108,7 +108,7 @@
       <div class="card">
         <div class="set"><div class="set__text"><span class="t-h3">Tell me when there's a new version</span><span class="t-sm">Looks at GitHub once a day. Sends nothing about you.</span></div><label class="switch"><input type="checkbox" data-setting="update_check"{% if prefs.update_check %} checked{% endif %} aria-label="Check for updates"></label></div>
         {% if install.can_update_automatically %}
-        <div class="set"><div class="set__text"><span class="t-h3">Install updates by itself</span><span class="t-sm">Between 4 and 5 at night on this clock, never while an alert is on its way out. Your status alerts say when it's done.</span></div><label class="switch"><input type="checkbox" data-setting="auto_update"{% if prefs.auto_update %} checked{% endif %} aria-label="Install updates automatically"></label></div>
+        <div class="set"><div class="set__text"><span class="t-h3">Install updates by itself</span><span class="t-sm">Between 4 and 5 at night on this clock, never while an alert is on its way out. Your status alerts say when it's done. It looks for new versions daily for this, even with the switch above off.</span></div><label class="switch"><input type="checkbox" data-setting="auto_update"{% if prefs.auto_update %} checked{% endif %} aria-label="Install updates automatically"></label></div>
         {% elif kind == "docker" %}
         <div class="set"><div class="set__text"><span class="t-h3">Updating by itself</span><span class="t-sm">The Docker setup has an optional nightly updater. The self-hosting guide shows how to switch it on.</span></div><a class="btn btn--ghost btn--sm" href="{{ self_hosting }}#updating" target="_blank" rel="noopener">See the guide</a></div>
         {% endif %}

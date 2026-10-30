@@ -16,6 +16,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from vinted_bot.db.repo import Destination, FeedItem, Query, RejectionRecord
+from vinted_bot.deals import STEAL_PCT
 from vinted_bot.deliver import ntfy
 from vinted_bot.deliver.dispatcher import awaiting_pairing
 from vinted_bot.engine.health import SearchHealth
@@ -123,6 +124,8 @@ REJECTION_WORDS: dict[str, tuple[str, str]] = {
     "quiet_hours": ("Quiet hours", "clock"),
     "low_margin": ("Not enough left after reselling", "badge-percent"),
     "muted": ("Search was muted", "bell-off"),
+    "too_old": ("Already old when it showed up", "clock"),
+    "no_exchange_rate": ("Couldn't convert its price", "badge-percent"),
 }
 
 
@@ -588,7 +591,7 @@ def destination_view(
             "style": config.get("style") or ("card" if destination.kind == "discord" else "photo"),
             "mention": config.get("mention") or "",
             "priority": str(config.get("priority") or "3"),
-            "min_deal_pct": config.get("min_deal_pct") or "",
+            "legacy_pct": "" if "tiers" in config else config.get("min_deal_pct") or "",
             "watch_alerts": config.get("watch_alerts", True) is not False,
             "thread_id": str(config.get("thread_id") or ""),
             "username": str(config.get("username") or ""),
@@ -624,6 +627,15 @@ def _destination_state(
     broken = _cannot_send(destination, failed=failed, telegram_ready=telegram_ready)
     if broken is not None:
         return broken
+    if destination.paused_until is not None and destination.is_paused(int(time.time())):
+        until = clock(destination.paused_until, tz or ZoneInfo("UTC"))
+        reason = (destination.paused_reason or "it asked us to wait").rstrip(".")
+        return (
+            "paused",
+            f"Paused until {until}",
+            f"Nothing goes out here until {until}: {reason}. Alerts wait and are sent then; "
+            "a narrower search, or Telegram or Discord, avoids this.",
+        )
     if last_test and not last_test.get("ok"):
         reason = str(last_test.get("message") or "").strip()
         return "failing", "Last test failed", f"The test{tested_at} didn't arrive. {reason}".strip()
@@ -673,6 +685,9 @@ def _tiers(config: dict[str, Any], key: str, default: list[str]) -> list[str]:
         tiers = list(default)
         if key == "tiers" and config.get("deals_only"):
             tiers = ["steal", "deal"]
+        if key == "tiers" and str(config.get("min_deal_pct") or "").isdigit():
+            # A 1.x threshold, shown as the tiers it amounts to; saving the card stores them.
+            tiers = ["steal"] if int(config["min_deal_pct"]) >= STEAL_PCT else ["steal", "deal"]
         return tiers
     if isinstance(raw, str):
         raw = raw.split(",")

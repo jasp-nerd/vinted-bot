@@ -368,3 +368,36 @@ async def test_the_environment_token_wins_over_the_dashboard_one(
     await managed.set_telegram_token(repo, "111111:" + "a" * 35)
 
     assert await managed.telegram_token(pinned, repo) == "333333:" + "c" * 35
+
+
+async def test_ntfy_s_daily_limit_pauses_the_destination_with_a_reason(
+    repo: Repo, settings: Settings
+) -> None:
+    query = await a_search(repo)
+    destination_id = await repo.add_destination(kind="ntfy", name="p", config={"topic": "t"})
+    await repo.record_new_items(query, [listing(1)], [destination_id])
+    quota = httpx.Response(429, json={"code": 42908, "error": "daily message quota reached"})
+    dispatcher = make_dispatcher(repo, settings, FakeEndpoint(quota))
+
+    await dispatcher.drain()
+
+    destination = await repo.get_destination(destination_id)
+    assert destination is not None and destination.is_paused(int(time.time()))
+    assert destination.paused_reason is not None and "daily" in destination.paused_reason
+
+
+async def test_a_paused_destination_is_not_sent_to_until_the_pause_ends(
+    repo: Repo, settings: Settings
+) -> None:
+    query = await a_search(repo)
+    destination_id = await repo.add_destination(kind="ntfy", name="p", config={"topic": "t"})
+    await repo.record_new_items(query, [listing(1)], [destination_id])
+    quota = httpx.Response(429, json={"code": 42908, "error": "daily message quota reached"})
+    endpoint = FakeEndpoint(quota)
+    dispatcher = make_dispatcher(repo, settings, endpoint)
+    await dispatcher.drain()
+    await repo.record_new_items(query, [listing(2)], [destination_id])
+
+    await dispatcher.drain()
+
+    assert endpoint.calls == 1

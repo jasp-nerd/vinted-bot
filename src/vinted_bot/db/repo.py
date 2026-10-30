@@ -22,6 +22,7 @@ import aiosqlite
 from vinted_bot.db.connection import Database
 from vinted_bot.deals import deal_percent, margin
 from vinted_bot.engine import validation
+from vinted_bot.vinted import urls
 from vinted_bot.vinted.models import Item, SellerProfile
 
 # New searches take the next colour from this, so a dashboard with several searches can
@@ -53,6 +54,24 @@ _ID_CLOCK_STEP_S = 60
 Mark = Literal["saved", "hidden"]
 MarkFilter = Literal["visible", "saved", "hidden", "unmarked", "all"]
 NotificationKind = Literal["listing", "price_drop", "sold", "reserved", "removed", "seller_upload"]
+
+
+class DuplicateSearchError(validation.InvalidInputError):
+    """The link is already watched by another search, which this names.
+
+    One rule for the dashboard, the command line and the Telegram bot: adding a link
+    that is already watched is refused with a pointer to that search. They used to
+    disagree. Watching the same link with different filters is what Duplicate is for.
+    """
+
+    def __init__(self, existing: Query) -> None:
+        super().__init__(
+            "link",
+            f"You already watch this search: “{existing.name}”. Change that one, or use "
+            "Duplicate on it to watch the same link with different filters.",
+        )
+        self.existing = existing
+
 
 # --- Row types ---------------------------------------------------------------------
 
@@ -172,6 +191,12 @@ class Destination:
     notify_status: bool = False
     failure_count: int = 0
     deactivated_reason: str | None = None
+    # Its server asked for a break until then (unix seconds), and why; see migration 0007.
+    paused_until: int | None = None
+    paused_reason: str | None = None
+
+    def is_paused(self, now: int) -> bool:
+        return self.paused_until is not None and now < self.paused_until
 
 
 @dataclass(frozen=True, slots=True)
@@ -201,6 +226,8 @@ class PendingNotification:
     watch_id: int | None = None
     # What reselling it would leave, from the search's resale price; None without one.
     margin: Decimal | None = None
+    # The seller's country (ISO code), when a seller lookup has told us.
+    seller_country: str | None = None
 
     @property
     def deal_pct(self) -> int | None:
@@ -454,8 +481,17 @@ def _validated(query: Query) -> Query:
     )
 
 
-# The columns that decide what a search fetches, as opposed to how it judges the results.
-_FETCH_COLUMNS = ("url", "tld", "params_json", "extra_tlds_json")
+def _fetches_differently(before: aiosqlite.Row, after: Query) -> bool:
+    """Whether an edit changed what a search fetches, as opposed to how it judges results.
+
+    Compared by meaning, not stored text: the setup screen, the editor and a pasted link
+    each write the same search a little differently.
+    """
+    return (
+        before["tld"] != after.tld
+        or set(json.loads(before["extra_tlds_json"] or "[]")) != set(after.extra_tlds)
+        or not urls.same_search(json.loads(before["params_json"]), after.params)
+    )
 
 
 def _query_columns(query: Query) -> dict[str, Any]:
@@ -571,9 +607,11 @@ _INSERT_ITEM = (
 _FEED_SELECT = (
     "SELECT i.*, m.mark, q.id AS feed_query_id, q.name AS feed_query_name, "
     "q.color AS feed_query_color, "
+    "COALESCE(i.seller_country, sc.country) AS known_seller_country, "
     "CASE WHEN fqi.query_id IS NULL THEN i.typical_price ELSE fqi.typical_price END "
     "AS feed_typical_price FROM items i "
     "LEFT JOIN item_marks m ON m.item_id = i.item_id "
+    "LEFT JOIN seller_cache sc ON sc.seller_id = i.seller_id "
     "LEFT JOIN query_items fqi ON fqi.rowid = ("
     "  SELECT qi.rowid FROM query_items qi "
     "  WHERE qi.item_id = i.item_id AND qi.status = 'matched' "
@@ -599,14 +637,24 @@ def _feed_item(row: aiosqlite.Row) -> FeedItem:
         query_color=row["feed_query_color"],
         watch_id=row["watch_id"],
         typical_price=_money(row["feed_typical_price"]),
-        seller_country=row["seller_country"],
+        # From the listing's own record, or from any seller lookup since.
+        seller_country=row["known_seller_country"],
         mark=row["mark"],
     )
 
 
 def _pending(row: aiosqlite.Row) -> PendingNotification:
-    """A claimed outbox row, joined with its listing and search, ready to render."""
+    """A claimed outbox row, joined with its listing and search, ready to render.
+
+    The catalog stopped carrying seller ratings, so a listing's seller details come from
+    the seller cache when a lookup (for a country or rating filter) has filled it.
+    """
     item = _item_from_row(row)
+    if item.seller_rating is None and row["cached_stars"] is not None:
+        # The cache keeps stars out of five; a listing carries Vinted's 0..1 fraction.
+        item = item.model_copy(update={"seller_rating": row["cached_stars"] / 5})
+    if item.seller_feedback_count is None and row["cached_reviews"] is not None:
+        item = item.model_copy(update={"seller_feedback_count": row["cached_reviews"]})
     return PendingNotification(
         outbox_id=row["outbox_id"],
         destination_id=row["destination_id"],
@@ -629,6 +677,7 @@ def _pending(row: aiosqlite.Row) -> PendingNotification:
             fee_pct=row["resale_fee_pct"],
             shipping=_money(row["resale_shipping"]),
         ),
+        seller_country=row["known_seller_country"],
     )
 
 
@@ -657,11 +706,37 @@ class Repo:
         max_total_price: Decimal | None = None,
         **filters: Any,
     ) -> int:
-        """Store a new search. Raises `InvalidInputError` for anything it cannot hold.
+        """Store a new search. Raises `InvalidInputError` for anything it cannot hold,
+        and `DuplicateSearchError` for a link another search already watches.
 
         `filters` takes any other `Query` field by name — include_terms, regex,
         quiet_start and the rest — so callers name what they set and nothing else.
         """
+        if (existing := await self.find_query_by_url(url)) is not None:
+            raise DuplicateSearchError(existing)
+        return await self._insert_query(
+            name=name,
+            url=url,
+            tld=tld,
+            params=params,
+            poll_interval_s=poll_interval_s,
+            banned_keywords=banned_keywords,
+            max_total_price=max_total_price,
+            **filters,
+        )
+
+    async def _insert_query(
+        self,
+        *,
+        name: str,
+        url: str,
+        tld: str,
+        params: dict[str, str],
+        poll_interval_s: int,
+        banned_keywords: list[str] | None = None,
+        max_total_price: Decimal | None = None,
+        **filters: Any,
+    ) -> int:
         count = int(await self._db.fetch_value("SELECT COUNT(*) FROM queries") or 0)
         filters.setdefault("color", PALETTE[count % len(PALETTE)])
         query = _validated(
@@ -697,7 +772,7 @@ class Repo:
         so an edit form cannot forget a field and blank it. The running poller notices
         the change on the supervisor's next pass and restarts with the new rules.
 
-        Changing what the search fetches (its link, site or extra sites) makes it a
+        Changing what the search fetches (its filters, site or extra sites) makes it a
         different search as far as "new" goes: its floor belonged to the old results, so
         the next check starts over and records the page without announcing it, and its
         typical price starts again from the new results.
@@ -708,14 +783,14 @@ class Repo:
         now = int(time.time())
         async with self._db.transaction() as conn:
             async with conn.execute(
-                f"SELECT {', '.join(_FETCH_COLUMNS)} FROM queries WHERE id = ?", (stored.id,)
+                "SELECT tld, params_json, extra_tlds_json FROM queries WHERE id = ?", (stored.id,)
             ) as cursor:
                 before = await cursor.fetchone()
             await conn.execute(
                 f"UPDATE queries SET {assignments}, updated_at = ? WHERE id = ?",
                 (*columns.values(), now, stored.id),
             )
-            if before is not None and any(before[name] != columns[name] for name in _FETCH_COLUMNS):
+            if before is not None and _fetches_differently(before, stored):
                 await conn.execute(
                     "UPDATE query_state SET last_success_at = NULL, floor_item_id = NULL, "
                     "newest_raw_id = NULL, raw_advanced_at = NULL, stale_cycles = 0, "
@@ -733,7 +808,8 @@ class Repo:
         original = await self.get_query(query_id)
         if original is None:
             return None
-        copy_id = await self.add_query(
+        # The one way to watch a link twice: the copy is meant to get different filters.
+        copy_id = await self._insert_query(
             name=name or f"{original.name} (copy)"[: validation.MAX_NAME_LENGTH],
             url=original.url,
             tld=original.tld,
@@ -970,12 +1046,28 @@ class Repo:
         kind: str,
         name: str,
         config: dict[str, Any],
-        notify_status: bool = False,
+        notify_status: bool | None = None,
     ) -> int:
+        """Store a destination. Status notices are on unless said otherwise when no other
+        active destination gets them yet.
+
+        Status notices (a stale search, a site that keeps failing, an update installed
+        overnight) used to be off for every destination made in the dashboard, in setup or
+        by pairing Telegram, so they reached nobody.
+        """
+        if notify_status is None:
+            notify_status = not await self.status_destination_ids()
         return await self._db.insert(
             "INSERT INTO destinations (kind, name, config_json, notify_status, created_at) "
             "VALUES (?, ?, ?, ?, ?)",
             (kind, name, json.dumps(config), int(notify_status), int(time.time())),
+        )
+
+    async def set_notify_status(self, destination_id: int, enabled: bool) -> None:
+        """Whether a destination gets status notices as well as alerts."""
+        await self._db.execute(
+            "UPDATE destinations SET notify_status = ? WHERE id = ?",
+            (int(enabled), destination_id),
         )
 
     async def list_destinations(self, *, active_only: bool = False) -> list[Destination]:
@@ -1017,9 +1109,30 @@ class Repo:
         )
 
     async def reset_destination_failures(self, destination_id: int) -> None:
+        """A delivery got through: the failure count and any pause are over."""
         await self._db.execute(
-            "UPDATE destinations SET failure_count = 0 WHERE id = ?", (destination_id,)
+            "UPDATE destinations SET failure_count = 0, paused_until = NULL, "
+            "paused_reason = NULL WHERE id = ?",
+            (destination_id,),
         )
+
+    async def pause_destination(self, destination_id: int, *, until: int, reason: str) -> None:
+        """Send nothing to a destination until `until`, because its server asked.
+
+        What is queued waits rather than failing; anything that would be stale by then
+        expires on its own like any undelivered alert.
+        """
+        async with self._db.transaction() as conn:
+            await conn.execute(
+                "UPDATE destinations SET paused_until = ?, paused_reason = ? WHERE id = ?",
+                (until, reason[:500], destination_id),
+            )
+            await conn.execute(
+                "UPDATE outbox SET status = 'pending', lease_expires_at = NULL, "
+                "next_attempt_at = MAX(next_attempt_at, ?), last_error = ? "
+                "WHERE destination_id = ? AND status IN ('pending', 'sending')",
+                (until, reason[:500], destination_id),
+            )
 
     @staticmethod
     def _to_destination(row: aiosqlite.Row) -> Destination:
@@ -1032,6 +1145,8 @@ class Repo:
             notify_status=bool(row["notify_status"]),
             failure_count=row["failure_count"],
             deactivated_reason=row["deactivated_reason"],
+            paused_until=row["paused_until"],
+            paused_reason=row["paused_reason"],
         )
 
     # --- Routing -------------------------------------------------------------------
@@ -1371,8 +1486,12 @@ class Repo:
                 "q.tld AS query_tld, q.resale_price, q.resale_fee_pct, q.resale_shipping, "
                 "w.label AS watch_label, qi.first_seen_at AS search_first_seen_at, "
                 "CASE WHEN o.query_id IS NULL THEN i.typical_price ELSE qi.typical_price END "
-                "AS search_typical_price, i.* FROM outbox o "
+                "AS search_typical_price, sc.rating AS cached_stars, "
+                "sc.reviews AS cached_reviews, "
+                "COALESCE(i.seller_country, sc.country) AS known_seller_country, "
+                "i.* FROM outbox o "
                 "JOIN items i ON i.item_id = o.item_id "
+                "LEFT JOIN seller_cache sc ON sc.seller_id = i.seller_id "
                 "LEFT JOIN queries q ON q.id = o.query_id "
                 "LEFT JOIN query_items qi ON qi.query_id = o.query_id AND qi.item_id = o.item_id "
                 "LEFT JOIN watches w ON w.id = o.watch_id "
@@ -1631,6 +1750,7 @@ class Repo:
         since: int | None = None,
         limit: int = 60,
         offset: int = 0,
+        without_blocked: bool = False,
     ) -> list[FeedItem]:
         """Found listings, newest first, filtered the way the dashboard's grid needs.
 
@@ -1674,6 +1794,11 @@ class Repo:
         if since is not None:
             clauses.append("i.first_seen_at >= ?")
             params.append(since)
+        if without_blocked:
+            clauses.append(
+                "(i.seller_id IS NULL OR "
+                "i.seller_id NOT IN (SELECT seller_id FROM blocked_sellers))"
+            )
         rows = await self._db.fetch_all(
             f"{_FEED_SELECT} WHERE {' AND '.join(clauses)} ORDER BY i.seq DESC LIMIT ? OFFSET ?",
             (*params, limit, offset),
@@ -1681,9 +1806,12 @@ class Repo:
         return [_feed_item(row) for row in rows]
 
     async def all_found(self, *, query_id: int | None = None) -> list[FeedItem]:
-        """Every listing still stored that a search matched, newest first, for export."""
+        """Every listing still stored that a search matched, newest first, for export.
+
+        Not a blocked seller's: blocking says "never show me this seller again".
+        """
         # LIMIT -1 is SQLite for "no limit".
-        return await self.items_feed(query_id=query_id, mark="all", limit=-1)
+        return await self.items_feed(query_id=query_id, mark="all", limit=-1, without_blocked=True)
 
     async def items_after(self, cursor: int, *, limit: int = 50) -> list[FeedItem]:
         """Listings found after a cursor, oldest first: what a live feed appends next.
@@ -1791,17 +1919,33 @@ class Repo:
     async def delete_watch(self, watch_id: int) -> None:
         await self._db.execute("DELETE FROM watches WHERE id = ?", (watch_id,))
 
-    async def route_watch(self, watch_id: int, destination_id: int) -> None:
-        await self._db.execute(
-            "INSERT OR IGNORE INTO watch_destinations (watch_id, destination_id) VALUES (?, ?)",
-            (watch_id, destination_id),
-        )
+    async def set_watch_routes(self, watch_id: int, destination_ids: Iterable[int]) -> list[int]:
+        """Replace a watch's routes in one go; empty means "every destination".
 
-    async def unroute_watch(self, watch_id: int, destination_id: int) -> None:
-        await self._db.execute(
-            "DELETE FROM watch_destinations WHERE watch_id = ? AND destination_id = ?",
-            (watch_id, destination_id),
+        Like `set_routes` for searches: ids that name no destination are dropped. Returns
+        the routes as stored.
+        """
+        wanted = sorted(set(destination_ids))
+        async with self._db.transaction() as conn:
+            await conn.execute("DELETE FROM watch_destinations WHERE watch_id = ?", (watch_id,))
+            if wanted:
+                placeholders = ",".join("?" * len(wanted))
+                await conn.execute(
+                    "INSERT INTO watch_destinations (watch_id, destination_id) "
+                    f"SELECT ?, id FROM destinations WHERE id IN ({placeholders}) "
+                    "AND EXISTS (SELECT 1 FROM watches WHERE id = ?)",
+                    (watch_id, *wanted, watch_id),
+                )
+        return await self.watch_routes(watch_id)
+
+    async def watch_routes(self, watch_id: int) -> list[int]:
+        """The destinations someone picked for a watch; empty means "all of them"."""
+        rows = await self._db.fetch_all(
+            "SELECT destination_id FROM watch_destinations WHERE watch_id = ? "
+            "ORDER BY destination_id",
+            (watch_id,),
         )
+        return [row["destination_id"] for row in rows]
 
     async def destination_ids_for_watch(self, watch_id: int) -> list[int]:
         """Where a watch's alerts go: its routes, or every active destination if it has none."""
@@ -1874,10 +2018,21 @@ class Repo:
             await conn.execute(
                 _INSERT_ITEM, (*_item_values(item, now, keep_raw=False), None, None, None, None)
             )
+            # A new asking price makes the stored total, which a search recorded with the
+            # old one, wrong: the listing page has no buyer-protection figure, so the total
+            # is only kept when the price did not change.
             await conn.execute(
-                "UPDATE items SET price = COALESCE(?, price), "
-                "total_price = COALESCE(?, total_price) WHERE item_id = ?",
-                (_real(item.price), _real(item.total_price), item.item_id),
+                "UPDATE items SET total_price = CASE WHEN ? IS NULL OR price IS ? "
+                "THEN COALESCE(?, total_price) ELSE ? END, "
+                "price = COALESCE(?, price) WHERE item_id = ?",
+                (
+                    _real(item.price),
+                    _real(item.price),
+                    _real(item.total_price),
+                    _real(item.total_price),
+                    _real(item.price),
+                    item.item_id,
+                ),
             )
             await conn.executemany(
                 "INSERT INTO outbox (item_id, watch_id, destination_id, kind, previous_price, "

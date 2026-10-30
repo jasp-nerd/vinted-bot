@@ -19,6 +19,9 @@ class SendResult:
     permanent_error: str | None = None
     error: str | None = None
     pause_all_for_s: float | None = None
+    # The destination's server refused more until then (unix seconds): stop sending to it
+    # until that moment, with `error` as the reason shown on the Alerts page.
+    pause_until: int | None = None
 
     @classmethod
     def ok(cls, outbox_ids: list[int]) -> SendResult:

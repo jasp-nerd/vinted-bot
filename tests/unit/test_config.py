@@ -36,9 +36,27 @@ def test_poll_interval_below_floor_is_rejected() -> None:
         Settings(_env_file=None, poll_default_interval_s=1)  # type: ignore[call-arg]
 
 
-def test_unknown_environment_keys_are_rejected() -> None:
-    with pytest.raises(ValidationError):
-        Settings(_env_file=None, wat_is_this=True)  # type: ignore[call-arg]
+def test_unknown_keys_do_not_stop_the_app_starting(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A leftover VINTED_SNIPER_ line or another program's PUID used to be fatal."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text("PUID=1000\nVINTED_SNIPER_WEB_PORT=9000\n", encoding="utf-8")
+
+    assert Settings().web_port == 8000
+
+
+def test_unknown_vinted_keys_are_named_for_a_warning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text(
+        "PUID=1000\n# VINTED_BOT_OLD=1\nVINTED_SNIPER_WEB_PORT=9000\nVINTED_BOT_WEB_PORT=8001\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("VINTED_BOT_WEB_PROT", "8002")
+
+    assert Settings.unknown_keys() == ["VINTED_BOT_WEB_PROT", "VINTED_SNIPER_WEB_PORT"]
 
 
 def test_an_existing_data_folder_keeps_being_used(
@@ -80,9 +98,27 @@ def test_the_time_zone_falls_back_to_tz(monkeypatch: pytest.MonkeyPatch) -> None
     assert Settings(_env_file=None).timezone == "Europe/Paris"  # type: ignore[call-arg]
 
 
-def test_an_unknown_time_zone_is_refused() -> None:
-    with pytest.raises(ValidationError, match="time zone"):
-        Settings(_env_file=None, timezone="Mars/Olympus")  # type: ignore[call-arg]
+@pytest.mark.parametrize("value", [":/etc/localtime", "CET-1CEST,M3.5.0,M10.5.0/3", "Mars/Olympus"])
+def test_a_time_zone_the_app_cannot_read_falls_back_with_a_warning(
+    value: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Systems set TZ in POSIX forms zoneinfo cannot read; that stopped the app starting."""
+    monkeypatch.setattr(config, "system_timezone", lambda: "Europe/Amsterdam")
+    monkeypatch.setenv("TZ", value)
+
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+
+    assert settings.timezone == "Europe/Amsterdam"
+    assert "Europe/Amsterdam is used" in settings.warnings[0]
+
+
+def test_a_bad_setting_is_explained_in_one_paragraph() -> None:
+    with pytest.raises(ValidationError) as raised:
+        Settings(_env_file=None, web_port="abc")  # type: ignore[call-arg,arg-type]
+
+    assert config.explain(raised.value).startswith(
+        "vinted-bot can't start because of its settings. VINTED_BOT_WEB_PORT is set to 'abc': "
+    )
 
 
 def test_a_value_from_the_environment_says_so(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -13,6 +13,7 @@ everybody already has, and "install an extra first" is where a dashboard setup s
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import apprise
@@ -23,6 +24,19 @@ from vinted_bot.deliver.render import BOT_NAME, ListingView, escape_markdown, vi
 
 # Apprise calls services one after another, so this caps each service, not the whole send.
 TIMEOUT_S = 20.0
+
+# For quiet hours' silent mode: the option that makes a service deliver without a sound,
+# for the services that have one. Apprise reads these from each address rather than per
+# message, so a silent alert goes out through a copy of the addresses with it added.
+# Email and the rest have no such option, and arrive as usual.
+_QUIET_OPTION = {
+    "tgram": ("silent", "yes"),
+    "pover": ("priority", "low"),
+    "ntfy": ("priority", "low"),
+    "ntfys": ("priority", "low"),
+    "gotify": ("priority", "low"),
+    "gotifys": ("priority", "low"),
+}
 
 
 def message(listing: ListingView) -> tuple[str, str]:
@@ -58,6 +72,16 @@ def message(listing: ListingView) -> tuple[str, str]:
     return title[:250], "\n\n".join(line for line in lines if line)
 
 
+def quiet_url(url: str) -> str:
+    """An Apprise address made to deliver without a sound, where its service can."""
+    scheme = url.split("://", 1)[0].lower()
+    if scheme not in _QUIET_OPTION:
+        return url
+    key, value = _QUIET_OPTION[scheme]
+    url = re.sub(rf"([?&]){key}=[^&#]*&?", r"\1", url).rstrip("?&")
+    return f"{url}{'&' if '?' in url else '?'}{key}={value}"
+
+
 def _urls(config: dict[str, Any]) -> list[str]:
     raw = config.get("urls")
     if isinstance(raw, str):
@@ -76,9 +100,10 @@ class AppriseSender:
     def __init__(self, config: dict[str, Any], *, dashboard_url: str | None = None) -> None:
         urls = _urls(config)
         self._apprise = apprise.Apprise()
+        self._quiet = apprise.Apprise()
         for position, url in enumerate(urls, start=1):
             # The URL itself stays out of the message: it usually holds a password or token.
-            if not self._apprise.add(url):
+            if not self._apprise.add(url) or not self._quiet.add(quiet_url(url)):
                 raise SenderConfigError(f"Apprise does not recognise URL number {position}")
         self._dashboard_url = dashboard_url
 
@@ -91,7 +116,8 @@ class AppriseSender:
         for notification in batch:
             listing = view(notification, dashboard_url=self._dashboard_url)
             title, body = message(listing)
-            outcome = await self._apprise.async_notify(
+            services = self._quiet if listing.silent else self._apprise
+            outcome = await services.async_notify(
                 body=body,
                 title=title,
                 body_format=apprise.NotifyFormat.MARKDOWN,

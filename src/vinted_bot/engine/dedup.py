@@ -30,7 +30,7 @@ moves the floor up to it, instead of announcing a page of old listings as new.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 from vinted_bot.vinted.models import Item
@@ -49,6 +49,10 @@ class Selection:
     # The floor to store for the next check.
     floor_item_id: int | None
     skipped_stale: int = 0
+    # Unseen listings above the floor that were on Vinted before the freshness window,
+    # with the moment they are known to have been there by. Logged as "too old" so a
+    # quiet search can say why, unlike old stock below the floor, which is not news.
+    too_old: list[tuple[Item, int]] = field(default_factory=list)
 
 
 def newest_timestamp(items: list[Item]) -> int | None:
@@ -103,6 +107,7 @@ def select(
     cutoff = now - freshness_window_s
     known = listed_by or {}
     new: list[Item] = []
+    too_old: list[tuple[Item, int]] = []
     stale = 0
     for item in unseen:
         if floor_item_id is not None and item.item_id <= floor_item_id:
@@ -111,6 +116,7 @@ def select(
         listed = item.photo_ts if item.photo_ts is not None else known.get(item.item_id)
         if listed is not None and listed < cutoff:
             stale += 1
+            too_old.append((item, listed))
             continue
         new.append(item)
 
@@ -125,6 +131,7 @@ def select(
         newest_raw_ts=raw_ts,
         floor_item_id=max(candidates) if candidates else None,
         skipped_stale=stale,
+        too_old=too_old,
     )
 
 

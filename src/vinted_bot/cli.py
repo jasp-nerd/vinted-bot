@@ -10,17 +10,24 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from vinted_bot import __version__, app, log, managed
+import httpx
+from pydantic import ValidationError
+
+from vinted_bot import __version__, app, config, log, managed
 from vinted_bot.config import Settings
 from vinted_bot.db import Database, apply_pending
 from vinted_bot.db import export as exporter
-from vinted_bot.db.repo import Repo
+from vinted_bot.db.repo import DuplicateSearchError, Repo
 from vinted_bot.engine import health, validation
 from vinted_bot.vinted import urls
 from vinted_bot.vinted.client import VintedClient
 from vinted_bot.vinted.errors import BlockedError, VintedError
+from vinted_bot.vinted.proxies import ProxyRotation
 from vinted_bot.vinted.session import SessionManager
 from vinted_bot.vinted.transport import TransportSession
+from vinted_bot.web import destinations as web_destinations
+
+_log = log.get_logger(__name__)
 
 TROUBLESHOOTING = "https://github.com/jasp-nerd/vinted-bot/blob/main/docs/troubleshooting.md"
 
@@ -66,7 +73,9 @@ def build_parser() -> argparse.ArgumentParser:
     watch.add_argument(
         "--include",
         default="",
-        help="Comma-separated words the title must all contain; 'a|b' accepts either.",
+        help="Comma-separated words the title must all contain; 'a|b' accepts either. "
+        'A word matches longer words starting with it (jean finds jeans); "jean" in '
+        "double quotes means that exact word.",
     )
     watch.add_argument("--regex", default="", help="A regular expression the title must match.")
     watch.add_argument("--min-rating", default="", help="Minimum seller rating, 0 to 5 stars.")
@@ -110,17 +119,15 @@ def build_parser() -> argparse.ArgumentParser:
     unwatch = sub.add_parser("unwatch", help="Remove a search.")
     unwatch.add_argument("query_id", type=int)
 
-    destination = sub.add_parser("destination", help="Add somewhere to send notifications.")
-    destination.add_argument("kind", choices=["discord", "telegram", "webhook", "ntfy"])
-    destination.add_argument(
-        "target", help="Webhook URL, Telegram chat id, ntfy topic, or endpoint URL."
-    )
-    destination.add_argument("--name", default="", help="What to call it.")
-    destination.add_argument(
-        "--status", action="store_true", help="Also send health warnings here."
-    )
+    _destination_parser(sub)
 
     sub.add_parser("destinations", help="List destinations.")
+
+    backup = sub.add_parser(
+        "backup",
+        help="Copy the database to a file, safely, even while the app is running.",
+    )
+    backup.add_argument("file", help="Where to write the copy, such as vinted-bot-backup.db.")
 
     export = sub.add_parser("export", help="Write found listings as CSV or JSON.")
     export.add_argument("--format", choices=["csv", "json"], default="csv")
@@ -142,6 +149,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     return parser
+
+
+def _destination_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    destination = sub.add_parser("destination", help="Add somewhere to send notifications.")
+    destination.add_argument("kind", choices=["telegram", "discord", "ntfy", "webhook", "apprise"])
+    destination.add_argument(
+        "target",
+        help="Telegram chat id, Discord webhook link, ntfy topic or topic URL, your "
+        "endpoint's URL, or an Apprise address (as Apprise writes it).",
+    )
+    destination.add_argument("--name", default="", help="What to call it.")
+    destination.add_argument(
+        "--status",
+        action="store_true",
+        default=None,
+        help="Also send status notices here (stale searches, a site that keeps failing, "
+        "updates). The first destination gets them without asking.",
+    )
 
 
 # --- Commands ----------------------------------------------------------------------
@@ -169,9 +194,12 @@ async def _cmd_check(settings: Settings, url: str) -> int:
 
     async with Database(settings.db_path) as db:
         await apply_pending(db)
+        # Through a proxy from VINTED_BOT_PROXY_FILE if there is one, like a search: a
+        # check that goes out directly proves nothing about how the app connects.
         async with TransportSession.build(
             impersonate=settings.http_impersonate,
             timeout=settings.request_timeout_s,
+            proxy=ProxyRotation.from_file(settings.proxy_file).acquire(),
             mock_dir=settings.mock_scenario_dir if settings.fetch_mode == "mock" else None,
         ) as transport:
             sessions = SessionManager(
@@ -278,10 +306,6 @@ async def _cmd_watch(settings: Settings, args: argparse.Namespace) -> int:
         await apply_pending(db)
         repo = Repo(db)
 
-        if await repo.find_query_by_url(normalised) is not None:
-            print("That search is already being watched.", file=sys.stderr)
-            return 1
-
         known = {destination.id for destination in await repo.list_destinations()}
         if unknown := [i for i in destination_ids if i not in known]:
             print(f"No destination with id {unknown[0]}.", file=sys.stderr)
@@ -296,6 +320,9 @@ async def _cmd_watch(settings: Settings, args: argparse.Namespace) -> int:
                 poll_interval_s=interval,
                 **fields,
             )
+        except DuplicateSearchError as exc:
+            print(f"{exc.message} It is search {exc.existing.id}.", file=sys.stderr)
+            return 1
         except validation.InvalidInputError as exc:
             print(exc.message, file=sys.stderr)
             return 2
@@ -355,17 +382,39 @@ async def _cmd_unwatch(settings: Settings, query_id: int) -> int:
     return 0
 
 
-async def _cmd_destination(settings: Settings, args: argparse.Namespace) -> int:
-    config: dict[str, str]
-    match args.kind:
+def _destination_config(kind: str, target: str) -> dict[str, Any]:
+    """What a destination stores, checked the way the dashboard checks it."""
+    match kind:
         case "discord":
-            config = {"webhook_url": args.target}
+            return {"url": web_destinations.discord_url(target)}
         case "telegram":
-            config = {"chat_id": args.target}
+            if not target.strip().lstrip("-").isdigit():
+                raise validation.InvalidInputError(
+                    "target",
+                    "A Telegram chat id is a number, like 123456789 or -1001234567890. "
+                    "Or skip it: vinted-bot pair-telegram prints a link that connects a chat.",
+                )
+            return {"chat_id": target.strip()}
+        case "ntfy":
+            return web_destinations.ntfy_config(target)
         case "webhook":
-            config = {"url": args.target}
+            if not target.strip().startswith(("https://", "http://")):
+                raise validation.InvalidInputError(
+                    "target", "The address must start with https://."
+                )
+            return {"url": target.strip()}
         case _:
-            config = {"topic": args.target}
+            return {"urls": [target.strip()]}
+
+
+async def _cmd_destination(settings: Settings, args: argparse.Namespace) -> int:
+    try:
+        config = _destination_config(args.kind, args.target)
+        async with httpx.AsyncClient(timeout=settings.request_timeout_s) as http:
+            web_destinations.check(args.kind, config, settings, http)
+    except validation.InvalidInputError as exc:
+        print(exc.message, file=sys.stderr)
+        return 2
 
     async with Database(settings.db_path) as db:
         await apply_pending(db)
@@ -472,14 +521,46 @@ async def _cmd_status(settings: Settings) -> int:
     return 0
 
 
+async def _cmd_backup(settings: Settings, target: str) -> int:
+    """A consistent copy of the database, taken through SQLite's own backup.
+
+    Copying app.db by hand while the app runs copies a file whose recent changes still
+    sit in app.db-wal beside it, which is how a documented backup came out empty.
+    """
+    path = Path(target)
+    if await asyncio.to_thread(path.exists):
+        print(f"{target} already exists; pick a new file name.", file=sys.stderr)
+        return 2
+    if not await asyncio.to_thread(settings.db_path.exists):
+        print(f"There is no database at {settings.db_path} yet.", file=sys.stderr)
+        return 1
+    async with Database(settings.db_path) as db:
+        await db.backup_to(path)
+    print(f"Backed up {settings.db_path} to {target}.")
+    return 0
+
+
 async def _cmd_heartbeat(settings: Settings) -> int:
     async with Database(settings.db_path) as db:
         return 0 if await health.is_alive(Repo(db)) else 1
 
 
 async def _run(args: argparse.Namespace) -> int:
-    settings = Settings()
-    log.configure(level=settings.log_level, fmt=settings.log_format)
+    try:
+        settings = Settings()
+    except ValidationError as exc:
+        print(config.explain(exc), file=sys.stderr)
+        return 2
+    log.configure(level=settings.log_level, fmt=settings.log_format, timezone=settings.timezone)
+    for warning in settings.warnings:
+        _log.warning("config.not_used", problem=warning)
+    if unknown := Settings.unknown_keys():
+        _log.warning(
+            "config.unknown_keys",
+            keys=unknown,
+            hint="no setting has these names, so they do nothing; check for typos or "
+            "keys left over from an older version",
+        )
 
     match args.command:
         case "run":
@@ -498,6 +579,8 @@ async def _run(args: argparse.Namespace) -> int:
             return await _cmd_destination(settings, args)
         case "destinations":
             return await _cmd_destinations(settings)
+        case "backup":
+            return await _cmd_backup(settings, args.file)
         case "export":
             return await _cmd_export(settings, args)
         case "pair-telegram":

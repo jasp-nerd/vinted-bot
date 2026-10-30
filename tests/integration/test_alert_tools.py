@@ -61,6 +61,13 @@ def test_a_custom_threshold_is_honoured() -> None:
     ) == (True, True)
 
 
+def test_an_old_threshold_does_not_filter_a_destination_that_takes_everything() -> None:
+    """The Alerts page showed "everything else" ticked while 1.x's threshold still filtered."""
+    listing = notification(1, typical_price=Decimal("17"))
+
+    assert skip_reason(listing, {"tiers": ["steal", "deal", "normal"], "min_deal_pct": 30}) is None
+
+
 def test_without_a_typical_price_nothing_counts_as_a_deal() -> None:
     assert skip_reason(notification(1), {"deals_only": True}) is not None
 
@@ -70,6 +77,17 @@ def test_a_watched_price_drop_always_gets_through() -> None:
     drop = notification(1, kind="price_drop", previous_price=Decimal("30"))
 
     assert skip_reason(drop, {"deals_only": True}) is None
+
+
+@pytest.mark.parametrize("kind", ["price_drop", "sold", "seller_upload"])
+def test_a_destination_can_turn_watch_alerts_off(kind: str) -> None:
+    assert skip_reason(notification(1, kind=kind), {"watch_alerts": False}) == (
+        "skipped: this destination does not take watch alerts"
+    )
+
+
+def test_turning_watch_alerts_off_leaves_search_listings_alone() -> None:
+    assert skip_reason(notification(1), {"watch_alerts": False}) is None
 
 
 def test_an_unpicky_destination_skips_nothing() -> None:
@@ -391,3 +409,10 @@ def test_other_previews_render(kind: str) -> None:
 def test_an_unknown_kind_has_no_preview() -> None:
     with pytest.raises(ValueError, match="carrier pigeon"):
         preview_payload("carrier pigeon")
+
+
+def test_a_test_webhook_says_no_search_sent_it() -> None:
+    """It used to say search 0, which the documented payload never uses."""
+    payload = preview_payload("webhook")
+
+    assert (payload["search_id"], payload["items"][0]["search_id"]) == (None, None)
