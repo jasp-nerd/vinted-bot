@@ -70,7 +70,7 @@ def test_an_existing_data_folder_keeps_being_used(
 ) -> None:
     """Upgrading must not strand someone's searches in a file the app stopped reading."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(config, "_in_container", lambda: False)
+    monkeypatch.setattr(config, "in_container", lambda: False)
     (tmp_path / "data").mkdir()
     (tmp_path / "data" / "app.db").write_bytes(b"")
 
@@ -81,7 +81,7 @@ def test_a_fresh_install_uses_the_user_data_folder(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(config, "_in_container", lambda: False)
+    monkeypatch.setattr(config, "in_container", lambda: False)
 
     path = config.default_db_path()
 
@@ -93,7 +93,7 @@ def test_a_container_keeps_the_relative_default(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(config, "_in_container", lambda: True)
+    monkeypatch.setattr(config, "in_container", lambda: True)
 
     assert config.default_db_path() == config.LEGACY_DB_PATH
 

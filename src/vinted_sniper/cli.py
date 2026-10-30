@@ -451,8 +451,7 @@ async def _run(args: argparse.Namespace) -> int:
 
     match args.command:
         case "run":
-            await app.run(settings, open_browser=args.open)
-            return 0
+            return await app.run(settings, open_browser=args.open)
         case "migrate":
             return await _cmd_migrate(settings)
         case "check":

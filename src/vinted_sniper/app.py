@@ -26,7 +26,7 @@ from vinted_sniper.config import MAX_BACKOFF_S, Settings
 from vinted_sniper.db import Database, apply_pending
 from vinted_sniper.db.repo import Query, Repo
 from vinted_sniper.deliver.dispatcher import Dispatcher
-from vinted_sniper.engine import updates
+from vinted_sniper.engine import self_update, updates
 from vinted_sniper.engine.health import Heartbeat
 from vinted_sniper.engine.poller import Poller
 from vinted_sniper.engine.watchdog import Watchdog
@@ -63,8 +63,11 @@ class Application:
         *,
         supervise_interval_s: float = SUPERVISE_INTERVAL_S,
         open_browser: bool = False,
+        install: self_update.Install | None = None,
     ) -> None:
         self._settings = settings
+        # How this copy was installed; worked out at startup unless a test says.
+        self._install = install
         self._supervise_interval_s = supervise_interval_s
         self._open_browser = open_browser
         self._stop = asyncio.Event()
@@ -81,7 +84,8 @@ class Application:
     def request_stop(self) -> None:
         self._stop.set()
 
-    async def run(self) -> None:
+    async def run(self) -> int:
+        """Run until stopped. The exit code: RESTART_EXIT_CODE after an update."""
         settings = self._settings
 
         async with Database(settings.db_path) as db:
@@ -124,6 +128,7 @@ class Application:
                     announce=dispatcher.notify_status,
                 )
                 heartbeat = Heartbeat(repo, self._stop, http=http)
+                updater = self_update.Updater(settings, repo, self._stop, self._install)
                 watcher = Watcher(
                     repo=repo,
                     stop=self._stop,
@@ -138,6 +143,8 @@ class Application:
                     db=str(settings.db_path),
                     fetch_mode=settings.fetch_mode,
                     web=settings.web_enabled,
+                    install=updater.install.kind.value,
+                    supervisor=settings.supervised,
                 )
 
                 try:
@@ -147,6 +154,8 @@ class Application:
                         tg.create_task(heartbeat.run(), name="heartbeat")
                         tg.create_task(watcher.run(), name="watcher")
                         tg.create_task(self._housekeeping(repo, http), name="housekeeping")
+                        tg.create_task(updater.run_automatically(), name="auto-update")
+                        tg.create_task(self._report_update(repo, dispatcher), name="update-report")
                         tg.create_task(
                             self._supervise(tg, repo, client, sessions), name="supervisor"
                         )
@@ -156,7 +165,9 @@ class Application:
                         if settings.web_enabled:
                             taxonomy = Taxonomy(sessions, repo)
                             tg.create_task(
-                                self._run_web(repo, taxonomy, client, watcher.available_kinds),
+                                self._run_web(
+                                    repo, taxonomy, client, watcher.available_kinds, updater
+                                ),
                                 name="web",
                             )
                             if self._open_browser:
@@ -165,11 +176,17 @@ class Application:
                     for error in group.exceptions:
                         log.exception("app.task_failed", error=str(error))
                     raise
+                # A shutdown halfway through an upgrade would leave it half installed.
+                await updater.settle()
             finally:
                 await http.aclose()
                 await pool.aclose()
 
+        if updater.restart_requested:
+            log.info("app.stopped", restarting_for="update")
+            return self_update.RESTART_EXIT_CODE
         log.info("app.stopped")
+        return 0
 
     # --- Supervision ---------------------------------------------------------------
 
@@ -297,6 +314,14 @@ class Application:
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(self._stop.wait(), timeout=HOUSEKEEPING_INTERVAL_S)
 
+    async def _report_update(self, repo: Repo, dispatcher: Dispatcher) -> None:
+        """Say how the update that restarted the app went (self_update.finish_pending)."""
+        try:
+            await self_update.finish_pending(repo, dispatcher.notify_status)
+        except sqlite3.OperationalError as exc:
+            # A locked database: the note stays, and the next start reports it instead.
+            log.warning("update.report_failed", error=str(exc))
+
     async def _run_telegram_bot(self, repo: Repo) -> None:
         from vinted_sniper.botctl.telegram_bot import run_bot  # noqa: PLC0415
 
@@ -314,6 +339,7 @@ class Application:
         taxonomy: Taxonomy,
         client: VintedClient,
         watch_kinds: frozenset[str],
+        updater: self_update.Updater,
     ) -> None:
         # Imported here so CLI commands that never serve the dashboard skip loading FastAPI.
         from vinted_sniper.web.server import serve  # noqa: PLC0415
@@ -326,6 +352,7 @@ class Application:
                 taxonomy,
                 client=client,
                 watch_kinds=watch_kinds,
+                updater=updater,
             )
         except Exception as exc:
             log.exception("web.failed", error=str(exc))
@@ -369,5 +396,5 @@ class Application:
         self._stop.set()
 
 
-async def run(settings: Settings, *, open_browser: bool = False) -> None:
-    await Application(settings, open_browser=open_browser).run()
+async def run(settings: Settings, *, open_browser: bool = False) -> int:
+    return await Application(settings, open_browser=open_browser).run()

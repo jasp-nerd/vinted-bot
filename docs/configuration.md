@@ -96,6 +96,15 @@ was found, so you can see the real delay yourself.
 | `WEB_PUBLIC_URL` | unset | The address the dashboard is reachable at from wherever you read your alerts — set it when the dashboard sits behind a reverse proxy or a tunnel. It becomes the Dashboard link in Discord messages; unset, that link points at `http://<WEB_HOST>:<WEB_PORT>`. Its host name is also one the dashboard answers to (see `WEB_ALLOWED_HOSTS`). |
 | `WEB_ALLOWED_HOSTS` | unset | Extra host names the dashboard answers to, comma-separated, such as `nas.local,finds.example.org`. The dashboard always answers to `localhost`, `127.0.0.1`, `[::1]`, any IP address (so `http://192.168.1.20:8000` from a phone works) and the host of `WEB_PUBLIC_URL`. Any other name gets a 400 page that names this setting. That is what stops another website from pointing its own name at your computer and using the dashboard through your browser (DNS rebinding), and it applies however the dashboard is bound, the Docker image's `0.0.0.0` included. Add the name your reverse proxy forwards, if it does not pass the original one on. |
 
+### Updating
+
+How the dashboard's update button and automatic updates behave for each kind of install is
+in [Running it somewhere: Updating](self-hosting.md#updating).
+
+| Variable | Default | What it does |
+|---|---|---|
+| `SUPERVISED` | unset | `launchd`, `systemd` or `windows-launcher`. Says that something starts the app again whenever it exits. The installers set it in the start-at-login entry they write; you only set it yourself if you wrote your own service that restarts the app after any exit (exit code 75 means "updated, start me again"). With it, **Update now** in the dashboard restarts into the new version by itself, and automatic updates can be switched on. |
+
 ### Logging and development
 
 | Variable | Default | What it does |

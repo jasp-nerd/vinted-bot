@@ -990,6 +990,9 @@ body.is-task .savebar { bottom: 0; }
 /* Text on colour fields uses the -ink variants so it passes 4.5:1. */
 .field-panel .ok-ink { color: var(--c-success-ink); }
 .field-panel .bad-ink { color: var(--c-danger-ink); }
+.set .bad-ink { color: var(--c-danger-ink); }
+/* What uv or pipx printed while updating, for when it goes wrong. */
+.update-log { margin: 0; max-height: 220px; overflow: auto; white-space: pre-wrap; word-break: break-word; padding: 10px 12px; font-size: 12px; }
 .field-panel p a { color: var(--field-ink, var(--c-ink)); text-decoration: underline; }
 .status--stuck::before { background: #b07600; }
 /* Collapsed editor sections show what they hold in one line. */

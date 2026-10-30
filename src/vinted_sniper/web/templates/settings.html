@@ -100,10 +100,32 @@
 
     <section class="ssec" id="updates" aria-labelledby="h-updates">
       <h2 class="t-h2" id="h-updates">Updates</h2>
-      <p>You're on version {{ app.version }}.</p>
+      {% set kind = install.kind.value %}
+      <p>You're on version {{ app.version }}, {% if kind == "docker" %}running in Docker. Updates come as a new image.{% elif kind == "source" %}running from a copy of the source code.{% elif kind == "uvx" %}running through uvx.{% elif kind == "other" %}installed with pip.{% elif install.can_update_automatically %}installed so that it can update itself and start again on its own.{% elif install.can_upgrade %}installed so that it can update itself. You restart it afterwards.{% else %}installed with {{ "pipx" if kind == "pipx" else "uv" }}.{% endif %}</p>
       <div class="card">
         <div class="set"><div class="set__text"><span class="t-h3">Tell me when there's a new version</span><span class="t-sm">Looks at GitHub once a day. Sends nothing about you.</span></div><label class="switch"><input type="checkbox" data-setting="update_check"{% if prefs.update_check %} checked{% endif %} aria-label="Check for updates"></label></div>
-        {% if app.new_version %}<div class="set"><div class="set__text"><span class="t-h3">Version {{ app.new_version.version }} is out</span><span class="t-sm">Updating keeps your searches and finds.</span></div><a class="btn btn--secondary btn--sm" href="{{ app.new_version.url }}" target="_blank" rel="noopener">How to update</a></div>{% endif %}
+        {% if install.can_update_automatically %}
+        <div class="set"><div class="set__text"><span class="t-h3">Install updates by itself</span><span class="t-sm">Between 4 and 5 at night on this clock, never while an alert is on its way out. Your status alerts say when it's done.</span></div><label class="switch"><input type="checkbox" data-setting="auto_update"{% if prefs.auto_update %} checked{% endif %} aria-label="Install updates automatically"></label></div>
+        {% elif kind == "docker" %}
+        <div class="set"><div class="set__text"><span class="t-h3">Updating by itself</span><span class="t-sm">The Docker setup has an optional nightly updater. The self-hosting guide shows how to switch it on.</span></div><a class="btn btn--ghost btn--sm" href="{{ self_hosting }}#updating" target="_blank" rel="noopener">See the guide</a></div>
+        {% endif %}
+        {% set nv = app.new_version %}
+        {% if nv %}
+        <div class="set set--stack"{% if nv.status.phase != "idle" %} data-update-busy="{{ nv.status.boot }}"{% endif %}>
+          <div class="set__text"><span class="t-h3">Version {{ nv.version }} is out</span>
+          {% if nv.can_upgrade %}
+            <span class="t-sm" data-update-text>{{ nv.status.message or "Updating keeps your searches and finds." }}</span></div>
+          <div class="btn-row"><button class="btn btn--primary btn--sm" type="button" data-update-now{% if nv.status.phase in ("upgrading", "restarting", "installed") %} hidden{% endif %}>{{ ui.icon("download", "i-sm") }}{{ "Try again" if nv.status.phase == "failed" else "Update now" }}</button><a class="btn btn--ghost btn--sm" href="{{ nv.notes }}" target="_blank" rel="noopener">What's new</a></div>
+          <pre class="code update-log" data-update-log{% if not nv.status.output %} hidden{% endif %}>{{ nv.status.output|join("\n") }}</pre>
+          {% else %}
+            <span class="t-sm">{{ nv.hint }}</span></div>
+          <div class="row" style="flex-wrap:nowrap"><span class="code grow" style="overflow:auto;white-space:nowrap;padding:8px 10px">{{ nv.command }}</span><button class="btn btn--icon btn--sm" type="button" data-copy="{{ nv.command }}" aria-label="Copy the command">{{ ui.icon("copy", "i-sm") }}</button><a class="btn btn--ghost btn--sm" href="{{ nv.notes }}" target="_blank" rel="noopener">What's new</a></div>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% if update_last %}
+        <div class="set"><div class="set__text"><span class="t-h3">Last update</span><span class="t-sm {{ '' if update_last.ok else 'bad-ink' }}">{{ update_last.message }}{% if update_last_when %} · {{ update_last_when }}{% endif %}</span></div></div>
+        {% endif %}
       </div>
     </section>
 

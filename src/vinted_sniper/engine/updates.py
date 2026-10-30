@@ -1,9 +1,10 @@
 """Noticing that a newer release exists.
 
 Once a day, one anonymous request to GitHub's public releases API, and the answer is stored
-for the dashboard to show. Nothing is downloaded or installed: an app that updates itself
-is an app that can be made to run someone else's code. People who would rather it never
-asked can switch it off in the dashboard's settings.
+for the dashboard to show. Nothing is downloaded from here: installing a release is
+self_update.py's job, which only ever runs uv or pipx against PyPI, and only uses the
+version found here to decide whether to. People who would rather it never asked can
+switch it off in the dashboard's settings.
 """
 
 from __future__ import annotations
@@ -22,6 +23,8 @@ log = get_logger(__name__)
 RELEASES_URL = "https://api.github.com/repos/jasp-nerd/vinted-sniper/releases/latest"
 CHECK_EVERY_S = 86_400
 
+RELEASE_PAGE = "https://github.com/jasp-nerd/vinted-sniper/releases/tag/v{version}"
+
 _VERSION = re.compile(r"^v?(\d+(?:\.\d+)*)")
 
 
@@ -38,6 +41,11 @@ def is_newer(latest: str | None, current: str = __version__) -> bool:
         return False
     theirs, ours = _parts(latest), _parts(current)
     return theirs is not None and ours is not None and theirs > ours
+
+
+def release_notes_url(version: str) -> str:
+    """The GitHub release page for a version: what changed, in the maintainer's words."""
+    return RELEASE_PAGE.format(version=version.lstrip("v"))
 
 
 async def check_for_update(repo: Repo, http: httpx.AsyncClient, *, now: int | None = None) -> None:
