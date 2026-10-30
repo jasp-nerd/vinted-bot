@@ -345,3 +345,27 @@ def test_a_missing_apprise_extra_says_how_to_install_it(monkeypatch: pytest.Monk
 
     with pytest.raises(SenderConfigError, match=r"vinted-sniper\[apprise\]"):
         AppriseSender({"urls": ["vstest://"]})
+
+
+async def test_ntfy_markdown_cannot_be_hijacked_by_a_seller_login() -> None:
+    recorder = Recorder()
+
+    await ntfy(recorder).send([notification(1, seller_login="[click](https://evil.test)")])
+
+    assert "](https://evil.test)" not in recorder.payload()["message"]
+
+
+async def test_an_apprise_title_cannot_break_out_of_its_link() -> None:
+    await AppriseSender({"urls": ["vstest://"]}).send(
+        [notification(1, title="new] [free](https://evil.test")]
+    )
+
+    assert "](https://evil.test" not in _received[0]["body"]
+
+
+async def test_an_apprise_title_cannot_inject_html_into_an_email() -> None:
+    await AppriseSender({"urls": ["vstest://"]}).send(
+        [notification(1, title='<img src="https://evil.test/pixel">')]
+    )
+
+    assert "<img" not in _received[0]["body"]

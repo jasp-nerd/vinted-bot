@@ -15,6 +15,7 @@ from vinted_sniper.deliver.render import (
     MINUS,
     deal_for,
     deal_pct,
+    escape_markdown,
     reachable_dashboard,
     view,
 )
@@ -191,3 +192,8 @@ def test_each_kind_of_alert_has_its_own_headline(kind: str, headline: str) -> No
 
 def test_a_sold_listing_offers_nothing_to_buy() -> None:
     assert view(pending(kind="sold"), dashboard_url=None).can_buy is False
+
+
+def test_markdown_escaping_leaves_ordinary_punctuation_alone() -> None:
+    """Text-only services receive the markdown as is, so needless backslashes would show."""
+    assert escape_markdown("Levi's 501, W32. Size: M!") == "Levi's 501, W32. Size: M!"

@@ -23,7 +23,7 @@ import httpx
 from vinted_sniper.db.repo import PendingNotification
 from vinted_sniper.deliver.base import SenderConfigError, SendResult
 from vinted_sniper.deliver.ratelimit import TokenBucket
-from vinted_sniper.deliver.render import BOT_NAME, ICON_URL, ListingView, view
+from vinted_sniper.deliver.render import BOT_NAME, ICON_URL, ListingView, escape_markdown, view
 
 DEFAULT_SERVER = "https://ntfy.sh"
 
@@ -73,11 +73,12 @@ def push(
         )
         if part
     )
+    seller = escape_markdown(listing.seller_login) if listing.seller_login else None
     lines = [
         first,
-        " · ".join(value for _, value in listing.facts),
-        " · ".join(p for p in (listing.seller_login, listing.rating) if p),
-        f"{listing.flag} {listing.site} · _{listing.search_name}_".strip(),
+        " · ".join(escape_markdown(value) for _, value in listing.facts),
+        " · ".join(p for p in (seller, listing.rating) if p),
+        f"{listing.flag} {listing.site} · _{escape_markdown(listing.search_name)}_".strip(),
     ]
 
     actions = []

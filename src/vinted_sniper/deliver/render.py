@@ -11,6 +11,7 @@ sending one.
 
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass
 from decimal import Decimal
@@ -48,6 +49,12 @@ MAX_FACT = 60
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", "0.0.0.0"})
 
 _ISO_BY_TLD = {"co.uk": "GB", "com": "US"}
+
+# Markdown characters that act anywhere in a line. The ones that only matter at the start
+# of a line (#, >, -, 1.) are left alone: user text never starts one of our lines, and
+# Apprise hands markdown unconverted to text-only services, where every needless
+# backslash would show.
+_MARKDOWN_SPECIAL = re.compile(r"([\\`*_\[\]()])")
 
 # A real minus sign: a hyphen in "-46%" reads as a dash, and wraps like one.
 MINUS = "\u2212"
@@ -147,6 +154,16 @@ class ListingView:
         if self.typical:
             parts.append(f"{self.labels.typical} ~{self.typical}")
         return " · ".join(parts) or None
+
+
+def escape_markdown(text: str) -> str:
+    """User text made inert for generic markdown: no links, emphasis or raw HTML.
+
+    `<` becomes an entity rather than a backslash escape because markdown passes HTML
+    through untouched, and an email built from a title saying <img src=...> should not
+    load anything.
+    """
+    return _MARKDOWN_SPECIAL.sub(r"\\\1", text).replace("<", "&lt;")
 
 
 def deal_pct(total: Decimal | None, typical: Decimal | None) -> int | None:

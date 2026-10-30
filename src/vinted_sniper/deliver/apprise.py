@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 from vinted_sniper.db.repo import PendingNotification
 from vinted_sniper.deliver.base import SenderConfigError, SendResult
-from vinted_sniper.deliver.render import BOT_NAME, ListingView, view
+from vinted_sniper.deliver.render import BOT_NAME, ListingView, escape_markdown, view
 
 if TYPE_CHECKING:
     import apprise as apprise_lib
@@ -42,8 +42,9 @@ def message(listing: ListingView) -> tuple[str, str]:
     if listing.kind != "listing":
         title = f"{listing.headline}: {title}"
 
+    seller = escape_markdown(listing.seller_login) if listing.seller_login else None
     lines = [
-        f"**[{listing.title}]({listing.url})**",
+        f"**[{escape_markdown(listing.title)}]({listing.url})**",
         " · ".join(
             part
             for part in (
@@ -54,9 +55,9 @@ def message(listing: ListingView) -> tuple[str, str]:
             if part
         ),
         listing.price_note,
-        " · ".join(value for _, value in listing.facts),
-        " · ".join(p for p in (listing.seller_login, listing.rating) if p),
-        f"{listing.flag} {listing.site} · {listing.search_name}".strip(),
+        " · ".join(escape_markdown(value) for _, value in listing.facts),
+        " · ".join(p for p in (seller, listing.rating) if p),
+        f"{listing.flag} {listing.site} · {escape_markdown(listing.search_name)}".strip(),
     ]
     links = [f"[{labels.open}]({listing.url})"]
     if listing.can_buy:
