@@ -136,6 +136,11 @@ def build_parser() -> argparse.ArgumentParser:
     pair.add_argument("--name", default="Telegram", help="What to call the destination.")
     pair.add_argument("--bot-username", default="", help="Your bot's @username, without the @.")
 
+    sub.add_parser(
+        "reset-password",
+        help="Give the dashboard a new password and print it, for when the old one is lost.",
+    )
+
     return parser
 
 
@@ -415,6 +420,32 @@ async def _cmd_pair_telegram(settings: Settings, args: argparse.Namespace) -> in
     return 0
 
 
+async def _cmd_reset_password(settings: Settings) -> int:
+    """A new dashboard password, printed once, every browser signed out.
+
+    A new password rather than none: phone access may be on, and the dashboard must never
+    be open to the network without one. Takes effect in a running app at once, since the
+    dashboard reads its password on every request.
+    """
+    from vinted_bot.web import security  # noqa: PLC0415 - loads FastAPI, which most commands skip
+
+    if security.password_from_env(settings):
+        print(
+            "The dashboard's password is VINTED_BOT_WEB_AUTH_TOKEN, set in this copy's "
+            "environment or .env file. Look it up or change it there, then restart.",
+            file=sys.stderr,
+        )
+        return 2
+    password = security.suggest_password()
+    async with Database(settings.db_path) as db:
+        await apply_pending(db)
+        await security.set_password(Repo(db), password)
+    print(f"The dashboard's new password is:\n\n  {password}\n")
+    print("Every browser and phone has been signed out and asks for it once.")
+    print("Change it to one of your own in Settings, Password.")
+    return 0
+
+
 async def _cmd_status(settings: Settings) -> int:
     async with Database(settings.db_path) as db:
         await apply_pending(db)
@@ -471,6 +502,8 @@ async def _run(args: argparse.Namespace) -> int:
             return await _cmd_export(settings, args)
         case "pair-telegram":
             return await _cmd_pair_telegram(settings, args)
+        case "reset-password":
+            return await _cmd_reset_password(settings)
         case "status":
             return await _cmd_status(settings)
         case "heartbeat":

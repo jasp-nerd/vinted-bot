@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hmac
 from typing import Annotated
 
 from fastapi import APIRouter, Form, Request
@@ -20,13 +19,38 @@ def _safe_next(target: str | None) -> str:
     return "/"
 
 
+def sign_in(request: Request, response: Response, token: str) -> None:
+    """Give this browser the session cookie for `token` (security.start_session)."""
+    response.set_cookie(
+        core.SESSION_COOKIE,
+        token,
+        httponly=True,
+        samesite="lax",
+        secure=request.url.scheme == "https",
+        max_age=security.SESSION_MAX_AGE_S,
+    )
+
+
+def _form(request: Request, error: str | None, next: str, status_code: int = 200) -> Response:
+    context = core.ctx(request)
+    return core.TEMPLATES.TemplateResponse(
+        request,
+        "login.html",
+        {
+            "error": error,
+            "next": _safe_next(next),
+            "from_env": security.password_from_env(context.settings),
+        },
+        status_code=status_code,
+    )
+
+
 @router.get("/login")
 async def login_form(request: Request, next: str | None = None) -> Response:
-    if core.ctx(request).settings.web_auth_token is None:
+    context = core.ctx(request)
+    if not await security.password_required(context.settings, context.repo):
         return RedirectResponse("/", status_code=303)
-    return core.TEMPLATES.TemplateResponse(
-        request, "login.html", {"error": None, "next": _safe_next(next)}
-    )
+    return _form(request, None, next or "/")
 
 
 @router.post("/login")
@@ -36,43 +60,30 @@ async def login(
     next: Annotated[str, Form()] = "/",
 ) -> Response:
     context = core.ctx(request)
-    token = context.settings.web_auth_token
-    if token is None:
+    if not await security.password_required(context.settings, context.repo):
         return RedirectResponse("/", status_code=303)
     address = request.client.host if request.client else "unknown"
     if wait_s := context.login_throttle.wait_s(address):
         minutes = max(1, round(wait_s / 60))
-        return core.TEMPLATES.TemplateResponse(
+        response = _form(
             request,
-            "login.html",
-            {
-                "error": f"Too many wrong passwords. Wait {minutes} min and try again.",
-                "next": _safe_next(next),
-            },
+            f"Too many wrong passwords. Wait {minutes} min and try again.",
+            next,
             status_code=429,
-            headers={"Retry-After": str(wait_s)},
         )
-    if not hmac.compare_digest(password.encode(), token.get_secret_value().encode()):
+        response.headers["Retry-After"] = str(wait_s)
+        return response
+    if not await security.password_matches(context.settings, context.repo, password):
         context.login_throttle.failed(address)
-        return core.TEMPLATES.TemplateResponse(
+        return _form(
             request,
-            "login.html",
-            {
-                "error": "That password didn't match. Check caps lock and try again.",
-                "next": _safe_next(next),
-            },
+            "That password didn't match. Check caps lock and try again.",
+            next,
             status_code=401,
         )
     context.login_throttle.succeeded(address)
     response = RedirectResponse(_safe_next(next), status_code=303)
-    response.set_cookie(
-        core.SESSION_COOKIE,
-        await security.start_session(context.repo),
-        httponly=True,
-        samesite="lax",
-        secure=request.url.scheme == "https",
-        max_age=security.SESSION_MAX_AGE_S,
-    )
+    sign_in(request, response, await security.start_session(context.repo))
     return response
 
 

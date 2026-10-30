@@ -17,10 +17,15 @@ its Origin, or Referer when Origin is missing, must be the very address the requ
 sent to, and that address must itself pass the host check. Comparing to the request's own
 Host alone is what let a rebinding page through, since it controls both.
 
+**The password.** Set in Settings, or by VINTED_BOT_WEB_AUTH_TOKEN, which wins when set
+(see managed.py for why the environment wins). The dashboard's own is never stored, only
+a salted scrypt fingerprint; it is read on every request rather than remembered, so
+`vinted-bot reset-password` takes effect in a running app. Other devices may only be let
+in while there is a password, and it can only be removed while there are none.
+
 **Sessions.** Signing in mints a random token. The browser keeps the token; the database
-keeps only its hash, so signing out, or changing the password, revokes it for good. The
-password itself is never stored, only a salted scrypt fingerprint used to notice that it
-changed.
+keeps only its hash, so signing out, or changing the password, revokes it for good. For
+the environment's password a fingerprint is kept too, to notice it changed at a restart.
 
 **The feed key.** Feed readers cannot sign in, so a feed's address carries a key. It is a
 random value of its own, never the password, because feed addresses end up in reader
@@ -37,15 +42,19 @@ import json
 import secrets
 import time
 from collections import deque
+from dataclasses import dataclass
 from urllib.parse import urlparse
 
 from fastapi import Request
 from pydantic import SecretStr
 
-from vinted_bot.config import Settings
+from vinted_bot import managed
+from vinted_bot.config import Settings, in_container
 from vinted_bot.db.repo import Repo
+from vinted_bot.engine.validation import InvalidInputError
 
 LOOPBACK_NAMES = frozenset({"localhost", "127.0.0.1", "::1", "[::1]"})
+LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 _WILDCARDS = frozenset({"0.0.0.0", "::", "[::]"})
 
 # Thirty days: a password is asked for once per browser, not once per visit.
@@ -58,8 +67,18 @@ LOGIN_ATTEMPTS = 5
 LOGIN_WINDOW_S = 15 * 60
 
 _SESSIONS_KEY = "web_sessions"
-_PASSWORD_KEY = "web_password_check"
+# The environment's password, fingerprinted to notice a change at restart.
+_ENV_PASSWORD_KEY = "web_password_check"
+# The password set in Settings, fingerprinted to check it.
+_PASSWORD_KEY = "web_password"
 _FEED_KEY = "rss_key"
+
+MIN_PASSWORD_LENGTH = 8
+MAX_PASSWORD_LENGTH = 200
+# Suggested passwords skip letters that read alike (l, 1, o, 0, i) so they can be typed
+# from a phone screen. Twelve of these is about 59 bits: far beyond guessing at five
+# tries per quarter hour.
+_FRIENDLY = "abcdefghjkmnpqrstuvwxyz23456789"
 
 # scrypt cost: about 50 ms, paid once per start, not per request.
 _SCRYPT = {"n": 2**14, "r": 8, "p": 1}
@@ -129,23 +148,119 @@ def _fingerprint(password: str, salt: str) -> str:
     return f"{salt}${derived.hex()}"
 
 
-async def sync_password(repo: Repo, password: SecretStr | None) -> None:
-    """Revoke every session if the password is not the one they were issued under.
+async def _matches(password: str, stored: str | None) -> bool:
+    if not stored or "$" not in stored:
+        return False
+    salt = stored.split("$", 1)[0]
+    candidate = await asyncio.to_thread(_fingerprint, password, salt)
+    return hmac.compare_digest(candidate, stored)
 
-    Run once when the dashboard starts, which is the only time the password can change.
+
+async def sync_password(repo: Repo, password: SecretStr | None) -> None:
+    """Revoke every session if the environment's password is not the one they were
+    issued under.
+
+    Run once when the dashboard starts, which is the only time that password can change.
     """
     if password is None:
         return
     secret = password.get_secret_value()
-    stored = await repo.get_state_value(_PASSWORD_KEY)
-    if stored and "$" in stored:
-        salt = stored.split("$", 1)[0]
-        current = await asyncio.to_thread(_fingerprint, secret, salt)
-        if hmac.compare_digest(current, stored):
-            return
+    if await _matches(secret, await repo.get_state_value(_ENV_PASSWORD_KEY)):
+        return
     fresh = await asyncio.to_thread(_fingerprint, secret, secrets.token_hex(16))
     await repo.set_state_value(_SESSIONS_KEY, "{}")
-    await repo.set_state_value(_PASSWORD_KEY, fresh)
+    await repo.set_state_value(_ENV_PASSWORD_KEY, fresh)
+
+
+# --- The password -------------------------------------------------------------------
+
+
+def password_from_env(settings: Settings) -> bool:
+    return settings.web_auth_token is not None
+
+
+async def password_required(settings: Settings, repo: Repo) -> bool:
+    if settings.web_auth_token is not None:
+        return True
+    return await repo.get_state_value(_PASSWORD_KEY) is not None
+
+
+async def password_matches(settings: Settings, repo: Repo, password: str) -> bool:
+    if settings.web_auth_token is not None:
+        expected = settings.web_auth_token.get_secret_value()
+        return hmac.compare_digest(password.encode(), expected.encode())
+    return await _matches(password, await repo.get_state_value(_PASSWORD_KEY))
+
+
+def suggest_password() -> str:
+    """A strong password that is easy to type on a phone, like `k7qm-4tzr-p9xe`."""
+    groups = ("".join(secrets.choice(_FRIENDLY) for _ in range(4)) for _ in range(3))
+    return "-".join(groups)
+
+
+def check_new_password(password: str) -> str:
+    """A new password as typed, or InvalidInputError saying what is wrong with it."""
+    if len(password) < MIN_PASSWORD_LENGTH:
+        raise InvalidInputError(
+            "new_password",
+            f"Use at least {MIN_PASSWORD_LENGTH} characters. The suggested one is easy to "
+            "type and hard to guess.",
+        )
+    if len(password) > MAX_PASSWORD_LENGTH:
+        raise InvalidInputError("new_password", "That's longer than a password needs to be.")
+    return password
+
+
+async def set_password(repo: Repo, password: str | None) -> None:
+    """Set, change or (with None) remove the dashboard's own password.
+
+    Every signed-in browser is signed out either way: a password change is often made
+    because someone else knew the old one.
+    """
+    if password is None:
+        await repo.delete_state_value(_PASSWORD_KEY)
+    else:
+        fresh = await asyncio.to_thread(_fingerprint, password, secrets.token_hex(16))
+        await repo.set_state_value(_PASSWORD_KEY, fresh)
+    await repo.set_state_value(_SESSIONS_KEY, "{}")
+
+
+# --- Who can connect ----------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class Access:
+    """Who can open the dashboard, and whether the environment decided each part."""
+
+    host: str
+    host_from_env: bool
+    password: bool
+    password_from_env: bool
+    container: bool
+
+    @property
+    def loopback(self) -> bool:
+        """Only this computer can connect."""
+        return self.host in LOOPBACK_HOSTS
+
+    @property
+    def exposed_without_password(self) -> bool:
+        """Other machines could connect, with no sign-in.
+
+        Inside a container this stays quiet: 0.0.0.0 is the only bind that works there,
+        and the port mapping, which the app cannot see, decides who can connect.
+        """
+        return not self.password and not self.loopback and not self.container
+
+
+async def access(settings: Settings, repo: Repo) -> Access:
+    return Access(
+        host=await managed.web_host(settings, repo),
+        host_from_env=managed.web_host_from_env(settings),
+        password=await password_required(settings, repo),
+        password_from_env=password_from_env(settings),
+        container=in_container(),
+    )
 
 
 async def _sessions(repo: Repo, now: int) -> dict[str, int]:

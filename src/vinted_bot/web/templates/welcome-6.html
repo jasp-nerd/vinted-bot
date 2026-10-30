@@ -15,23 +15,33 @@
 {% block hint %}Everything here is in Settings too{% endblock %}
 {% block field_class %}field-panel--teal{% endblock %}
 {% block field %}
-<div class="ob__field-say">
+{% import "partials/phone.html" as ph %}
+{% set switchable = not access.container and not access.host_from_env %}
+<div class="ob__field-say" data-phone-say>
   {% if phone %}
   <b>Open this page on your phone too</b>
-  <span>Scan this with your phone's camera while it's on the same Wi-Fi as this computer.</span>
+  <span>Scan this with your phone's camera while it's on the same Wi-Fi as this computer. It asks for the password once.</span>
+  {% elif switchable %}
+  <b>Want this page on your phone too?</b>
+  <span>For now it only opens on this computer{% if dest_kind == "ntfy" %}, but alerts already reach your phone{% endif %}. One switch lets your phone in, on your own Wi-Fi only.</span>
   {% else %}
   <b>Want this page on your phone too?</b>
-  <span>For now it only opens on this computer{% if dest_kind == "ntfy" %}, but alerts already reach your phone{% endif %}. Settings, "Open on your phone", walks you through it.</span>
+  <span>For now it only opens on this computer{% if dest_kind == "ntfy" %}, but alerts already reach your phone{% endif %}. Settings, "Open on your phone", says how.</span>
   {% endif %}
 </div>
 <div class="ob__field-stage">
   {% if phone %}
   <div class="stack" style="gap:10px;justify-items:center">
-    <div class="qr" data-qr="{{ phone }}" aria-hidden="true"></div>
-    <span class="code">{{ phone }}</span>
+    <div class="qr" data-qr="{{ phone[0] }}" aria-hidden="true"></div>
+    {% for address in phone %}<span class="code">{{ address }}</span>{% endfor %}
+  </div>
+  {% elif switchable %}
+  <div class="stack" style="gap:10px;justify-items:center" data-phone-result>
+    <button class="btn btn--secondary btn--lg" type="button" data-open="phone-on">{{ ui.icon("smartphone") }}Allow my phone</button>
   </div>
   {% endif %}
 </div>
 {{ ui.mags("point" if phone else "cheer", "ob__mags ob__mags--corner ob__mags--left") }}
+{% if switchable and not phone %}{{ ph.dialogs(access, suggested_password) }}{% endif %}
 {% endblock %}
 {% block scripts %}<script src="{{ static('js/qrcode.js') }}" defer></script>{% endblock %}

@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import hashlib
+import ipaddress
 import json
 import socket
 import time
@@ -26,13 +27,13 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from vinted_bot import __version__
-from vinted_bot.config import Settings, in_container
+from vinted_bot.config import Settings
 from vinted_bot.db.repo import Repo
 from vinted_bot.engine import health, updates
 from vinted_bot.engine.self_update import Phase, Updater
 from vinted_bot.vinted.client import VintedClient
 from vinted_bot.vinted.taxonomy import Taxonomy
-from vinted_bot.web import support, views
+from vinted_bot.web import security, support, views
 from vinted_bot.web.preview import PreviewService
 from vinted_bot.web.security import LoginThrottle
 
@@ -63,6 +64,12 @@ class WebContext:
     # Set when the bot's token changes, for the running app to restart the bot on it.
     telegram_token_changed: asyncio.Event = field(default_factory=asyncio.Event)
     login_throttle: LoginThrottle = field(default_factory=LoginThrottle)
+    # Set when phone access changes, for the server to listen on the new address.
+    rebind: asyncio.Event = field(default_factory=asyncio.Event)
+    # Where the server listens right now (None while it moves), and why the last move
+    # failed, if it did.
+    listening_on: str | None = None
+    listen_error: str | None = None
 
 
 def ctx(request: Request) -> WebContext:
@@ -153,6 +160,7 @@ async def shell(context: WebContext, snapshot: health.Snapshot | None = None) ->
         blocked = {"site": ", ".join(sites), "searches": len(refused)}
 
     update = update_offer(context.updater, prefs.latest_version if prefs.update_check else None)
+    access = await security.access(context.settings, context.repo)
 
     return {
         "version": __version__,
@@ -164,8 +172,8 @@ async def shell(context: WebContext, snapshot: health.Snapshot | None = None) ->
         "blocked": blocked,
         "new_version": update,
         "theme": prefs.theme,
-        "auth": context.settings.web_auth_token is not None,
-        "exposed": context.settings.web_is_exposed_without_a_password,
+        "auth": access.password,
+        "exposed": context.settings.web_enabled and access.exposed_without_password,
         "new_count": 0,
         "troubleshooting": TROUBLESHOOTING_URL,
         "guess_timezone": await needs_timezone(context),
@@ -228,20 +236,38 @@ def redirect(target: str, flash: str | None = None) -> RedirectResponse:
     return response
 
 
-def phone_address(settings: Settings) -> str | None:
-    """The address a phone on the same Wi-Fi can open the dashboard at, if there is one.
+def lan_addresses() -> list[str]:
+    """This computer's IPv4 addresses on the local network, the most likely one first.
 
-    Loopback means only this computer can, so there is nothing to offer. Inside a
-    container the machine's own address is not visible, so only a configured public URL
-    is trusted there.
+    The first comes from asking the OS which interface it would send through (connecting
+    a UDP socket sends nothing). The others are what the computer's own name resolves
+    to, which on most systems lists every network it is on, Wi-Fi and cable alike.
+    Loopback and self-assigned (169.254) addresses are left out: a phone cannot use them.
     """
-    if settings.web_public_url:
-        return settings.web_public_url.rstrip("/")
-    if settings.web_is_loopback or in_container():
-        return None
-    # Connecting a UDP socket sends nothing; it only asks the OS which interface it
-    # would use, which is the address the local network knows this machine by.
+    found: list[str] = []
     with contextlib.suppress(OSError), socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
         probe.connect(("192.0.2.1", 9))
-        return f"http://{probe.getsockname()[0]}:{settings.web_port}"
-    return None
+        found.append(probe.getsockname()[0])
+    with contextlib.suppress(OSError):
+        for *_, sockaddr in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            found.append(str(sockaddr[0]))
+    usable: list[str] = []
+    for address in found:
+        ip = ipaddress.ip_address(address)
+        if ip.is_private and not ip.is_loopback and not ip.is_link_local and address not in usable:
+            usable.append(address)
+    return usable
+
+
+def phone_addresses(settings: Settings, access: security.Access) -> list[str]:
+    """The addresses a phone on the same network can open the dashboard at.
+
+    Only this computer can while it listens on loopback, so there is nothing to offer.
+    Inside a container the machine's own address is not visible, so only a configured
+    public URL is trusted there.
+    """
+    if settings.web_public_url:
+        return [settings.web_public_url.rstrip("/")]
+    if access.loopback or access.container:
+        return []
+    return [f"http://{address}:{settings.web_port}" for address in lan_addresses()]

@@ -211,14 +211,88 @@
     const scope = g.parentElement;
     $$("[data-steps-for]", scope).forEach((l) => { l.hidden = l.dataset.stepsFor !== b.dataset.steps; });
   }));
-  $$("[data-qr]").forEach((box) => {
-    const draw = () => {
-      if (!window.qrcode) return setTimeout(draw, 100);
-      const qr = window.qrcode(0, "M"); qr.addData(box.dataset.qr); qr.make();
-      box.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
-    };
-    draw();
+  function drawQr(box) {
+    if (!window.qrcode) { setTimeout(() => drawQr(box), 100); return; }
+    const qr = window.qrcode(0, "M"); qr.addData(box.dataset.qr); qr.make();
+    box.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+  }
+  $$("[data-qr]").forEach(drawQr);
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-copy-input]");
+    if (!b) return;
+    const input = document.getElementById(b.dataset.copyInput);
+    if (input && navigator.clipboard) navigator.clipboard.writeText(input.value).catch(() => {});
+    toast("Copied", { ok: true, icon: "copy" });
   });
+
+  /* ── Forms that answer in JSON: an error goes under its field, success reloads ── */
+  function formError(f, field, message) {
+    $$("[data-field-error]", f).forEach((n) => n.remove());
+    $$("[aria-invalid=true]", f).forEach((n) => n.removeAttribute("aria-invalid"));
+    const bottom = $("[data-form-error]", f); if (bottom) bottom.hidden = true;
+    if (!message) return;
+    const input = field ? $(`[name="${field}"]`, f) : null;
+    const box = input && input.closest(".field");
+    const p = box ? document.createElement("p") : bottom;
+    if (!p) { toast(message, { bad: true }); return; }
+    p.hidden = false; p.className = "help help--error";
+    p.innerHTML = icon("circle-alert") + `<span>${esc(message)}</span>`;
+    if (box) { p.dataset.fieldError = ""; box.appendChild(p); input.setAttribute("aria-invalid", "true"); input.focus(); }
+  }
+  $$("form[data-post]").forEach((f) => f.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    formError(f);
+    const r = await post(f.getAttribute("action"), new FormData(f)).catch(() => ({ ok: false, error: "Couldn't reach vinted-bot. Is it still running?" }));
+    if (!r.ok) { formError(f, r.field, r.error || "That didn't work."); return; }
+    try { sessionStorage.setItem("vs-after", JSON.stringify({ text: f.dataset.done || "Saved." })); } catch (err) { /* no storage */ }
+    location.reload();
+  }));
+
+  /* ── Phone access: the server moves to the new address, then the page follows ── */
+  /* The app keeps running while its web server listens again somewhere else, which
+   * takes a moment; the page waits for it to answer from the new address. */
+  async function settledAccess() {
+    const until = Date.now() + 20000;
+    while (Date.now() < until) {
+      await new Promise((ok) => setTimeout(ok, 700));
+      try {
+        const res = await fetch("/api/access", { headers: { Accept: "application/json" }, credentials: "same-origin", cache: "no-store" });
+        if (res.ok) { const a = await res.json(); if (a.listening_on === a.wanted || a.error) return a; }
+      } catch (err) { /* between the old address and the new one */ }
+    }
+    return null;
+  }
+  $$("[data-phone-switch]").forEach((sw) => sw.addEventListener("change", () => {
+    const want = sw.checked;
+    sw.checked = !want; // stays as it is until the dialog is confirmed
+    openDialog(want ? "phone-on" : "phone-off", sw);
+  }));
+  $$("form[data-phone-form]").forEach((f) => f.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    formError(f);
+    const btn = $("button[type=submit]", f);
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const data = new FormData(f); data.set("allow", f.dataset.allow);
+    const r = await post("/settings/phone", data).catch(() => ({ ok: false, error: "Couldn't reach vinted-bot. Is it still running?" }));
+    if (!r.ok) { btn.disabled = false; formError(f, r.field, r.error || "That didn't work."); return; }
+    btn.innerHTML = '<span class="spinner" style="width:16px;height:16px;border-width:2px"></span>One moment';
+    const a = await settledAccess();
+    const result = $("[data-phone-result]");
+    if (result && a && !a.error) {
+      // Setup's last screen was posted to, so it fills in the codes rather than reloading.
+      result.innerHTML = a.addresses.length
+        ? `<div class="qr" data-qr="${esc(a.addresses[0])}" aria-hidden="true"></div>` + a.addresses.map((x) => `<span class="code">${esc(x)}</span>`).join("")
+        : '<p class="t-sm">Your phone can connect now, but we couldn\'t work out this computer\'s address. Settings, "Open on your phone", shows it.</p>';
+      const box = $(".qr", result); if (box) drawQr(box);
+      const say = $("[data-phone-say]");
+      if (say) say.innerHTML = "<b>Open this page on your phone too</b><span>Scan this with your phone's camera while it's on the same Wi-Fi as this computer. It asks for the password once.</span>";
+      f.closest("dialog").close();
+      toast("Done. Your phone can open vinted-bot now.", { ok: true, icon: "smartphone" });
+      return;
+    }
+    location.reload();
+  }));
 
   /* ── Money fields accept 12,50 and 12.50 ──────────── */
   $$("[data-money]").forEach((inp) => {

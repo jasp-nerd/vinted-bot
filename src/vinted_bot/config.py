@@ -253,11 +253,6 @@ class Settings(BaseSettings):
                 names.append(name)
         return names
 
-    @property
-    def web_is_loopback(self) -> bool:
-        """Whether the dashboard is reachable only from this machine."""
-        return self.web_host in {"127.0.0.1", "localhost", "::1"}
-
     @field_validator("timezone")
     @classmethod
     def _known_timezone(cls, value: str) -> str:
@@ -273,16 +268,3 @@ class Settings(BaseSettings):
                 "VINTED_BOT_FETCH_MODE is 'mock' but VINTED_BOT_MOCK_SCENARIO_DIR is not set."
             )
         return self
-
-    @property
-    def web_is_exposed_without_a_password(self) -> bool:
-        """Whether the dashboard could be reached from another machine with no sign-in.
-
-        Not treated as fatal: refusing would stop `docker compose up` working at all. And
-        inside a container this stays quiet, because 0.0.0.0 is the only bind that works
-        there and the port mapping — which the app cannot see — is what actually decides
-        who can reach it.
-        """
-        if not self.web_enabled or self.web_auth_token is not None:
-            return False
-        return not self.web_is_loopback and not in_container()

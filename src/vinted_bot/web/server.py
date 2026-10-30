@@ -13,14 +13,15 @@ reroute alerts. The rules themselves live in web/security.py:
   cross-site request came from, so a page elsewhere cannot add, delete or reroute your
   searches through your browser, password or not. This is the CSRF defence: SameSite
   cookies plus the Origin check, no tokens in forms to forget.
-* Sign-in, when VINTED_BOT_WEB_AUTH_TOKEN is set. The cookie holds a random session
-  token that signing out, or changing the password, revokes.
+* Sign-in, when there is a password (set in Settings, or VINTED_BOT_WEB_AUTH_TOKEN). The
+  cookie holds a random session token that signing out, or changing the password, revokes.
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
+import socket
 import sqlite3
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from urllib.parse import quote
@@ -32,6 +33,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from vinted_bot import managed
 from vinted_bot.config import Settings
 from vinted_bot.db.repo import Repo
 from vinted_bot.engine.self_update import Updater
@@ -41,6 +43,7 @@ from vinted_bot.vinted.taxonomy import Taxonomy
 from vinted_bot.web import core, security
 from vinted_bot.web.preview import PreviewService
 from vinted_bot.web.routes import (
+    access,
     alerts,
     api,
     auth,
@@ -100,12 +103,11 @@ def create_app(
         previews=PreviewService(client) if client is not None else None,
         telegram_token_changed=telegram_token_changed or asyncio.Event(),
     )
-    token = settings.web_auth_token
     allowed_hosts = security.allowed_hosts(settings)
 
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-        await security.sync_password(repo, token)
+        await security.sync_password(repo, settings.web_auth_token)
         context.http = http or httpx.AsyncClient(timeout=20.0)
         try:
             yield
@@ -135,7 +137,7 @@ def create_app(
         public = path in _PUBLIC_PATHS or path.startswith(_PUBLIC_PREFIXES)
         if (
             not public
-            and token is not None
+            and await security.password_required(settings, repo)
             and not await security.session_valid(repo, request.cookies.get(SESSION_COOKIE))
         ):
             if request.method == "GET" and _wants_html(request):
@@ -153,6 +155,7 @@ def create_app(
     app.mount("/static", StaticFiles(directory=core.STATIC_DIR), name="static")
     for module in (
         auth,
+        access,
         api,
         finds,
         searches,
@@ -267,6 +270,20 @@ class _QuietServer(uvicorn.Server):
         yield
 
 
+# What uvicorn exits with when it cannot listen; kept so a taken port still ends the app.
+_CANNOT_LISTEN_EXIT_CODE = 3
+
+
+def _listen(host: str, port: int) -> socket.socket:
+    """A listening socket on host:port. Raises OSError when the address is taken.
+
+    Made here rather than by uvicorn so that a failure is an exception this module can
+    handle: uvicorn exits the whole process when it cannot bind.
+    """
+    family = socket.AF_INET6 if ":" in host else socket.AF_INET
+    return socket.create_server((host, port), family=family)
+
+
 async def serve(
     settings: Settings,
     repo: Repo,
@@ -278,7 +295,13 @@ async def serve(
     updater: Updater | None = None,
     telegram_token_changed: asyncio.Event | None = None,
 ) -> None:
-    """Run the web UI until the app shuts down."""
+    """Run the web UI until the app shuts down, moving it when phone access changes.
+
+    Turning phone access on or off sets `context.rebind`: the server stops listening on
+    the old address and starts on the new one, inside this process. The app, its open
+    database and its running searches carry on untouched, and nothing needs to be there
+    to start it again, which a process restart would.
+    """
     app = create_app(
         settings,
         repo,
@@ -289,25 +312,65 @@ async def serve(
         updater=updater,
         telegram_token_changed=telegram_token_changed,
     )
+    context: core.WebContext = app.state.ctx
+    # The app's startup and shutdown run once around every server below, not per server.
+    async with app.router.lifespan_context(app):
+        host = await managed.web_host(settings, repo)
+        try:
+            sock = _listen(host, settings.web_port)
+        except OSError as exc:
+            log.error("web.cannot_listen", host=host, port=settings.web_port, error=str(exc))
+            raise SystemExit(_CANNOT_LISTEN_EXIT_CODE) from exc
+        while await _serve_until_moved(app, sock, host):
+            context.rebind.clear()
+            wanted = await managed.web_host(settings, repo)
+            try:
+                sock = _listen(wanted, settings.web_port)
+            except OSError as exc:
+                # The old address was just let go of, so it is free to take back.
+                log.error("web.cannot_move", host=wanted, error=str(exc))
+                context.listen_error = f"Couldn't listen on {wanted}: {exc.strerror or exc}"
+                sock = _listen(host, settings.web_port)
+            else:
+                context.listen_error = None
+                host = wanted
+
+
+async def _serve_until_moved(app: FastAPI, sock: socket.socket, host: str) -> bool:
+    """Serve on `sock` until the app stops or phone access changes. True for the latter."""
+    context: core.WebContext = app.state.ctx
+    settings = context.settings
     config = uvicorn.Config(
         app,
-        host=settings.web_host,
+        host=host,
         port=settings.web_port,
+        lifespan="off",
         log_config=None,
         access_log=False,
         # Live streams end on the stop event; this bounds anything else still open.
         timeout_graceful_shutdown=3,
     )
     server = _QuietServer(config)
-    serving = asyncio.create_task(server.serve())
-    log.info("web.listening", host=settings.web_host, port=settings.web_port)
-    if settings.web_is_exposed_without_a_password:
-        log.warning(
-            "web.no_password",
-            host=settings.web_host,
-            hint="anyone who can open the dashboard can change your alerts; keep the "
-            "published port on 127.0.0.1 or set VINTED_BOT_WEB_AUTH_TOKEN",
-        )
-    await stop.wait()
-    server.should_exit = True
-    await serving
+    # What the OS says the socket is bound to, not what was asked for.
+    context.listening_on = str(sock.getsockname()[0])
+    serving = asyncio.create_task(server.serve(sockets=[sock]))
+    stopping = asyncio.create_task(context.stop.wait())
+    moving = asyncio.create_task(context.rebind.wait())
+    try:
+        log.info("web.listening", host=context.listening_on, port=settings.web_port)
+        if (await security.access(settings, context.repo)).exposed_without_password:
+            log.warning(
+                "web.no_password",
+                host=host,
+                hint="anyone who can open the dashboard can change your alerts; keep the "
+                "published port on 127.0.0.1 or set a password in Settings",
+            )
+        await asyncio.wait({stopping, moving, serving}, return_when=asyncio.FIRST_COMPLETED)
+    finally:
+        for waiter in (stopping, moving):
+            waiter.cancel()
+        await asyncio.gather(stopping, moving, return_exceptions=True)
+        server.should_exit = True
+        await serving
+        context.listening_on = None
+    return context.rebind.is_set() and not context.stop.is_set()

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "partials/support.html" as support %}
+{% import "partials/phone.html" as ph %}
 {% block title %}Settings{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -10,7 +11,7 @@
 </div>
 <div class="settings">
   <nav class="snav" aria-label="Settings sections">
-    {% for id, label, ic in [("general", "General", "settings"), ("vinted", "Connection to Vinted", "activity"), ("phone", "Open on your phone", "smartphone"), ("access", "Password and access", "lock"), ("updates", "Updates", "download"), ("data", "Your data", "server"), ("blocked", "Blocked sellers", "ban"), ("advanced", "Advanced", "sliders-horizontal"), ("support", "Help keep it free", "heart"), ("about", "About and legal", "info")] %}
+    {% for id, label, ic in [("general", "General", "settings"), ("vinted", "Connection to Vinted", "activity"), ("phone", "Open on your phone", "smartphone"), ("access", "Password", "lock"), ("updates", "Updates", "download"), ("data", "Your data", "server"), ("blocked", "Blocked sellers", "ban"), ("advanced", "Advanced", "sliders-horizontal"), ("support", "Help keep it free", "heart"), ("about", "About and legal", "info")] %}
     <a href="#{{ id }}"{% if loop.first %} aria-current="true"{% endif %}>{{ ui.icon(ic) }}{{ label }}</a>
     {% endfor %}
   </nav>
@@ -60,42 +61,43 @@
 
     <section class="ssec" id="phone" aria-labelledby="h-phone">
       <h2 class="t-h2" id="h-phone">Open on your phone</h2>
-      <div class="card card--pad">
-        {% if phone %}
-        <div class="row" style="gap:20px;align-items:center">
-          <div class="qr" data-qr="{{ phone }}" aria-hidden="true"></div>
-          <div class="stack" style="gap:6px;min-width:0">
-            <p>Scan this with your phone's camera while you're on the same Wi-Fi.</p>
-            <p class="t-sm">Or type <span class="code">{{ phone }}</span> into your phone's browser.</p>
-            {% if not app.auth %}<p class="t-sm">Tip: set a password first, so nobody else on the Wi-Fi can open it.</p>{% endif %}
-          </div>
-        </div>
-        {% else %}
-        <p>Right now only this computer can open this page. Alerts don't need it. To open the page on your phone too, on the same Wi-Fi, takes about two minutes:</p>
-        {% if in_container %}
-        <ol class="steps-list">
-          <li><span>In your <span class="code">docker-compose.yml</span>, change the port line from <span class="code">127.0.0.1:8000:8000</span> to <span class="code">8000:8000</span> and add a password under <span class="code">environment</span>: <span class="code">VINTED_BOT_WEB_AUTH_TOKEN: {{ suggested_password }}</span></span></li>
-          <li><span>Run <span class="code">docker compose up -d</span>. Your phone asks for that password once.</span></li>
-        </ol>
-        {% else %}
-        {% set lines = "VINTED_BOT_WEB_HOST=0.0.0.0" ~ ("" if app.auth else "\nVINTED_BOT_WEB_AUTH_TOKEN=" ~ suggested_password) %}
-        <ol class="steps-list">
-          <li><span>Stop vinted-bot: in the window where it runs, press <kbd>Ctrl</kbd>+<kbd>C</kbd>.</span></li>
-          <li><span>Open the settings file in a text editor, or make it if it isn't there yet. It's a file called <span class="code">.env</span> in the folder you start vinted-bot from:<span class="row" style="flex-wrap:nowrap;margin-top:6px"><span class="code grow" style="overflow:auto;white-space:nowrap">{{ settings_file }}</span><button class="btn btn--icon btn--sm" type="button" data-copy="{{ settings_file }}" aria-label="Copy the file's location">{{ ui.icon("copy", "i-sm") }}</button></span></span></li>
-          <li><span>Add {{ "this line" if app.auth else "these two lines" }}{% if not app.auth %}. The second is a password we made up for you; use your own if you like{% endif %}:<span class="row" style="flex-wrap:nowrap;margin-top:6px;align-items:flex-start"><pre class="code grow envlines">{{ lines }}</pre><button class="btn btn--icon btn--sm" type="button" data-copy="{{ lines }}" aria-label="Copy the lines">{{ ui.icon("copy", "i-sm") }}</button></span></span></li>
-          <li><span>Start vinted-bot again the way you did before. This section then shows a code to scan with your phone{% if not app.auth %}, and your phone asks for the password once{% endif %}.</span></li>
-        </ol>
-        <p class="t-sm">The password keeps other people on the same Wi-Fi out, since this page shows where your alerts go.</p>
+      <div class="card">
+        <div class="set"><div class="set__text"><span class="t-h3" id="phone-l">Allow my phone and other devices</span><span class="t-sm">Devices on the same Wi-Fi or home network, never the internet. They sign in with the password.</span></div>
+          {% if access.container or access.host_from_env %}<span class="badge">{{ "Docker decides" if access.container else "Set by the environment" }}</span>
+          {% else %}<label class="switch"><input type="checkbox" data-phone-switch aria-labelledby="phone-l"{% if not access.loopback %} checked{% endif %}></label>{% endif %}</div>
+        {% if listen_error %}
+        <div class="set set--stack"><div class="notice notice--danger">{{ ui.icon("circle-alert") }}<div><p><strong>{{ listen_error }}</strong></p><p>Only this computer can open the page for now. Another program may be using the address; restarting the computer usually clears it.</p></div></div></div>
         {% endif %}
+        {% if access.container %}
+        <div class="set set--stack"><div class="set__text"><span class="t-sm">vinted-bot runs in Docker here, so your <span class="code">docker-compose.yml</span> decides who can open this page, not a switch. To open it on your phone:</span></div>
+          <ol class="steps-list">
+            <li><span>Set a password below first: other devices can open this page once the port is open.</span></li>
+            <li><span>In <span class="code">docker-compose.yml</span>, change the port line from <span class="code">127.0.0.1:8000:8000</span> to <span class="code">8000:8000</span>.</span></li>
+            <li><span>Run <span class="code">docker compose up -d</span>, then open this computer's address on port 8000 from your phone.</span></li>
+          </ol></div>
+        {% elif access.host_from_env %}
+        <div class="set set--stack"><div class="set__text"><span class="t-sm">VINTED_BOT_WEB_HOST is set to <span class="code">{{ access.host }}</span> in this copy's environment (or its .env file), so that's where it listens. Remove that line and restart to use this switch instead.</span></div></div>
+        {% endif %}
+        {% if phone %}
+        <div class="set set--stack">{{ ph.addresses(phone) }}</div>
+        {% elif not access.loopback and not access.container %}
+        <div class="set set--stack"><p class="t-sm">Other devices can connect, but we couldn't work out this computer's address on your network. Your router's list of devices shows it.</p></div>
         {% endif %}
       </div>
     </section>
 
     <section class="ssec" id="access" aria-labelledby="h-access">
-      <h2 class="t-h2" id="h-access">Password and access</h2>
+      <h2 class="t-h2" id="h-access">Password</h2>
       <div class="card">
-        <div class="set"><div class="set__text"><span class="t-h3">Who can open it</span><span class="t-sm">{% if loopback %}Only this computer. "Open on your phone" above shows how to change that.{% else %}Other devices on your network too.{% endif %}</span></div></div>
-        <div class="set"><div class="set__text"><span class="t-h3">Password</span><span class="t-sm">{% if app.auth %}On. Asked once per browser. It's the VINTED_BOT_WEB_AUTH_TOKEN line in the settings file ({{ settings_file }}).{% else %}Off. Only needed when other devices can open this page; "Open on your phone" above adds one.{% endif %}</span></div>{% if app.auth %}<form method="post" action="/logout"><button class="btn btn--secondary btn--sm" type="submit">Sign out</button></form>{% endif %}</div>
+        <div class="set"><div class="set__text"><span class="t-h3">Password</span><span class="t-sm">{% if access.password_from_env %}On. It's set by VINTED_BOT_WEB_AUTH_TOKEN in this copy's environment, so it's changed there.{% elif access.password %}On. Each browser asks for it once.{% elif access.loopback %}Off. Only this computer can open this page, so it isn't needed. Allowing other devices adds one.{% else %}Off.{% endif %}</span></div>
+          <div class="btn-row">
+            {% if not access.password_from_env %}
+            {% if access.password %}<button class="btn btn--secondary btn--sm" type="button" data-open="pw-change">Change</button><button class="btn btn--ghost btn--sm" type="button" data-open="pw-remove">Remove</button>
+            {% else %}<button class="btn btn--secondary btn--sm" type="button" data-open="pw-set">Set a password</button>{% endif %}
+            {% endif %}
+            {% if access.password %}<form method="post" action="/logout"><button class="btn btn--ghost btn--sm" type="submit">Sign out</button></form>{% endif %}
+          </div></div>
+        <div class="set"><div class="set__text"><span class="t-h3">Who can open it</span><span class="t-sm">{% if access.container %}Whoever your Docker port mapping lets in.{% elif access.loopback %}Only this computer.{% else %}This computer, and devices on your network that know the password.{% endif %}</span></div></div>
       </div>
     </section>
 
@@ -179,5 +181,48 @@
     </section>
   </div>
 </div>
+{% endblock %}
+{% block modals %}
+{{ ph.dialogs(access, suggested_password) }}
+<dialog class="modal" id="pw-set" aria-labelledby="ps-title">
+  <form data-post action="/settings/password" data-done="Password set. Each browser asks for it once." novalidate>
+    <div class="modal__head"><h2 class="t-h2" id="ps-title">Set a password</h2><button class="btn btn--icon" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button></div>
+    <div class="modal__body stack">
+      <div class="field"><label class="label" for="ps-new">New password</label>
+        <div class="row" style="flex-wrap:nowrap"><input class="input grow code-input" id="ps-new" name="new_password" type="text" autocomplete="new-password" autocapitalize="off" spellcheck="false" value="{{ suggested_password }}"><button class="btn btn--secondary" type="button" data-copy-input="ps-new">{{ ui.icon("copy", "i-sm") }}Copy</button></div>
+        <p class="help">We made one up; type your own if you like, at least 8 characters. Write it down now: it isn't shown again.</p></div>
+      <p class="help help--error" data-form-error hidden></p>
+    </div>
+    <div class="modal__foot"><button class="btn btn--secondary" type="button" data-close>Cancel</button><button class="btn btn--primary" type="submit">Set password</button></div>
+  </form>
+</dialog>
+<dialog class="modal" id="pw-change" aria-labelledby="pc-title">
+  <form data-post action="/settings/password" data-done="Password changed. Other browsers sign in again with the new one." novalidate>
+    <div class="modal__head"><h2 class="t-h2" id="pc-title">Change the password</h2><button class="btn btn--icon" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button></div>
+    <div class="modal__body stack">
+      <div class="field"><label class="label" for="pc-cur">Current password</label><input class="input" id="pc-cur" name="current_password" type="password" autocomplete="current-password"></div>
+      <div class="field"><label class="label" for="pc-new">New password</label>
+        <div class="row" style="flex-wrap:nowrap"><input class="input grow code-input" id="pc-new" name="new_password" type="text" autocomplete="new-password" autocapitalize="off" spellcheck="false" value="{{ suggested_password }}"><button class="btn btn--secondary" type="button" data-copy-input="pc-new">{{ ui.icon("copy", "i-sm") }}Copy</button></div>
+        <p class="help">Every other browser and phone is signed out and asks for the new one.</p></div>
+      <p class="help help--error" data-form-error hidden></p>
+    </div>
+    <div class="modal__foot"><button class="btn btn--secondary" type="button" data-close>Cancel</button><button class="btn btn--primary" type="submit">Change password</button></div>
+  </form>
+</dialog>
+<dialog class="modal" id="pw-remove" aria-labelledby="pr-title">
+  <form data-post action="/settings/password/remove" data-done="Password removed." novalidate>
+    <div class="modal__head"><h2 class="t-h2" id="pr-title">Remove the password?</h2><button class="btn btn--icon" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button></div>
+    <div class="modal__body stack">
+      {% if access.loopback %}
+      <p>Only this computer can open this page, so it works without one.</p>
+      <div class="field"><label class="label" for="pr-cur">Current password</label><input class="input" id="pr-cur" name="current_password" type="password" autocomplete="current-password"></div>
+      {% else %}
+      <p>Other devices can open this page, so it needs its password. Turn off "Allow my phone and other devices" first.</p>
+      {% endif %}
+      <p class="help help--error" data-form-error hidden></p>
+    </div>
+    <div class="modal__foot"><button class="btn btn--secondary" type="button" data-close>Keep it</button>{% if access.loopback %}<button class="btn btn--danger" type="submit">Remove</button>{% endif %}</div>
+  </form>
+</dialog>
 {% endblock %}
 {% block scripts %}<script src="{{ static('js/qrcode.js') }}" defer></script>{% endblock %}

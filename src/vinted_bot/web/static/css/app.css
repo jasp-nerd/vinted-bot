@@ -1010,6 +1010,10 @@ details.esec-fold > .esec__body { padding: 0 22px 22px; }
 /* Phone access QR. */
 .qr { display: grid; place-items: center; width: 168px; height: 168px; padding: 10px; background: #fff; border-radius: 14px; box-shadow: var(--ring); }
 .qr svg, .qr img { width: 100%; height: 100%; }
+.qr { flex: none; }
+/* A password or token shown to be copied: monospace, so 1 and l can't be confused. */
+.code-input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .02em; }
+@media (max-width: 520px) { .phone-addr { flex-direction: column; align-items: flex-start !important; } }
 /* Field error under an input. */
 .input[aria-invalid="true"], .select[aria-invalid="true"], .tokens[aria-invalid="true"] { border-color: var(--c-danger); }
 /* Keyboard shortcuts help. */

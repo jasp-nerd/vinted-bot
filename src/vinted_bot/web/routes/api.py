@@ -202,9 +202,9 @@ async def diagnose(request: Request) -> JSONResponse:
 async def rss(request: Request, query_id: int, key: str = "") -> Response:
     """A search's finds for a feed reader. Feed readers cannot sign in, so the key is in the URL."""
     context = core.ctx(request)
-    token = context.settings.web_auth_token
-    feed_key = await security.feed_key(context.repo) if token is not None else ""
-    if token is not None and not (key and hmac.compare_digest(key.encode(), feed_key.encode())):
+    locked = await security.password_required(context.settings, context.repo)
+    feed_key = await security.feed_key(context.repo) if locked else ""
+    if locked and not (key and hmac.compare_digest(key.encode(), feed_key.encode())):
         return Response(
             "This feed needs its key. Copy the feed address from the search's page in the "
             "dashboard: it ends in ?key=...",

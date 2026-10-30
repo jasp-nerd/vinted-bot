@@ -1,0 +1,46 @@
+{% import "partials/macros.html" as ui %}
+{#
+  Phone access, shared by Settings and setup's last screen. Import with context:
+  access (security.Access), phone (addresses), suggested_password.
+#}
+
+{# Where the phone can open the page: a code to scan, and the addresses to type. #}
+{% macro addresses(phone) -%}
+<div class="row phone-addr" style="gap:20px;align-items:center">
+  <div class="qr" data-qr="{{ phone[0] }}" aria-hidden="true"></div>
+  <div class="stack" style="gap:6px;min-width:0">
+    <p>Scan this with your phone's camera while it's on the same Wi-Fi as this computer.</p>
+    <p class="t-sm">Or type {% for address in phone %}<span class="code">{{ address }}</span>{% if not loop.last %} or {% endif %}{% endfor %} into your phone's browser. It asks for the password once.</p>
+  </div>
+</div>
+{%- endmacro %}
+
+{# The switch's two dialogs: letting devices in (with a password if there is none) and
+   keeping the page to this computer again. #}
+{% macro dialogs(access, suggested_password) -%}
+<dialog class="modal" id="phone-on" aria-labelledby="po-title">
+  <form data-phone-form data-allow="1" novalidate>
+    <div class="modal__head"><h2 class="t-h2" id="po-title">Open vinted-bot on your phone?</h2><button class="btn btn--icon" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button></div>
+    <div class="modal__body stack">
+      <p>Your phone, tablet and other computers on the same Wi-Fi or home network can then open this page.</p>
+      <div class="notice notice--ok">{{ ui.icon("shield-check") }}<div><p><strong>Your network only, not the internet.</strong> Nobody outside your Wi-Fi can reach it, and everyone needs the password.</p></div></div>
+      {% if not access.password %}
+      <div class="field">
+        <label class="label" for="po-pw">Password for other devices</label>
+        <div class="row" style="flex-wrap:nowrap"><input class="input grow code-input" id="po-pw" name="new_password" type="text" autocomplete="new-password" autocapitalize="off" spellcheck="false" value="{{ suggested_password }}"><button class="btn btn--secondary" type="button" data-copy-input="po-pw">{{ ui.icon("copy", "i-sm") }}Copy</button></div>
+        <p class="help">We made one up; type your own if you like. Write it down now: you'll type it once on each device, and it isn't shown again.</p>
+      </div>
+      {% endif %}
+      <p class="help help--error" data-form-error hidden></p>
+    </div>
+    <div class="modal__foot"><button class="btn btn--secondary" type="button" data-close>Not now</button><button class="btn btn--primary" type="submit">Allow devices</button></div>
+  </form>
+</dialog>
+<dialog class="modal" id="phone-off" aria-labelledby="pf-title">
+  <form data-phone-form data-allow="0" novalidate>
+    <div class="modal__head"><h2 class="t-h2" id="pf-title">Only this computer again?</h2><button class="btn btn--icon" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button></div>
+    <div class="modal__body"><p>Your phone and other devices can't open this page any more. Alerts keep arriving as before. If you're on your phone now, this page stops working on it.</p><p class="help help--error" data-form-error hidden></p></div>
+    <div class="modal__foot"><button class="btn btn--secondary" type="button" data-close>Keep it on</button><button class="btn btn--primary" type="submit">Only this computer</button></div>
+  </form>
+</dialog>
+{%- endmacro %}

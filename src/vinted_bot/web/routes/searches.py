@@ -327,7 +327,7 @@ async def search_detail(request: Request, query_id: int) -> Response:
             "rss": f"/rss/{query_id}.xml"
             + (
                 f"?key={await security.feed_key(repo)}"
-                if context.settings.web_auth_token is not None
+                if await security.password_required(context.settings, repo)
                 else ""
             ),
             "vinted_url": query.url,

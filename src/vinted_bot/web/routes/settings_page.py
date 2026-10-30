@@ -1,26 +1,23 @@
 """Settings: preferences that save as you change them, and the honest status of the rest.
 
-Some things on this page are process settings (the password, who can connect, how long
-finds are kept). Those come from the settings file, so the page says what they are and
-how to change them rather than offering a switch that could not stick.
+The password and phone access are changed here too (routes/access.py). What is left in
+the environment (how long finds are kept, ports, logging) is listed read-only under
+Advanced with where each value came from, so nothing that shapes the app is hidden.
 """
 
 from __future__ import annotations
 
-import secrets
 import time
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo, available_timezones
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
-from vinted_bot.config import in_container
 from vinted_bot.engine import health, self_update
 from vinted_bot.engine.validation import InvalidInputError
-from vinted_bot.web import core, views
+from vinted_bot.web import core, security, views
 from vinted_bot.web.routes.searches import bookmarklet
 
 router = APIRouter()
@@ -76,6 +73,7 @@ async def settings_page(request: Request) -> Response:
         zones.insert(0, prefs.timezone)
     blocked = await repo.list_blocked_sellers()
     last_update = await self_update.last_outcome(repo)
+    access = await security.access(context.settings, repo)
     return await core.render(
         request,
         "settings.html",
@@ -110,14 +108,11 @@ async def settings_page(request: Request) -> Response:
             ],
             "db_path": str(context.settings.db_path.resolve().parent),
             "retention": context.settings.item_retention_days,
-            "freshness": context.settings.freshness_window_min,
-            "phone": core.phone_address(context.settings),
-            "loopback": context.settings.web_is_loopback,
-            # The settings file is the .env in the folder the app was started from.
-            "settings_file": str(Path.cwd() / ".env"),
-            "in_container": in_container(),
+            "access": access,
+            "phone": core.phone_addresses(context.settings, access),
+            "listen_error": context.listen_error,
             # A ready-made password to paste, so nobody has to invent one on the spot.
-            "suggested_password": secrets.token_urlsafe(9),
+            "suggested_password": security.suggest_password(),
             "bookmarklet": bookmarklet(base),
             "self_hosting": core.SELF_HOSTING_URL,
             "install": context.updater.install,

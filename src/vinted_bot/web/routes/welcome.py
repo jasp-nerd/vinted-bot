@@ -21,7 +21,7 @@ from fastapi.responses import RedirectResponse, Response
 from vinted_bot.db.repo import Query, Repo
 from vinted_bot.engine.validation import InvalidInputError
 from vinted_bot.vinted import urls
-from vinted_bot.web import core, data, destinations, forms, views
+from vinted_bot.web import core, data, destinations, forms, security, views
 from vinted_bot.web.routes import alerts
 
 router = APIRouter()
@@ -264,6 +264,7 @@ async def _ready(request: Request, state: dict[str, Any]) -> Response:
     )
     await _save(context, state)
     dest = state.get("dest") or {}
+    access = await security.access(context.settings, context.repo)
     return await _page(
         request,
         "welcome-6.html",
@@ -274,8 +275,9 @@ async def _ready(request: Request, state: dict[str, Any]) -> Response:
         summary=views.search_summary(_preview_query(parsed)) if parsed else values.get("link"),
         dest_kind=dest.get("kind", "skip"),
         dest_name=dest.get("name") or views.KIND_NAMES.get(dest.get("kind", ""), ""),
-        phone=core.phone_address(context.settings),
-        loopback=context.settings.web_is_loopback,
+        access=access,
+        phone=core.phone_addresses(context.settings, access),
+        suggested_password=security.suggest_password(),
         self_hosting=core.SELF_HOSTING_URL,
     )
 
