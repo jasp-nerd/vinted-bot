@@ -536,6 +536,9 @@
       count.textContent = "–";
       const first = r.errors ? Object.values(r.errors)[0] : null;
       label.textContent = r.error || first || "Fill in the search to see what matches";
+      // Setup's line under the search said nothing at all when Vinted didn't answer.
+      const live = $("[data-livecount]");
+      if (live) live.textContent = r.status >= 500 ? "Vinted didn't answer just now, so there's no count yet. You can still continue: the search starts checking once it's saved." : (first || r.error || "Fill in the search to see what matches.");
       return;
     }
     // A full first page is all the preview reads, so its count is "at least".
