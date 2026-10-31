@@ -18,6 +18,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.conftest import LOCAL_CLIENT
 from tests.integration.test_web import SEARCH_URL, Outgoing, _found, _item, _search, _state_of
 from vinted_bot.config import Settings
 from vinted_bot.db.repo import Query, Repo
@@ -52,6 +53,7 @@ def make_client(
         client = TestClient(
             create_app(settings, repo, http=http),
             base_url="http://127.0.0.1",
+            client=LOCAL_CLIENT,
             raise_server_exceptions=raise_errors,
         )
         client.__enter__()
@@ -312,9 +314,12 @@ def _to_alerts(client: TestClient) -> str:
 
 
 def test_the_setup_offers_the_same_ntfy_name_after_a_reload(client: TestClient) -> None:
+    _to_alerts(client)
     first = re.findall(r"data-ntfy-topic>([^<]+)<", client.get("/welcome/alerts").text)
 
-    assert first == re.findall(r"data-ntfy-topic>([^<]+)<", client.get("/welcome/alerts").text)
+    assert first and first == re.findall(
+        r"data-ntfy-topic>([^<]+)<", client.get("/welcome/alerts").text
+    )
 
 
 async def test_changing_the_place_in_setup_replaces_it(client: TestClient, repo: Repo) -> None:

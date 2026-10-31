@@ -4,23 +4,32 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
+import sqlite3
 import sys
 import time
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from vinted_bot import __version__, app, log
+import httpx
+from pydantic import ValidationError
+
+from vinted_bot import __version__, app, config, log, managed
 from vinted_bot.config import Settings
 from vinted_bot.db import Database, apply_pending
 from vinted_bot.db import export as exporter
-from vinted_bot.db.repo import Repo
+from vinted_bot.db.repo import DuplicateSearchError, Repo
 from vinted_bot.engine import health, validation
 from vinted_bot.vinted import urls
 from vinted_bot.vinted.client import VintedClient
 from vinted_bot.vinted.errors import BlockedError, VintedError
+from vinted_bot.vinted.proxies import ProxyRotation
 from vinted_bot.vinted.session import SessionManager
 from vinted_bot.vinted.transport import TransportSession
+from vinted_bot.web import destinations as web_destinations
+
+_log = log.get_logger(__name__)
 
 TROUBLESHOOTING = "https://github.com/jasp-nerd/vinted-bot/blob/main/docs/troubleshooting.md"
 
@@ -66,7 +75,9 @@ def build_parser() -> argparse.ArgumentParser:
     watch.add_argument(
         "--include",
         default="",
-        help="Comma-separated words the title must all contain; 'a|b' accepts either.",
+        help="Comma-separated words the title must all contain; 'a|b' accepts either. "
+        'A word matches longer words starting with it (jean finds jeans); "jean" in '
+        "double quotes means that exact word.",
     )
     watch.add_argument("--regex", default="", help="A regular expression the title must match.")
     watch.add_argument("--min-rating", default="", help="Minimum seller rating, 0 to 5 stars.")
@@ -110,17 +121,15 @@ def build_parser() -> argparse.ArgumentParser:
     unwatch = sub.add_parser("unwatch", help="Remove a search.")
     unwatch.add_argument("query_id", type=int)
 
-    destination = sub.add_parser("destination", help="Add somewhere to send notifications.")
-    destination.add_argument("kind", choices=["discord", "telegram", "webhook", "ntfy"])
-    destination.add_argument(
-        "target", help="Webhook URL, Telegram chat id, ntfy topic, or endpoint URL."
-    )
-    destination.add_argument("--name", default="", help="What to call it.")
-    destination.add_argument(
-        "--status", action="store_true", help="Also send health warnings here."
-    )
+    _destination_parser(sub)
 
     sub.add_parser("destinations", help="List destinations.")
+
+    backup = sub.add_parser(
+        "backup",
+        help="Copy the database to a file, safely, even while the app is running.",
+    )
+    backup.add_argument("file", help="Where to write the copy, such as vinted-bot-backup.db.")
 
     export = sub.add_parser("export", help="Write found listings as CSV or JSON.")
     export.add_argument("--format", choices=["csv", "json"], default="csv")
@@ -136,7 +145,30 @@ def build_parser() -> argparse.ArgumentParser:
     pair.add_argument("--name", default="Telegram", help="What to call the destination.")
     pair.add_argument("--bot-username", default="", help="Your bot's @username, without the @.")
 
+    sub.add_parser(
+        "reset-password",
+        help="Give the dashboard a new password and print it, for when the old one is lost.",
+    )
+
     return parser
+
+
+def _destination_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    destination = sub.add_parser("destination", help="Add somewhere to send notifications.")
+    destination.add_argument("kind", choices=["telegram", "discord", "ntfy", "webhook", "apprise"])
+    destination.add_argument(
+        "target",
+        help="Telegram chat id, Discord webhook link, ntfy topic or topic URL, your "
+        "endpoint's URL, or an Apprise address (as Apprise writes it).",
+    )
+    destination.add_argument("--name", default="", help="What to call it.")
+    destination.add_argument(
+        "--status",
+        action="store_true",
+        default=None,
+        help="Also send status notices here (stale searches, a site that keeps failing, "
+        "updates). The first destination gets them without asking.",
+    )
 
 
 # --- Commands ----------------------------------------------------------------------
@@ -164,9 +196,12 @@ async def _cmd_check(settings: Settings, url: str) -> int:
 
     async with Database(settings.db_path) as db:
         await apply_pending(db)
+        # Through a proxy from VINTED_BOT_PROXY_FILE if there is one, like a search: a
+        # check that goes out directly proves nothing about how the app connects.
         async with TransportSession.build(
             impersonate=settings.http_impersonate,
             timeout=settings.request_timeout_s,
+            proxy=ProxyRotation.from_file(settings.proxy_file).acquire(),
             mock_dir=settings.mock_scenario_dir if settings.fetch_mode == "mock" else None,
         ) as transport:
             sessions = SessionManager(
@@ -273,10 +308,6 @@ async def _cmd_watch(settings: Settings, args: argparse.Namespace) -> int:
         await apply_pending(db)
         repo = Repo(db)
 
-        if await repo.find_query_by_url(normalised) is not None:
-            print("That search is already being watched.", file=sys.stderr)
-            return 1
-
         known = {destination.id for destination in await repo.list_destinations()}
         if unknown := [i for i in destination_ids if i not in known]:
             print(f"No destination with id {unknown[0]}.", file=sys.stderr)
@@ -291,6 +322,9 @@ async def _cmd_watch(settings: Settings, args: argparse.Namespace) -> int:
                 poll_interval_s=interval,
                 **fields,
             )
+        except DuplicateSearchError as exc:
+            print(f"{exc.message} It is search {exc.existing.id}.", file=sys.stderr)
+            return 1
         except validation.InvalidInputError as exc:
             print(exc.message, file=sys.stderr)
             return 2
@@ -314,6 +348,9 @@ async def _cmd_export(settings: Settings, args: argparse.Namespace) -> int:
     rendered = exporter.render(entries, args.format)
     if args.output == "-":
         sys.stdout.write(rendered)
+        # Flushed here, so a reader that went away is a BrokenPipeError main() can handle,
+        # not one at interpreter exit, which nothing can.
+        sys.stdout.flush()
     else:
         await asyncio.to_thread(Path(args.output).write_text, rendered, encoding="utf-8")
         print(f"Wrote {len(entries)} listing(s) to {args.output}.", file=sys.stderr)
@@ -330,11 +367,15 @@ async def _cmd_searches(settings: Settings) -> int:
     for query in queries:
         flags = " (paused)" if query.paused else ""
         limit = f", max {query.max_total_price}" if query.max_total_price else ""
-        print(
-            f"{query.id}: {query.name}{flags} — vinted.{query.tld}, "
-            f"every {query.poll_interval_s}s{limit}"
-        )
+        sites = ", ".join(f"vinted.{site}" for site in query.sites)
+        print(f"{query.id}: {query.name}{flags} — {sites}, every {query.poll_interval_s}s{limit}")
         print(f"    {query.url}")
+        if query.include_terms:
+            print(f"    must include: {', '.join(query.include_terms)}")
+        if query.banned_keywords:
+            print(f"    leaves out: {', '.join(query.banned_keywords)}")
+        if query.countries:
+            print(f"    sellers in: {', '.join(query.countries)}")
     return 0
 
 
@@ -350,17 +391,39 @@ async def _cmd_unwatch(settings: Settings, query_id: int) -> int:
     return 0
 
 
-async def _cmd_destination(settings: Settings, args: argparse.Namespace) -> int:
-    config: dict[str, str]
-    match args.kind:
+def _destination_config(kind: str, target: str) -> dict[str, Any]:
+    """What a destination stores, checked the way the dashboard checks it."""
+    match kind:
         case "discord":
-            config = {"webhook_url": args.target}
+            return {"url": web_destinations.discord_url(target)}
         case "telegram":
-            config = {"chat_id": args.target}
+            if not target.strip().lstrip("-").isdigit():
+                raise validation.InvalidInputError(
+                    "target",
+                    "A Telegram chat id is a number, like 123456789 or -1001234567890. "
+                    "Or skip it: vinted-bot pair-telegram prints a link that connects a chat.",
+                )
+            return {"chat_id": target.strip()}
+        case "ntfy":
+            return web_destinations.ntfy_config(target)
         case "webhook":
-            config = {"url": args.target}
+            if not target.strip().startswith(("https://", "http://")):
+                raise validation.InvalidInputError(
+                    "target", "The address must start with https://."
+                )
+            return {"url": target.strip()}
         case _:
-            config = {"topic": args.target}
+            return {"urls": [target.strip()]}
+
+
+async def _cmd_destination(settings: Settings, args: argparse.Namespace) -> int:
+    try:
+        config = _destination_config(args.kind, args.target)
+        async with httpx.AsyncClient(timeout=settings.request_timeout_s) as http:
+            web_destinations.check(args.kind, config, settings, http)
+    except validation.InvalidInputError as exc:
+        print(exc.message, file=sys.stderr)
+        return 2
 
     async with Database(settings.db_path) as db:
         await apply_pending(db)
@@ -389,19 +452,20 @@ async def _cmd_destinations(settings: Settings) -> int:
 
 
 async def _cmd_pair_telegram(settings: Settings, args: argparse.Namespace) -> int:
-    if settings.telegram_bot_token is None:
-        print(
-            "Set VINTED_BOT_TELEGRAM_BOT_TOKEN first. Talk to @BotFather on Telegram to "
-            "create a bot and get one.",
-            file=sys.stderr,
-        )
-        return 2
-
     from vinted_bot.botctl.telegram_bot import create_pairing  # noqa: PLC0415
 
     async with Database(settings.db_path) as db:
         await apply_pending(db)
-        _, code = await create_pairing(Repo(db), args.name)
+        repo = Repo(db)
+        if await managed.telegram_token(settings, repo) is None:
+            print(
+                "Add your bot's token first: in the dashboard, Alerts, Add a place, Telegram "
+                "(or set VINTED_BOT_TELEGRAM_BOT_TOKEN). Talk to @BotFather on Telegram to "
+                "create a bot and get one.",
+                file=sys.stderr,
+            )
+            return 2
+        _, code = await create_pairing(repo, args.name)
 
     username = args.bot_username.lstrip("@")
     print("Open this link in Telegram, in the chat or group you want alerts in:\n")
@@ -411,6 +475,32 @@ async def _cmd_pair_telegram(settings: Settings, args: argparse.Namespace) -> in
         print(f"  https://t.me/<your bot's username>?start={code}\n")
         print("Pass --bot-username to have that filled in for you.\n")
     print("The app must be running for the link to work. It expires in 30 minutes.")
+    return 0
+
+
+async def _cmd_reset_password(settings: Settings) -> int:
+    """A new dashboard password, printed once, every browser signed out.
+
+    A new password rather than none: phone access may be on, and the dashboard must never
+    be open to the network without one. Takes effect in a running app at once, since the
+    dashboard reads its password on every request.
+    """
+    from vinted_bot.web import security  # noqa: PLC0415 - loads FastAPI, which most commands skip
+
+    if security.password_from_env(settings):
+        print(
+            "The dashboard's password is VINTED_BOT_WEB_AUTH_TOKEN, set in this copy's "
+            "environment or .env file. Look it up or change it there, then restart.",
+            file=sys.stderr,
+        )
+        return 2
+    password = security.suggest_password()
+    async with Database(settings.db_path) as db:
+        await apply_pending(db)
+        await security.set_password(Repo(db), password)
+    print(f"The dashboard's new password is:\n\n  {password}\n")
+    print("Every browser and phone has been signed out and asks for it once.")
+    print("Change it to one of your own in Settings, Password.")
     return 0
 
 
@@ -440,14 +530,54 @@ async def _cmd_status(settings: Settings) -> int:
     return 0
 
 
+async def _cmd_backup(settings: Settings, target: str) -> int:
+    """A consistent copy of the database, taken through SQLite's own backup.
+
+    Copying app.db by hand while the app runs copies a file whose recent changes still
+    sit in app.db-wal beside it, which is how a documented backup came out empty.
+    """
+    path = Path(target)
+    if await asyncio.to_thread(path.exists):
+        print(f"{target} already exists; pick a new file name.", file=sys.stderr)
+        return 2
+    if not await asyncio.to_thread(settings.db_path.exists):
+        print(f"There is no database at {settings.db_path} yet.", file=sys.stderr)
+        return 1
+    async with Database(settings.db_path) as db:
+        try:
+            await db.backup_to(path)
+        except sqlite3.OperationalError as exc:
+            print(
+                f"Couldn't write the backup to {target} ({exc}). Pick a folder you can write "
+                "to, such as your home folder.",
+                file=sys.stderr,
+            )
+            return 1
+    print(f"Backed up {settings.db_path} to {target}.")
+    return 0
+
+
 async def _cmd_heartbeat(settings: Settings) -> int:
     async with Database(settings.db_path) as db:
         return 0 if await health.is_alive(Repo(db)) else 1
 
 
 async def _run(args: argparse.Namespace) -> int:
-    settings = Settings()
-    log.configure(level=settings.log_level, fmt=settings.log_format)
+    try:
+        settings = Settings()
+    except ValidationError as exc:
+        print(config.explain(exc), file=sys.stderr)
+        return 2
+    log.configure(level=settings.log_level, fmt=settings.log_format, timezone=settings.timezone)
+    for warning in settings.warnings:
+        _log.warning("config.not_used", problem=warning)
+    if unknown := Settings.unknown_keys():
+        _log.warning(
+            "config.unknown_keys",
+            keys=unknown,
+            hint="no setting has these names, so they do nothing; check for typos or "
+            "keys left over from an older version",
+        )
 
     match args.command:
         case "run":
@@ -466,10 +596,14 @@ async def _run(args: argparse.Namespace) -> int:
             return await _cmd_destination(settings, args)
         case "destinations":
             return await _cmd_destinations(settings)
+        case "backup":
+            return await _cmd_backup(settings, args.file)
         case "export":
             return await _cmd_export(settings, args)
         case "pair-telegram":
             return await _cmd_pair_telegram(settings, args)
+        case "reset-password":
+            return await _cmd_reset_password(settings)
         case "status":
             return await _cmd_status(settings)
         case "heartbeat":
@@ -484,6 +618,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return asyncio.run(_run(args))
     except KeyboardInterrupt:
         return 130
+    except BrokenPipeError:
+        # The reader went away early, as `vinted-bot export | head` does on purpose. The
+        # rest of the output has nowhere to go; point stdout at nothing so the flush at
+        # exit does not raise the same error again as a traceback.
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, sys.stdout.fileno())
+        return 0
 
 
 if __name__ == "__main__":

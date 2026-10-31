@@ -121,15 +121,20 @@ class SessionManager:
         if (session := self._usable(self._cache.get(tld))) is not None:
             return session
         async with self._lock(tld):
-            session = self._usable(self._cache.get(tld)) or self._usable(await self._load(tld))
+            cached = self._cache.get(tld)
+            stored = None if self._usable(cached) else await self._load(tld)
+            session = self._usable(cached) or self._usable(stored)
             if session is None:
+                # Said once, here, where it is replaced: checking the cache and the
+                # database on the way said it up to three times for one expiry.
+                if expired := cached or stored:
+                    log.info("session.expired", tld=tld, age_s=expired.age_s())
                 session = await self.bootstrap(tld)
             self._cache[tld] = session
             return session
 
     def _usable(self, session: Session | None) -> Session | None:
         if session is not None and session.age_s() >= self._rotate_after_s:
-            log.info("session.expired", tld=session.tld, age_s=session.age_s())
             return None
         return session
 

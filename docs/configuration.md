@@ -1,18 +1,39 @@
 # Configuration
 
-Two kinds of settings, kept apart deliberately.
+Nobody needs to edit a file. Everything a normal setup needs is in the dashboard; the
+environment is for servers and Docker setups that want a value fixed in place.
 
-**Environment variables** control the process: where the database is, how often to check,
-how to log. They are read once at startup and are listed below.
+**In the dashboard**, stored in the database and changed while the app runs:
 
-**Searches and destinations** live in the database and are managed with the CLI or the
-dashboard. There is no config file listing them, so there is nothing to keep in sync and no
-question about which copy wins.
+| What | Where | Environment variable that overrides it |
+|---|---|---|
+| Searches, places for alerts, routing, watches, blocked sellers | Searches, Alerts, Watchlist | none |
+| Telegram bot token | Alerts: paste it when adding Telegram, or on the Telegram bot card | `TELEGRAM_BOT_TOKEN` |
+| Dashboard password | Settings, Password | `WEB_AUTH_TOKEN` |
+| Who can open the dashboard | Settings, "Allow my phone and other devices" | `WEB_HOST` |
+| Time zone, theme, update checks, health check link | Settings | `TIMEZONE` (the dashboard's choice wins over it) |
+
+**The environment wins when it says something.** If one of the three overridable variables
+is set, in the environment or in the `.env` file, the app uses it and the dashboard shows it
+as set by the environment, with no control to change it. A dashboard switch that quietly
+overrode a compose file or a service unit would come back wrong at the next deploy.
+
+**Everything else is environment only**: where the database is, how often to check, how to
+log, ports. Read once at startup and listed below. The dashboard lists every one of them,
+read-only, under Settings, Advanced, with its value and whether it came from the
+environment, the `.env` file or the default.
 
 ## Environment variables
 
 Every variable is prefixed `VINTED_BOT_`. All of them are optional except where noted.
-[`.env.example`](../.env.example) has the same list with comments, ready to copy.
+[`.env.example`](../.env.example) has the same list with comments, ready to copy. With
+Docker, set them in the `environment:` block of `docker-compose.yml` and run
+`docker compose up -d` afterwards.
+
+A `VINTED_` name the app doesn't know, such as a typo or a `VINTED_SNIPER_` line from an
+older version, is ignored, and the log lists it at startup. Other programs' variables in a
+shared `.env` (`PUID` and the like) are ignored without a word. A value it can't use stops it with a
+one-paragraph message naming the setting and what is wrong with it.
 
 Besides the environment, the app reads a file called `.env` **in the folder you start it
 from** (the current directory, not the folder the app is installed in). Variables set in
@@ -39,7 +60,7 @@ folder you start the app from. `vinted-bot migrate` prints the path it used.
 
 | Variable | Default | What it does |
 |---|---|---|
-| `TIMEZONE` | this computer's time zone | IANA time zone such as `Europe/Paris`, used for quiet hours and the stats page. Falls back to the standard `TZ` variable, then to the computer's own zone (UTC if it can't be told). The dashboard's settings page can override it. |
+| `TIMEZONE` | this computer's time zone | IANA time zone such as `Europe/Paris`, used for quiet hours, the stats page and the time stamps in the log (with their UTC offset). Falls back to the standard `TZ` variable, then to the computer's own zone (UTC if it can't be told). A `TZ` it can't read, such as the POSIX forms `:/etc/localtime` or `CET-1CEST,M3.5.0,M10.5.0/3`, is logged as a warning and the computer's own zone used instead. The dashboard's settings page can override it. |
 
 ### Checking
 
@@ -60,8 +81,9 @@ not looking is recorded, not announced.
 
 The 10-second floor is not caution for its own sake: Vinted's own API lags minutes behind
 what people upload, sometimes longer, so checking faster finds nothing sooner and does get
-you blocked. Each notification shows both when Vinted says the listing appeared and when it
-was found, so you can see the real delay yourself.
+you blocked. Vinted's search no longer says when a listing went up, so notifications show
+when the app found it, labelled "found" rather than "listed", and nothing in the app
+measures the delay between the two.
 
 ### Staying unblocked
 
@@ -79,22 +101,28 @@ was found, so you can see the real delay yourself.
 | `WATCHDOG_ACTION` | `rotate` | `warn` logs it; `rotate` also starts a fresh session. |
 | `OUTBOX_EXPIRY_MINUTES` | `60` | Discard notifications that could not be delivered within this window. |
 
+The watchdog also watches whole sites. When every search on a Vinted site has failed for 15
+minutes (refused with a 403, rate limited, or unreachable), destinations with status
+notices on get one message about it, and one more when checks work again. It doesn't repeat
+in between.
+
 ### Telegram
 
 | Variable | Default | What it does |
 |---|---|---|
-| `TELEGRAM_BOT_TOKEN` | unset | From [@BotFather](https://t.me/BotFather). Enables Telegram delivery and the pairing bot. |
+| `TELEGRAM_BOT_TOKEN` | unset | Normally pasted on the dashboard's Alerts page, which checks it with Telegram and starts the bot at once. Set here, it wins over the dashboard's and cannot be changed there. From [@BotFather](https://t.me/BotFather). |
 
 ### Dashboard
 
 | Variable | Default | What it does |
 |---|---|---|
 | `WEB_ENABLED` | `true` | The dashboard. Turn it off if you only use the CLI. |
-| `WEB_AUTH_TOKEN` | unset | Optional. With no token the dashboard has no sign-in, which is fine while it listens on localhost. **Set one before exposing it further**: anyone who can open the dashboard can add, remove and reroute your alerts. Generate with `openssl rand -hex 32`. Signing in gives that browser a random session (30 days) that signing out revokes; changing the token signs every browser out. After five wrong passwords from one address, sign-in waits 15 minutes. |
-| `WEB_HOST` | `127.0.0.1` | Loopback by default. Only widen behind a reverse proxy you trust. |
+| `WEB_AUTH_TOKEN` | unset | A dashboard password fixed by the environment. Normally the password is set in Settings, Password (stored as a salted scrypt fingerprint, never the password itself), and turning on phone access asks for one. Set here, it wins over that one and Settings cannot change it. Generate with `openssl rand -hex 32`. Either way: signing in gives that browser a random session (30 days) that signing out revokes; changing the password signs every browser out; after five wrong passwords from one address, sign-in waits 15 minutes. Forgot the dashboard's own password? `vinted-bot reset-password` prints a new one. |
+| `WEB_HOST` | `127.0.0.1` | Unset, the Settings switch "Allow my phone and other devices" decides: `127.0.0.1` (this computer only) or `0.0.0.0` (every device on your network; visitors from the internet are refused, see `WEB_ALLOW_PUBLIC`, and the switch refuses to turn on where the network hands out only public addresses). The switch takes effect at once: the web server listens again on the new address inside the running app, no restart. It needs a password, and the password cannot be removed while it is on. Set here, it wins over the switch; widen it only behind a reverse proxy you trust. |
 | `WEB_PORT` | `8000` | |
-| `WEB_PUBLIC_URL` | unset | The address the dashboard is reachable at from wherever you read your alerts — set it when the dashboard sits behind a reverse proxy or a tunnel. It becomes the Dashboard link in Discord messages; unset, that link points at `http://<WEB_HOST>:<WEB_PORT>`. Its host name is also one the dashboard answers to (see `WEB_ALLOWED_HOSTS`). |
-| `WEB_ALLOWED_HOSTS` | unset | Extra host names the dashboard answers to, comma-separated, such as `nas.local,finds.example.org`. The dashboard always answers to `localhost`, `127.0.0.1`, `[::1]`, any IP address (so `http://192.168.1.20:8000` from a phone works) and the host of `WEB_PUBLIC_URL`. Any other name gets a 400 page that names this setting. That is what stops another website from pointing its own name at your computer and using the dashboard through your browser (DNS rebinding), and it applies however the dashboard is bound, the Docker image's `0.0.0.0` included. Add the name your reverse proxy forwards, if it does not pass the original one on. |
+| `WEB_PUBLIC_URL` | unset | The address the dashboard is reachable at from wherever you read your alerts — set it when the dashboard sits behind a reverse proxy or a tunnel. It becomes the Dashboard link in Discord, Telegram and Apprise alerts. Unset, the link would be `http://<WEB_HOST>:<WEB_PORT>` (`127.0.0.1` for a `0.0.0.0` bind), and an address that only works on the computer itself (`localhost`, `127.0.0.1`) is left out of alerts altogether, since it would do nothing on a phone. So with the defaults, and in Docker, alerts carry no Dashboard link until this is set. Its host name is also one the dashboard answers to (see `WEB_ALLOWED_HOSTS`). |
+| `WEB_ALLOWED_HOSTS` | unset | Extra host names the dashboard answers to, comma-separated, such as `finds.example.org`. The dashboard always answers to `localhost`, `127.0.0.1`, `[::1]`, any IP address (so `http://192.168.1.20:8000` from a phone works), one-word names (`nas`, `umbrel`), the names routers and VPNs hand out (`.local`, `.lan`, `.home`, `.home.arpa`, `.internal`, `fritz.box` and its devices, Tailscale's `.ts.net`) and the host of `WEB_PUBLIC_URL`. Those names only resolve on your own network, so no outside website can take them over. Any other name gets a 400 page that names this setting. That is what stops another website from pointing its own name at your computer and using the dashboard through your browser (DNS rebinding), and it applies however the dashboard is bound, the Docker image's `0.0.0.0` included. Add the name your reverse proxy forwards, if it does not pass the original one on. A public name here (or in `WEB_PUBLIC_URL`) also counts as `WEB_ALLOW_PUBLIC=true`. |
+| `WEB_ALLOW_PUBLIC` | `false` | Whenever the dashboard listens beyond this computer (phone access on, or `WEB_HOST` set), it only serves requests from this computer and private networks: home and office ranges (`10.*`, `172.16-31.*`, `192.168.*`), self-assigned addresses, Tailscale (`100.64.0.0/10`) and their IPv6 counterparts. Anyone else gets a plain 403, even on a network that gives your computer a public address. Docker's port mapping passes requests on from its own private bridge address, so opening a container from your LAN works as before. Behind a reverse proxy the dashboard sees the proxy's address (or, from a proxy on the same machine, the visitor's address it passes on): a proxy that only serves your LAN or Tailscale needs nothing. One that serves the internet is the case for setting `WEB_PUBLIC_URL` to its public address, which you want anyway for the links in alerts, and that lets the internet in. Set this to `true` only when the dashboard is meant to be reachable from the internet some other way, such as a server with only a public address. |
 
 ### Updating
 
@@ -120,18 +148,30 @@ in [Running it somewhere: Updating](self-hosting.md#updating).
 vinted-bot run [--open]             start watching (what the container runs);
                                        --open also opens the dashboard in your browser
 vinted-bot check --url <url>        fetch one search once and print the result
+                                       (through PROXY_FILE's proxies, if set)
 vinted-bot watch <url> [options]    add a search
 vinted-bot searches                 list searches
 vinted-bot unwatch <id>             remove one
-vinted-bot destination <kind> <target>   add somewhere to send
+vinted-bot destination <kind> <target> [--name N] [--status]
+                                       add somewhere to send: discord, telegram,
+                                       webhook, ntfy or apprise
 vinted-bot destinations             list them
 vinted-bot export [--format csv|json] [--search ID] [--output FILE]
                                        write found listings for a spreadsheet
+vinted-bot backup <file>            write a complete copy of the database to <file>,
+                                       safe while the app is running
 vinted-bot pair-telegram            print a link that connects a Telegram chat
+vinted-bot reset-password           give the dashboard a new password and print it
 vinted-bot status                   how each search is doing
 vinted-bot migrate                  create or update the database, then exit
 vinted-bot heartbeat                exit 0 if the app is alive (the health check)
 ```
+
+`export` writes one row per listing a search matched and still keeps, newest first,
+leaving out sellers you blocked. The CSV starts with a UTF-8 byte order mark so Excel shows
+accents and currency signs properly. `seller_country` is filled in when a seller lookup knew
+it. There is no `listed_at` column: Vinted's search no longer says when a listing went up,
+and `found_at` is when the app found it.
 
 Options for `watch`:
 
@@ -139,10 +179,10 @@ Options for `watch`:
 |---|---|
 | `--name` | What to call it. Defaults to the search text. |
 | `--every N` | Seconds between checks for this search. |
-| `--max-price N` | Skip anything above this **including buyer protection**. `12,50` works. |
+| `--max-price N` | Skip anything above this **including buyer protection**. `12,50` works. In the currency of the search's own site; see below for searches on several sites. |
 | `--min-price N` | Skip anything below this total. |
 | `--exclude a,b,c` | Skip listings whose title or brand contains any of these words. Whole words, ignoring case and accents; end one with `*` to match any ending (`part*`). |
-| `--include a,b\|c` | The title or brand must contain every one of these. `b\|c` accepts either. Same matching as `--exclude`. |
+| `--include a,b\|c` | The title or brand must contain every one of these. `b\|c` accepts either. Ignores case and accents, and matches the beginning of a word: `jean` matches `jeans` and `Jeans`. Put a word in double quotes (`'"jean"'` in a shell) to require exactly that word. A trailing `*` is no longer needed, and still accepted. |
 | `--regex PATTERN` | The title must match this regular expression (case-insensitive). Checked when you save it. |
 | `--min-rating N` | Skip sellers rated under N stars (0 to 5). |
 | `--min-reviews N` | Skip sellers with fewer than N reviews. |
@@ -157,8 +197,24 @@ Options for `watch`:
 | `--to 1,2` | Destination ids to notify. Without it, the search goes to **every active destination, including ones you add later**. |
 
 Seller country and rating filters read the seller's public member page, once a week per
-seller, and only for listings that passed every other filter. Listings a search skipped
-are logged with the reason, so the dashboard can answer "why did I not get this one?".
+seller, and only for listings that passed every other filter. Those lookups are paced so
+Vinted doesn't refuse them, so on a busy search a listing whose seller hasn't been looked
+up yet waits for a later check, for up to the search's freshness window; a seller seen
+before comes from the cache straight away. If Vinted refuses lookups, they pause, and the
+waiting listings stay waiting rather than being judged without the seller. When a seller
+was looked up, its rating, review count and country also appear in the alert.
+
+Listings a search skipped are logged with the reason in the search's **Not sent** list, so
+the dashboard can answer "why did I not get this one?": prices with their currency, a
+listing the app could tell was too old (`too_old`), a seller still waiting to be looked
+up and why, and the rest.
+
+**Price limits on several sites.** The minimum and maximum price are in the currency of the
+search's own site (zł for a vinted.pl search). With `--also-on` sites that use another
+currency, those listings are converted with the European Central Bank's daily reference
+rates before comparing. The rates are fetched at most once a day, and only while some
+search spans more than one currency. A listing in a currency with no known rate is skipped,
+and Not sent says so.
 
 ## Adding a search
 
@@ -170,21 +226,36 @@ Any country site works: `vinted.fr`, `.de`, `.nl`, `.co.uk`, `.com`, and the res
 you copied from is the site it watches, and the links you get back point there too. Tracking
 parameters are stripped, so pasting the same search twice counts as one search.
 
+**The same link twice.** Adding a link that is already watched is refused, in the
+dashboard, with `vinted-bot watch` and with Telegram's `/add` alike, and the message names
+the search that already watches it. To watch the same link with different filters or
+destinations, use **Duplicate** on that search and change the copy. Editing a search
+without changing what it fetches (its link, filters in the link, or sites) keeps what it has
+already seen and its typical price; only a real change to the search starts it afresh.
+
 ## Destinations
 
 Where to get each kind of target:
 
 | Kind | Setup |
 |---|---|
-| `discord` | In your server: Settings → Integrations → Webhooks → New Webhook → Copy URL. Nothing to invite, nothing to host. |
-| `telegram` | Create a bot with [@BotFather](https://t.me/BotFather), set `TELEGRAM_BOT_TOKEN`, then run `vinted-bot pair-telegram` and tap the link it prints. It finds your chat id for you. |
-| `ntfy` | Pick a topic name, install the ntfy app. No account. |
+| `discord` | In your server: Settings → Integrations → Webhooks → New Webhook → Copy URL. Nothing to invite, nothing to host. `vinted-bot destination discord` checks that it is a webhook link, like the dashboard does. |
+| `telegram` | In the dashboard: Alerts, Add a place, Telegram. It walks you through making a bot with [@BotFather](https://t.me/BotFather), checks the token you paste, then gives you a link that connects your chat (no chat id to look up). From the command line, `vinted-bot pair-telegram` prints the same link. |
+| `ntfy` | A topic name, or the full topic address (`https://ntfy.example.org/my-topic`) for your own server. Install the ntfy app; no account. The public ntfy.sh server allows about 250 messages a day per internet address, so it suits focused searches; use Telegram or Discord for busy ones. |
+| `apprise` | Email, Slack, Pushover, Gotify, Matrix and more: one [Apprise URL](https://github.com/caronc/apprise/wiki) per service, such as `mailtos://user:app-password@gmail.com`. |
 | `webhook` | Any URL you control: n8n, Home Assistant, a script. Payload below. |
+
+`--status` also sends status notices there: the watchdog's warnings, a whole site failing
+and recovering, and "updated itself". The first destination you create gets them on by
+default, from the dashboard, setup, Telegram pairing or the command line. A notice that
+can't be delivered (no network, the service down) is tried again, in order, for up to a
+day.
 
 Each search can go to its own set of destinations, so a Discord channel for one thing and
 your phone for another is normal. A search you have not routed anywhere goes to every
 active destination, including ones added later, so the order you set things up in does not
-matter. Watches follow the same rule. When two searches match the same listing, each
+matter. Watches follow the same rule: a watch can be sent to chosen destinations, and
+otherwise goes to every active one. When two searches match the same listing, each
 destination still hears about it once.
 
 What is stored per destination — the dashboard and `vinted-bot destination` fill these in
@@ -192,17 +263,29 @@ for you:
 
 | Kind | Fields |
 |---|---|
-| `discord` | `url` (destinations made by 1.x stored it as `webhook_url`, which still works), optionally `style` (`card` or `compact`), `mention` (such as `<@&role id>`), `thread_id`, `username`, `avatar_url` |
+| `discord` | `url` (destinations made by 1.x stored it as `webhook_url`, which still works), optionally `style` (`card`, `compact` or `classic`), `mention` (`<@&role id>` for a role, `<@user id>` for a person, `@everyone` or `@here`), `ping_tiers` (which tiers ping the mention; `[steal]` by default, so only steals ping), `silent` (never make a sound), `thread_id`, `username`, `avatar_url` |
 | `telegram` | `chat_id`, optionally `thread_id` for a forum topic (1.x's `message_thread_id` still works), `style` (`photo` or `gallery`), `silent` |
-| `ntfy` | `topic` (or a full topic `url`), optionally `server`, `token` and `priority` (1 to 5) |
+| `ntfy` | `topic` (or a full topic `url`), optionally `server`, `token` and `priority` (1 to 5). While the server's daily limit is reached, the destination is paused and the Alerts page shows why. |
 | `webhook` | `url`, optionally `secret` (signs every request, see below) and `headers` |
-| `apprise` | `urls`: a list of [Apprise](https://github.com/caronc/apprise/wiki) addresses, for email, Slack, Pushover, Gotify, Matrix and the rest. Needs the `apprise` extra. |
+| `apprise` | `urls`: a list of [Apprise](https://github.com/caronc/apprise/wiki) addresses, for email, Slack, Pushover, Gotify, Matrix and the rest. The dashboard builds the email one from an address, a provider and an app password, or from a mail server you name. |
 
 Every kind also takes `tiers`, the kinds of listing it wants (`steal`, `deal`, `normal`; all
 three by default), and `silent_tiers`, the ones to deliver without a sound. A listing a
 destination did not want is set aside as skipped, with the reason, and not counted as a
-failed delivery. 1.x's `deals_only` (the same as `tiers: [steal, deal]`) and `min_deal_pct`
-still work.
+failed delivery. 1.x's `deals_only` (the same as `tiers: [steal, deal]`) still works, and
+so does `min_deal_pct`, a custom bar for how far under the typical price a listing must be,
+except on a destination whose `tiers` include `normal`: that one takes everything, so the
+bar has nothing to filter.
+
+Those apply to **search listings only**. Watch alerts (a price drop, a sale, a reservation,
+a removal, a followed seller's new upload) were asked for one by one, so tiers never filter
+them out. Whether a destination gets them at all is its own key, `watch_alerts`: `true` by
+default, `false` keeps them away from, say, a steals-only channel.
+
+When several ntfy alerts are waiting at once, they go out as one push listing them, which
+keeps a busy search inside ntfy.sh's daily allowance. In quiet hours' `silent` mode, Apprise
+sends without a sound where the service has such a setting, and webhook items say
+`"silent": true`.
 
 ## The webhook payload
 
@@ -211,8 +294,9 @@ it changes only with a version bump, because other people's automations depend o
 
 Each POST carries the listings of **one search**, or of **one watch**, so `search` always
 names where they came from. For watch alerts (price drops, sales, a followed seller's new
-uploads) `search` is the watch's label and `search_id` is `null`. A status notice, for
-destinations that asked for them, is `{"version": 2, "status": "<message>"}` with no items.
+uploads) `search` is the watch's label and `search_id` is `null`, as it is for the sample
+listing a test sends. A status notice, for destinations that asked for them, is
+`{"version": 2, "status": "<message>"}` with no items.
 
 ```json
 {
@@ -254,8 +338,10 @@ destinations that asked for them, is `{"version": 2, "status": "<message>"}` wit
         "login": "someone",
         "url": "https://www.vinted.fr/member/12345678",
         "stars": 4.7,
-        "reviews": 128
-      }
+        "reviews": 128,
+        "country": "FR"
+      },
+      "silent": false
     }
   ]
 }
@@ -269,13 +355,14 @@ Version 2 keeps every version 1 field with the same name and meaning, and adds t
 | `search_id` | The search's id, or `null` for watch alerts. Also at the top level. |
 | `detected_at` | When this search found the listing, as Unix seconds. |
 | `photos` | Every photo, largest size. |
-| `previous_price` | For `price_drop`: the total price before the drop. |
+| `previous_price` | For `price_drop`: the price before the drop, as the listing's own page shows it. That page carries no buyer-protection figure, so this is the asking price, and `total_price` is `null` on watch alerts. |
 | `typical_price` | This search's median total price for what it finds, when the listing was found. `null` until it has 15 finds in two weeks. |
 | `deal_pct` | How far under `typical_price` the total is, in percent (negative when over). |
 | `deal_tier` | `steal`, `deal` or `normal`: the tiers a destination's `tiers` setting names. |
 | `margin` | What reselling would leave, from the search's resale price, fee and shipping. `null` without one. |
 | `favourites` | How many people favourited the listing. |
-| `seller_profile` | The seller's id, login, profile link, rating out of five and review count, as far as known. |
+| `seller_profile` | The seller's id, login, profile link, rating out of five, review count and country (an ISO code such as `FR`), as far as known: rating, reviews and country come from the seller lookup that country and rating filters do. |
+| `silent` | `true` when the alert should make no sound: quiet hours in `silent` mode, or a tier in the destination's `silent_tiers`. |
 
 `price` is what the seller asks. `total_price` is what you pay. Filters and displays use the
 second one. `listed_at` is the photo time, which Vinted's search results no longer give, so
@@ -312,7 +399,7 @@ Each search has a feed at `/rss/<search id>.xml`, so with the defaults:
 http://localhost:8000/rss/1.xml
 ```
 
-If `WEB_AUTH_TOKEN` is set, feed readers cannot sign in, so the feed address carries a key
+If the dashboard has a password, feed readers cannot sign in, so the feed address carries a key
 instead: `/rss/1.xml?key=<feed key>`. The key is a random value of its own, not your
 password, made the first time it is needed. Copy the whole address from the "RSS feed of
 this search" link on the search's page in the dashboard. Anyone with that address can read

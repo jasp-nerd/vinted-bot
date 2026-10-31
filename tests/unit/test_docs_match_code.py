@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from vinted_bot import __version__
 from vinted_bot.cli import build_parser
 from vinted_bot.config import Settings
 
@@ -65,4 +66,16 @@ def test_the_readme_does_not_promise_buying() -> None:
         "cannot buy" in lowered
         or "does not log into your" in lowered
         or "never logs in, buys" in lowered
+    )
+
+
+def test_the_umbrel_app_names_this_version() -> None:
+    """The Umbrel template still pinned 2.1.0 when 2.2.0 was ready to ship."""
+    umbrel = ROOT / "deploy" / "umbrel" / "jasp-vinted-bot"
+    app = (umbrel / "umbrel-app.yml").read_text(encoding="utf-8")
+    compose = (umbrel / "docker-compose.yml").read_text(encoding="utf-8")
+
+    assert (f'version: "{__version__}"' in app, f"vinted-bot:{__version__}\n" in compose) == (
+        True,
+        True,
     )

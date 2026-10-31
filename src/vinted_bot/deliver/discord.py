@@ -718,13 +718,14 @@ class DiscordSender:
             )
         return SendResult.ok(delivered), False
 
-    async def send_status(self, message: str) -> None:
+    async def send_status(self, message: str) -> str | None:
         if self._v2:
-            _, rejected = await self._post(status_v2(message, self._options), [])
+            result, rejected = await self._post(status_v2(message, self._options), [])
             if not rejected:
-                return
+                return result.failure
             self._v2 = False
-        await self._post(status_classic(message, self._options), [])
+        result, _ = await self._post(status_classic(message, self._options), [])
+        return result.failure
 
     async def _post(
         self, payload: dict[str, Any], outbox_ids: list[int]

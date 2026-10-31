@@ -273,8 +273,13 @@ def reachable_dashboard(url: str | None) -> str | None:
 
 def site_flag(tld: str) -> str:
     """The country site as a flag. It is where the listing is, not where the seller is."""
-    iso = _ISO_BY_TLD.get(tld, tld.upper())
-    if len(iso) != 2 or not iso.isalpha():  # noqa: PLR2004 - flags are two letters
+    return country_flag(_ISO_BY_TLD.get(tld, tld.upper()))
+
+
+def country_flag(iso: str) -> str:
+    """A two-letter country code as its flag, or "" for anything else."""
+    iso = iso.upper()
+    if len(iso) != 2 or not iso.isascii() or not iso.isalpha():  # noqa: PLR2004 - two letters
         return ""
     return "".join(chr(0x1F1E6 + ord(letter) - ord("A")) for letter in iso)
 
@@ -307,14 +312,20 @@ def _clip(text: str | None, limit: int) -> str | None:
     return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
 
 
-def _rating(rating: float | None, reviews: int | None, labels: Labels) -> str | None:
-    """Vinted's 0..1 reputation as the five-star figure people know, with its review count."""
+def _rating(
+    rating: float | None, reviews: int | None, country: str | None, labels: Labels
+) -> str | None:
+    """Vinted's 0..1 reputation as the five-star figure people know, with its review count,
+    and the flag of the seller's country when a lookup told us it."""
     if reviews == 0:
-        return labels.new_seller
-    if rating is None:
-        return None
-    stars = f"★ {round(rating * 50) / 10:.1f}"
-    return f"{stars} ({reviews})" if reviews else stars
+        text = labels.new_seller
+    elif rating is None:
+        text = None
+    else:
+        stars = f"★ {round(rating * 50) / 10:.1f}"
+        text = f"{stars} ({reviews})" if reviews else stars
+    flag = country_flag(country) if country else ""
+    return " · ".join(part for part in (text, flag) if part) or None
 
 
 def view(notification: PendingNotification, *, dashboard_url: str | None) -> ListingView:
@@ -364,7 +375,9 @@ def view(notification: PendingNotification, *, dashboard_url: str | None) -> Lis
         brand=_clip(item.brand, MAX_FACT),
         seller_login=_clip(item.seller_login, MAX_FACT),
         seller_url=item.seller_url,
-        rating=_rating(item.seller_rating, item.seller_feedback_count, labels),
+        rating=_rating(
+            item.seller_rating, item.seller_feedback_count, notification.seller_country, labels
+        ),
         site=f"vinted.{item.tld}",
         flag=site_flag(item.tld),
         listed_at=item.photo_ts or notification.detected_at or int(time.time()),
@@ -376,8 +389,10 @@ def view(notification: PendingNotification, *, dashboard_url: str | None) -> Lis
             else None
         ),
         dashboard_url=dashboard,
-        buy_url=item.buy_url,
-        message_url=item.message_url,
+        # A link that is no listing page (the test alert's sample, which opens a real
+        # search instead) has no buy or message page behind it either.
+        buy_url=item.buy_url if "/items/" in item.url else absolute(item.url, item.tld),
+        message_url=item.message_url if "/items/" in item.url else absolute(item.url, item.tld),
         favourites=item.favourite_count,
         accent=accent,
         silent=notification.silent,

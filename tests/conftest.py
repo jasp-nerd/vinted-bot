@@ -12,6 +12,11 @@ from vinted_bot.db import Database, apply_pending
 from vinted_bot.db.repo import Repo
 from vinted_bot.vinted.transport import Response
 
+# What uvicorn reports for a browser on this computer. Starlette's test client says
+# "testclient", which is no address at all, and a dashboard listening beyond loopback
+# refuses any visitor it cannot place on a private network.
+LOCAL_CLIENT = ("127.0.0.1", 50000)
+
 
 class ScriptedTransport:
     """A transport that answers with whatever the test lined up.

@@ -1,6 +1,6 @@
 # vinted-bot
 
-> Free, open-source app that watches Vinted searches and sends a message (Discord, Telegram, ntfy, RSS or a webhook) when a new listing matches. It runs on the user's own computer or server, never logs in to Vinted, and has a web dashboard at http://localhost:8000 where all setup happens. Not affiliated with Vinted. MIT licensed. Source: https://github.com/jasp-nerd/vinted-bot
+> Free, open-source app that watches Vinted searches and sends a message (Telegram, Discord, email and other apps, RSS or a webhook) when a new listing matches. It runs on the user's own computer or server, never logs in to Vinted, and has a web dashboard at http://localhost:8000 where all setup happens. Not affiliated with Vinted. MIT licensed. Source: https://github.com/jasp-nerd/vinted-bot
 
 This file is a complete guide for an AI assistant helping someone install and use vinted-bot. The person is often not technical. Use only the commands in this file; do not invent commands, flags or settings. If something here doesn't match what the person sees, say so and point them to the issue tracker rather than guessing.
 
@@ -15,11 +15,12 @@ This file is a complete guide for an AI assistant helping someone install and us
 
 - Alerts only arrive while the computer running vinted-bot is on, awake and online. A laptop that sleeps sends nothing while asleep. Always-on options: a Raspberry Pi, a NAS, a mini PC, an old laptop left plugged in, or a small rented server (a few euros a month).
 - No Vinted account is involved. It never asks for Vinted login details. Anything asking for Vinted credentials is not this app.
-- No configuration file is needed. Searches and alert destinations are added in the dashboard.
-- The dashboard is at http://localhost:8000 on the computer it runs on. It has no password unless one is set (VINTED_BOT_WEB_AUTH_TOKEN). That is fine on the person's own computer and required anywhere the dashboard can be reached from other devices.
+- No configuration file is needed, ever. Searches, alert destinations, the Telegram bot token, the dashboard password and phone access are all set in the dashboard. Never tell the person to create or edit a .env file for these.
+- The dashboard is at http://localhost:8000 on the computer it runs on. It has no password until one is set in Settings, Password. That is fine on the person's own computer. To open it on a phone: Settings, "Open on your phone", switch on "Allow my phone and other devices"; it asks for a password (it suggests one), then shows a QR code and the address to type. It only reaches devices on the same Wi-Fi or home network, not the internet. (Servers and Docker can instead fix VINTED_BOT_WEB_AUTH_TOKEN and VINTED_BOT_WEB_HOST in the environment; those win over the dashboard.)
+- Forgot the dashboard password: run `vinted-bot reset-password` on the computer running it (Docker: `docker compose exec vinted-bot vinted-bot reset-password`). It prints a new one.
 - Price limits include Vinted's buyer protection fee, so they match what the person actually pays.
 - The first check of a new search is silent on purpose, so there is no flood of old listings. Alerts start with listings that appear after that.
-- New listings usually arrive within a few minutes. Vinted itself shows new listings to its search with a delay, so nothing can be instant.
+- Vinted adds new uploads to its search a few minutes after they are posted, and every tool that reads the search sees them then; vinted-bot checks every minute after that. Nothing can be instant, and the app does not measure or show this delay.
 - Vinted moved its search to a new address in September 2026. Versions before 2.0.0 find nothing since then. If someone installed earlier, update first (see Updating).
 
 ## Install
@@ -63,29 +64,30 @@ A Pi without a screen: open the dashboard from another computer by running this 
 ### Docker (any computer that already has Docker)
 
     mkdir vinted-bot && cd vinted-bot
-    curl -O https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docker-compose.yml
+    curl -fsSLO https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docker-compose.yml
     docker compose up -d
 
-Then open http://localhost:8000 on that computer. With Docker, put `docker compose exec vinted-bot` in front of any `vinted-bot` command below.
+Then open http://localhost:8000 on that computer. With Docker, put `docker compose exec vinted-bot` in front of any `vinted-bot` command below. Settings such as the Telegram bot token or a dashboard password go in the `environment:` block of docker-compose.yml (the common ones are there, commented out); after changing it, run `docker compose up -d`.
 
 ### NAS
 
-- Unraid: Apps (Community Applications), search vinted-bot.
-- Umbrel: add the community app store listed in https://github.com/jasp-nerd/vinted-bot/blob/main/deploy/README.md
+- Unraid: not in Community Applications yet. In the Unraid terminal run
+      curl -fsSL -o /boot/config/plugins/dockerMan/templates-user/my-vinted-bot.xml https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/deploy/unraid/vinted-bot.xml
+  then Docker, Add Container, and pick vinted-bot under Template.
+- Umbrel: not in an Umbrel app store yet. Use the Docker steps above over SSH (ssh umbrel@umbrel.local).
 - CasaOS or ZimaOS: App Store, Custom Install, import https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/deploy/casaos/docker-compose.yml
 - Synology (DSM 7.2+): Container Manager, Project, Create, paste the docker-compose.yml from the Docker section.
 
-On a NAS the dashboard is reachable from the whole home network, so a dashboard password (VINTED_BOT_WEB_AUTH_TOKEN) should be set in the app's settings on the NAS.
+On a NAS the dashboard is reachable from the whole home network, so set a dashboard password first: in the dashboard, Settings, Password, Set a password.
 
 ## First use
 
-<!-- TODO(web): replace the step wording below with the exact names of the onboarding screens and buttons once the dashboard redesign is final. -->
-
-1. Open http://localhost:8000. On first start, the dashboard walks through setup.
-2. Add where alerts go (see Alerts below). Use the test button to check a message arrives.
-3. Add a search. Easiest: go to the Vinted website for their country (vinted.fr, vinted.de, vinted.co.uk, vinted.nl, and so on), search and set filters as usual, copy the address from the browser's address bar, and paste it into the dashboard. Or build the search in the dashboard's search builder.
-4. Optionally set a maximum price (including buyer protection), words to leave out, sizes, condition and seller rating.
-5. Wait. The first check is silent; new matching listings arrive from then on.
+1. Open http://localhost:8000. On first start, the dashboard walks through setup, one screen at a time.
+2. "Which Vinted do you shop on?": pick their country's site (vinted.fr, vinted.de, vinted.co.uk, vinted.nl, and so on).
+3. "What are you looking for?": easiest is to search on the Vinted website as usual, set the filters, copy the address from the browser's address bar and paste it here. Or build the search on this screen. A maximum price (including buyer protection), words to leave out, sizes and condition can be set here or later.
+4. "Where should we tell you?": Telegram and Discord come first (see Alerts below); a phone notification app (ntfy), email and the user's own app (a webhook) are under "More options". Nothing is preselected. Skipping is allowed; finds then only show in the dashboard.
+5. "Did it arrive?": a test message is sent. Confirm it arrived, or send it again.
+6. "You're all set". The first check is silent; new matching listings arrive from then on. More searches: the Searches tab. More places for alerts: the Alerts tab, "Add a place".
 
 ## Alerts
 
@@ -93,34 +95,32 @@ On a NAS the dashboard is reachable from the whole home network, so a dashboard 
 
 1. In Discord, the person needs a server where they can manage channels (they can create their own server for free with the + button).
 2. Right-click the channel, Edit Channel, Integrations, Webhooks, New Webhook, Copy Webhook URL.
-3. In the vinted-bot dashboard, add a Discord destination and paste the link there. <!-- TODO(web): exact button name. -->
+3. In the vinted-bot dashboard, choose Discord (during setup, or Alerts, "Add a place") and paste the link there.
 4. Send a test message from the dashboard.
 
 The webhook link works like a password for posting into that channel. It goes only into the dashboard.
 
 ### Telegram
 
-1. In Telegram, open @BotFather, send /newbot, choose a name and a username ending in "bot". BotFather replies with a token.
-2. Give the token to vinted-bot. <!-- TODO(web): if the dashboard gets a field for the bot token, describe it here and drop the .env route. --> Today that is a line in a file named .env in vinted-bot's data folder:
-
-        VINTED_BOT_TELEGRAM_BOT_TOKEN=the-token-from-botfather
-
-   Data folder: Windows %LOCALAPPDATA%\vinted-bot, macOS ~/Library/Application Support/vinted-bot, Linux ~/.local/share/vinted-bot, Docker a .env file next to docker-compose.yml. Then restart vinted-bot (run the install command again, or `docker compose up -d` with Docker).
-3. Connect the chat: in the dashboard, add a Telegram destination and open the link it shows, or run `vinted-bot pair-telegram --bot-username THEBOTNAME` and tap the link. The link opens the bot; press Start. For a group, add the bot to the group first and tap the link inside the group. The link expires after 30 minutes. <!-- TODO(web): exact dashboard wording for pairing. -->
+1. In Telegram, open @BotFather (blue tick), tap Start, send /newbot, choose any name, then a username ending in "bot". BotFather replies "Done! Congratulations" with a token under "Use this token to access the HTTP API". Tapping the token copies it.
+2. In the dashboard: Alerts, Add a place, Telegram (or the Telegram option in first-run setup). Paste the token in "Bot token" and press "Check and save". vinted-bot checks it with Telegram and shows the bot's @name. No restart is needed. A made-up or mistyped token gets a clear error instead.
+3. Press "Connect my chat". The "Open Telegram" button opens the bot with a one-time code; press Start. The dashboard notices within seconds and says Connected. For a group, add the bot to the group first and send the code shown inside the group. The code expires after 30 minutes. `vinted-bot pair-telegram --bot-username THEBOTNAME` prints the same link from the command line.
 
 A Telegram bot cannot message someone first; that is a Telegram rule, which is why the link step exists.
 
-### ntfy, RSS and webhooks
+### More options: ntfy, email, RSS and webhooks
 
-- ntfy: install the ntfy app on the phone, pick a hard-to-guess topic name, subscribe to it in the app, and add an ntfy destination with that topic in the dashboard.
+- Email and other apps (Slack, Pushover, Gotify, Matrix and more) go through Apprise, under the dashboard's other options.
+- ntfy: a phone push app with no account. The public ntfy.sh server allows about 250 messages a day per internet address, so it only suits focused searches; for busy ones use Telegram or Discord. Install the ntfy app, pick a hard-to-guess topic name, subscribe to it in the app, and add an ntfy destination with that topic in the dashboard.
 - RSS: each search has a feed at http://localhost:8000/rss/SEARCH_ID.xml.
 - Webhook: any URL that accepts a JSON POST (n8n, Home Assistant, a script).
+- Email: Alerts, Add a place, Email. Type the address, pick the provider (Gmail, Outlook, Yahoo, iCloud) and paste an app password from the provider's security settings (the normal password usually doesn't work). For any other provider pick "Another provider, or my own mail server" and fill in its outgoing (SMTP) server, port and encryption from the provider's help pages.
 
 ## Updating
 
 - Installed with the Windows, macOS or Linux installer: click "Update now" in the dashboard's banner (or Settings, Updates), or run the same install command again. Both keep all searches. If the dashboard then asks for a restart (it was not set to start at login), run `vinted-bot run` again.
 - Docker: `docker compose pull && docker compose up -d`
-- NAS app stores: the store's update button.
+- NAS: pull the new image with the NAS's own container update (Unraid: Docker, Check for Updates).
 
 The dashboard says when a new version is out. Check the version with `vinted-bot --version`.
 
@@ -128,14 +128,18 @@ The dashboard says when a new version is out. Check the version with `vinted-bot
 
 Stop:
 - Windows (PowerShell): `Get-Process vinted-bot | Stop-Process`
-- macOS: `launchctl bootout gui/$(id -u)/io.github.jasp-nerd.vinted-bot`
-- Linux: `systemctl --user stop vinted-bot`
+- macOS, if they said yes to starting at login: `launchctl bootout gui/$(id -u)/io.github.jasp-nerd.vinted-bot` (it starts again at the next login). Otherwise: `pkill -f 'vinted-bot run'`
+- Linux, if they said yes to starting at login: `systemctl --user stop vinted-bot` (it starts again at the next login). Otherwise: `pkill -f 'vinted-bot run'`
 - Docker: `docker compose down`
+
+Running the install command again starts it again (Docker: `docker compose up -d`).
 
 Remove (searches are kept in the data folder until it is deleted):
 - Windows: `powershell -ExecutionPolicy ByPass -c '$env:VINTED_BOT_UNINSTALL=1; irm https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.ps1 | iex'`
 - macOS and Linux: `curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.sh | sh -s -- --uninstall`
 - Docker: `docker compose down -v` (the -v also deletes the searches)
+
+To keep a copy of the searches first: `vinted-bot backup vinted-bot-backup.db` (Docker: `docker compose exec vinted-bot vinted-bot backup /data/backup.db`, then `docker compose cp vinted-bot:/data/backup.db ./vinted-bot-backup.db`). Never copy app.db itself while the app runs.
 
 ## Troubleshooting
 

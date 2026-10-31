@@ -104,6 +104,17 @@ async def test_the_update_check_can_be_turned_off(repo: Repo) -> None:
     assert seen == []
 
 
+async def test_automatic_updates_still_ask_with_the_check_turned_off(repo: Repo) -> None:
+    """Auto-update installs what the check finds; off, it waited for nothing forever."""
+    await repo.set_update_check(False)
+    await repo.set_auto_update(True)
+    http, _ = recording_client(release("v9.1.0"))
+
+    await updates.check_for_update(repo, http, now=1_000_000)
+
+    assert (await repo.app_settings(default_timezone="UTC")).latest_version == "9.1.0"
+
+
 async def test_a_github_error_is_not_a_crash(repo: Repo) -> None:
     http, _ = recording_client(lambda _: httpx.Response(404, text="Not Found"))
 

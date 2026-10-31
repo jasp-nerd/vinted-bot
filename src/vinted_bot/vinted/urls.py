@@ -203,6 +203,25 @@ def catalogue_params(params: dict[str, str]) -> dict[str, str]:
     return translated
 
 
+def same_search(first: dict[str, str], second: dict[str, str]) -> bool:
+    """Whether two stored parameter sets ask Vinted for the same results.
+
+    Compared as what is actually sent, not as stored text: a pasted link and the
+    dashboard's editor store the same search with keys in a different order, and ids or
+    prices can be spelled differently ("12" and "12.0", "2,1" and "1,2"). Treating those
+    as a change of search used to start the search over, so its next real finds were
+    recorded silently instead of announced.
+    """
+    return _canonical(first) == _canonical(second)
+
+
+def _canonical(params: dict[str, str]) -> dict[str, str]:
+    return {
+        key: ",".join(sorted(value.split(","))) if key.startswith("attribute_ids[") else value
+        for key, value in catalogue_params(params).items()
+    }
+
+
 def _first_url(text: str) -> str:
     """Pull the Vinted address out of whatever was pasted, share text included."""
     text = text.strip()

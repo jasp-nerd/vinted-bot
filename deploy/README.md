@@ -17,15 +17,25 @@ Two things are true everywhere:
 - **The image fixes its own folder permissions.** Set `PUID` and `PGID` to whoever owns the
   data folder on the host and the container hands `/data` to that user before starting.
   The app never runs as root.
-- **Anything reachable beyond the machine itself needs a password.** Set
-  `VINTED_BOT_WEB_AUTH_TOKEN`. The dashboard shows your webhook links.
+- **Anything reachable beyond the machine itself needs a password.** On a home NAS, set
+  one in the dashboard's Settings before opening the port wider; on a host reachable from
+  the internet, set `VINTED_BOT_WEB_AUTH_TOKEN` so it is locked from the first request.
+  The dashboard shows your webhook links.
 
 ## Unraid
 
 [unraid/vinted-bot.xml](unraid/vinted-bot.xml) is a Community Applications template.
 
-To use it before it is listed: Docker tab, Add Container, paste the raw URL of the XML into
-Template, and apply. To get it listed, Community Applications wants a repository with
+To use it before it is listed, save it where Unraid looks for your own templates. In the
+Unraid terminal:
+
+```bash
+curl -fsSL -o /boot/config/plugins/dockerMan/templates-user/my-vinted-bot.xml \
+  https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/deploy/unraid/vinted-bot.xml
+```
+
+then Docker, Add Container, and pick `vinted-bot` under Template (the same steps as
+[docs/self-hosting.md](../docs/self-hosting.md#on-a-nas)). To get it listed, Community Applications wants a repository with
 `ca_profile.xml` at its root and one XML per app, so:
 
 1. Create a repository such as `jasp-nerd/unraid-templates`, from
@@ -56,8 +66,9 @@ Getting into the official store is a pull request to
 ## CasaOS and ZimaOS
 
 In the CasaOS dashboard: App Store, Custom Install, the import button at the top right, and
-paste [casaos/docker-compose.yml](casaos/docker-compose.yml). Uncomment the password line
-first. The `x-casaos` block is the metadata community stores such as
+paste [casaos/docker-compose.yml](casaos/docker-compose.yml). Change the dashboard password
+(`VINTED_BOT_WEB_AUTH_TOKEN`) from the example before installing: the file always sets one,
+because CasaOS opens the app from every device on your network. The `x-casaos` block is the metadata community stores such as
 [BigBear's](https://github.com/bigbeartechworld/big-bear-casaos) expect, so the same file is
 the start of a pull request there (as `Apps/vinted-bot/docker-compose.yml` with a
 `config.json` beside it).

@@ -14,7 +14,7 @@ import pytest
 
 from vinted_bot.db import export
 from vinted_bot.db.connection import Database
-from vinted_bot.db.repo import PALETTE, Query, RejectedListing, Repo
+from vinted_bot.db.repo import PALETTE, DuplicateSearchError, Query, RejectedListing, Repo
 from vinted_bot.engine.validation import InvalidInputError
 from vinted_bot.vinted.models import Item, SellerProfile
 
@@ -153,6 +153,25 @@ async def test_saving_the_edit_form_leaves_a_mute_alone(repo: Repo) -> None:
     assert stored is not None and stored.muted_until == 1_900_000_000
 
 
+async def test_adding_a_link_already_watched_points_at_that_search(repo: Repo) -> None:
+    """The dashboard allowed it while the CLI and Telegram refused; now all refuse."""
+    first = await add(repo, "nike")
+
+    with pytest.raises(DuplicateSearchError) as raised:
+        await add(repo, "nike")
+
+    assert (raised.value.existing.id, raised.value.field) == (first.id, "link")
+
+
+async def test_a_duplicated_search_may_keep_the_same_link(repo: Repo) -> None:
+    original = await add(repo, "nike")
+
+    copy_id = await repo.duplicate_query(original.id)
+
+    copy = await repo.get_query(copy_id or 0)
+    assert copy is not None and copy.url == original.url
+
+
 async def test_new_searches_get_colours_from_the_palette_in_turn(repo: Repo) -> None:
     first = await add(repo, "one")
     second = await add(repo, "two")
@@ -200,6 +219,30 @@ async def test_a_duplicate_keeps_the_rules_and_routes_but_starts_paused(repo: Re
 
 
 # --- Routing -----------------------------------------------------------------------
+
+
+async def test_the_first_destination_gets_status_notices(repo: Repo) -> None:
+    """Made in setup, the dashboard or by pairing Telegram, it used to get none."""
+    first = await repo.add_destination(kind="ntfy", name="n", config={"topic": "t"})
+
+    assert await repo.status_destination_ids() == [first]
+
+
+async def test_later_destinations_do_not_also_get_status_notices(repo: Repo) -> None:
+    first = await repo.add_destination(kind="ntfy", name="n", config={"topic": "t"})
+    await repo.add_destination(kind="webhook", name="w", config={"url": "https://x.test"})
+
+    assert await repo.status_destination_ids() == [first]
+
+
+async def test_status_notices_can_be_switched_per_destination(repo: Repo) -> None:
+    first = await repo.add_destination(kind="ntfy", name="n", config={"topic": "t"})
+    second = await repo.add_destination(kind="webhook", name="w", config={"url": "https://x"})
+
+    await repo.set_notify_status(first, False)
+    await repo.set_notify_status(second, True)
+
+    assert await repo.status_destination_ids() == [second]
 
 
 async def test_an_unrouted_search_goes_to_every_active_destination(repo: Repo) -> None:
@@ -322,6 +365,22 @@ async def test_a_second_search_fills_in_the_seller_country(repo: Repo) -> None:
     assert entry.seller_country == "FR"
 
 
+async def test_a_notification_carries_what_a_seller_lookup_learned(repo: Repo) -> None:
+    """The catalog no longer carries ratings; the lookup for a filter did, then was dropped."""
+    query = await add(repo)
+    destination_id = await repo.add_destination(kind="ntfy", name="n", config={"topic": "t"})
+    await repo.cache_seller(
+        SellerProfile(seller_id=5, tld="fr", country_code="DE", rating=4.9, feedback_count=351)
+    )
+    await repo.record_new_items(query, [listing(1, seller_id=5)], [destination_id])
+
+    (notification,) = await repo.claim_batch(destination_id, 10)
+
+    item = notification.item
+    stars = round((item.seller_rating or 0) * 5, 1)
+    assert (stars, item.seller_feedback_count, notification.seller_country) == (4.9, 351, "DE")
+
+
 async def test_held_notifications_wait_and_do_not_expire_while_held(repo: Repo) -> None:
     query = await add(repo)
     destination_id = await repo.add_destination(kind="ntfy", name="n", config={"topic": "t"})
@@ -405,6 +464,27 @@ async def test_a_later_match_clears_its_old_rejection(repo: Repo) -> None:
     await repo.record_new_items(query, [listing(5)], [])
 
     assert await repo.rejections_for(query.id) == []
+
+
+async def test_a_rejection_judged_again_shows_the_price_beside_its_new_reason(
+    repo: Repo,
+) -> None:
+    """The first price stayed beside the last reason, so the two could disagree."""
+    query = await add(repo)
+    first = RejectedListing(listing(5), "seller_unknown", "lookup failed", final=False)
+    await repo.record_new_items(query, [], [], rejected=[first])
+    pricier = listing(5, total_price=Decimal("92.95"), currency="PLN")
+
+    await repo.record_new_items(
+        query, [], [], rejected=[RejectedListing(pricier, "over_budget", "above 80 PLN")]
+    )
+
+    (record,) = await repo.rejections_for(query.id)
+    assert (record.reason, record.total_price, record.currency) == (
+        "over_budget",
+        Decimal("92.95"),
+        "PLN",
+    )
 
 
 async def test_the_rejection_log_is_capped(repo: Repo) -> None:
@@ -553,7 +633,7 @@ async def test_export_as_csv_keeps_prices_exact(repo: Repo) -> None:
 
     rendered = export.render(await repo.all_found(), "csv")
 
-    header, row = rendered.splitlines()
+    header, row = rendered.removeprefix("\ufeff").splitlines()
     assert header.startswith("item_id,site,title")
     assert ",15.00,16.45,EUR," in row
 
@@ -568,6 +648,31 @@ async def test_export_as_csv_never_hands_a_spreadsheet_a_formula(repo: Repo, tit
 
     [row] = list(csv.DictReader(io.StringIO(rendered)))
     assert row["title"] == "'" + title
+
+
+async def test_a_csv_export_starts_with_a_byte_order_mark_for_excel(repo: Repo) -> None:
+    query = await add(repo)
+    await repo.record_new_items(query, [listing(1, title="Très bon état")], [])
+
+    assert export.render(await repo.all_found(), "csv").startswith("\ufeffitem_id,")
+
+
+async def test_an_export_leaves_out_blocked_sellers_finds(repo: Repo) -> None:
+    query = await add(repo)
+    await repo.record_new_items(query, [listing(1, seller_id=7), listing(2, seller_id=8)], [])
+    await repo.block_seller(7)
+
+    assert [entry.item.item_id for entry in await repo.all_found()] == [2]
+
+
+async def test_an_export_names_the_seller_country_a_later_lookup_found(repo: Repo) -> None:
+    query = await add(repo)
+    await repo.record_new_items(query, [listing(1, seller_id=7)], [])
+    await repo.cache_seller(SellerProfile(seller_id=7, tld="fr", country_code="BE"))
+
+    [row] = list(csv.DictReader(io.StringIO(export.render(await repo.all_found(), "csv"))))
+
+    assert (row["seller_country"], "listed_at" in row) == ("BE", False)
 
 
 async def test_export_as_json(repo: Repo) -> None:

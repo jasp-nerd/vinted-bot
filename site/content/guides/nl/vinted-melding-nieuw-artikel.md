@@ -54,8 +54,8 @@ Betaalde diensten doen dit vanaf hun eigen servers voor ongeveer €5 tot €30 
 1. Installeer het met de opdracht van de homepage. Het dashboard opent in je browser.
 2. Plak de link van je Vinted-zoekopdracht, of bouw de zoekopdracht in het dashboard met de categorieën, merken en maten van Vinted.
 3. Stel de prijsgrens in als het totaal dat je betaalt (kopersbescherming inbegrepen), plus woorden die in de titel moeten of juist niet mogen staan.
-4. Kies waar de meldingen heen gaan. ntfy op je telefoon kost een minuut en heeft geen account nodig. Voor Discord maak je een webhook in de kanaalinstellingen (Kanaal bewerken, Integraties, Webhooks), voor Telegram een eigen bot via BotFather.
-5. Druk op "Send test" (test versturen), kijk of het bericht binnenkomt, klaar.
+4. Kies waar de meldingen heen gaan. De app zet Telegram en Discord bovenaan. Voor Telegram maak je een eigen bot via BotFather en plak je de token in het dashboard, voor Discord maak je een webhook in de kanaalinstellingen (Kanaal bewerken, Integraties, Webhooks). De telefoonapp ntfy, e-mail en webhooks staan onder "More options" (meer opties).
+5. Druk op "Send a test" (test versturen), kijk of het bericht binnenkomt, klaar.
 
 Elk bericht toont de foto's, de totaalprijs, maat, staat, merk, de beoordeling van de verkoper en knoppen om te kopen, de verkoper te berichten of het item te openen. De eerste controle van een nieuwe zoekopdracht blijft stil, dus je hoort alleen over items die daarna verschijnen.
 

@@ -8,11 +8,12 @@ never a question of which copy of a setting wins.
 from __future__ import annotations
 
 import contextlib
+import os
 from pathlib import Path
 from typing import Literal
 
 import platformdirs
-from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
+from pydantic import AliasChoices, Field, PrivateAttr, SecretStr, ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from vinted_bot.engine.validation import InvalidInputError, parse_timezone
@@ -34,6 +35,10 @@ def in_container() -> bool:
     """
     return Path("/.dockerenv").exists() or Path("/run/.containerenv").exists()
 
+
+# Settings the dashboard has its own controls for. Unset, the dashboard decides; set, the
+# environment wins and the dashboard says so (see managed.py).
+DASHBOARD_MANAGED = frozenset({"telegram_bot_token", "web_auth_token", "web_host"})
 
 # Where 1.x kept the database, relative to wherever the app was started.
 LEGACY_DB_PATH = Path("./data/app.db")
@@ -76,14 +81,34 @@ def default_db_path() -> Path:
     return platformdirs.user_data_path("vinted-bot", appauthor=False) / "app.db"
 
 
+ENV_FILE = ".env"
+
+# Read by install.sh and install.ps1 (and the launchers they write), never by the app: not
+# a typo or a key from an older version, so not worth a warning at every start.
+INSTALLER_KEYS = frozenset(
+    {
+        "VINTED_BOT_ALLOW_ROOT",
+        "VINTED_BOT_AUTOSTART",
+        "VINTED_BOT_KEEP_AWAKE",
+        "VINTED_BOT_NO_BROWSER",
+        "VINTED_BOT_PACKAGE",
+        "VINTED_BOT_DATA_DIR",
+        "VINTED_BOT_UNINSTALL",
+    }
+)
+
+
 class Settings(BaseSettings):
     """Static configuration. Every field is documented in docs/configuration.md."""
 
     model_config = SettingsConfigDict(
         env_prefix="VINTED_BOT_",
-        env_file=".env",
+        env_file=ENV_FILE,
         env_file_encoding="utf-8",
-        extra="forbid",
+        # Ignored rather than refused: a leftover VINTED_SNIPER_ line, PUID, or another
+        # program's keys in a shared .env used to stop the app starting at all. The ones
+        # that look meant for us are named in a warning instead; see `unknown_keys`.
+        extra="ignore",
         # The timezone field also answers to TZ, which containers and systemd already set.
         populate_by_name=True,
     )
@@ -116,8 +141,13 @@ class Settings(BaseSettings):
     )
 
     # --- Logging -------------------------------------------------------------------
-    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
-    log_format: Literal["console", "json"] = "console"
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(
+        default="INFO", description="How much the app writes to its log."
+    )
+    log_format: Literal["console", "json"] = Field(
+        default="console",
+        description="'json' when something else collects the logs, 'console' for people.",
+    )
 
     # --- Vinted transport ----------------------------------------------------------
     http_impersonate: bool = Field(
@@ -135,7 +165,9 @@ class Settings(BaseSettings):
         description="Discard and re-bootstrap a site session once it reaches this age. "
         "Blocks correlate with session age more than with request rate.",
     )
-    request_timeout_s: float = Field(default=15.0, gt=0)
+    request_timeout_s: float = Field(
+        default=15.0, gt=0, description="Seconds to wait for Vinted before giving up on a request."
+    )
 
     # --- Polling -------------------------------------------------------------------
     poll_default_interval_s: int = Field(
@@ -179,7 +211,8 @@ class Settings(BaseSettings):
     )
     telegram_bot_token: SecretStr | None = Field(
         default=None,
-        description="Enables Telegram delivery and the /start binding bot when set.",
+        description="A Telegram bot token fixed by the environment. Unset, the token pasted "
+        "on the dashboard's Alerts page is used; set, it wins over that one.",
     )
 
     # --- Updating ------------------------------------------------------------------
@@ -196,20 +229,24 @@ class Settings(BaseSettings):
         default="live",
         description="'mock' replays recorded responses from disk instead of calling Vinted.",
     )
-    mock_scenario_dir: Path | None = None
+    mock_scenario_dir: Path | None = Field(
+        default=None, description="Where the recorded responses are, for fetch_mode 'mock'."
+    )
 
     # --- Web UI --------------------------------------------------------------------
-    web_enabled: bool = True
+    web_enabled: bool = Field(
+        default=True, description="The dashboard. Turn it off to use the command line only."
+    )
     web_host: str = Field(
         default="127.0.0.1",
-        description="Loopback by default. Only widen this behind a reverse proxy you trust.",
+        description="Where the dashboard listens. Unset, the dashboard's phone access switch "
+        "decides (loopback, or every interface); set, it wins over the switch.",
     )
-    web_port: int = Field(default=8000, ge=1, le=65535)
+    web_port: int = Field(default=8000, ge=1, le=65535, description="The dashboard's port.")
     web_auth_token: SecretStr | None = Field(
         default=None,
-        description="Optional. When set, the dashboard asks for it as a password. Set it "
-        "before exposing the dashboard beyond localhost: anyone who can open it can add, "
-        "remove and reroute your alerts.",
+        description="A dashboard password fixed by the environment. Unset, the password is "
+        "the one set in the dashboard's Settings, if any; set, it wins over that one.",
     )
     web_public_url: str | None = Field(
         default=None,
@@ -221,10 +258,38 @@ class Settings(BaseSettings):
     web_allowed_hosts: str | None = Field(
         default=None,
         description="Extra host names the dashboard answers to, comma-separated, such as "
-        "'nas.local,finds.example.org'. Loopback names, any IP address and the host of "
-        "web_public_url are always allowed; every other name gets a 400, which is what "
-        "stops a DNS-rebinding web page from reading or changing the dashboard.",
+        "'finds.example.org'. Always allowed without it: loopback, any IP address, the host "
+        "of web_public_url, single-word names such as 'nas', and the names routers and VPNs "
+        "hand out (.local, .lan, .home, .home.arpa, .internal, .fritz.box, .ts.net). Any "
+        "other name is refused, which is what stops a DNS-rebinding web page from reading "
+        "or changing the dashboard. Naming a public host here also lets visitors from the "
+        "internet in, as web_allow_public does.",
     )
+    web_allow_public: bool = Field(
+        default=False,
+        description="Let devices on the internet open the dashboard when it listens beyond "
+        "this computer. Off, only this computer and private networks (home and office "
+        "ranges, Tailscale) are served, whatever web_host says. Not needed behind a reverse "
+        "proxy that only serves your network, or when web_public_url or web_allowed_hosts "
+        "already name a public host.",
+    )
+
+    def source(self, name: str) -> Literal["environment", "TZ", "env file", "system", "default"]:
+        """Where a setting's value came from, for the dashboard's Advanced list.
+
+        Set values come from the environment or from the .env file; the environment wins
+        when both say, so a name in os.environ is enough to tell them apart. The time
+        zone may also come from TZ, or, unset, from the computer itself.
+        """
+        if name not in self.model_fields_set:
+            return "system" if name == "timezone" else "default"
+        # Names are matched without regard to case, as pydantic-settings reads them.
+        environment = {variable.upper() for variable in os.environ}
+        if f"VINTED_BOT_{name.upper()}" in environment:
+            return "environment"
+        if name == "timezone" and "TZ" in environment:
+            return "TZ"
+        return "env file"
 
     @property
     def dashboard_url(self) -> str | None:
@@ -253,36 +318,78 @@ class Settings(BaseSettings):
                 names.append(name)
         return names
 
-    @property
-    def web_is_loopback(self) -> bool:
-        """Whether the dashboard is reachable only from this machine."""
-        return self.web_host in {"127.0.0.1", "localhost", "::1"}
+    # Settings that were set but could not be used, worded for the startup log.
+    _warnings: list[str] = PrivateAttr(default_factory=list)
 
-    @field_validator("timezone")
-    @classmethod
-    def _known_timezone(cls, value: str) -> str:
-        try:
-            return parse_timezone(value)
-        except InvalidInputError as exc:
-            raise ValueError(exc.message) from exc
+    @property
+    def warnings(self) -> list[str]:
+        return list(self._warnings)
 
     @model_validator(mode="after")
     def _check_coherent(self) -> Settings:
+        given = "timezone" in self.model_fields_set
+        try:
+            self.timezone = parse_timezone(self.timezone)
+        except InvalidInputError:
+            # TZ is often set by the system in a form zoneinfo cannot read (":/etc/localtime",
+            # "CET-1CEST,M3.5.0,M10.5.0/3"). Refusing to start over it helps nobody.
+            fallback = system_timezone()
+            self._warnings.append(
+                f"The time zone {self.timezone!r} is not one this app can read (it wants a "
+                f"name like Europe/Paris), so {fallback} is used. Set VINTED_BOT_TIMEZONE "
+                "to choose another."
+            )
+            self.timezone = fallback
+        if not given:
+            # Assigning above counts as setting it; the computer's own zone was not set by
+            # anyone, and the Advanced list said "From the .env file" for it.
+            self.model_fields_set.discard("timezone")
         if self.fetch_mode == "mock" and self.mock_scenario_dir is None:
             raise ValueError(
                 "VINTED_BOT_FETCH_MODE is 'mock' but VINTED_BOT_MOCK_SCENARIO_DIR is not set."
             )
         return self
 
-    @property
-    def web_is_exposed_without_a_password(self) -> bool:
-        """Whether the dashboard could be reached from another machine with no sign-in.
+    @classmethod
+    def unknown_keys(cls) -> list[str]:
+        """VINTED_* names in the environment or the .env file that no setting reads.
 
-        Not treated as fatal: refusing would stop `docker compose up` working at all. And
-        inside a container this stays quiet, because 0.0.0.0 is the only bind that works
-        there and the port mapping — which the app cannot see — is what actually decides
-        who can reach it.
+        Usually a typo or a key from an older version, and silently ignoring it would leave
+        someone wondering why their change did nothing.
         """
-        if not self.web_enabled or self.web_auth_token is not None:
-            return False
-        return not self.web_is_loopback and not in_container()
+        known = {f"VINTED_BOT_{name.upper()}" for name in cls.model_fields} | INSTALLER_KEYS
+        names = set(os.environ) | _env_file_keys()
+        return sorted(
+            n for n in names if n.upper().startswith("VINTED_") and n.upper() not in known
+        )
+
+
+def _env_file_keys() -> set[str]:
+    """The names the .env file sets, or none when there is no such file (the usual case)."""
+    names = set()
+    with contextlib.suppress(OSError):
+        for line in Path(ENV_FILE).read_text(encoding="utf-8").splitlines():
+            key = line.strip().removeprefix("export ").split("=", 1)[0].strip()
+            if "=" in line and not key.startswith("#"):
+                names.add(key)
+    return names
+
+
+def explain(error: ValidationError) -> str:
+    """A settings error as one paragraph naming the variable, instead of a traceback."""
+    problems = []
+    for entry in error.errors():
+        field = ".".join(str(part) for part in entry["loc"])
+        message = entry["msg"].removeprefix("Value error, ")
+        if field:
+            problems.append(
+                f"VINTED_BOT_{field.upper()} is set to {entry.get('input')!r}: {message}."
+            )
+        else:
+            problems.append(message.rstrip(".") + ".")
+    return (
+        "vinted-bot can't start because of its settings. "
+        + " ".join(problems)
+        + " Fix or remove that line in your .env file, or in the environment: section of "
+        "docker-compose.yml (then run docker compose up -d), and start it again."
+    )

@@ -2,7 +2,7 @@ manifestVersion: 1
 id: jasp-vinted-bot
 category: utilities
 name: vinted-bot
-version: "2.1.0"
+version: "2.2.0"
 tagline: Get a message the moment a new Vinted listing matches
 icon: https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docs/media/icon.png
 description: >-

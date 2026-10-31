@@ -94,7 +94,7 @@ If you have nothing that stays on and don't want to install anything, a paid ale
 
 vinted-bot is free and open source (MIT), and it sticks to alerts. It does what the €5 to €30 a month alert services do:
 
-- Alerts on Discord, Telegram, ntfy on your phone, RSS or a webhook, with email and others through an optional add-on.
+- Alerts on Discord, Telegram, ntfy on your phone, RSS or a webhook, plus email and others.
 - Price limits on the total including buyer protection, words to require and skip, seller rating, reviews and country filters, a seller blocklist and a deal badge.
 - One search across several Vinted countries, quiet hours, and price-drop and sold alerts for listings you watch.
 - A plain-words status for every search, and a warning when a search goes quiet in a way that isn't normal.

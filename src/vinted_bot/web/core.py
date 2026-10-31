@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import hashlib
+import ipaddress
 import json
 import socket
 import time
@@ -26,13 +27,13 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from vinted_bot import __version__
-from vinted_bot.config import Settings, in_container
+from vinted_bot.config import Settings
 from vinted_bot.db.repo import Repo
-from vinted_bot.engine import health, updates
-from vinted_bot.engine.self_update import Phase, Updater
+from vinted_bot.engine import health, updates, wakeups
+from vinted_bot.engine.self_update import InstallKind, Phase, Updater
 from vinted_bot.vinted.client import VintedClient
 from vinted_bot.vinted.taxonomy import Taxonomy
-from vinted_bot.web import support, views
+from vinted_bot.web import security, support, views
 from vinted_bot.web.preview import PreviewService
 from vinted_bot.web.security import LoginThrottle
 
@@ -58,9 +59,19 @@ class WebContext:
     previews: PreviewService | None = None
     # For test sends and the Telegram bot's name; opened with the app, closed with it.
     http: httpx.AsyncClient | None = None
-    bot_username: str | None = None
-    bot_checked: bool = False
+    # Each token's bot @name, as Telegram told us, or None when it couldn't say.
+    bot_names: dict[str, str | None] = field(default_factory=dict)
+    # Tokens Telegram said are not valid: the bot cannot run on them, so nothing pairs.
+    rejected_tokens: set[str] = field(default_factory=set)
+    # Set when the bot's token changes, for the running app to restart the bot on it.
+    telegram_token_changed: asyncio.Event = field(default_factory=asyncio.Event)
     login_throttle: LoginThrottle = field(default_factory=LoginThrottle)
+    # Set when phone access changes, for the server to listen on the new address.
+    rebind: asyncio.Event = field(default_factory=asyncio.Event)
+    # Where the server listens right now (None while it moves), and why the last move
+    # failed, if it did.
+    listening_on: str | None = None
+    listen_error: str | None = None
 
 
 def ctx(request: Request) -> WebContext:
@@ -127,6 +138,10 @@ async def needs_timezone(context: WebContext) -> bool:
     return await context.repo.get_state_value("timezone") is None
 
 
+# Most refusals from Vinted lift within this long; past it the banner says how long instead.
+_BLOCK_USUALLY_LIFTS_S = 3600
+
+
 async def shell(context: WebContext, snapshot: health.Snapshot | None = None) -> dict[str, Any]:
     """What the frame around every page shows: counts, banners, the next-check ring."""
     snapshot = snapshot or await health.snapshot(context.repo)
@@ -148,9 +163,20 @@ async def shell(context: WebContext, snapshot: health.Snapshot | None = None) ->
     blocked = None
     if refused:
         sites = sorted({f"vinted.{search.tld}" for search in refused})
-        blocked = {"site": ", ".join(sites), "searches": len(refused)}
+        # Since the last good check of any of them: the banner said "clears up within an
+        # hour" an hour and a half in, which reads as a promise broken.
+        last_good = max((search.last_success_at or 0 for search in refused), default=0)
+        blocked = {
+            "site": ", ".join(sites),
+            "searches": len(refused),
+            "for": views.duration(now - last_good) if last_good else None,
+            "long": bool(last_good) and now - last_good >= _BLOCK_USUALLY_LIFTS_S,
+        }
 
-    update = update_offer(context.updater, prefs.latest_version if prefs.update_check else None)
+    # Installing updates by itself means checking for them too, whatever the other switch says.
+    checking = prefs.update_check or prefs.auto_update
+    update = update_offer(context.updater, prefs.latest_version if checking else None)
+    access = await security.access(context.settings, context.repo)
 
     return {
         "version": __version__,
@@ -162,12 +188,20 @@ async def shell(context: WebContext, snapshot: health.Snapshot | None = None) ->
         "blocked": blocked,
         "new_version": update,
         "theme": prefs.theme,
-        "auth": context.settings.web_auth_token is not None,
-        "exposed": context.settings.web_is_exposed_without_a_password,
+        "auth": access.password,
+        "exposed": context.settings.web_enabled and access.exposed_without_password,
         "new_count": 0,
         "troubleshooting": TROUBLESHOOTING_URL,
         "guess_timezone": await needs_timezone(context),
     }
+
+
+# A container may have come from a NAS app store rather than a compose file, and the app
+# cannot tell which, so the update hint names both.
+_DOCKER_HINT = (
+    "Installed from a NAS app store? Update the app there. Started with docker compose? "
+    "In the folder with its docker-compose.yml, run:"
+)
 
 
 def update_offer(updater: Updater, latest: str | None) -> dict[str, Any] | None:
@@ -187,7 +221,7 @@ def update_offer(updater: Updater, latest: str | None) -> dict[str, Any] | None:
         "can_upgrade": install.can_upgrade,
         "restarts": install.restarts_itself,
         "command": install.manual_command,
-        "hint": install.manual_hint,
+        "hint": _DOCKER_HINT if install.kind is InstallKind.DOCKER else install.manual_hint,
         "status": updater.status(),
     }
 
@@ -226,20 +260,53 @@ def redirect(target: str, flash: str | None = None) -> RedirectResponse:
     return response
 
 
-def phone_address(settings: Settings) -> str | None:
-    """The address a phone on the same Wi-Fi can open the dashboard at, if there is one.
+# Where the probes below pretend to send: "the internet" (the default route) for the home
+# network, and Tailscale's own resolver for its network when it runs.
+_PROBES = (wakeups.INTERNET, "100.100.100.100")
 
-    Loopback means only this computer can, so there is nothing to offer. Inside a
-    container the machine's own address is not visible, so only a configured public URL
-    is trusted there.
+
+def lan_addresses() -> list[str]:
+    """This computer's private IPv4 addresses a phone can open the dashboard at.
+
+    Asking the OS which interface it would send through (wakeups.local_address, which
+    sends nothing) gives the address that matters: once towards the internet, for the
+    home network, and once towards Tailscale's resolver, which only routes somewhere of
+    its own while Tailscale runs. Only when neither helps, as on a computer with no route
+    out, are the addresses its own name resolves to tried: that list also holds virtual
+    machines' and containers' networks, which a phone can't reach.
+
+    Only private addresses (security.is_local_address) are offered. Some networks
+    (universities, offices) give every computer a public one, and offering that would
+    send people to an address the dashboard refuses anyway, as it should: it would be
+    on the internet.
+    """
+    found = [address for target in _PROBES if (address := wakeups.local_address(target))]
+    if not _usable(found):
+        with contextlib.suppress(OSError):
+            for *_, sockaddr in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+                found.append(str(sockaddr[0]))
+    return _usable(found)
+
+
+def _usable(addresses: list[str]) -> list[str]:
+    usable: list[str] = []
+    for address in addresses:
+        ip = ipaddress.ip_address(address)
+        unusable = ip.is_loopback or ip.is_link_local or ip.is_unspecified
+        if not unusable and security.is_local_address(address) and address not in usable:
+            usable.append(address)
+    return usable
+
+
+def phone_addresses(settings: Settings, access: security.Access) -> list[str]:
+    """The addresses a phone on the same network can open the dashboard at.
+
+    Only this computer can while it listens on loopback, so there is nothing to offer.
+    Inside a container the machine's own address is not visible, so only a configured
+    public URL is trusted there.
     """
     if settings.web_public_url:
-        return settings.web_public_url.rstrip("/")
-    if settings.web_is_loopback or in_container():
-        return None
-    # Connecting a UDP socket sends nothing; it only asks the OS which interface it
-    # would use, which is the address the local network knows this machine by.
-    with contextlib.suppress(OSError), socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
-        probe.connect(("192.0.2.1", 9))
-        return f"http://{probe.getsockname()[0]}:{settings.web_port}"
-    return None
+        return [settings.web_public_url.rstrip("/")]
+    if access.loopback or access.container:
+        return []
+    return [f"http://{address}:{settings.web_port}" for address in lan_addresses()]

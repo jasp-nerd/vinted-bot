@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hmac
 import time
+from collections import Counter
 from datetime import UTC, datetime
 from email.utils import format_datetime
 from typing import Any, Literal
@@ -21,7 +22,9 @@ from vinted_bot.db import export as exporter
 from vinted_bot.db.repo import FeedItem, Query
 from vinted_bot.engine import health
 from vinted_bot.vinted import urls
+from vinted_bot.vinted.client import PER_PAGE
 from vinted_bot.vinted.errors import VintedError
+from vinted_bot.vinted.models import Item
 from vinted_bot.vinted.taxonomy import FACET_CODES, Taxonomy
 from vinted_bot.web import core, forms, security, views
 from vinted_bot.web.preview import TooSoonError, judge
@@ -150,6 +153,8 @@ async def preview(request: Request) -> JSONResponse:
             "errors": errors,
             "count": len(outcome.matched),
             "seen": outcome.seen,
+            # Only the first page is read; when it was full, more may match past it.
+            "page_full": outcome.seen >= PER_PAGE,
             "site": f"vinted.{parsed.tld}",
             "url": parsed.url,
             # Read back in words, so a price limit in a pasted link is visibly understood.
@@ -175,8 +180,24 @@ async def preview(request: Request) -> JSONResponse:
                 for reason, count in outcome.removed
             ],
             "seller_filters": query.needs_seller_profile,
+            "brand_names": brand_names(parsed.params, items),
         }
     )
+
+
+def brand_names(params: dict[str, str], items: list[Item]) -> dict[str, str]:
+    """The name of a search's one brand, read off its results.
+
+    A pasted link only carries brand ids, and Vinted has no way to look one up. With a
+    single brand every result is that brand, so the name most results agree on is it.
+    With several there is no telling which name is which id, so nothing is guessed.
+    """
+    ids = [part for part in params.get("brand_ids", "").split(",") if part.isdigit()]
+    seen = Counter(item.brand for item in items if item.brand)
+    if len(ids) != 1 or not seen:
+        return {}
+    name, count = seen.most_common(1)[0]
+    return {ids[0]: name} if count * 2 > sum(seen.values()) else {}
 
 
 @router.post("/api/diagnose")
@@ -202,9 +223,9 @@ async def diagnose(request: Request) -> JSONResponse:
 async def rss(request: Request, query_id: int, key: str = "") -> Response:
     """A search's finds for a feed reader. Feed readers cannot sign in, so the key is in the URL."""
     context = core.ctx(request)
-    token = context.settings.web_auth_token
-    feed_key = await security.feed_key(context.repo) if token is not None else ""
-    if token is not None and not (key and hmac.compare_digest(key.encode(), feed_key.encode())):
+    locked = await security.password_required(context.settings, context.repo)
+    feed_key = await security.feed_key(context.repo) if locked else ""
+    if locked and not (key and hmac.compare_digest(key.encode(), feed_key.encode())):
         return Response(
             "This feed needs its key. Copy the feed address from the search's page in the "
             "dashboard: it ends in ?key=...",

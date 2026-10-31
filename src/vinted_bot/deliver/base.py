@@ -19,6 +19,14 @@ class SendResult:
     permanent_error: str | None = None
     error: str | None = None
     pause_all_for_s: float | None = None
+    # The destination's server refused more until then (unix seconds): stop sending to it
+    # until that moment, with `error` as the reason shown on the Alerts page.
+    pause_until: int | None = None
+
+    @property
+    def failure(self) -> str | None:
+        """Why nothing arrived, or None when it did."""
+        return self.permanent_error or self.error
 
     @classmethod
     def ok(cls, outbox_ids: list[int]) -> SendResult:
@@ -52,8 +60,12 @@ class Sender(Protocol):
 
     async def send(self, batch: list[PendingNotification]) -> SendResult: ...
 
-    async def send_status(self, message: str) -> None:
-        """Deliver an operational notice — a warning, a startup message."""
+    async def send_status(self, message: str) -> str | None:
+        """Deliver an operational notice — a warning, a startup message.
+
+        Returns why it did not arrive, or None when it did: the dispatcher keeps the
+        notice and tries again later (see Dispatcher.notify_status).
+        """
         ...
 
     async def aclose(self) -> None: ...

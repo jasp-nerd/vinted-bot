@@ -47,6 +47,17 @@ def _change(total: int, earlier: int) -> dict[str, Any] | None:
     return {"text": f"{'+' if pct > 0 else ''}{pct}%", "up": pct > 0}
 
 
+def _axis_label(day: str, *, first: bool) -> str:
+    """The chart's day label: "1 Mar" where a month starts (and on the first bar), else "7"."""
+    moment = datetime.fromisoformat(day)
+    return views.day_month(moment) if first or moment.day == 1 else str(moment.day)
+
+
+def _weekday_date(day: str) -> str:
+    moment = datetime.fromisoformat(day)
+    return f"{moment:%a} {views.day_month(moment)}"
+
+
 @router.get("/stats")
 async def stats(request: Request, days: int = 30, search: str = "") -> Response:
     context = core.ctx(request)
@@ -102,10 +113,7 @@ async def stats(request: Request, days: int = 30, search: str = "") -> Response:
     failed = sum(row.failed for row in delivery)
     ymax, ticks = _nice_max(max(per_day.values(), default=0))
     first = datetime.fromisoformat(day_keys[0])
-    labels = [
-        datetime.fromisoformat(day).strftime("%-d %b" if i == 0 or day.endswith("-01") else "%-d")
-        for i, day in enumerate(day_keys)
-    ]
+    labels = [_axis_label(day, first=i == 0) for i, day in enumerate(day_keys)]
     totals = await repo.totals(tz)
     busiest = max(((d, h) for d in range(7) for h in range(24)), key=lambda dh: heat[dh[0]][dh[1]])
     page: dict[str, Any] = {
@@ -127,13 +135,12 @@ async def stats(request: Request, days: int = 30, search: str = "") -> Response:
         "finds_per_day": list(per_day.values()),
         "day_labels": labels,
         "day_tips": [
-            f"<b>{count} finds</b><br>{datetime.fromisoformat(day).strftime('%a %-d %b')}"
-            for day, count in per_day.items()
+            f"<b>{count} finds</b><br>{_weekday_date(day)}" for day, count in per_day.items()
         ],
         "label_every": 7 if days <= 30 else 14,  # noqa: PLR2004
         "ymax": ymax,
         "ticks": ticks,
-        "range_text": f"{first.strftime('%-d %b')} to {today.strftime('%-d %b')}",
+        "range_text": f"{views.day_month(first)} to {views.day_month(today)}",
         "heat": heat,
         "heat_max": heat_max,
         "has_heat": any(any(row) for row in heat),

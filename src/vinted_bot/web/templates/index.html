@@ -31,7 +31,7 @@
 {% endif %}
 
 {% if no_destinations and searches %}
-<div class="notice notice--sun" style="margin:16px 0">{{ ui.icon("triangle-alert") }}<div><p><strong>Finds only show on this page for now.</strong> Add your phone, Telegram or Discord to hear about them anywhere. <a href="{{ url('alerts') }}" style="color:inherit">Add a place for alerts</a></p></div></div>
+<div class="notice notice--sun" style="margin:16px 0">{{ ui.icon("triangle-alert") }}<div><p><strong>Finds only show on this page for now.</strong> Add Telegram or Discord to hear about them anywhere. <a href="{{ url('alerts') }}" style="color:inherit">Add a place for alerts</a></p></div></div>
 {% endif %}
 
 {% if support_look is not none %}{{ support.card(support_look) }}{% endif %}
@@ -47,7 +47,8 @@
   <div class="empty__text">
     <h1 class="t-h1" id="empty-title">No finds yet</h1>
     <p class="t-lead">The first check skips everything that was already on Vinted, so you only hear about new listings.</p>
-    <p>They show up here on their own, usually a few minutes after the seller posts them.</p>
+    {% if app.searches_active %}<p>They show up here on their own, usually a few minutes after the seller posts them.</p>
+    {% else %}<p>Every search is paused right now, so nothing new comes in. <a href="{{ url('searches') }}">Resume one</a> to start again.</p>{% endif %}
     <div class="btn-row" style="margin-top:6px">
       <a class="btn btn--primary" href="{{ url('search_new') }}">{{ ui.icon("plus") }}Add another search</a>
       <a class="btn btn--secondary" href="{{ url('alerts') }}">Send a test alert</a>
@@ -61,7 +62,7 @@
     <h1 class="sr-only">Finds</h1>
     {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
     <div class="chips chips--scroll" role="group" aria-label="Show">
-      {% for key, label, ic in [("all", "All", ""), ("today", "Today", ""), ("deals", "Deals", "trending-down"), ("saved", "Saved", "heart")] %}
+      {% for key, label, ic in [("all", "All", ""), ("today", "Today", ""), ("deals", "Deals", "trending-down"), ("saved", "Saved", "heart"), ("hidden", "Hidden", "eye-off")] if key != "hidden" or has_hidden or show == "hidden" %}
       <button class="chip" type="submit" name="show" value="{{ key }}" aria-pressed="{{ 'true' if show == key or (key == 'all' and not show) else 'false' }}">{% if ic %}{{ ui.icon(ic) }}{% endif %}{{ label }}</button>
       {% endfor %}
       <label class="sr-only" for="f-search">Which search</label>
@@ -105,13 +106,17 @@
   {% else %}
   <span><b class="t-ink num">{{ "{:,}".format(found_total) }}</b> {{ "find" if found_total == 1 else "finds" }} so far · <b class="t-ink num" data-today>{{ found_today }}</b> today</span>
   {% endif %}
-  <span class="row t-sm"><i class="pulse" aria-hidden="true"></i>New finds appear here on their own</span>
+  {% if show == "hidden" %}<span class="t-sm">Listings you hid. Open one's menu to put it back.</span>
+  {% elif app.searches_active %}<span class="row t-sm"><i class="pulse" aria-hidden="true"></i>New finds appear here on their own</span>
+  {% else %}<span class="row t-sm">{{ ui.icon("pause", "i-sm") }}Every search is paused, so nothing new comes in. <a href="{{ url('searches') }}">Resume one</a></span>{% endif %}
 </div>
 {% if not items %}
-<div class="card card--pad stack"><h2 class="t-h2">Nothing matches</h2><p>No finds fit these filters. <a href="{{ url('home') }}">Show all finds</a></p></div>
+{% if not filtered and has_hidden %}<div class="card card--pad stack"><h2 class="t-h2">Every find is hidden</h2><p>Hidden, above, shows them, so you can put one back. New finds still show up here.</p></div>
+{% elif show == "hidden" %}<div class="card card--pad stack"><h2 class="t-h2">Nothing hidden</h2><p>Listings you hide go here, so you can put them back. <a href="{{ url('home') }}">Show all finds</a></p></div>
+{% else %}<div class="card card--pad stack"><h2 class="t-h2">Nothing matches</h2><p>No finds fit these filters. <a href="{{ url('home') }}">Show all finds</a></p></div>{% endif %}
 {% endif %}
 <div class="newpill" hidden data-newpill><button class="btn btn--primary btn--sm" type="button">{{ ui.icon("arrow-up", "i-sm") }}<span data-newpill-text>1 new find</span></button></div>
-<div class="feed" id="feed" aria-live="off" data-live="{{ latest_seq }}"{% if filtered %} data-filtered{% endif %}>
+<div class="feed" id="feed" aria-live="off" data-live="{{ latest_seq }}"{% if filtered %} data-filtered{% endif %}{% if show == "hidden" %} data-hidden-view{% endif %}>
   {% for it in items %}{{ ui.item_card(it, lazy=loop.index > 10) }}{% endfor %}
 </div>
 {% if more %}

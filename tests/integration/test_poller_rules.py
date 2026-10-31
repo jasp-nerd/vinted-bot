@@ -4,6 +4,7 @@ several sites, and seller lookups. Real poller, real database, scripted Vinted."
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import random
 import time
 from collections.abc import Callable
@@ -11,10 +12,13 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
+import pytest
+
 from tests.conftest import ScriptedTransport
 from vinted_bot.config import Settings
 from vinted_bot.db.connection import Database
-from vinted_bot.db.repo import Repo
+from vinted_bot.db.repo import Query, Repo
+from vinted_bot.engine import poller as poller_module
 from vinted_bot.engine.poller import Poller, SellerLookup
 from vinted_bot.vinted.client import VintedClient
 from vinted_bot.vinted.errors import BlockedError, NetworkError, RateLimitedError
@@ -469,3 +473,286 @@ async def test_listings_waiting_on_paused_lookups_are_logged_as_undecided(
         (200, "seller_unknown"),
         (201, "seller_unknown"),
     ]
+
+
+async def test_a_listing_older_than_the_freshness_window_is_logged_as_too_old(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    poll = await poller(transport, repo, settings, db)
+    await seed(poll, transport, make_item)
+    two_hours_ago = int(time.time()) - 7200
+    transport.queue_catalog([make_item(101, photo_ts=two_hours_ago)])
+
+    await poll.tick()
+
+    assert [(r.item_id, r.reason) for r in await repo.rejections_for(poll.query.id)] == [
+        (101, "too_old")
+    ]
+
+
+async def test_a_too_old_listing_a_rule_skips_anyway_is_not_logged_as_too_old(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    poll = await poller(transport, repo, settings, db, banned_keywords=["item"])
+    await seed(poll, transport, make_item)
+    transport.queue_catalog([make_item(101, photo_ts=int(time.time()) - 7200)])
+
+    await poll.tick()
+
+    assert await repo.rejections_for(poll.query.id) == []
+
+
+async def test_a_limit_converts_a_listing_from_a_site_with_another_currency(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    poll = await poller(
+        transport, repo, settings, db, extra_tlds=["co.uk"], max_total_price=Decimal("20")
+    )
+    await repo.set_state_value("exchange_rates", '{"fetched_at": 1, "rates": {"GBP": "0.8"}}')
+    now = int(time.time())
+    transport.queue_catalog([make_item(100, photo_ts=now - 60)])
+    transport.queue_catalog([])
+    await poll.tick()
+    pounds = {"amount": "18.00", "currency_code": "GBP"}
+    in_pounds = make_item(200, photo_ts=now) | {"price": pounds, "total_item_price": pounds}
+    transport.queue_catalog([])
+    transport.queue_catalog([in_pounds])
+
+    await poll.tick()
+
+    assert [r.reason for r in await repo.rejections_for(poll.query.id)] == ["over_budget"]
+
+
+async def _on_both_sites(
+    transport: ScriptedTransport, repo: Repo, poll: Poller, make_item: MakeItem
+) -> None:
+    """Listing 200 on the search's own vinted.fr at €19 and on vinted.co.uk at £18."""
+    await repo.set_state_value("exchange_rates", '{"fetched_at": 1, "rates": {"GBP": "0.8"}}')
+    now = int(time.time())
+    transport.queue_catalog([make_item(100, photo_ts=now - 60)])
+    transport.queue_catalog([])
+    await poll.tick()
+    euros = {"amount": "19.00", "currency_code": "EUR"}
+    pounds = {"amount": "18.00", "currency_code": "GBP"}
+    transport.queue_catalog(
+        [make_item(200, photo_ts=now) | {"price": euros, "total_item_price": euros}]
+    )
+    transport.queue_catalog(
+        [make_item(200, photo_ts=now) | {"price": pounds, "total_item_price": pounds}]
+    )
+    await poll.tick()
+
+
+async def test_a_listing_on_two_sites_is_judged_at_its_own_site_s_price(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    """£18 converts to €22.50, over the limit, though the buyer pays €19 on vinted.fr: the
+    copy from the other site was judged too, and "Not sent" said it was over the limit."""
+    poll = await poller(
+        transport, repo, settings, db, extra_tlds=["co.uk"], max_total_price=Decimal("20")
+    )
+
+    await _on_both_sites(transport, repo, poll, make_item)
+
+    assert await repo.rejections_for(poll.query.id) == []
+
+
+async def test_a_listing_waiting_on_its_seller_is_judged_after_it_leaves_the_page(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    """On a busy search undecided listings fell off the page and were never judged."""
+    sellers = FakeSellers(NetworkError("timed out"), french())
+    poll = await poller(transport, repo, settings, db, countries=["FR"], seller_lookup=sellers)
+    destination_id = await repo.add_destination(kind="webhook", name="w", config={"url": "x"})
+    await seed(poll, transport, make_item)
+    transport.queue_catalog([make_item(200, photo_ts=int(time.time()))])
+    await poll.tick()
+
+    transport.queue_catalog([])
+    await poll.tick()
+
+    assert await queued_ids(repo, destination_id) == [200]
+
+
+def restarted(poll: Poller, query: Query, sellers: SellerLookup) -> Poller:
+    """The same search's poller after an edit or a restart: nothing kept in memory."""
+    return Poller(
+        query,
+        repo=poll._repo,
+        client=poll._client,
+        sessions=poll._sessions,
+        settings=poll._settings,
+        stop=asyncio.Event(),
+        seller_lookup=sellers,
+        rng=random.Random(1),
+    )
+
+
+async def test_a_listing_waiting_on_its_seller_survives_a_rename(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    """Renaming, muting or pausing the search, or a restart, lost the waiting list."""
+    poll = await poller(
+        transport,
+        repo,
+        settings,
+        db,
+        countries=["FR"],
+        seller_lookup=FakeSellers(NetworkError("timed out")),
+    )
+    destination_id = await repo.add_destination(kind="webhook", name="w", config={"url": "x"})
+    await seed(poll, transport, make_item)
+    transport.queue_catalog([make_item(200, photo_ts=int(time.time()))])
+    await poll.tick()
+    renamed = await repo.update_query(dataclasses.replace(poll.query, name="nike, renamed"))
+
+    again = restarted(poll, renamed, FakeSellers(french()))
+    transport.queue_catalog([])
+    await again.tick()
+
+    assert await queued_ids(repo, destination_id) == [200]
+
+
+async def test_a_listing_judged_after_a_restart_leaves_no_waiting_row(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    """330 rows said "tried again on the next check" for hours after a restart."""
+    poll = await poller(
+        transport,
+        repo,
+        settings,
+        db,
+        countries=["BE"],
+        seller_lookup=FakeSellers(NetworkError("timed out")),
+    )
+    await seed(poll, transport, make_item)
+    transport.queue_catalog([make_item(200, photo_ts=int(time.time()))])
+    await poll.tick()
+
+    again = restarted(poll, poll.query, FakeSellers(french()))
+    transport.queue_catalog([])
+    await again.tick()
+
+    assert [r.reason for r in await repo.rejections_for(poll.query.id)] == ["seller_country"]
+
+
+async def test_changing_what_a_search_fetches_ends_the_wait_and_says_why(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    poll = await poller(
+        transport,
+        repo,
+        settings,
+        db,
+        countries=["FR"],
+        seller_lookup=FakeSellers(NetworkError("timed out")),
+    )
+    await seed(poll, transport, make_item)
+    transport.queue_catalog([make_item(200, photo_ts=int(time.time()))])
+    await poll.tick()
+
+    await repo.update_query(dataclasses.replace(poll.query, params={"search_text": "adidas"}))
+
+    (rejection,) = await repo.rejections_for(poll.query.id)
+    assert (
+        rejection.detail.startswith("stopped waiting"),
+        await repo.seller_waits(poll.query.id),
+    ) == (
+        True,
+        {},
+    )
+
+
+async def test_a_full_waiting_list_says_so_instead_of_gave_up_after_0_min(
+    transport: ScriptedTransport,
+    repo: Repo,
+    settings: Settings,
+    db: Database,
+    make_item: MakeItem,
+    *,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(poller_module, "_UNDECIDED_MAX", 2)
+    sellers = FakeSellers(*(NetworkError("timed out") for _ in range(5)))
+    poll = await poller(transport, repo, settings, db, countries=["FR"], seller_lookup=sellers)
+    await seed(poll, transport, make_item)
+    transport.queue_catalog(busy_page(1000, 5))
+
+    await poll.tick()
+
+    details = [r.detail for r in await repo.rejections_for(poll.query.id)]
+    assert sum("Narrow the search, or loosen its seller filters" in d for d in details) == 3
+
+
+def busy_page(first: int, count: int) -> list[dict[str, Any]]:
+    """Listings from as many different sellers, none of them cached."""
+    now = int(time.time())
+    return [
+        {
+            "id": first + n,
+            "title": f"Item {first + n}",
+            "url": f"https://www.vinted.fr/items/{first + n}",
+            "price": {"amount": "10.0", "currency_code": "EUR"},
+            "photo": {"high_resolution": {"timestamp": now}},
+            "user": {"id": first + n, "login": f"seller{n}"},
+        }
+        for n in range(count)
+    ]
+
+
+async def test_a_busy_search_looks_up_more_sellers_once_it_has_used_its_budget(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    sellers = FakeSellers(*(french(1000 + n) for n in range(60)))
+    poll = await poller(transport, repo, settings, db, countries=["FR"], seller_lookup=sellers)
+    await seed(poll, transport, make_item)
+
+    transport.queue_catalog(busy_page(1000, 15))
+    await poll.tick()
+    transport.queue_catalog(busy_page(2000, 25))
+    await poll.tick()
+
+    assert len(sellers.calls) == 10 + 20
+
+
+async def test_a_listing_left_waiting_by_the_budget_says_so(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    sellers = FakeSellers(*(french(1000 + n) for n in range(10)))
+    poll = await poller(transport, repo, settings, db, countries=["FR"], seller_lookup=sellers)
+    await seed(poll, transport, make_item)
+    transport.queue_catalog(busy_page(1000, 15))
+
+    await poll.tick()
+
+    details = {r.detail for r in await repo.rejections_for(poll.query.id)}
+    assert details == {
+        "waiting for a seller lookup: 5 listings were still waiting after this check's 10 "
+        "lookups; tried again on the next check, for up to 20 min"
+    }
+
+
+async def test_a_listing_still_undecided_after_the_freshness_window_is_given_up(
+    transport: ScriptedTransport,
+    repo: Repo,
+    settings: Settings,
+    db: Database,
+    make_item: MakeItem,
+    *,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sellers = FakeSellers(*(NetworkError("timed out") for _ in range(3)))
+    poll = await poller(transport, repo, settings, db, countries=["FR"], seller_lookup=sellers)
+    await seed(poll, transport, make_item)
+    start = time.time()
+    transport.queue_catalog([make_item(200, photo_ts=int(start))])
+    await poll.tick()
+
+    for minutes in (15, 30):
+        monkeypatch.setattr(time, "time", lambda m=minutes: start + m * 60)
+        transport.queue_catalog([])
+        await poll.tick()
+
+    (rejection,) = await repo.rejections_for(poll.query.id)
+    assert rejection.detail.startswith("gave up after 30 min without the seller's details")
+    assert await repo.seen_by_query(poll.query.id, [200]) == {200}

@@ -200,3 +200,29 @@ async def test_foreign_keys_are_back_on_after_migrating(tmp_path: Path) -> None:
         await apply_pending(db)
 
         assert await db.fetch_value("PRAGMA foreign_keys") == 1
+
+
+async def test_the_upgrade_settles_rows_still_promising_another_seller_lookup(
+    tmp_path: Path,
+) -> None:
+    """The in-memory waiting list left "tried again on the next check" rows for good."""
+    old = tmp_path / "before-seller-waits"
+    old.mkdir()
+    for migration in discover()[:8]:
+        (old / migration.name).write_text(migration.path.read_text(encoding="utf-8"))
+    async with Database(tmp_path / "app.db") as db:
+        await apply_pending(db, old)
+        await db.execute(
+            "INSERT INTO queries (id, name, url, tld, params_json, created_at, updated_at) "
+            "VALUES (1, 'nike', 'https://www.vinted.fr/catalog?search_text=nike', 'fr', '{}', 0, 0)"
+        )
+        await db.execute(
+            "INSERT INTO rejections (query_id, item_id, reason, detail, created_at) VALUES "
+            "(1, 5, 'seller_unknown', 'the seller lookup failed; tried again on the next "
+            "check, for up to 20 min', 0)"
+        )
+
+        await apply_pending(db)
+
+        row = await db.fetch_one("SELECT detail FROM rejections WHERE item_id = 5")
+    assert row is not None and row["detail"].startswith("gave up")

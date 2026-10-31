@@ -278,9 +278,23 @@ def default_search_name(params: dict[str, str], tld: str) -> str:
     return text[:MAX_NAME_LENGTH] if text else f"vinted.{tld}"
 
 
+# Typographic apostrophes, quotes and dashes as their plain keyboard forms. Phones and
+# Vinted's own titles use the curly ones, a typed exclude word the straight one, so
+# "levi's" never matched a curly "Levi(U+2019)s".
+_PLAIN_PUNCTUATION = str.maketrans(
+    {
+        **dict.fromkeys("\u2018\u2019\u201a\u201b\u02bc\u0060\u00b4\u2032", "'"),
+        **dict.fromkeys("\u201c\u201d\u201e\u201f\u00ab\u00bb\u2033", '"'),
+        **dict.fromkeys("\u2010\u2011\u2012\u2013\u2014\u2015\u2212", "-"),
+    }
+)
+
+
 def fold(text: str) -> str:
-    """Lower-case and strip accents, so 'Café' and 'cafe' compare equal."""
-    decomposed = unicodedata.normalize("NFKD", text.casefold())
+    """Lower-case, strip accents and straighten quotes, so 'Café' and 'cafe', or a curly
+    and a straight apostrophe, compare equal."""
+    plain = text.translate(_PLAIN_PUNCTUATION)
+    decomposed = unicodedata.normalize("NFKD", plain.casefold())
     return "".join(char for char in decomposed if not unicodedata.combining(char))
 
 

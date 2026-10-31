@@ -18,6 +18,7 @@ import pytest
 from tests.conftest import ScriptedTransport
 from vinted_bot.config import Settings
 from vinted_bot.db.repo import Repo
+from vinted_bot.engine import poller as poller_module
 from vinted_bot.engine.poller import Poller
 from vinted_bot.vinted.client import VintedClient
 from vinted_bot.vinted.proxies import ProxyRotation
@@ -234,6 +235,32 @@ async def test_backoff_grows_with_repeated_blocks(
         delays.append(await poller.tick())
 
     assert delays[0] < delays[1] < delays[2]
+
+
+async def test_waking_up_ends_a_long_backoff_and_starts_the_ladder_over(
+    transport: ScriptedTransport,
+    repo: Repo,
+    settings: Settings,
+    db: Any,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """After a laptop slept, its searches sat out a sixteen-minute backoff on a network
+    that was working again."""
+    monkeypatch.setattr(poller_module, "_WAKE_SPREAD_S", 0.0)
+    poller, _ = await make_poller(transport, repo, settings, db=db)
+    poller._woke = woke = asyncio.Event()
+    for _ in range(4):
+        transport.queue_status(403, "Forbidden")
+        await poller.tick()
+    waiting = asyncio.create_task(poller._wait(900))
+    await asyncio.sleep(0.01)  # settled into its wait
+
+    woke.set()
+    woke.clear()
+    await asyncio.wait_for(waiting, 1)
+    transport.queue_status(403, "Forbidden")
+
+    assert await poller.tick() < 2 * 60 * 1.15
 
 
 async def test_rate_limiting_waits_exactly_as_long_as_asked(

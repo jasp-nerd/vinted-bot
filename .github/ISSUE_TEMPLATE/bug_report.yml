@@ -37,7 +37,7 @@ body:
     attributes:
       label: Version
       description: "`vinted-bot --version`, or the image tag you run."
-      placeholder: vinted-bot 2.1.0
+      placeholder: vinted-bot 2.2.0
     validations:
       required: true
   - type: input

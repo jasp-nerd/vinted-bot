@@ -4,7 +4,7 @@ Once a day, one anonymous request to GitHub's public releases API, and the answe
 for the dashboard to show. Nothing is downloaded from here: installing a release is
 self_update.py's job, which only ever runs uv or pipx against PyPI, and only uses the
 version found here to decide whether to. People who would rather it never asked can
-switch it off in the dashboard's settings.
+switch it off in the dashboard's settings, unless they asked for automatic updates.
 """
 
 from __future__ import annotations
@@ -49,9 +49,14 @@ def release_notes_url(version: str) -> str:
 
 
 async def check_for_update(repo: Repo, http: httpx.AsyncClient, *, now: int | None = None) -> None:
-    """Ask GitHub for the latest release if the last answer is a day old and checks are on."""
+    """Ask GitHub for the latest release if the last answer is a day old and checks are on.
+
+    Automatic updates count as asking: they install the release found here, so with the
+    check switched off they waited for an answer that never came.
+    """
     moment = now or int(time.time())
-    if await repo.get_state_value("update_check") == "0":
+    prefs = await repo.app_settings(default_timezone="UTC")
+    if not prefs.update_check and not prefs.auto_update:
         return
     last = await repo.get_state_value("update_checked_at")
     if last is not None and moment - int(last) < CHECK_EVERY_S:

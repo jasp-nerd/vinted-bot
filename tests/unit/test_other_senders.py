@@ -2,21 +2,23 @@
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import hmac
-import sys
 from decimal import Decimal
 from typing import Any
 
 import apprise
 import httpx
 import pytest
+from apprise.conversion import convert_between
 from apprise.decorators import notify
 
 from tests.unit.sending import Recorder, bare, fast_bucket, notification
-from vinted_bot.deliver.apprise import AppriseSender
+from vinted_bot.deliver.apprise import AppriseSender, message, quiet_url
 from vinted_bot.deliver.base import SenderConfigError
 from vinted_bot.deliver.ntfy import NtfySender
+from vinted_bot.deliver.render import view
 from vinted_bot.deliver.webhook import WebhookSender
 
 # --- ntfy ------------------------------------------------------------------------------
@@ -142,12 +144,61 @@ async def test_ntfy_refusing_the_topic_switches_it_off() -> None:
     assert (result.permanent_error is not None, result.retry) == (True, [])
 
 
-async def test_ntfy_out_of_allowance_waits_a_minute() -> None:
+async def test_ntfy_says_when_a_status_notice_did_not_arrive() -> None:
+    """It used to drop the answer, so a notice the server refused was counted as sent."""
+    recorder = Recorder(httpx.Response(500))
+
+    assert await ntfy(recorder).send_status("vinted.fr is down") == "ntfy answered 500"
+
+
+async def test_ntfy_says_nothing_went_wrong_when_a_status_notice_arrived() -> None:
+    assert await ntfy(Recorder()).send_status("vinted.fr is down") is None
+
+
+async def test_ntfy_asking_to_slow_down_waits_a_minute() -> None:
     recorder = Recorder(httpx.Response(429))
 
     result = await ntfy(recorder).send([notification(1)])
 
-    assert (result.retry, result.retry_after_s) == ([1], 60.0)
+    assert (result.retry, result.retry_after_s, result.pause_until) == ([1], 60.0, None)
+
+
+async def test_ntfy_s_daily_limit_pauses_the_destination_until_midnight_utc() -> None:
+    recorder = Recorder(
+        httpx.Response(429, json={"code": 42908, "error": "limit reached: daily message quota"})
+    )
+
+    result = await ntfy(recorder).send([notification(1)])
+
+    assert result.pause_until is not None and result.pause_until % 86_400 == 0
+    assert result.error is not None and "daily message limit" in result.error
+
+
+async def test_several_listings_waiting_together_go_out_as_one_ntfy_push() -> None:
+    recorder = Recorder()
+
+    result = await ntfy(recorder).send([notification(n) for n in (1, 2, 3, 4)])
+
+    assert (len(recorder.requests), result.delivered) == (1, [1, 2, 3, 4])
+    assert recorder.payload()["title"] == "4 new matches · my search"
+
+
+async def test_a_couple_of_listings_still_get_a_push_each() -> None:
+    recorder = Recorder()
+
+    await ntfy(recorder).send([notification(1), notification(2)])
+
+    assert len(recorder.requests) == 2
+
+
+async def test_watch_alerts_keep_their_own_push_beside_a_digest() -> None:
+    recorder = Recorder()
+    batch = [notification(n) for n in (1, 2, 3)]
+    batch.append(notification(4, kind="price_drop", previous_price=Decimal("20")))
+
+    await ntfy(recorder).send(batch)
+
+    assert len(recorder.requests) == 2
 
 
 def test_ntfy_without_a_topic_is_a_configuration_error() -> None:
@@ -220,6 +271,16 @@ async def test_the_webhook_names_an_ordinary_listing_s_tier() -> None:
     assert recorder.payload()["items"][0]["deal_tier"] == "normal"
 
 
+async def test_the_webhook_rounds_the_seller_rating() -> None:
+    recorder = Recorder()
+    listing = notification(1)
+    item = listing.item.model_copy(update={"seller_rating": 0.9800000000000001})
+
+    await hook(recorder).send([dataclasses.replace(listing, item=item)])
+
+    assert recorder.payload()["items"][0]["seller_rating"] == 0.98
+
+
 async def test_the_webhook_carries_the_margin() -> None:
     recorder = Recorder()
 
@@ -235,6 +296,23 @@ async def test_the_webhook_carries_the_previous_price_of_a_drop() -> None:
 
     item = recorder.payload()["items"][0]
     assert (item["kind"], item["previous_price"]) == ("price_drop", "20.00")
+
+
+async def test_the_webhook_names_the_seller_s_country_when_a_lookup_found_it() -> None:
+    recorder = Recorder()
+    with_country = dataclasses.replace(notification(1), seller_country="BE")
+
+    await hook(recorder).send([with_country])
+
+    assert recorder.payload()["items"][0]["seller_profile"]["country"] == "BE"
+
+
+async def test_a_silent_alert_says_so_in_the_webhook_payload() -> None:
+    recorder = Recorder()
+
+    await hook(recorder).send([notification(1, silent=True)])
+
+    assert recorder.payload()["items"][0]["silent"] is True
 
 
 async def test_webhook_prices_always_have_two_decimals() -> None:
@@ -372,6 +450,23 @@ async def test_apprise_body_links_the_listing() -> None:
     assert "**[Item 1](https://www.vinted.co.uk/items/1)**" in _received[0]["body"]
 
 
+def test_an_email_body_keeps_its_links_in_the_plain_text_part() -> None:
+    """Apprise's HTML-to-text conversion kept "Open on Vinted" and dropped the address."""
+    _, body = message(view(notification(1), dashboard_url=None), links_written_out=True)
+
+    # Apprise's own conversions, as its email plugin runs them.
+    html = convert_between(apprise.NotifyFormat.MARKDOWN, apprise.NotifyFormat.HTML, body)  # type: ignore[no-untyped-call]
+    text = convert_between(apprise.NotifyFormat.HTML, apprise.NotifyFormat.TEXT, html)  # type: ignore[no-untyped-call]
+
+    assert "https://www.vinted.co.uk/items/1" in text
+
+
+def test_other_services_keep_tidy_markdown_links() -> None:
+    _, body = message(view(notification(1), dashboard_url=None))
+
+    assert "](https://www.vinted.co.uk/items/1)" in body.splitlines()[-1]
+
+
 async def test_apprise_attaches_the_cover_photo() -> None:
     await AppriseSender({"urls": ["vstest://"]}).send([notification(1)])
 
@@ -404,20 +499,13 @@ def test_an_unrecognised_apprise_url_is_reported_without_echoing_it() -> None:
     assert "URL number 2" in str(raised.value) and "hunter2" not in str(raised.value)
 
 
-def test_a_missing_apprise_extra_says_how_to_install_it(monkeypatch: pytest.MonkeyPatch) -> None:
-    # None in sys.modules is how Python spells "this import fails".
-    monkeypatch.setitem(sys.modules, "apprise", None)
-
-    with pytest.raises(SenderConfigError, match=r"vinted-bot\[apprise\]"):
-        AppriseSender({"urls": ["vstest://"]})
-
-
-async def test_ntfy_markdown_cannot_be_hijacked_by_a_seller_login() -> None:
+async def test_ntfy_sends_plain_text_so_ios_shows_no_raw_markdown() -> None:
+    """The iOS app does not render markdown; a seller's [link](...) stays inert text."""
     recorder = Recorder()
 
     await ntfy(recorder).send([notification(1, seller_login="[click](https://evil.test)")])
 
-    assert "](https://evil.test)" not in recorder.payload()["message"]
+    assert "markdown" not in recorder.payload()
 
 
 async def test_an_apprise_title_cannot_break_out_of_its_link() -> None:
@@ -434,3 +522,22 @@ async def test_an_apprise_title_cannot_inject_html_into_an_email() -> None:
     )
 
     assert "<img" not in _received[0]["body"]
+
+
+@pytest.mark.parametrize(
+    ("url", "quiet"),
+    [
+        ("tgram://123:abc/456", "tgram://123:abc/456?silent=yes"),
+        ("pover://user@token?priority=high", "pover://user@token?priority=low"),
+        ("ntfys://ntfy.sh/topic?tags=x", "ntfys://ntfy.sh/topic?tags=x&priority=low"),
+        ("mailtos://me:pw@gmail.com", "mailtos://me:pw@gmail.com"),
+    ],
+)
+def test_a_silent_apprise_alert_asks_each_service_for_no_sound(url: str, quiet: str) -> None:
+    assert quiet_url(url) == quiet
+
+
+async def test_a_silent_apprise_alert_is_still_delivered() -> None:
+    result = await AppriseSender({"urls": ["vstest://"]}).send([notification(1, silent=True)])
+
+    assert (result.delivered, len(_received)) == ([1], 1)

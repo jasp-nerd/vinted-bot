@@ -54,8 +54,8 @@ I servizi a pagamento lo fanno dai loro server per circa 5-30 euro al mese (a ot
 1. Installalo con il comando di una riga della homepage. La dashboard si apre nel browser.
 2. Incolla il link della tua ricerca Vinted, oppure costruisci la ricerca nella dashboard con categorie, marche e taglie di Vinted.
 3. Imposta il limite di prezzo come totale che pagherai (protezione acquisti inclusa), più le parole che il titolo deve avere o non avere.
-4. Scegli dove arrivano gli avvisi. In Italia la scelta più comune è Telegram: segui la guida al [bot Vinted su Telegram](/guides/bot-vinted-telegram/). ntfy sul telefono richiede un minuto e nessun account.
-5. Premi "Send test" (invia un test), controlla che arrivi, e hai finito.
+4. Scegli dove arrivano gli avvisi. In Italia la scelta più comune è Telegram: segui la guida al [bot Vinted su Telegram](/guides/bot-vinted-telegram/). L'app ti propone anche Discord, e sotto "More options" (altre opzioni) trovi l'app ntfy, l'email e i webhook.
+5. Premi "Send a test" (invia un test), controlla che arrivi, e hai finito.
 
 Ogni avviso mostra le foto, il prezzo totale, taglia, condizioni, marca, la valutazione del venditore e pulsanti per comprare, scrivere al venditore o aprire l'annuncio. Il primo controllo di una nuova ricerca è silenzioso, così ricevi solo gli annunci che compaiono dopo.
 

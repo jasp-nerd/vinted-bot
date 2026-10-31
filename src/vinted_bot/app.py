@@ -26,7 +26,7 @@ from vinted_bot.config import MAX_BACKOFF_S, Settings
 from vinted_bot.db import Database, apply_pending
 from vinted_bot.db.repo import Query, Repo
 from vinted_bot.deliver.dispatcher import Dispatcher
-from vinted_bot.engine import self_update, updates
+from vinted_bot.engine import rates, self_update, updates, wakeups
 from vinted_bot.engine.health import Heartbeat
 from vinted_bot.engine.poller import Poller
 from vinted_bot.engine.watchdog import Watchdog
@@ -45,6 +45,7 @@ SUPERVISE_INTERVAL_S = 15.0
 
 # Housekeeping: prune old listings and the rejections log, check for a newer release.
 HOUSEKEEPING_INTERVAL_S = 3600.0
+
 
 # Searches started in the same pass — all of them, after a restart — begin this far apart
 # (plus jitter), so they do not hit the site in the same second.
@@ -72,6 +73,13 @@ class Application:
         self._open_browser = open_browser
         self._stop = asyncio.Event()
         self._work_available = asyncio.Event()
+        # Set by engine/wakeups.py when the computer woke up or changed networks.
+        self._woke = asyncio.Event()
+        # Set when a search starts, so a search spanning currencies gets its exchange
+        # rates at once rather than at the next five-minutely look.
+        self._rates_wanted = asyncio.Event()
+        # Set by the dashboard when the Telegram bot's token is added, replaced or removed.
+        self._telegram_token_changed = asyncio.Event()
         self._rng = random.Random()
         self._poller_tasks: dict[int, asyncio.Task[None]] = {}
         # The search as its poller was started with it. Any edit makes it unequal, and
@@ -153,15 +161,20 @@ class Application:
                         tg.create_task(watchdog.run(), name="watchdog")
                         tg.create_task(heartbeat.run(), name="heartbeat")
                         tg.create_task(watcher.run(), name="watcher")
+                        tg.create_task(wakeups.watch(self._stop, self._woke), name="wakeups")
                         tg.create_task(self._housekeeping(repo, http), name="housekeeping")
+                        if settings.fetch_mode == "live":
+                            tg.create_task(
+                                rates.keep_fresh(repo, http, self._stop, self._rates_wanted),
+                                name="rates",
+                            )
                         tg.create_task(updater.run_automatically(), name="auto-update")
                         tg.create_task(self._report_update(repo, dispatcher), name="update-report")
                         tg.create_task(
                             self._supervise(tg, repo, client, sessions), name="supervisor"
                         )
 
-                        if settings.telegram_bot_token is not None:
-                            tg.create_task(self._run_telegram_bot(repo), name="telegram-bot")
+                        tg.create_task(self._run_telegram_bot(repo), name="telegram-bot")
                         if settings.web_enabled:
                             taxonomy = Taxonomy(sessions, repo)
                             tg.create_task(
@@ -255,11 +268,13 @@ class Application:
                 work_available=self._work_available,
                 seller_lookup=client.seller,
                 start_delay_s=delay,
+                woke=self._woke,
             )
             self._poller_tasks[query_id] = tg.create_task(
                 self._guard(poller), name=f"poll:{query_id}"
             )
             self._poller_signatures[query_id] = query
+            self._rates_wanted.set()
             log.info(
                 "poller.started",
                 query_id=query_id,
@@ -323,15 +338,14 @@ class Application:
             log.warning("update.report_failed", error=str(exc))
 
     async def _run_telegram_bot(self, repo: Repo) -> None:
-        from vinted_bot.botctl.telegram_bot import run_bot  # noqa: PLC0415
+        from vinted_bot.botctl.telegram_bot import keep_running  # noqa: PLC0415
 
-        token = self._settings.telegram_bot_token
-        if token is None:  # pragma: no cover - guarded by the caller
-            return
-        try:
-            await run_bot(token.get_secret_value(), repo=repo, stop=self._stop)
-        except Exception as exc:
-            log.exception("telegram_bot.failed", error=str(exc))
+        await keep_running(
+            self._settings,
+            repo,
+            stop=self._stop,
+            token_changed=self._telegram_token_changed,
+        )
 
     async def _run_web(
         self,
@@ -353,6 +367,7 @@ class Application:
                 client=client,
                 watch_kinds=watch_kinds,
                 updater=updater,
+                telegram_token_changed=self._telegram_token_changed,
             )
         except Exception as exc:
             log.exception("web.failed", error=str(exc))

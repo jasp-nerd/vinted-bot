@@ -72,11 +72,11 @@ class TestResult:
 def sample_notification(
     kind: str = "listing", *, tld: str = DEFAULT_SAMPLE_TLD, index: int = 0, deal: bool = False
 ) -> PendingNotification:
-    """A realistic, clearly invented listing, worded in the site's language.
+    """A realistic, clearly invented listing, worded in the site's language, whose links
+    open a real search on the site.
 
-    An ordinary listing by default, so a test arrives at the destination's normal
-    priority and without reseller sums nobody asked for. `deal` prices it as a steal
-    with a resale margin, for previews that show what those look like. No listing time,
+    An ordinary listing by default. `deal` prices it as a steal with a resale margin,
+    for the previews and the test send, which show what those look like. No listing time,
     like every real search result now, and no seller id, so a test alert's "block
     seller" button cannot block anyone real.
     """
@@ -89,7 +89,9 @@ def sample_notification(
         item_id=item_id,
         tld=tld,
         title=f"Levi's 501 straight jeans ({marker})",
-        url=f"https://www.vinted.{tld}/items/{item_id}",
+        # A real search for jeans like these, not an invented listing page that Vinted
+        # would answer with "page not found".
+        url=f"https://www.vinted.{tld}/catalog?search_text=levi%27s%20501",
         brand="Levi's",
         size="W31",
         condition=condition,
@@ -106,7 +108,8 @@ def sample_notification(
     return PendingNotification(
         outbox_id=index,
         destination_id=0,
-        query_id=0,
+        # No search sent it, which is what null means in the webhook payload.
+        query_id=None,
         query_name=search_name,
         attempts=0,
         item=item,
@@ -168,13 +171,15 @@ async def send_test(
     destination: Destination,
     *,
     settings: Settings,
+    telegram_token: str | None,
     tld: str = DEFAULT_SAMPLE_TLD,
     client: httpx.AsyncClient | None = None,
 ) -> TestResult:
     """Send one sample listing through a destination and say plainly how it went.
 
-    `tld` picks the site the sample pretends to be from, which sets its language and
-    currency. `client` lets a caller that already holds a connection pool reuse it.
+    `telegram_token` is the bot's current token (managed.telegram_token). `tld` picks the
+    site the sample pretends to be from, which sets its language and currency. `client`
+    lets a caller that already holds a connection pool reuse it.
     """
     if awaiting_pairing(destination):
         return TestResult(
@@ -187,13 +192,16 @@ async def send_test(
         if client is None:
             client = await stack.enter_async_context(httpx.AsyncClient(timeout=20.0))
         try:
-            sender = build_sender(destination, settings, client)
+            sender = build_sender(destination, settings, client, telegram_token=telegram_token)
         except SenderConfigError as exc:
             return TestResult(
                 ok=False, message="This destination is not set up correctly.", detail=str(exc)
             )
         try:
-            result = await sender.send([sample_notification(tld=tld)])
+            # The same steal the preview beside the button shows, so the test pings the
+            # mention and buzzes the way the preview promises; an ordinary listing never
+            # showed the "ping for steals" mention at all.
+            result = await sender.send([sample_notification(tld=tld, deal=True)])
         finally:
             await sender.aclose()
 

@@ -2,10 +2,22 @@
 {#
   The "where alerts go" choices, shared by setup step 3 and the Alerts page's add flow.
   Context: errors, form (previous answers), ntfy_topic, telegram {configured, bot},
-  apprise (installed), providers. Phone notification comes first: it is the one a
-  person can set up from a phone in a minute.
+  providers, security_modes, webhook (offer "Your own app" too). Telegram and Discord
+  come first, side by side in weight: they are what nearly everyone uses. The rest sit
+  under "More options", folded unless one of them is the current answer.
 #}
 {% set E = errors or {} %}
+{# The BotFather token, checked with Telegram by "Check and save" (or by Continue in setup). #}
+{% macro token_field(E, F, label="Bot token") -%}
+<div class="field" data-tg-token>
+  <label class="label" for="tg-token">{{ label }}</label>
+  <div class="row token-row">
+    <input class="input grow" id="tg-token" name="telegram_token" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="123456789:AAH4k…"{{ ui.invalid(E, 'telegram_token') }}>
+    <button class="btn btn--secondary" type="button" data-tg-token-save>Check and save</button>
+  </div>
+  {% if E.telegram_token %}{{ ui.field_error(E, "telegram_token") }}{% else %}<p class="help" data-tg-token-help>We check it with Telegram, then keep it on this computer. Anyone with it can send messages as your bot, so keep it to yourself.</p>{% endif %}
+</div>
+{%- endmacro %}
 {% set F = form or {} %}
 {% macro choice(k, title, desc, icon_name, checked) -%}
 <div class="choice choice--group">
@@ -19,53 +31,44 @@
 </div>
 {%- endmacro %}
 
-{% call choice("ntfy", "Notification on your phone", "Free app called ntfy. Install it, add one name, done. No account.", "smartphone", kind == "ntfy") %}
-  {% set topic = F.ntfy_topic or ntfy_topic %}
-  {# ntfy:// links subscribe the Android app in one tap. The iPhone app has no such link,
-     so the name itself stays big enough to type, with Copy for people already on the phone. #}
-  {% set ntfy_link = "ntfy://ntfy.sh/" ~ topic ~ "?display=vinted-bot" %}
-  <ol class="steps-list" style="padding-top:6px">
-    <li><span>On your phone, install <b>ntfy</b> from the <a href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">App Store</a> or <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Google Play</a>. It's free and doesn't ask for your name, email or number.</span></li>
-    <li><span>In ntfy, tap <b>+</b> and add this name: <span class="code code--lg" data-ntfy-topic>{{ topic }}</span> <button class="btn btn--ghost btn--sm" type="button" data-copy="{{ topic }}">{{ ui.icon("copy", "i-sm") }}Copy</button>
-      <a class="btn btn--secondary btn--sm show-sm ntfy-open" href="{{ ntfy_link }}">{{ ui.icon("smartphone", "i-sm") }}Open in ntfy (Android)</a></span></li>
-  </ol>
-  <div class="ntfy-qr hide-sm">
-    <div class="qr" data-qr="{{ ntfy_link }}" aria-hidden="true"></div>
-    <p class="t-sm"><b class="t-ink">Android:</b> scan this with your phone's camera and tap the link. ntfy opens with this name already added.<br><b class="t-ink">iPhone:</b> type the name above into ntfy. It stays the same if you come back later.</p>
-  </div>
-  <input type="hidden" name="ntfy_topic" value="{{ topic }}">
-  {{ ui.field_error(E, "ntfy_topic") }}
-{% endcall %}
-
-{% call choice("telegram", "Telegram", "A chat message in Telegram. You make a small private bot first (about 3 minutes).", "send", kind == "telegram") %}
-  {% if telegram.configured %}
-  <div class="stack-lg" data-pair style="padding:6px 2px 4px">
-    <ol class="steps-list">
-      <li><span>Tap <b>Connect my chat</b>. We make a one-time code.</span></li>
-      <li><span>Send it to {% if telegram.bot %}your bot <b>@{{ telegram.bot }}</b>{% else %}your bot{% endif %} in Telegram. The button opens the chat with the code ready; just press Start.</span></li>
-    </ol>
-    <div data-pair-step="start"><button class="btn btn--secondary" type="button" data-pair-start>{{ ui.icon("link") }}Connect my chat</button></div>
-    <div class="pair-code" data-pair-step="wait" hidden>
-      <span class="t-sm">Send this to your bot:</span>
-      <b class="code" data-pair-command></b>
-      <a class="btn btn--primary btn--sm" data-pair-link href="#" target="_blank" rel="noopener" hidden>{{ ui.icon("send", "i-sm") }}Open Telegram</a>
-      <span class="row t-sm" style="gap:8px"><span class="spinner"></span>Waiting for your message</span>
+{% call choice("telegram", "Telegram", "Each find as a chat message with its photo. You make your own free bot first, about 3 minutes.", "send", kind == "telegram") %}
+  <div class="stack-lg" style="padding:6px 2px 4px" data-tg-choice>
+    {% if not telegram.configured %}
+    <div class="stack" data-tg-setup>
+      <p class="t-sm">A Telegram bot is a free chat account that only sends you what you ask for. BotFather, Telegram's own tool, makes one for you:</p>
+      <ol class="steps-list">
+        <li><span>Open <a href="https://t.me/BotFather" target="_blank" rel="noopener"><b>@BotFather</b></a> in Telegram (it has a blue tick), or search for it, then tap <b>Start</b>.</span></li>
+        <li><span>Send <span class="code">/newbot</span>.</span></li>
+        <li><span>When it asks for a name, type anything, like <b>My Vinted alerts</b>.</span></li>
+        <li><span>When it asks for a username, type one that ends in <b>bot</b>, like <b>mags_vinted_bot</b>. If it's taken, add a few numbers.</span></li>
+        <li><span>BotFather answers <b>Done! Congratulations</b>. Under <b>Use this token to access the HTTP API</b> is a long code: tap it once to copy it, then paste it here.</span></li>
+      </ol>
+      {{ token_field(E, F) }}
     </div>
-    <div class="notice notice--ok" data-pair-step="done" hidden>{{ ui.icon("circle-check-big") }}<span><strong>Connected.</strong> Alerts will arrive in that chat.</span></div>
-    <input type="hidden" name="telegram_id" value="{{ F.telegram_id or '' }}" data-pair-id>
+    {% endif %}
+    <div class="stack-lg" data-pair{% if not telegram.configured %} hidden{% endif %}>
+      {% if telegram.rejected %}<div class="notice notice--danger">{{ ui.icon("circle-alert") }}<div><p><strong>{{ telegram.rejected }}</strong></p></div></div>{% endif %}
+      <p class="t-sm" data-tg-bot-line>Your bot: <b>{% if telegram.bot %}@<span data-tg-bot>{{ telegram.bot }}</span>{% else %}<span data-tg-bot>{{ telegram.masked or "" }}</span>{% endif %}</b>{% if telegram.from_env %} (from VINTED_BOT_TELEGRAM_BOT_TOKEN){% endif %}</p>
+      <ol class="steps-list">
+        <li><span>Tap <b>Connect my chat</b>. We make a one-time code.</span></li>
+        <li><span>The button opens your bot in Telegram with the code ready: press <b>Start</b>. In a group, send the code shown instead.</span></li>
+      </ol>
+      <div data-pair-step="start"><button class="btn btn--secondary" type="button" data-pair-start{% if telegram.rejected %} disabled{% endif %}>{{ ui.icon("link") }}Connect my chat</button></div>
+      <div class="pair-code" data-pair-step="wait" hidden>
+        <span class="t-sm">Send this to your bot:</span>
+        <b class="code" data-pair-command></b>
+        <a class="btn btn--primary btn--sm" data-pair-link href="#" target="_blank" rel="noopener" hidden>{{ ui.icon("send", "i-sm") }}Open Telegram</a>
+        <div class="pair-qr hide-sm" data-pair-qr-wrap hidden><div class="qr" data-pair-qr aria-hidden="true"></div><p class="t-sm">Telegram on your phone? Scan this with the camera to open your bot there with the code ready.</p></div>
+        <span class="row t-sm" style="gap:8px"><span class="spinner"></span>Waiting for your message</span>
+      </div>
+      <div class="notice notice--ok" data-pair-step="done" hidden>{{ ui.icon("circle-check-big") }}<span><strong>Connected.</strong> Alerts will arrive in that chat.</span></div>
+      <input type="hidden" name="telegram_id" value="{{ F.telegram_id or '' }}" data-pair-id>
+    </div>
     {{ ui.field_error(E, "telegram") }}
   </div>
-  {% else %}
-  <ol class="steps-list" style="padding-top:6px">
-    <li><span>In Telegram, search for <b>BotFather</b> (it has a blue tick). It's Telegram's official tool for making bots. Send it <span class="code">/newbot</span> and pick any name.</span></li>
-    <li><span>BotFather sends a long code that starts with numbers, then a colon. On the computer running vinted-bot, add it to the settings file as <span class="code">VINTED_BOT_TELEGRAM_BOT_TOKEN=that-code</span> and restart vinted-bot.</span></li>
-    <li><span>Come back here and choose Telegram again: you'll get a button that connects your chat.</span></li>
-  </ol>
-  {{ ui.field_error(E, "telegram") }}
-  {% endif %}
 {% endcall %}
 
-{% call choice("discord", "Discord", "A message in a Discord channel. You need your own server (free, 30 seconds).", "message-circle", kind == "discord") %}
+{% call choice("discord", "Discord", "Each find as a card in a channel of your server, with photos and buttons.", "message-circle", kind == "discord") %}
   <div class="stack-lg" style="padding:6px 2px 4px">
     <p class="t-sm">You need to be allowed to manage the channel. On a friend's server that only works if they make you an admin; otherwise <a href="https://support.discord.com/hc/en-us/articles/204849977" target="_blank" rel="noopener">make your own server</a>.</p>
     <div class="seg" role="tablist" aria-label="Where you use Discord" data-steps-toggle>
@@ -89,21 +92,66 @@
   </div>
 {% endcall %}
 
+<details class="more-choices"{% if kind in ("ntfy", "apprise", "webhook") %} open{% endif %}>
+  <summary>{{ ui.icon("chevron-right", "i-sm") }}More options<small class="t-sm">Phone notification app, email{% if webhook %}, your own app{% endif %}</small></summary>
+  <div class="choices">
+{% call choice("ntfy", "Phone notification app", "A plain notification from the free ntfy app. No account.", "smartphone", kind == "ntfy") %}
+  {% set topic = F.ntfy_topic or ntfy_topic %}
+  {# ntfy:// links subscribe the Android app in one tap. The iPhone app has no such link,
+     so the name itself stays big enough to type, with Copy for people already on the phone. #}
+  {% set ntfy_link = "ntfy://ntfy.sh/" ~ topic ~ "?display=vinted-bot" %}
+  <ol class="steps-list" style="padding-top:6px">
+    <li><span>On your phone, install <b>ntfy</b> from the <a href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">App Store</a> or <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Google Play</a>. It's free and doesn't ask for your name, email or number.</span></li>
+    <li><span>In ntfy, tap <b>+</b> and add this name: <span class="code code--lg" data-ntfy-topic>{{ topic }}</span> <button class="btn btn--ghost btn--sm" type="button" data-copy="{{ topic }}">{{ ui.icon("copy", "i-sm") }}Copy</button>
+      <a class="btn btn--secondary btn--sm show-sm ntfy-open" href="{{ ntfy_link }}">{{ ui.icon("smartphone", "i-sm") }}Open in ntfy (Android)</a></span></li>
+  </ol>
+  <div class="ntfy-qr hide-sm">
+    <div class="qr" data-qr="{{ ntfy_link }}" aria-hidden="true"></div>
+    <p class="t-sm"><b class="t-ink">Android:</b> scan this with your phone's camera and tap the link. ntfy opens with this name already added.<br><b class="t-ink">iPhone:</b> type the name above into ntfy. It stays the same if you come back later.</p>
+  </div>
+  <input type="hidden" name="ntfy_topic" value="{{ topic }}">
+  {{ ui.field_error(E, "ntfy_topic") }}
+{% endcall %}
+
 {% call choice("apprise", "Email", "Alerts in your inbox. Needs an app password from your email provider.", "mail", kind == "apprise") %}
-  {% if apprise %}
   <div class="stack" style="padding-top:6px">
     <div class="grid-2">
       <div class="field"><label class="label" for="em-addr">Email address</label><input class="input" id="em-addr" name="email_address" type="email" autocomplete="email" value="{{ F.email_address or '' }}"{{ ui.invalid(E, 'email_address') }}>{{ ui.field_error(E, "email_address") }}</div>
       <div class="field"><label class="label" for="em-prov">Email provider</label>
-        <select class="select" id="em-prov" name="email_provider">{% for key, pair in providers.items() %}<option value="{{ key }}"{% if F.email_provider == key %} selected{% endif %}>{{ pair[0] }}</option>{% endfor %}</select></div>
+        <select class="select" id="em-prov" name="email_provider"{{ ui.invalid(E, 'email_provider') }}>{% for key, pair in providers.items() %}<option value="{{ key }}"{% if F.email_provider == key %} selected{% endif %}>{{ pair[0] }}</option>{% endfor %}</select>{{ ui.field_error(E, "email_provider") }}</div>
+    </div>
+    <div class="stack" data-smtp-field{% if F.email_provider != "custom" %} hidden{% endif %}>
+      <div class="grid-2">
+        <div class="field"><label class="label" for="em-smtp">Outgoing mail server</label><input class="input" id="em-smtp" name="email_smtp" type="text" autocomplete="off" spellcheck="false" placeholder="smtp.example.com" value="{{ F.email_smtp or '' }}"{{ ui.invalid(E, 'email_smtp') }}>{{ ui.field_error(E, "email_smtp") }}</div>
+        <div class="field"><label class="label" for="em-port">Port <small>optional</small></label><input class="input" id="em-port" name="email_port" type="text" inputmode="numeric" autocomplete="off" placeholder="587" value="{{ F.email_port or '' }}"{{ ui.invalid(E, 'email_port') }}>{{ ui.field_error(E, "email_port") }}</div>
+      </div>
+      <div class="grid-2" style="align-items:start">
+        <div class="field"><label class="label" for="em-sec">Encryption</label>
+          <select class="select" id="em-sec" name="email_security"{{ ui.invalid(E, 'email_security') }}>{% for key, mode in security_modes.items() %}<option value="{{ key }}"{% if F.email_security == key %} selected{% endif %}>{{ mode[0] }}</option>{% endfor %}</select>{{ ui.field_error(E, "email_security") }}</div>
+        <div class="field"><label class="label" for="em-user">User name <small>optional</small></label><input class="input" id="em-user" name="email_user" type="text" autocomplete="off" spellcheck="false" value="{{ F.email_user or '' }}"><p class="help">Leave it empty to sign in with the email address.</p></div>
+      </div>
+      <p class="t-sm">Your provider's help pages list these, often under "SMTP" or "outgoing mail". A server on your own network that doesn't ask you to sign in needs no password.</p>
     </div>
     <div class="field"><label class="label" for="em-pw">App password</label><input class="input" id="em-pw" name="email_password" type="password" autocomplete="off"{{ ui.invalid(E, 'email_password') }}>{{ ui.field_error(E, "email_password") }}<p class="help">Your provider makes one in its security settings (Gmail: Google Account, Security, App passwords). Your normal password usually won't work.</p></div>
-    <div class="field" data-smtp-field{% if F.email_provider != "other" %} hidden{% endif %}><label class="label" for="em-smtp">Outgoing mail server</label><input class="input" id="em-smtp" name="email_smtp" type="text" placeholder="smtp.example.com" value="{{ F.email_smtp or '' }}"{{ ui.invalid(E, 'email_smtp') }}>{{ ui.field_error(E, "email_smtp") }}</div>
     <details class="adv"><summary>{{ ui.icon("chevron-right") }}Slack, Pushover, Matrix and more</summary><div class="field"><label class="label" for="ap-url">Apprise link</label><input class="input" id="ap-url" name="apprise_url" type="text" autocomplete="off" spellcheck="false" value="{{ F.apprise_url or '' }}"><p class="help">For people who've set these up before. <a href="https://github.com/caronc/apprise/wiki" target="_blank" rel="noopener">Every service's link format</a>.</p></div></details>
   </div>
-  {% else %}
-  <p class="t-sm" style="padding-top:6px">Email needs an optional part that isn't installed. On the computer running vinted-bot, install <span class="code">vinted-bot[apprise]</span> and restart. Until then, a notification on your phone works the same way: a buzz with the photo.</p>
-  {% endif %}
-  {{ ui.field_error(E, "kind") }}
   {{ ui.field_error(E, "config") }}
 {% endcall %}
+
+{% if webhook %}
+<div class="choice choice--group">
+  <label class="choice__row">
+    <input type="radio" name="kind" value="webhook"{% if kind == "webhook" %} checked{% endif %} data-kind-pick>
+    <span class="choice__icon dest__logo dest__logo--webhook">{{ ui.icon("webhook") }}</span>
+    <span class="choice__text"><span class="choice__title">Your own app</span><span class="choice__desc">A signed JSON post, for developers</span></span>
+    <span class="choice__tick">{{ ui.icon("check") }}</span>
+  </label>
+  <div class="choice-more"><div class="stack" style="padding-top:6px">
+    <div class="field"><label class="label" for="wh-url">Address</label><input class="input" id="wh-url" name="webhook_url" type="text" inputmode="url" placeholder="https://example.com/hook" value="{{ F.webhook_url or '' }}"></div>
+    <div class="field"><label class="label" for="wh-secret">Signing secret <small>optional</small></label><input class="input" id="wh-secret" name="webhook_secret" type="text" autocomplete="off"></div>
+  </div></div>
+</div>
+{% endif %}
+  </div>
+</details>
+{{ ui.field_error(E, "kind") }}

@@ -63,7 +63,7 @@ Es gibt bei uns keinen Server. Die App läuft auf deinem Laptop, PC, Raspberry P
 
 Was du bekommst:
 
-- Benachrichtigungen per Discord, Telegram, ntfy (kostenlose Handy-App ohne Konto), RSS oder eigenem Webhook. E-Mail, Slack oder Pushover gehen über eine optionale Erweiterung.
+- Benachrichtigungen per Discord, Telegram, ntfy (kostenlose Handy-App ohne Konto), RSS oder eigenem Webhook. E-Mail, Slack und Pushover gehen auch.
 - Den Endpreis in jeder Nachricht, Käuferschutz inklusive, und Preisgrenzen, die mit diesem Endpreis rechnen. Der Preisfilter von Vinted ignoriert die Gebühr.
 - Wörter, die im Titel stehen müssen, und Wörter, die rausfliegen, damit "defekt" oder "nur Karton" gar nicht erst ankommt.
 - Verkäuferfilter: Mindestbewertung, Mindestanzahl an Bewertungen, Land des Verkäufers und ein Button zum Blockieren.
@@ -76,7 +76,7 @@ Was du bekommst:
 1. Installieren. Unter Windows öffnest du PowerShell und fügst den Einzeiler von der Startseite ein, auf dem Mac oder unter Linux das Terminal und den anderen Befehl. Keine Adminrechte, kein Docker. Danach öffnet sich das Dashboard im Browser unter `http://localhost:8000`.
 2. Such auf Vinted wie immer (Begriff, Kategorie, Größe, Marke, Zustand) und kopier die Adresse aus der Browserzeile, oder teil die Suche in der App und kopier den Link. Du kannst die Suche auch direkt im Dashboard bauen, mit den Kategorien und Marken von Vinted.
 3. Füg den Link im Dashboard ein. Du siehst live, wie viele aktuelle Artikel passen und wie viele jeder Filter aussortiert. Den Höchstpreis gibst du als Endpreis an, den du zahlen willst.
-4. Wähl das Ziel. Am schnellsten geht eine Benachrichtigung aufs Handy mit der kostenlosen App ntfy: installieren, den Themennamen aus dem Dashboard hinzufügen, fertig. Für Telegram gibt es eine eigene Anleitung: [Vinted Bot auf Telegram](/guides/vinted-bot-telegram/). Für Discord brauchst du einen Webhook-Link aus den Kanaleinstellungen (Kanal bearbeiten, Integrationen, Webhooks, Neuer Webhook). Drück danach "Send test" (Test senden).
+4. Wähl das Ziel. Telegram und Discord schlägt die App als Erstes vor. Für Telegram gibt es eine eigene Anleitung: [Vinted Bot auf Telegram](/guides/vinted-bot-telegram/). Für Discord brauchst du einen Webhook-Link aus den Kanaleinstellungen (Kanal bearbeiten, Integrationen, Webhooks, Neuer Webhook). Unter "More options" (Weitere Optionen) gibt es außerdem die Handy-App ntfy, E-Mail und Webhooks. Drück danach "Send a test" (Test senden).
 5. Laufen lassen. Die erste Prüfung ist absichtlich still, damit du nicht mit Artikeln überflutet wirst, die schon da waren. Ab dann kommt jeder neue Treffer als Nachricht mit Fotos, Endpreis, Größe, Zustand, Verkäuferbewertung und Buttons zum Kaufen, Schreiben und Öffnen.
 
 {{install}}

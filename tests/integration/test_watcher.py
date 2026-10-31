@@ -226,3 +226,87 @@ async def test_a_watch_routed_nowhere_goes_to_every_destination(repo: Repo) -> N
     watch_id, destination_id = await item_watch(repo)
 
     assert await repo.destination_ids_for_watch(watch_id) == [destination_id]
+
+
+async def test_a_watch_can_be_routed_to_chosen_destinations(repo: Repo, pages: Pages) -> None:
+    watch_id, everywhere = await item_watch(repo)
+    chosen = await repo.add_destination(kind="ntfy", name="phone", config={"topic": "p"})
+    await repo.set_watch_routes(watch_id, [chosen])
+    pages.snapshots += [snapshot("50"), snapshot("40")]
+    await check(repo, pages, watch_id)
+
+    await check(repo, pages, watch_id)
+
+    to_chosen = [n.kind for n in await repo.claim_batch(chosen, 10)]
+    to_everywhere = [n.kind for n in await repo.claim_batch(everywhere, 10)]
+    assert (to_chosen, to_everywhere) == (["price_drop"], [])
+
+
+async def test_clearing_a_watch_s_routes_sends_it_everywhere_again(repo: Repo) -> None:
+    watch_id, everywhere = await item_watch(repo)
+    chosen = await repo.add_destination(kind="ntfy", name="phone", config={"topic": "p"})
+    await repo.set_watch_routes(watch_id, [chosen])
+
+    await repo.set_watch_routes(watch_id, [])
+
+    assert await repo.destination_ids_for_watch(watch_id) == [everywhere, chosen]
+
+
+async def test_a_watch_added_from_a_bare_link_takes_the_listing_s_title(
+    repo: Repo, pages: Pages
+) -> None:
+    """Its alerts said "Listing 10" for as long as it ran."""
+    watch_id = await repo.add_watch(kind="item", tld="fr", target_id=10, label="Listing 10")
+    pages.snapshots.append(snapshot("50"))
+
+    await check(repo, pages, watch_id)
+
+    watch = await repo.get_watch(watch_id)
+    assert watch is not None and watch.label == "Barbour jacket"
+
+
+async def test_a_label_someone_chose_is_kept(repo: Repo, pages: Pages) -> None:
+    watch_id, _ = await item_watch(repo)
+    pages.snapshots.append(snapshot("50"))
+
+    await check(repo, pages, watch_id)
+
+    watch = await repo.get_watch(watch_id)
+    assert watch is not None and watch.label == "Barbour"
+
+
+async def test_a_price_drop_alert_does_not_show_the_total_from_before_the_drop(
+    repo: Repo, pages: Pages
+) -> None:
+    """The listing page has no total; the search's old total used to stay on the new price."""
+    watch_id, destination_id = await item_watch(repo)
+    query_id = await repo.add_query(
+        name="b",
+        url="https://www.vinted.fr/catalog?search_text=b",
+        tld="fr",
+        params={"search_text": "b"},
+        poll_interval_s=60,
+    )
+    query = await repo.get_query(query_id)
+    assert query is not None
+    found = Item(
+        item_id=10,
+        tld="fr",
+        title="Barbour jacket",
+        url="https://www.vinted.fr/items/10",
+        price=Decimal("50"),
+        total_price=Decimal("53.20"),
+        currency="EUR",
+    )
+    await repo.record_new_items(query, [found], [], notify=[])
+    asking_only = [
+        ItemSnapshot(item_id=10, tld="fr", title="Barbour jacket", price=Decimal(p), currency="EUR")
+        for p in ("50", "40")
+    ]
+    pages.snapshots += asking_only
+    await check(repo, pages, watch_id)
+
+    await check(repo, pages, watch_id)
+
+    (notification,) = await repo.claim_batch(destination_id, 10)
+    assert (notification.item.price, notification.item.total_price) == (Decimal("40.00"), None)

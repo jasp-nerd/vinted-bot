@@ -87,8 +87,8 @@ Płatne usługi robią to ze swoich serwerów za mniej więcej 5 do 30 euro mies
 1. Zainstaluj go jednolinijkowym poleceniem ze strony głównej. Panel otworzy się w przeglądarce.
 2. Wklej link do wyszukiwania z Vinted albo zbuduj wyszukiwanie w panelu z kategoriami, markami i rozmiarami Vinted.
 3. Ustaw limit ceny jako łączną kwotę z ochroną kupujących oraz słowa, które tytuł musi mieć albo których ma nie mieć.
-4. Wybierz, dokąd mają trafiać powiadomienia. Na telefon najprościej przez darmową aplikację ntfy, bez konta. Discord opisujemy w poradniku [bot Vinted na Discordzie](/guides/vinted-bot-discord/).
-5. Kliknij "Send test" (wyślij test), sprawdź, czy dotarło, i gotowe.
+4. Wybierz, dokąd mają trafiać powiadomienia. Aplikacja proponuje na początek Telegrama i Discorda. Discord opisujemy w poradniku [bot Vinted na Discordzie](/guides/vinted-bot-discord/), a w przypadku Telegrama zakładasz własnego bota w BotFather i wklejasz jego token w panelu. Aplikacja ntfy, e-mail i webhooki są w "More options" (więcej opcji).
+5. Kliknij "Send a test" (wyślij test), sprawdź, czy dotarło, i gotowe.
 
 Każde powiadomienie pokazuje zdjęcia, pełną cenę, rozmiar, stan, markę, ocenę sprzedającego i przyciski do kupna, wiadomości do sprzedającego i otwarcia ogłoszenia. Pierwsze sprawdzenie nowego wyszukiwania jest ciche, więc dostajesz tylko ogłoszenia, które pojawią się później. Każde wyszukiwanie ma też opis stanu: działa, cisza, zacięte albo spowalniane przez Vinted, więc nie zostaniesz z narzędziem, które przestało działać bez słowa.
 

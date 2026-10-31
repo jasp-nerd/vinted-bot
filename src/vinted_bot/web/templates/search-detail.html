@@ -35,8 +35,8 @@
 </div>
 
 <div class="tabs" role="tablist" aria-label="Search details">
-  <button class="tab" role="tab" id="tab-finds" aria-controls="p-finds" aria-selected="true">Recent finds <span class="badge">{{ items|length }}</span></button>
-  <button class="tab" role="tab" id="tab-rejected" aria-controls="p-rejected" aria-selected="false" tabindex="-1">Not sent <span class="badge">{{ rejections|length }}</span></button>
+  <button class="tab" role="tab" id="tab-finds" aria-controls="p-finds" aria-selected="true">Recent finds <span class="badge">{{ finds_total }}</span></button>
+  <button class="tab" role="tab" id="tab-rejected" aria-controls="p-rejected" aria-selected="false" tabindex="-1">Not sent <span class="badge">{{ not_sent_total }}</span></button>
   <button class="tab" role="tab" id="tab-health" aria-controls="p-health" aria-selected="false" tabindex="-1">Health</button>
 </div>
 
@@ -53,8 +53,9 @@
   <div class="stack-lg">
     <p class="t-lead" style="max-width:70ch">Listings this search saw but didn't send you, and why. Useful when you expected an alert that never came. Kept for 7 days.</p>
     {% if reasons %}
-    <div class="chips" aria-label="Reasons this week">
-      {% for label, count in reasons %}<span class="chip chip--sm chip--filled">{{ label }} <span class="chip__count">{{ count }}</span></span>{% endfor %}
+    <div class="chips" role="group" aria-label="Show only one reason">
+      <a class="chip chip--sm{{ '' if reason else ' is-on' }}" href="?#tab-rejected"{% if not reason %} aria-current="true"{% endif %}>All <span class="chip__count">{{ not_sent_total }}</span></a>
+      {% for key, label, count in reasons %}<a class="chip chip--sm{{ ' is-on' if reason == key else '' }}" href="?reason={{ key|urlencode }}#tab-rejected"{% if reason == key %} aria-current="true"{% endif %}>{{ label }} <span class="chip__count">{{ count }}</span></a>{% endfor %}
     </div>
     {% endif %}
     {% if rejections %}
@@ -64,7 +65,8 @@
         <div class="rej__img">{% if r.photo %}<img src="{{ r.photo }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}</div>
         <div class="stack" style="gap:3px;min-width:0">
           {% if r.url %}<a class="rej__title" href="{{ r.url }}" target="_blank" rel="noopener">{{ r.title }}</a>{% else %}<span class="rej__title">{{ r.title }}</span>{% endif %}
-          <span class="rej__why" title="{{ r.detail }}">{{ ui.icon(r.icon) }}{{ r.why }}</span>
+          <span class="rej__why">{{ ui.icon(r.icon) }}{{ r.why }}</span>
+          {% if r.detail %}<span class="rej__detail">{{ r.detail }}</span>{% endif %}
         </div>
         <div class="rej__price">{{ r.price }}<small>{{ r.age }}</small></div>
       </div>

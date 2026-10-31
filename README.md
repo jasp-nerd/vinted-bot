@@ -31,7 +31,7 @@ no Vinted account and no monthly fee, where paid Vinted bots charge €5 to €3
 ## How it works
 
 1. **Search on Vinted** the way you always do and copy the link. Or build the search in the dashboard.
-2. **Paste it into vinted-bot** and pick where alerts go: Discord, Telegram, your phone, email.
+2. **Paste it into vinted-bot** and pick where alerts go: Telegram or Discord, or email and more.
 3. **Get a message** for each new listing, with photos, the total price including buyer protection, size, condition and seller rating.
 
 It checks every minute. The first check is silent on purpose, so you only hear about listings that appear after you added the search.
@@ -153,9 +153,10 @@ Or open it directly: **[Open in Claude](https://claude.ai/new?q=Please%20help%20
 
 - A live feed of finds that looks like Vinted's own grid: save, hide, block the seller.
 - Setup on first run: paste a link or build the search, then send a test alert.
+- No settings file to edit: the Telegram bot, a password and a switch to open the dashboard on your phone are all in it.
 - "Not sent": every skipped listing with the reason it was skipped.
 - A watchlist for price drops and sold items, and for new uploads from a seller.
-- Stats: finds per day, the busiest hours, how quickly alerts arrive.
+- Stats: finds per day, the busiest hours, the typical price per search, how many alerts got through.
 
 </td>
 <td valign="top">
@@ -187,7 +188,7 @@ Or open it directly: **[Open in Claude](https://claude.ai/new?q=Please%20help%20
 <img src="https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docs/media/setup.png" width="820" alt="Setup: building a first search with words, category, brand, sizes, condition and a top price, beside a live count of 23 matching listings and how many each filter removed">
 <br><sub>Setting up a first search, with a live count of what it would find</sub>
 <br><br>
-<img src="https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docs/media/stats.png" width="820" alt="The stats page: finds, alerts sent, median time from listing to alert, delivery rate, finds per day, a weekday by hour heatmap and a chart of how fast alerts arrive">
+<img src="https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docs/media/stats.png" width="820" alt="The stats page: finds, alerts sent, the share delivered, finds per day, a weekday by hour heatmap, the typical price per search and delivery per destination">
 <br><sub>Stats</sub>
 </details>
 
@@ -195,9 +196,31 @@ Or open it directly: **[Open in Claude](https://claude.ai/new?q=Please%20help%20
 
 - **Installer:** click **Update now** when the dashboard says a new version is out, or run the install command again. Settings, Updates can also install new versions by itself at night.
 - **Docker:** `docker compose pull && docker compose up -d`
-- **NAS app stores:** the store's update button.
+- **NAS:** pull the new image with the NAS's own container update (Unraid: Docker, Check for Updates).
 
 Your searches are kept, and database changes apply by themselves at startup. What changed is in the [changelog](https://github.com/jasp-nerd/vinted-bot/blob/main/CHANGELOG.md).
+
+## Stopping and uninstalling
+
+With the installer, how to stop it depends on whether you said yes to starting at login:
+
+| | Started at login | Not started at login |
+|---|---|---|
+| Windows (PowerShell) | `Get-Process vinted-bot \| Stop-Process` (it starts again when you sign in) | the same |
+| macOS | `launchctl bootout gui/$(id -u)/io.github.jasp-nerd.vinted-bot` (it starts again when you log in) | `pkill -f 'vinted-bot run'` |
+| Linux | `systemctl --user stop vinted-bot` (it starts again when you log in) | `pkill -f 'vinted-bot run'` |
+
+Running the install command again starts it again. To remove it, run the uninstaller for your system. It stops vinted-bot, removes it and its start-at-login entry, and keeps your searches in case you come back: they stay in `%LOCALAPPDATA%\vinted-bot` on Windows, `~/Library/Application Support/vinted-bot` on macOS and `~/.local/share/vinted-bot` on Linux, until you delete that folder.
+
+```powershell
+powershell -ExecutionPolicy ByPass -c '$env:VINTED_BOT_UNINSTALL=1; irm https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.ps1 | iex'
+```
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.sh | sh -s -- --uninstall
+```
+
+With Docker: `docker compose down` stops it; `docker compose down -v` also deletes its data. Before deleting anything, `vinted-bot backup` keeps a copy of your searches: see [Backups](https://github.com/jasp-nerd/vinted-bot/blob/main/docs/self-hosting.md#backups).
 
 ## FAQ
 

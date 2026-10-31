@@ -1,7 +1,11 @@
 """Found listings as CSV or JSON, for a spreadsheet or someone else's script.
 
 Shared by `vinted-bot export` and the dashboard's download button, so both produce the
-same columns in the same order.
+same columns in the same order. Blocked sellers' finds are left out, as everywhere else.
+
+CSV starts with a byte order mark: without one Excel reads the file as the local code page
+and shows "Très bon état" as "TrÃ¨s bon Ã©tat". Other spreadsheets and Python's csv module
+(with encoding="utf-8-sig") read it fine.
 """
 
 from __future__ import annotations
@@ -15,6 +19,8 @@ from typing import Any, Literal
 from vinted_bot.db.repo import FeedItem
 
 ExportFormat = Literal["csv", "json"]
+
+_BOM = "\ufeff"
 
 COLUMNS = (
     "item_id",
@@ -33,7 +39,6 @@ COLUMNS = (
     "seller_country",
     "mark",
     "found_at",
-    "listed_at",
     "url",
     "photo_url",
 )
@@ -63,7 +68,6 @@ def _record(entry: FeedItem) -> dict[str, Any]:
         "seller_country": entry.seller_country,
         "mark": entry.mark,
         "found_at": _iso(entry.first_seen_at),
-        "listed_at": _iso(item.photo_ts),
         "url": item.url,
         "photo_url": item.photo_url,
     }
@@ -75,6 +79,7 @@ def render(entries: list[FeedItem], fmt: ExportFormat) -> str:
     if fmt == "json":
         return json.dumps(records, ensure_ascii=False, indent=2) + "\n"
     buffer = io.StringIO()
+    buffer.write(_BOM)
     writer = csv.DictWriter(buffer, fieldnames=COLUMNS, lineterminator="\n")
     writer.writeheader()
     writer.writerows({key: _cell(value) for key, value in record.items()} for record in records)

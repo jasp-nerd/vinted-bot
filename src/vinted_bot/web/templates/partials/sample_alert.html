@@ -1,0 +1,14 @@
+{#
+  One sample alert, from web/sample_alert.py. The text arrives escaped with only plain
+  formatting tags let back in, so it is safe to mark as such here.
+#}
+<div class="sample sample--{{ a.kind }}"{% if a.accent %} style="--accent: {{ a.accent }}"{% endif %}>
+  <div class="sample__who"><img src="{{ static('img/mags/mags-head.webp') }}" alt=""><b>{{ a.name }}</b><small>just now</small></div>
+  <div class="sample__msg">
+    {% if a.kind == "telegram" and a.photos %}<div class="sample__photos">{% for p in a.photos %}<img src="{{ p }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endfor %}</div>{% endif %}
+    {% if a.kind == "discord" %}
+    {% for line in a.lines %}<p{% if line.small %} class="sample__small"{% endif %}>{{ line.html|safe }}</p>{% if loop.first and a.photos %}<div class="sample__photos">{% for p in a.photos %}<img src="{{ p }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endfor %}</div>{% endif %}{% endfor %}
+    {% else %}<p>{{ a.html|safe }}</p>{% endif %}
+  </div>
+  {% for row in a.buttons if row %}<div class="sample__btns">{% for b in row %}<span>{{ b }}</span>{% endfor %}</div>{% endfor %}
+</div>

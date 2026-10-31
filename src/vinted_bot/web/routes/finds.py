@@ -50,7 +50,8 @@ async def _feed(
     params = request.query_params
     tz = await core.timezone(context)
     show = params.get("show", "all")
-    mark: MarkFilter = "saved" if show == "saved" else "visible"
+    marks: dict[str, MarkFilter] = {"saved": "saved", "hidden": "hidden"}
+    mark = marks.get(show, "visible")
     since = None
     if show == "today":
         since = int(datetime.now(tz).replace(hour=0, minute=0, second=0).timestamp())
@@ -132,9 +133,12 @@ async def home(request: Request) -> Response:
         or params.get("show", "all") not in ("all", "")
     )
     waiting = [row for row in rows if row["status"] in ("stuck", "blocked", "stale")]
-    no_destinations = not await repo.list_destinations(active_only=True)
+    no_destinations = not [d for d in await repo.list_destinations() if data.can_send(d)]
     # Asked only when everything works; a problem on the page comes first.
     trouble = bool(waiting) or no_destinations
+    # The Hidden chip only appears once something is hidden: it's how to undo it. With
+    # every find hidden the page is not "no finds yet": the chip has to stay.
+    has_hidden = bool(await repo.items_feed(mark="hidden", limit=1))
     return await core.render(
         request,
         "index.html",
@@ -147,7 +151,7 @@ async def home(request: Request) -> Response:
             "paused": len([row for row in rows if row["paused"]]),
             "found_today": totals.found_today,
             "found_total": totals.listings_found,
-            "empty": not cards and not filtered,
+            "empty": not cards and not filtered and not has_hidden,
             "filtered": filtered,
             "show": params.get("show", "all"),
             "search_filter": params.get("search", ""),
@@ -160,6 +164,7 @@ async def home(request: Request) -> Response:
             "last_check_s": int(time.time()) - last_check if last_check else None,
             "latest_seq": await repo.latest_seq(),
             "no_destinations": no_destinations,
+            "has_hidden": has_hidden,
             "support_look": None if trouble else await support.card_on_visit(repo),
         },
         snapshot=snapshot,

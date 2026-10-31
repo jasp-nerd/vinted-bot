@@ -15,6 +15,7 @@ from vinted_bot.deliver.labels import (
     labels_for,
     money_text,
 )
+from vinted_bot.deliver.preview import sample_notification
 from vinted_bot.deliver.render import (
     BRAND_COLOUR,
     DEAL_COLOUR,
@@ -165,6 +166,15 @@ def test_the_rating_reads_as_stars_with_its_review_count() -> None:
     assert listing.rating == "★ 4.8 (128)"
 
 
+def test_the_rating_ends_with_the_seller_s_country_when_known() -> None:
+    listing = view(
+        pending(item={"seller_rating": 0.96, "seller_feedback_count": 128}, seller_country="DE"),
+        dashboard_url=None,
+    )
+
+    assert listing.rating == "★ 4.8 (128) · \U0001f1e9\U0001f1ea"
+
+
 @pytest.mark.parametrize("url", ["http://127.0.0.1:8000", "http://localhost:8000/"])
 def test_a_dashboard_only_this_machine_can_open_is_not_linked(url: str) -> None:
     assert reachable_dashboard(url) is None
@@ -299,3 +309,12 @@ def test_the_photo_search_hands_lens_the_photo_url() -> None:
 
 def test_a_listing_without_a_photo_has_no_photo_search() -> None:
     assert view(pending(), dashboard_url=None).photo_search_url is None
+
+
+def test_a_test_alert_opens_a_real_search_rather_than_an_invented_listing() -> None:
+    """Its "Open on Vinted" led to a listing that does not exist."""
+    listing = view(sample_notification(tld="fr"), dashboard_url=None)
+
+    assert {listing.url, listing.buy_url, listing.message_url} == {
+        "https://www.vinted.fr/catalog?search_text=levi%27s%20501"
+    }

@@ -21,7 +21,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 
-from tests.conftest import ScriptedTransport
+from tests.conftest import LOCAL_CLIENT, ScriptedTransport
 from vinted_bot.botctl.telegram_bot import claim_pairing
 from vinted_bot.config import Settings
 from vinted_bot.db import Database
@@ -78,7 +78,7 @@ def make_client(
         app_kw = {k: v for k, v in kwargs.items() if k not in Settings.model_fields}
         http = httpx.AsyncClient(transport=httpx.MockTransport(outgoing.handler))
         app = create_app(_settings(tmp_path, **settings_kw), repo, http=http, **app_kw)
-        client = TestClient(app, base_url=BASE)
+        client = TestClient(app, base_url=BASE, client=LOCAL_CLIENT)
         client.__enter__()
         opened.append(client)
         token = settings_kw.get("web_auth_token")
@@ -311,9 +311,19 @@ def test_the_unknown_host_page_names_the_setting_to_use(
 ) -> None:
     docker = make_client(web_host="0.0.0.0")
 
-    page = docker.get("/", headers={"Host": "nas.local:8000"})
+    page = docker.get("/", headers={"Host": "finds.example.net:8000"})
 
     assert "VINTED_BOT_WEB_ALLOWED_HOSTS" in page.text
+
+
+def test_the_unknown_host_page_gets_its_styles(make_client: Callable[..., TestClient]) -> None:
+    """Its stylesheet was refused by the same check, so it showed as bare text."""
+    docker = make_client(web_host="0.0.0.0")
+
+    page = docker.get("/", headers={"Host": "finds.example.net:8000"}).text
+    stylesheet = page.split('rel="stylesheet" href="', 1)[1].split('"', 1)[0]
+
+    assert docker.get(stylesheet, headers={"Host": "finds.example.net:8000"}).status_code == 200
 
 
 def test_an_ip_address_always_reaches_the_dashboard(
@@ -603,7 +613,7 @@ async def test_duplicating_opens_the_paused_copy(client: TestClient, repo: Repo)
     response = client.post(f"/searches/{query_id}/duplicate", follow_redirects=False)
 
     copy = (await repo.list_queries())[-1]
-    assert response.headers["location"] == f"/searches/{copy.id}/edit"
+    assert response.headers["location"] == f"/searches/{copy.id}/edit?copy=1"
     assert copy.paused
 
 
@@ -653,6 +663,54 @@ async def test_the_not_sent_tab_says_why_in_words(client: TestClient, repo: Repo
     )
 
     assert "Too expensive" in client.get(f"/searches/{query_id}").text
+
+
+async def _turned_away(repo: Repo, *reasons: str) -> int:
+    from vinted_bot.db.repo import RejectedListing  # noqa: PLC0415
+
+    query_id = await _search(repo)
+    query = await repo.get_query(query_id)
+    assert query is not None
+    await repo.record_new_items(
+        query,
+        [],
+        [],
+        rejected=[
+            RejectedListing(_item(100 + n), reason, "why") for n, reason in enumerate(reasons)
+        ],
+    )
+    return query_id
+
+
+async def test_a_reason_chip_shows_only_the_listings_turned_away_for_it(
+    client: TestClient, repo: Repo
+) -> None:
+    """The chips looked like buttons and did nothing."""
+    query_id = await _turned_away(repo, "over_budget", "promoted", "promoted")
+
+    page = client.get(f"/searches/{query_id}", params={"reason": "over_budget"}).text
+
+    assert page.count('class="rej"') == 1
+
+
+async def test_the_not_sent_tab_counts_everything_not_just_what_it_lists(
+    client: TestClient, repo: Repo
+) -> None:
+    """It said 60, the length of the list, with 398 turned away."""
+    query_id = await _turned_away(repo, *["promoted"] * 65)
+
+    page = client.get(f"/searches/{query_id}").text
+
+    assert 'Not sent <span class="badge">65</span>' in page
+
+
+async def test_the_recent_finds_tab_counts_every_find(client: TestClient, repo: Repo) -> None:
+    query_id = await _search(repo)
+    await _found(repo, query_id, *(_item(n) for n in range(1, 31)))
+
+    page = client.get(f"/searches/{query_id}").text
+
+    assert 'Recent finds <span class="badge">30</span>' in page
 
 
 # --- Finds -----------------------------------------------------------------------------
@@ -887,10 +945,10 @@ async def test_removing_a_destination_takes_it_off_the_page(client: TestClient, 
     assert "Old phone" not in client.get("/alerts").text.split("Removed")[-1]
 
 
-def test_pairing_telegram_without_a_bot_explains_the_setting(client: TestClient) -> None:
+def test_pairing_telegram_without_a_bot_asks_for_its_token(client: TestClient) -> None:
     response = client.post("/destinations/telegram/pair")
 
-    assert "VINTED_BOT_TELEGRAM_BOT_TOKEN" in response.json()["error"]
+    assert "Paste the token BotFather gave you" in response.json()["error"]
 
 
 async def test_pairing_telegram_finishes_when_the_bot_claims_the_code(
@@ -959,7 +1017,7 @@ async def test_finds_download_as_a_spreadsheet(client: TestClient, repo: Repo) -
     response = client.get("/export.csv")
 
     assert response.headers["content-disposition"].startswith("attachment;")
-    assert response.text.splitlines()[0].startswith("item_id,site,title")
+    assert response.text.removeprefix("\ufeff").startswith("item_id,site,title")
 
 
 async def test_finds_download_as_json(client: TestClient, repo: Repo) -> None:
@@ -1348,3 +1406,31 @@ async def test_setup_never_asks_for_support(client: TestClient, repo: Repo) -> N
     await _delivered(repo)
 
     assert "ko-fi.com" not in client.get("/welcome/ready").text
+
+
+async def _refused_since(repo: Repo, db: Database, seconds_ago: int) -> None:
+    query_id = await _search(repo)
+    await repo.record_failure(query_id, "http_403", "Forbidden")
+    await db.execute(
+        "UPDATE query_state SET last_success_at = ? WHERE query_id = ?",
+        (int(time.time()) - seconds_ago, query_id),
+    )
+
+
+async def test_a_fresh_block_is_expected_to_clear_within_an_hour(
+    client: TestClient, repo: Repo, db: Database
+) -> None:
+    await _refused_since(repo, db, 600)
+
+    assert "within an hour" in client.get("/searches").text
+
+
+async def test_a_block_past_an_hour_says_how_long_it_has_lasted(
+    client: TestClient, repo: Repo, db: Database
+) -> None:
+    """The banner still said "clears up within an hour" an hour and a half in."""
+    await _refused_since(repo, db, 90 * 60)
+
+    page = client.get("/searches").text
+
+    assert ("going on for 1 hour" in page, "within an hour" in page) == (True, False)

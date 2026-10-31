@@ -9,7 +9,7 @@ Vinted refuses.
 |---|---|---|
 | A Windows PC or a Mac | [the one-line installer](#on-your-own-computer) | Only while it's on and awake |
 | A Raspberry Pi, mini PC or old laptop | [the one-line installer](#on-a-raspberry-pi-or-any-linux-box) or [Docker](#with-docker) | Yes |
-| A NAS (Unraid, Synology, Umbrel, CasaOS) | [its app store or a compose project](#on-a-nas) | Yes |
+| A NAS (Unraid, Synology, Umbrel, CasaOS) | [a template or a compose project](#on-a-nas) | Yes |
 | Nothing that stays on | [a small server you rent](#on-a-vps-or-a-cloud-host), a few euros a month | Yes |
 
 > [!IMPORTANT]
@@ -107,7 +107,7 @@ Pi.
 
 ```bash
 mkdir vinted-bot && cd vinted-bot
-curl -O https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docker-compose.yml
 docker compose up -d
 ```
 
@@ -128,12 +128,22 @@ Worth a look in `docker-compose.yml`:
   a maintained fork of Watchtower that updates vinted-bot once a night. It needs the
   Docker socket, so it is off unless you ask for it.
 
-Optional settings, such as a Telegram bot token, go in a `.env` file next to the compose
-file:
+Everything else, the Telegram bot and the dashboard password included, is set up in the
+dashboard. Optional process settings go in the `environment:` block of
+`docker-compose.yml`, which lists the common ones commented out. Uncomment a line, then run
+`docker compose up -d`: a plain `docker compose restart` keeps the old values. Every
+setting is in [configuration](configuration.md).
 
-```bash
-curl -o .env https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/.env.example
-```
+Coming from an older compose file that read a `.env` file next to it? Either move those
+lines into `environment:` (as `NAME: "value"`), or add `env_file: .env` under the service
+yourself. The default no longer reads one, because the form that made the file optional
+needs Docker Compose 2.24 or later, which Synology's Container Manager and older Linux
+distributions don't have.
+
+To open the dashboard from your phone, set a password in Settings first, then change the
+port line in `docker-compose.yml` from `127.0.0.1:8000:8000` to `8000:8000` and run
+`docker compose up -d`. Inside Docker the port mapping decides who can connect, so the
+dashboard's phone access switch is not offered there.
 
 Check it started:
 
@@ -144,9 +154,18 @@ docker compose exec vinted-bot vinted-bot status
 
 ## On a NAS
 
-- **Unraid:** search "vinted-bot" in Community Applications. Until it is listed, add the
-  template from [deploy/unraid](../deploy/unraid/vinted-bot.xml) by hand.
-- **Umbrel:** add the community app store described in [deploy/](../deploy/README.md#umbrel).
+- **Unraid:** it isn't in Community Applications yet. Add the template by hand: in the
+  Unraid terminal, run
+
+  ```bash
+  curl -fsSL -o /boot/config/plugins/dockerMan/templates-user/my-vinted-bot.xml \
+    https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/deploy/unraid/vinted-bot.xml
+  ```
+
+  then Docker, Add Container, and pick `vinted-bot` under Template.
+- **Umbrel:** it isn't in an Umbrel app store yet. The files for one are ready in
+  [deploy/umbrel](../deploy/README.md#umbrel); until a store is published, use the
+  [Docker steps](#with-docker) over SSH (`ssh umbrel@umbrel.local`).
 - **CasaOS and ZimaOS:** Custom Install, then import
   [deploy/casaos/docker-compose.yml](../deploy/casaos/docker-compose.yml).
 - **Synology (DSM 7.2+):** Container Manager, Project, Create, and paste the compose file
@@ -154,8 +173,8 @@ docker compose exec vinted-bot vinted-bot status
 - **Portainer:** Stacks, Add stack, Repository, pointing at this repository.
 
 [deploy/README.md](../deploy/README.md) has the details for each. On a NAS the dashboard is
-usually reachable from your whole network, so set `VINTED_BOT_WEB_AUTH_TOKEN` as a
-password.
+usually reachable from your whole network, so set a password in the dashboard's Settings
+(or `VINTED_BOT_WEB_AUTH_TOKEN` in the app's settings on the NAS) before anything else.
 
 ## On a VPS or a cloud host
 
@@ -179,9 +198,9 @@ reach the dashboard through an SSH tunnel:
 ssh -L 8000:localhost:8000 you@your-server
 ```
 
-Then open http://localhost:8000 on your own machine. Anything else needs
-`VINTED_BOT_WEB_AUTH_TOKEN` set *and* a reverse proxy with TLS in front, because the
-dashboard shows your webhook links.
+Then open http://localhost:8000 on your own machine. Anything else needs a password (set
+in Settings, or `VINTED_BOT_WEB_AUTH_TOKEN`) *and* a reverse proxy with TLS in front,
+because the dashboard shows your webhook links.
 
 **Platforms that run the image for you** (Render, Railway, Coolify) have templates in
 [deploy/](../deploy/README.md). All are paid for an always-on app with storage, and they send
@@ -202,11 +221,27 @@ paid hosts, at roughly VPS prices.
 
 ## Backups
 
-Everything lives in one SQLite file, `app.db`:
+Everything lives in one SQLite database, `app.db`. Don't copy that file while vinted-bot
+runs: recent changes sit in `app.db-wal` beside it until SQLite folds them in, so a plain
+copy can be missing them, or be empty. `vinted-bot backup` writes a complete copy of the
+database to one file, safely, while the app keeps running:
 
-- Installer: in the folder listed under [On your own computer](#on-your-own-computer).
-- Docker: in the `vinted-bot-data` volume. Copy it out with
-  `docker compose cp vinted-bot:/data/app.db ./app-backup.db`
+- Installer: `vinted-bot backup ~/vinted-bot-backup.db` (Windows:
+  `vinted-bot backup $HOME\vinted-bot-backup.db`). The database itself is in the folder
+  listed under [On your own computer](#on-your-own-computer).
+- Docker: make the copy inside the container, then take it out:
+
+  ```bash
+  docker compose exec vinted-bot vinted-bot backup /data/backup.db
+  docker compose cp vinted-bot:/data/backup.db ./vinted-bot-backup.db
+  ```
+
+  The data lives in a volume Docker names after the project folder, so with the shipped
+  compose file in a folder called `vinted-bot` it is `vinted-bot_vinted-bot-data`
+  (`docker volume ls` shows it).
+
+To restore, stop vinted-bot, put the copy in place of `app.db` (and delete any `app.db-wal`
+and `app.db-shm` beside it), then start it again.
 
 Losing it costs you your searches and destinations, not much else: listings are pruned after
 thirty days anyway.
@@ -224,7 +259,7 @@ Updates turns that off). What it offers depends on how vinted-bot was installed:
 | Docker | `docker compose pull && docker compose up -d`, or the nightly updater below. A container never updates itself: whatever it changed inside itself would be lost the next time it is recreated. |
 | `uvx` | `uvx vinted-bot@latest run` |
 | A copy of the source | `git pull && uv sync`, then restart. |
-| A NAS app store | The store's update button. |
+| A NAS template or app store | Pull the new image: the NAS's own update button for the container (Unraid: Docker, Check for Updates; CasaOS: the app's update; Synology and Portainer: re-pull and redeploy the project). |
 
 Running the install command again always works too: it stops vinted-bot, updates it
 and starts it again.
@@ -257,7 +292,7 @@ uv sync
 uv run vinted-bot run --open
 ```
 
-No `.env` needed here either; copy `.env.example` to `.env` later for Telegram or other
-tuning. For a systemd service, point `ExecStart` at `/path/to/.venv/bin/vinted-bot run`,
+No `.env` needed here either: the Telegram bot, the password and phone access are set in
+the dashboard. Copy `.env.example` to `.env` only for tuning. For a systemd service, point `ExecStart` at `/path/to/.venv/bin/vinted-bot run`,
 set `WorkingDirectory`, and add `Restart=always`. The app handles SIGTERM itself, so the
 default `KillSignal` is correct and there is no need for a long `TimeoutStopSec`.

@@ -61,6 +61,13 @@ def test_a_custom_threshold_is_honoured() -> None:
     ) == (True, True)
 
 
+def test_an_old_threshold_does_not_filter_a_destination_that_takes_everything() -> None:
+    """The Alerts page showed "everything else" ticked while 1.x's threshold still filtered."""
+    listing = notification(1, typical_price=Decimal("17"))
+
+    assert skip_reason(listing, {"tiers": ["steal", "deal", "normal"], "min_deal_pct": 30}) is None
+
+
 def test_without_a_typical_price_nothing_counts_as_a_deal() -> None:
     assert skip_reason(notification(1), {"deals_only": True}) is not None
 
@@ -70,6 +77,17 @@ def test_a_watched_price_drop_always_gets_through() -> None:
     drop = notification(1, kind="price_drop", previous_price=Decimal("30"))
 
     assert skip_reason(drop, {"deals_only": True}) is None
+
+
+@pytest.mark.parametrize("kind", ["price_drop", "sold", "seller_upload"])
+def test_a_destination_can_turn_watch_alerts_off(kind: str) -> None:
+    assert skip_reason(notification(1, kind=kind), {"watch_alerts": False}) == (
+        "skipped: this destination does not take watch alerts"
+    )
+
+
+def test_turning_watch_alerts_off_leaves_search_listings_alone() -> None:
+    assert skip_reason(notification(1), {"watch_alerts": False}) is None
 
 
 def test_an_unpicky_destination_skips_nothing() -> None:
@@ -285,11 +303,27 @@ async def test_the_test_button_sends_a_sample_listing(settings: Settings) -> Non
     result = await send_test(
         destination("webhook", {"url": "https://example.test/hook"}),
         settings=settings,
+        telegram_token=None,
         client=endpoint.client(),
     )
 
     assert result.ok is True
     assert json.loads(endpoint.requests[0].content)["items"][0]["title"].endswith("(test alert)")
+
+
+async def test_a_test_pings_the_mention_the_preview_shows(settings: Settings) -> None:
+    """The preview showed a steal with the role ping; the test sent an ordinary listing
+    that pinged nobody, so the mention could not be checked."""
+    endpoint = Endpoint()
+
+    await send_test(
+        destination("discord", {"url": "https://discord.test/hook", "mention": "<@&42>"}),
+        settings=settings,
+        telegram_token=None,
+        client=endpoint.client(),
+    )
+
+    assert "<@&42>" in endpoint.requests[0].content.decode()
 
 
 async def test_a_test_against_a_deleted_webhook_says_so(settings: Settings) -> None:
@@ -298,6 +332,7 @@ async def test_a_test_against_a_deleted_webhook_says_so(settings: Settings) -> N
     result = await send_test(
         destination("discord", {"url": "https://discord.test/hook"}),
         settings=settings,
+        telegram_token=None,
         client=endpoint.client(),
     )
 
@@ -309,7 +344,9 @@ async def test_a_test_of_a_misconfigured_destination_explains_without_sending(
 ) -> None:
     endpoint = Endpoint()
 
-    result = await send_test(destination("ntfy", {}), settings=settings, client=endpoint.client())
+    result = await send_test(
+        destination("ntfy", {}), settings=settings, telegram_token=None, client=endpoint.client()
+    )
 
     assert (result.ok, endpoint.requests) == (False, [])
 
@@ -317,7 +354,9 @@ async def test_a_test_of_a_misconfigured_destination_explains_without_sending(
 async def test_a_test_of_an_unpaired_telegram_chat_asks_for_pairing_first(
     settings: Settings,
 ) -> None:
-    result = await send_test(destination("telegram", {"pairing_code": "abc"}), settings=settings)
+    result = await send_test(
+        destination("telegram", {"pairing_code": "abc"}), settings=settings, telegram_token=None
+    )
 
     assert "pairing link" in result.message
 
@@ -328,6 +367,7 @@ async def test_a_test_send_follows_the_site_language(settings: Settings) -> None
     await send_test(
         destination("discord", {"url": "https://discord.test/hook"}),
         settings=settings,
+        telegram_token=None,
         tld="nl",
         client=endpoint.client(),
     )
@@ -384,3 +424,10 @@ def test_other_previews_render(kind: str) -> None:
 def test_an_unknown_kind_has_no_preview() -> None:
     with pytest.raises(ValueError, match="carrier pigeon"):
         preview_payload("carrier pigeon")
+
+
+def test_a_test_webhook_says_no_search_sent_it() -> None:
+    """It used to say search 0, which the documented payload never uses."""
+    payload = preview_payload("webhook")
+
+    assert (payload["search_id"], payload["items"][0]["search_id"]) == (None, None)

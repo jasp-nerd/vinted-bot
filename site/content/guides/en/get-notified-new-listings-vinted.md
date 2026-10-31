@@ -16,9 +16,9 @@ faq:
   - q: "How do I get notifications when someone uploads on Vinted?"
     a: "For one seller, follow them and Vinted notifies you when they upload. For a search, save it in the app, but those alerts are often late or missing. For dependable alerts, use an external tool such as vinted-bot, which checks your search every minute and messages you."
   - q: "Can I get Vinted alerts by email?"
-    a: "Vinted doesn't offer saved-search emails you can count on. vinted-bot can send alerts by email through its optional Apprise add-on, but most people find Discord, Telegram or a phone notification quicker."
+    a: "Vinted doesn't offer saved-search emails you can count on. vinted-bot can send alerts by email: type your address, pick your provider and paste an app password. Most people find Discord or Telegram quicker to glance at, though."
   - q: "Is there a Vinted alert app?"
-    a: "There are paid alert apps, typically a few euros a month. A free alternative is to run vinted-bot on a computer and receive its alerts in the free ntfy app on your phone, with no account needed."
+    a: "There are paid alert apps, typically a few euros a month. A free alternative is to run vinted-bot on a computer and get its alerts in Telegram or Discord on your phone."
   - q: "How fast are Vinted alerts?"
     a: "Vinted adds listings to its search a few minutes after upload, so any alert, official or not, comes after that. vinted-bot checks every minute by default, so you typically hear within a few minutes of a listing going up."
 ---
@@ -54,8 +54,8 @@ Paid services do this from their own servers for roughly €5 to €30 a month (
 1. Install it with the one-line command from the homepage. The dashboard opens in your browser.
 2. Paste your Vinted search link, or build the search in the dashboard with Vinted's categories, brands and sizes.
 3. Set the price limit as the total you'll pay (buyer protection included), plus any words a title must have or must not have.
-4. Pick where alerts go. ntfy on your phone takes a minute and needs no account. Discord and Telegram have their own guides: [Discord](/guides/vinted-discord-alerts-webhook/), [Telegram](/guides/vinted-telegram-alerts/).
-5. Press Send test, check it arrives, and you're done.
+4. Pick where alerts go. Telegram and Discord come first in the app, and each has its own guide: [Telegram](/guides/vinted-telegram-alerts/), [Discord](/guides/vinted-discord-alerts-webhook/). The ntfy phone app, email and webhooks are under More options.
+5. Press Send a test, check it arrives, and you're done.
 
 Each alert shows the photos, the total price, size, condition, brand, the seller's rating and buttons to buy, message the seller or open the listing. The first check of a new search stays quiet, so you only hear about listings that appear after you added it.
 

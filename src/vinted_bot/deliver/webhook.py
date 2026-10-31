@@ -59,7 +59,8 @@ def item_json(notification: PendingNotification) -> dict[str, Any]:
         "photo_url": absolute(item.photo_url, item.tld) if item.photo_url else None,
         "listed_at": item.listed_at.isoformat() if item.listed_at else None,
         "seller": item.seller_login,
-        "seller_rating": item.seller_rating,
+        # Rounded: a rating worked out from stars arrived as 0.9800000000000001.
+        "seller_rating": round(item.seller_rating, 2) if item.seller_rating is not None else None,
         "links": {"message_seller": item.message_url, "buy": item.buy_url},
         # --- added in version 2 ---
         "kind": notification.kind,
@@ -73,7 +74,10 @@ def item_json(notification: PendingNotification) -> dict[str, Any]:
         "deal_tier": tier_for(pct),
         "margin": _money(notification.margin),
         "favourites": item.favourite_count,
-        "seller_profile": _seller(item),
+        "seller_profile": _seller(item, notification.seller_country),
+        # Quiet hours in silent mode, or a tier the destination takes without a sound: a
+        # receiver that makes noise should not for this one.
+        "silent": notification.silent,
     }
 
 
@@ -96,7 +100,7 @@ def _money(amount: Any) -> str | None:
     return money_text(amount) if amount is not None else None
 
 
-def _seller(item: Item) -> dict[str, Any] | None:
+def _seller(item: Item, country: str | None) -> dict[str, Any] | None:
     if item.seller_id is None and item.seller_login is None:
         return None
     return {
@@ -106,6 +110,8 @@ def _seller(item: Item) -> dict[str, Any] | None:
         # Out of five, as people read it; seller_rating above stays Vinted's 0..1.
         "stars": round(item.seller_rating * 5, 1) if item.seller_rating is not None else None,
         "reviews": item.seller_feedback_count,
+        # ISO code, when a seller lookup has told us; None otherwise.
+        "country": country,
     }
 
 
@@ -158,8 +164,8 @@ class WebhookSender:
             )
         return SendResult.ok(delivered)
 
-    async def send_status(self, message: str) -> None:
-        await self._post({"version": PAYLOAD_VERSION, "status": message}, [])
+    async def send_status(self, message: str) -> str | None:
+        return (await self._post({"version": PAYLOAD_VERSION, "status": message}, [])).failure
 
     async def _post(self, body: dict[str, Any], outbox_ids: list[int]) -> SendResult:
         raw = json.dumps(body, ensure_ascii=False).encode()

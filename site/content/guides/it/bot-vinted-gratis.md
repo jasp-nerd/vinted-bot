@@ -63,7 +63,7 @@ Dalla nostra parte non c'è nessun server. L'app gira sul tuo portatile, sul fis
 
 Cosa ottieni gratis:
 
-- Avvisi su Telegram, Discord, ntfy (un'app gratuita per le notifiche sul telefono, senza account), RSS o un tuo webhook. Email e servizi come Slack o Pushover funzionano con un componente aggiuntivo facoltativo.
+- Avvisi su Telegram, Discord, ntfy (un'app gratuita per le notifiche sul telefono, senza account), RSS o un tuo webhook. Anche email e servizi come Slack o Pushover.
 - Il prezzo totale in ogni avviso, protezione acquisti inclusa, e limiti di prezzo calcolati su quel totale. Il filtro prezzo di Vinted ignora la commissione.
 - Parole che il titolo deve contenere e parole da escludere, così "per ricambi" o "solo scatola" non ti arrivano mai.
 - Filtri sul venditore: valutazione minima, numero minimo di recensioni, paese, e un pulsante per bloccarlo.
@@ -76,7 +76,7 @@ Cosa ottieni gratis:
 1. Installalo. Su Windows apri PowerShell e incolla il comando di una riga che trovi nella homepage; su Mac o Linux apri il Terminale e incolla l'altro. Non servono diritti di amministratore né Docker. Alla fine il browser apre la dashboard su `http://localhost:8000`.
 2. Cerca su Vinted come fai sempre (parole, categoria, taglia, marca, condizioni) e copia l'indirizzo dalla barra del browser, oppure condividi la ricerca dall'app e copia il link. Puoi anche costruire la ricerca nella dashboard, con le categorie e le marche di Vinted.
 3. Incollala nella dashboard. Vedi in diretta quanti annunci attuali corrispondono e quanti ne toglie ogni filtro. Imposta il prezzo massimo come totale che sei disposto a pagare.
-4. Scegli dove arrivano gli avvisi. Il più veloce è una notifica sul telefono con l'app gratuita ntfy: la installi, aggiungi il nome che ti mostra la dashboard, fatto. Per Telegram c'è la guida al [bot Vinted su Telegram](/guides/bot-vinted-telegram/). Discord funziona con un webhook che copi dalle impostazioni del canale. Premi "Send test" (invia un test) prima di andare avanti.
+4. Scegli dove arrivano gli avvisi. L'app ti propone per primi Telegram e Discord. Per Telegram c'è la guida al [bot Vinted su Telegram](/guides/bot-vinted-telegram/). Discord funziona con un webhook che copi dalle impostazioni del canale. Sotto "More options" (altre opzioni) trovi anche l'app di notifiche ntfy, l'email e i webhook. Premi "Send a test" (invia un test) prima di andare avanti.
 5. Lascialo girare. Il primo controllo è silenzioso apposta, così non ricevi una valanga di annunci già presenti. Da lì in poi ogni nuovo annuncio arriva con foto, prezzo totale, taglia, condizioni, valutazione del venditore e pulsanti per comprare, scrivere al venditore o aprire l'annuncio.
 
 {{install}}

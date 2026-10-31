@@ -18,7 +18,7 @@ faq:
   - q: "Wo stelle ich die Vinted Benachrichtigung für eine gespeicherte Suche ein?"
     a: "In der App unter Profil, Einstellungen, Benachrichtigungen. Dort müssen Push-Benachrichtigungen und die Benachrichtigungen zu neuen Artikeln und gespeicherten Suchen eingeschaltet sein. Die Bezeichnungen ändern sich je nach App-Version etwas."
   - q: "Bekomme ich eine Benachrichtigung bei Preissenkung von Favoriten?"
-    a: "Was Vinted zu Favoriten meldet, hängt von deinen Benachrichtigungseinstellungen in der App ab. Unabhängig davon kannst du mit vinted-bot kannst du einzelne Artikel beobachten und bekommst eine Nachricht, wenn der Preis sinkt oder der Artikel verkauft ist."
+    a: "Was Vinted zu Favoriten meldet, hängt von deinen Benachrichtigungseinstellungen in der App ab. Unabhängig davon kannst du mit vinted-bot einzelne Artikel beobachten und bekommst eine Nachricht, wenn der Preis sinkt oder der Artikel verkauft ist."
   - q: "Wie schnell kommen Vinted Benachrichtigungen?"
     a: "Vinted nimmt neue Artikel erst einige Minuten nach dem Hochladen in die Suche auf, jede Benachrichtigung kommt also danach. vinted-bot prüft standardmäßig jede Minute, du hörst meist wenige Minuten nach dem Einstellen davon."
 ---
@@ -54,8 +54,8 @@ Bezahlte Dienste machen das von ihren Servern aus für grob 5 bis 30 € im Mona
 1. Mit dem Einzeiler von der Startseite installieren. Das Dashboard öffnet sich im Browser.
 2. Den Link deiner Vinted-Suche einfügen oder die Suche im Dashboard mit den Kategorien, Marken und Größen von Vinted bauen.
 3. Die Preisgrenze als Endpreis setzen, den du zahlst (Käuferschutz inklusive), dazu Wörter, die im Titel stehen müssen oder nicht stehen dürfen.
-4. Das Ziel wählen. ntfy aufs Handy dauert eine Minute und braucht kein Konto. Für Telegram gibt es eine eigene Anleitung: [Vinted Bot auf Telegram](/guides/vinted-bot-telegram/).
-5. "Send test" drücken (Test senden), prüfen, ob die Nachricht ankommt, fertig.
+4. Das Ziel wählen. Telegram und Discord schlägt die App als Erstes vor. Für Telegram gibt es eine eigene Anleitung: [Vinted Bot auf Telegram](/guides/vinted-bot-telegram/). Die Handy-App ntfy, E-Mail und Webhooks stehen unter "More options" (Weitere Optionen).
+5. "Send a test" drücken (Test senden), prüfen, ob die Nachricht ankommt, fertig.
 
 Jede Nachricht zeigt Fotos, Endpreis, Größe, Zustand, Marke, die Bewertung des Verkäufers und Buttons zum Kaufen, zum Anschreiben und zum Öffnen des Artikels. Die erste Prüfung einer neuen Suche bleibt still, du hörst also nur von Artikeln, die danach erscheinen.
 

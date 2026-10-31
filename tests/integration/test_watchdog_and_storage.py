@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import sqlite3
 import time
 from typing import Any
 
@@ -264,3 +266,189 @@ async def test_the_warn_only_watchdog_does_not_claim_to_rotate(
     await watchdog.check()
 
     assert "fresh session" not in announcements[0]
+
+
+# --- A whole site failing -----------------------------------------------------------
+
+
+async def all_blocked(repo: Repo, db: Database, *, since: int) -> list[int]:
+    ids = [await add_search(repo, "one"), await add_search(repo, "two")]
+    for query_id in ids:
+        await set_state(db, query_id, last_success_at=since, last_status="http_403")
+        await repo.record_failure(query_id, "http_403", "Blocked: 403 from the catalog")
+    return ids
+
+
+async def test_every_search_on_a_site_failing_for_a_while_is_announced_once(
+    repo: Repo, db: Database, transport: ScriptedTransport, settings: Settings
+) -> None:
+    now = int(time.time())
+    await all_blocked(repo, db, since=now - 1200)
+    watchdog, announcements = make_watchdog(repo, db, transport, settings)
+
+    await watchdog.check(now=now)
+    await watchdog.check(now=now + 120)
+
+    assert len(announcements) == 1
+    assert announcements[0].startswith("Every search on vinted.fr has been failing for 20 min")
+
+
+async def test_a_short_outage_is_left_to_the_backoff(
+    repo: Repo, db: Database, transport: ScriptedTransport, settings: Settings
+) -> None:
+    now = int(time.time())
+    await all_blocked(repo, db, since=now - 300)
+    watchdog, announcements = make_watchdog(repo, db, transport, settings)
+
+    await watchdog.check(now=now)
+
+    assert announcements == []
+
+
+async def test_one_search_still_working_means_the_site_is_not_down(
+    repo: Repo, db: Database, transport: ScriptedTransport, settings: Settings
+) -> None:
+    now = int(time.time())
+    first, _ = await all_blocked(repo, db, since=now - 3600)
+    await set_state(db, first, last_status="ok", last_success_at=now)
+    watchdog, announcements = make_watchdog(repo, db, transport, settings)
+
+    await watchdog.check(now=now)
+
+    assert announcements == []
+
+
+async def test_a_site_that_answers_again_gets_an_all_clear(
+    repo: Repo, db: Database, transport: ScriptedTransport, settings: Settings
+) -> None:
+    now = int(time.time())
+    first, _ = await all_blocked(repo, db, since=now - 1200)
+    watchdog, announcements = make_watchdog(repo, db, transport, settings)
+    await watchdog.check(now=now)
+    await set_state(db, first, last_status="ok", last_success_at=now + 60)
+
+    await watchdog.check(now=now + 120)
+
+    assert announcements[-1].startswith("vinted.fr is answering again")
+
+
+async def all_offline(repo: Repo, db: Database, *, since: int) -> None:
+    for name in ("one", "two"):
+        query_id = await add_search(repo, name)
+        await set_state(db, query_id, last_success_at=since)
+        await repo.record_failure(
+            query_id, "network", "[Errno 8] nodename nor servname provided, or not known"
+        )
+
+
+async def test_a_computer_without_internet_is_not_blamed_on_vinted(
+    repo: Repo, db: Database, transport: ScriptedTransport, settings: Settings
+) -> None:
+    now = int(time.time())
+    await all_offline(repo, db, since=now - 1200)
+    watchdog, announcements = make_watchdog(repo, db, transport, settings)
+
+    await watchdog.check(now=now)
+
+    assert ("can't reach Vinted" in announcements[0], "turning" in announcements[0]) == (
+        True,
+        False,
+    )
+
+
+async def test_a_refusal_is_said_to_be_vinted_turning_this_address_away(
+    repo: Repo, db: Database, transport: ScriptedTransport, settings: Settings
+) -> None:
+    now = int(time.time())
+    await all_blocked(repo, db, since=now - 1200)
+    watchdog, announcements = make_watchdog(repo, db, transport, settings)
+
+    await watchdog.check(now=now)
+
+    assert "turning this address away" in announcements[0]
+
+
+async def test_a_long_outage_is_told_in_hours(
+    repo: Repo, db: Database, transport: ScriptedTransport, settings: Settings
+) -> None:
+    now = int(time.time())
+    await all_blocked(repo, db, since=now - 3 * 3600)
+    watchdog, announcements = make_watchdog(repo, db, transport, settings)
+
+    await watchdog.check(now=now)
+
+    assert "failing for about 3 hours" in announcements[0]
+
+
+async def test_time_asleep_does_not_count_as_failing(
+    repo: Repo, db: Database, transport: ScriptedTransport, settings: Settings
+) -> None:
+    """A laptop asleep for three hours, offline for its first minute awake, was told every
+    search had been failing for 170 minutes."""
+    now = int(time.time())
+    watchdog, announcements = make_watchdog(repo, db, transport, settings)
+    await watchdog.check(now=now - 3 * 3600)
+    await all_offline(repo, db, since=now - 3 * 3600)
+
+    await watchdog.check(now=now)
+    await watchdog.check(now=now + 120)
+
+    assert announcements == []
+
+
+async def test_failing_on_after_waking_is_announced_once_it_has_lasted(
+    repo: Repo, db: Database, transport: ScriptedTransport, settings: Settings
+) -> None:
+    now = int(time.time())
+    watchdog, announcements = make_watchdog(repo, db, transport, settings)
+    await watchdog.check(now=now - 3 * 3600)
+    await all_offline(repo, db, since=now - 3 * 3600)
+    await watchdog.check(now=now)
+
+    for step in range(1, 9):
+        await watchdog.check(now=now + step * 120)
+
+    assert [text[:60] for text in announcements] == [
+        "Every search on vinted.fr has been failing for 16 minutes, s"
+    ]
+
+
+async def test_a_site_down_notice_that_could_not_be_queued_is_tried_again(
+    repo: Repo, db: Database, transport: ScriptedTransport, settings: Settings
+) -> None:
+    now = int(time.time())
+    await all_blocked(repo, db, since=now - 1200)
+    attempts: list[str] = []
+
+    async def locked_then_fine(message: str) -> None:
+        attempts.append(message)
+        if len(attempts) == 1:
+            raise sqlite3.OperationalError("database is locked")
+
+    watchdog = Watchdog(
+        repo=repo,
+        sessions=SessionManager(db, transport),
+        settings=settings,
+        stop=asyncio.Event(),
+        announce=locked_then_fine,
+    )
+    with contextlib.suppress(sqlite3.OperationalError):
+        await watchdog.check(now=now)
+
+    await watchdog.check(now=now + 120)
+
+    assert len(attempts) == 2
+
+
+async def test_a_notice_without_an_error_text_does_not_say_unknown(
+    repo: Repo, db: Database, transport: ScriptedTransport, settings: Settings
+) -> None:
+    now = int(time.time())
+    query_id = await add_search(repo, "one")
+    await set_state(db, query_id, last_success_at=now - 1200)
+    await repo.record_failure(query_id, "http_403", "")
+    watchdog, announcements = make_watchdog(repo, db, transport, settings)
+
+    await watchdog.check(now=now)
+
+    assert "unknown" not in announcements[0]

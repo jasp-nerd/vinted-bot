@@ -54,8 +54,8 @@ Los servicios de pago lo hacen desde sus servidores por entre 5 y 30 euros al me
 1. Instálalo con el comando de una línea de la página principal. El panel se abre en el navegador.
 2. Pega el enlace de tu búsqueda de Vinted, o crea la búsqueda en el panel con las categorías, marcas y tallas de Vinted.
 3. Pon el límite de precio como el total que pagarás (protección al comprador incluida), y las palabras que el título debe llevar o no.
-4. Elige dónde llegan las alertas. ntfy en el móvil se configura en un minuto y no pide cuenta. Para Telegram creas tu propio bot con BotFather y lo conectas desde el panel con un código de un solo uso. Para Discord pegas un webhook del canal.
-5. Pulsa "Send test" (enviar una prueba), comprueba que llega, y ya está.
+4. Elige dónde llegan las alertas. La app te propone primero Telegram y Discord. Para Telegram creas tu propio bot con BotFather, pegas su token en el panel y conectas tu chat con un código de un solo uso. Para Discord pegas un webhook del canal. La app ntfy, el correo y los webhooks están en "More options" (más opciones).
+5. Pulsa "Send a test" (enviar una prueba), comprueba que llega, y ya está.
 
 Cada alerta muestra las fotos, el precio total, talla, estado, marca, la valoración del vendedor y botones para comprar, escribir al vendedor o abrir el anuncio. La primera comprobación de una búsqueda nueva es silenciosa, así que solo te enteras de lo que aparece después.
 

@@ -16,30 +16,6 @@ def test_defaults_are_conservative() -> None:
     assert settings.first_run_mode == "silent", "a new search must not replay the catalog"
     assert settings.keep_raw_json is False, "storing seller payloads should be opt-in"
     assert settings.web_host == "127.0.0.1", "the web UI must not listen publicly by default"
-    assert settings.web_is_loopback
-
-
-def test_no_password_is_allowed_on_localhost() -> None:
-    """Anyone who can reach localhost is already on the machine."""
-    settings = Settings(_env_file=None, web_enabled=True)  # type: ignore[call-arg]
-
-    assert settings.web_auth_token is None
-    assert settings.web_is_exposed_without_a_password is False
-
-
-def test_a_passwordless_dashboard_on_a_public_address_is_flagged() -> None:
-    """Not fatal — a container always binds 0.0.0.0 — but it must be visible in the logs."""
-    settings = Settings(_env_file=None, web_enabled=True, web_host="0.0.0.0")  # type: ignore[call-arg]
-
-    assert settings.web_is_exposed_without_a_password is True
-
-
-def test_a_token_clears_the_exposure_warning() -> None:
-    settings = Settings(  # type: ignore[call-arg]
-        _env_file=None, web_enabled=True, web_host="0.0.0.0", web_auth_token=SecretStr("s")
-    )
-
-    assert settings.web_is_exposed_without_a_password is False
 
 
 def test_web_ui_starts_when_token_is_supplied() -> None:
@@ -60,9 +36,47 @@ def test_poll_interval_below_floor_is_rejected() -> None:
         Settings(_env_file=None, poll_default_interval_s=1)  # type: ignore[call-arg]
 
 
-def test_unknown_environment_keys_are_rejected() -> None:
-    with pytest.raises(ValidationError):
-        Settings(_env_file=None, wat_is_this=True)  # type: ignore[call-arg]
+def test_unknown_keys_do_not_stop_the_app_starting(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A leftover VINTED_SNIPER_ line or another program's PUID used to be fatal."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text("PUID=1000\nVINTED_SNIPER_WEB_PORT=9000\n", encoding="utf-8")
+
+    assert Settings().web_port == 8000
+
+
+def test_unknown_vinted_keys_are_named_for_a_warning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text(
+        "PUID=1000\n# VINTED_BOT_OLD=1\nVINTED_SNIPER_WEB_PORT=9000\nVINTED_BOT_WEB_PORT=8001\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("VINTED_BOT_WEB_PROT", "8002")
+
+    assert Settings.unknown_keys() == ["VINTED_BOT_WEB_PROT", "VINTED_SNIPER_WEB_PORT"]
+
+
+def test_the_installers_own_variables_are_not_called_unknown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """install.sh's VINTED_BOT_AUTOSTART and friends warned at every start."""
+    monkeypatch.chdir(tmp_path)
+    for name in ("VINTED_BOT_AUTOSTART", "VINTED_BOT_KEEP_AWAKE", "VINTED_BOT_NO_BROWSER"):
+        monkeypatch.setenv(name, "1")
+
+    assert Settings.unknown_keys() == []
+
+
+def test_a_value_from_the_env_file_is_said_to_come_from_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text("VINTED_BOT_WEB_PORT=8001\n", encoding="utf-8")
+
+    assert Settings().source("web_port") == "env file"
 
 
 def test_an_existing_data_folder_keeps_being_used(
@@ -104,6 +118,46 @@ def test_the_time_zone_falls_back_to_tz(monkeypatch: pytest.MonkeyPatch) -> None
     assert Settings(_env_file=None).timezone == "Europe/Paris"  # type: ignore[call-arg]
 
 
-def test_an_unknown_time_zone_is_refused() -> None:
-    with pytest.raises(ValidationError, match="time zone"):
-        Settings(_env_file=None, timezone="Mars/Olympus")  # type: ignore[call-arg]
+@pytest.mark.parametrize("value", [":/etc/localtime", "CET-1CEST,M3.5.0,M10.5.0/3", "Mars/Olympus"])
+def test_a_time_zone_the_app_cannot_read_falls_back_with_a_warning(
+    value: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Systems set TZ in POSIX forms zoneinfo cannot read; that stopped the app starting."""
+    monkeypatch.setattr(config, "system_timezone", lambda: "Europe/Amsterdam")
+    monkeypatch.setenv("TZ", value)
+
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+
+    assert settings.timezone == "Europe/Amsterdam"
+    assert "Europe/Amsterdam is used" in settings.warnings[0]
+
+
+def test_a_bad_setting_is_explained_in_one_paragraph() -> None:
+    with pytest.raises(ValidationError) as raised:
+        Settings(_env_file=None, web_port="abc")  # type: ignore[call-arg,arg-type]
+
+    assert config.explain(raised.value).startswith(
+        "vinted-bot can't start because of its settings. VINTED_BOT_WEB_PORT is set to 'abc': "
+    )
+
+
+def test_a_value_from_the_environment_says_so(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("VINTED_BOT_WEB_PORT", "8123")
+
+    assert Settings(_env_file=None).source("web_port") == "environment"  # type: ignore[call-arg]
+
+
+def test_a_value_from_the_env_file_says_so(tmp_path: Path) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text("VINTED_BOT_WEB_PORT=8123\n", encoding="utf-8")
+
+    assert Settings(_env_file=env_file).source("web_port") == "env file"  # type: ignore[call-arg]
+
+
+def test_an_unset_value_is_the_default() -> None:
+    assert Settings(_env_file=None).source("web_port") == "default"  # type: ignore[call-arg]
+
+
+def test_every_setting_says_what_it_does() -> None:
+    """The dashboard's Advanced list shows these; a blank one would hide a setting's purpose."""
+    assert [name for name, field in Settings.model_fields.items() if not field.description] == []

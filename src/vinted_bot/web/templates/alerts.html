@@ -19,26 +19,31 @@
       <div class="dest__name"><b id="dest-{{ dd.id }}">{{ dd.name }}</b><small>{{ dd.label }}</small></div>
       {# Green only when something actually arrived through it. #}
       {% if dd.status == "failing" %}<span class="badge badge--bad">{{ ui.icon("circle-alert") }}{{ dd.status_label }}</span>
-      {% elif dd.status in ("waiting", "warn") %}<span class="badge badge--warn">{{ ui.icon("hourglass" if dd.status == "waiting" else "triangle-alert") }}{{ dd.status_label }}</span>
+      {% elif dd.status in ("waiting", "warn", "paused") %}<span class="badge badge--warn">{{ ui.icon("triangle-alert" if dd.status == "warn" else "hourglass") }}{{ dd.status_label }}</span>
       {% elif dd.status == "untested" %}<span class="badge">{{ ui.icon("send") }}{{ dd.status_label }}</span>
       {% else %}<span class="badge badge--ok">{{ ui.icon("check") }}{{ dd.status_label }}</span>{% endif %}
     </div>
     <form class="dest__body" data-autosave="/destinations/{{ dd.id }}/options">
       {% if dd.status == "failing" %}
       <div class="notice notice--danger" style="margin-bottom:6px">{{ ui.icon("circle-alert") }}<div><p><strong>{{ dd.detail }}</strong></p><p>Send a test to see what's wrong. If it keeps failing, remove it and add it again, or use a notification on your phone instead.</p></div></div>
+      {% elif dd.status == "paused" %}
+      <div class="notice notice--sun" style="margin-bottom:6px">{{ ui.icon("hourglass") }}<div><p><strong>{{ dd.detail }}</strong></p></div></div>
       {% elif dd.status == "warn" %}
-      <div class="notice notice--sun" style="margin-bottom:6px">{{ ui.icon("triangle-alert") }}<div><p><strong>{{ dd.detail }}</strong></p><p>The line is <span class="code">VINTED_BOT_TELEGRAM_BOT_TOKEN=</span> followed by the code BotFather gave you. Settings, "Open on your phone", says where the settings file is.</p></div></div>
+      <div class="notice notice--sun" style="margin-bottom:6px">{{ ui.icon("triangle-alert") }}<div><p><strong>{{ dd.detail }}</strong></p><p><a href="#telegram-bot" style="color:inherit">Add the token</a>, then send a test.</p></div></div>
       {% else %}
       <p class="t-sm" style="padding-bottom:4px">{{ dd.detail }}</p>
       {% endif %}
       <details class="dest__opts" data-collapse-sm open>
-      <summary>{{ ui.icon("chevron-right", "i-sm") }}<span>Options</span><small class="t-sm">What to send, sound{% if dd.kind == "discord" %}, look and pings{% elif dd.kind == "telegram" %}, look{% elif dd.kind == "ntfy" %}, priority{% endif %}</small></summary>
+      <summary>{{ ui.icon("chevron-right", "i-sm") }}<span>Options</span><small class="t-sm">What to send, sound{% if dd.kind == "discord" %}, look and pings{% elif dd.kind == "telegram" %}, look{% elif dd.kind == "ntfy" %}, priority and server{% elif dd.kind == "webhook" %}, headers{% endif %}</small></summary>
       <div class="rows">
+        <div class="set"><div class="set__text"><span class="t-h3" id="ns-{{ dd.id }}">Tell me when something stops working</span><span class="t-sm">A message here when a search has been stuck for a while, when Vinted keeps turning checks away, and when vinted-bot updated itself. Without one, nobody hears about it until they look at this page.</span></div><label class="switch"><input type="checkbox" name="notify_status" value="1"{% if dd.notify_status %} checked{% endif %} aria-labelledby="ns-{{ dd.id }}"></label></div>
         {% set tier_names = [("steal", "Big bargains", "40% or more under the typical price"), ("deal", "Bargains", "20% or more under"), ("normal", "Everything else", "")] %}
         <fieldset class="set set--stack" style="border:0;margin:0"><legend class="set__text"><span class="t-h3">Send these</span><span class="t-sm">Compared with the search's typical price. New searches count as "everything else" until they know it.</span></legend>
           <div class="chips">{% for key, label, hint in tier_names %}<label class="chip chip--sm chip--check" title="{{ hint }}"><input type="checkbox" name="tiers" value="{{ key }}"{% if key in dd.opts.tiers %} checked{% endif %}>{{ ui.icon("check", "chip__tick") }}{{ label }}{% if hint %} <small class="t-sm">{{ hint }}</small>{% endif %}</label>{% endfor %}</div>
           <p class="help help--error" data-error-for="tiers" hidden></p>
+          {% if dd.opts.legacy_pct %}<p class="help">Set up before 2.2 to take listings {{ dd.opts.legacy_pct }}% or more under the typical price, shown here as the closest choice. Changing anything here keeps these choices instead.</p>{% endif %}
         </fieldset>
+        <div class="set"><div class="set__text"><span class="t-h3" id="wa-{{ dd.id }}">Watchlist alerts</span><span class="t-sm">Price drops and sales of listings you watch, and new uploads from sellers you follow. These come whatever the choice above.</span></div><label class="switch"><input type="checkbox" name="watch_alerts" value="1"{% if dd.opts.watch_alerts %} checked{% endif %} aria-labelledby="wa-{{ dd.id }}"></label></div>
         <fieldset class="set set--stack" style="border:0;margin:0"><legend class="set__text"><span class="t-h3">Without sound</span><span class="t-sm">These arrive quietly, no buzz</span></legend>
           <div class="chips">{% for key, label, hint in tier_names %}<label class="chip chip--sm chip--check"><input type="checkbox" name="silent_tiers" value="{{ key }}"{% if key in dd.opts.silent_tiers %} checked{% endif %}>{{ ui.icon("check", "chip__tick") }}{{ label }}</label>{% endfor %}</div>
         </fieldset>
@@ -47,11 +52,25 @@
         <fieldset class="set set--stack" style="border:0;margin:0"><legend class="set__text"><span class="t-h3">Ping for</span><span class="t-sm">Which listings mention the person or role below</span></legend>
           <div class="chips">{% for key, label, hint in tier_names %}<label class="chip chip--sm chip--check"><input type="checkbox" name="ping_tiers" value="{{ key }}"{% if key in dd.opts.ping_tiers %} checked{% endif %}>{{ ui.icon("check", "chip__tick") }}{{ label }}</label>{% endfor %}</div>
         </fieldset>
-        <div class="set set--stack"><div class="set__text"><span class="t-h3">Ping someone</span><span class="t-sm">Type @everyone to buzz phones even when the server is muted, or a role's ID number (Discord can't look names up for webhooks). Copy a role ID by turning on Developer Mode, then right-clicking the role.</span></div><div class="field"><input class="input" style="max-width:260px;min-height:38px" type="text" name="mention" value="{{ dd.opts.mention }}" placeholder="@everyone or 123456789012345678" aria-label="Who to ping"><p class="help help--error" data-error-for="mention" hidden></p></div></div>
+        <div class="set set--stack"><div class="set__text"><span class="t-h3">Ping someone</span><span class="t-sm">Type @everyone to buzz phones even when the server is muted, a role's ID number, or user: and a person's ID number for just them (Discord can't look names up for webhooks). Copy an ID by turning on Developer Mode, then right-clicking the role or person.</span></div><div class="field"><input class="input" style="max-width:260px;min-height:38px" type="text" name="mention" value="{% if dd.opts.mention.startswith('<@&') %}{{ dd.opts.mention[3:-1] }}{% elif dd.opts.mention.startswith('<@') %}user:{{ dd.opts.mention[2:-1]|replace('!', '') }}{% else %}{{ dd.opts.mention }}{% endif %}" placeholder="@everyone, 1234567890 or user:1234567890" aria-label="Who to ping"><p class="help help--error" data-error-for="mention" hidden></p></div></div>
+        <div class="set"><div class="set__text"><span class="t-h3" id="sl-{{ dd.id }}">Never buzz</span><span class="t-sm">Every alert arrives without a notification sound, pings included.</span></div><label class="switch"><input type="checkbox" name="silent" value="1"{% if dd.opts.silent %} checked{% endif %} aria-labelledby="sl-{{ dd.id }}"></label></div>
+        <details class="adv"><summary>{{ ui.icon("chevron-right") }}Thread, name and picture</summary><div class="stack">
+          <div class="field"><label class="label" for="th-{{ dd.id }}">Thread ID <small>optional, to post inside a thread or forum post</small></label><input class="input num" id="th-{{ dd.id }}" name="thread_id" type="text" inputmode="numeric" value="{{ dd.opts.thread_id }}" style="max-width:260px;min-height:38px"><p class="help help--error" data-error-for="thread_id" hidden></p></div>
+          <div class="field"><label class="label" for="un-{{ dd.id }}">Name it posts as <small>optional</small></label><input class="input" id="un-{{ dd.id }}" name="username" type="text" maxlength="80" value="{{ dd.opts.username }}" placeholder="vinted-bot" style="max-width:260px;min-height:38px"></div>
+          <div class="field"><label class="label" for="av-{{ dd.id }}">Picture <small>optional, an https:// image address</small></label><input class="input" id="av-{{ dd.id }}" name="avatar_url" type="text" inputmode="url" value="{{ dd.opts.avatar_url }}" placeholder="https://" style="min-height:38px"><p class="help help--error" data-error-for="avatar_url" hidden></p></div>
+        </div></details>
         {% elif dd.kind == "telegram" %}
         <div class="set"><div class="set__text"><span class="t-h3">Look</span><span class="t-sm">One photo with buttons, or all photos</span></div><div class="seg" role="radiogroup" aria-label="Telegram look"><label><input type="radio" name="style" value="photo"{% if dd.opts.style != "gallery" %} checked{% endif %}>Photo</label><label><input type="radio" name="style" value="gallery"{% if dd.opts.style == "gallery" %} checked{% endif %}>All photos</label></div></div>
+        <div class="set"><div class="set__text"><span class="t-h3" id="sl-{{ dd.id }}">Never buzz</span><span class="t-sm">Every alert arrives without a notification sound.</span></div><label class="switch"><input type="checkbox" name="silent" value="1"{% if dd.opts.silent %} checked{% endif %} aria-labelledby="sl-{{ dd.id }}"></label></div>
+        <div class="field"><label class="label" for="th-{{ dd.id }}">Topic ID <small>optional, for a group with topics</small></label><input class="input num" id="th-{{ dd.id }}" name="thread_id" type="text" inputmode="numeric" value="{{ dd.opts.thread_id }}" style="max-width:260px;min-height:38px"><p class="help help--error" data-error-for="thread_id" hidden></p></div>
         {% elif dd.kind == "ntfy" %}
-        <div class="set"><div class="set__text"><span class="t-h3">Priority</span><span class="t-sm">High can break through Do Not Disturb</span></div><select class="select" name="priority" style="width:130px;min-height:38px;font-size:14px" aria-label="Priority">{% for v, l in [("2", "Low"), ("3", "Normal"), ("4", "High"), ("5", "Urgent")] %}<option value="{{ v }}"{% if dd.opts.priority == v %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+        <div class="set"><div class="set__text"><span class="t-h3">Priority</span><span class="t-sm">High can break through Do Not Disturb</span></div><select class="select" name="priority" style="width:130px;min-height:38px;font-size:14px" aria-label="Priority">{% for v, l in [("1", "Lowest"), ("2", "Low"), ("3", "Normal"), ("4", "High"), ("5", "Urgent")] %}<option value="{{ v }}"{% if dd.opts.priority == v %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+        <details class="adv"><summary>{{ ui.icon("chevron-right") }}Your own ntfy server</summary><div class="stack">
+          <div class="field"><label class="label" for="sv-{{ dd.id }}">Server</label><input class="input" id="sv-{{ dd.id }}" name="server" type="text" inputmode="url" value="{{ dd.opts.server }}" style="min-height:38px"><p class="help">ntfy.sh unless you run your own. The phone app must use the same server.</p><p class="help help--error" data-error-for="server" hidden></p></div>
+          <div class="field"><label class="label" for="tk-{{ dd.id }}">Access token <small>optional, for a protected topic</small></label><input class="input" id="tk-{{ dd.id }}" name="ntfy_token" type="password" autocomplete="off" placeholder="{{ 'Set. Type a new one to replace it' if dd.opts.token_set else 'tk_...' }}" style="min-height:38px">{% if dd.opts.token_set %}<label class="row t-sm" style="gap:6px;margin-top:6px"><input type="checkbox" name="clear_ntfy_token" value="1">Remove the token</label>{% endif %}</div>
+        </div></details>
+        {% elif dd.kind == "webhook" %}
+        <div class="field"><label class="label" for="hd-{{ dd.id }}">Extra headers <small>one per line, like Authorization: Bearer ...</small></label><textarea class="textarea" id="hd-{{ dd.id }}" name="headers" rows="2" spellcheck="false" placeholder="{{ 'Sends ' ~ dd.opts.headers|join(', ') ~ '. Type new lines to replace them' if dd.opts.headers else 'X-Api-Key: ...' }}"></textarea>{% if dd.opts.headers %}<label class="row t-sm" style="gap:6px;margin-top:6px"><input type="checkbox" name="clear_headers" value="1">Remove the headers</label>{% endif %}<p class="help help--error" data-error-for="headers" hidden></p></div>
         {% endif %}
         <div class="set set--stack"><div class="set__text"><span class="t-h3">Used by</span></div>
           <div class="chips">
@@ -60,14 +79,52 @@
         </div>
       </div>
       </details>
+      {% if dd.kind in ("discord", "telegram") and dd.can_test %}
+      <details class="dest__opts" data-sample="/destinations/{{ dd.id }}/preview">
+        <summary>{{ ui.icon("chevron-right", "i-sm") }}<span>What it looks like</span><small class="t-sm">A made-up listing, with these options</small></summary>
+        <div data-sample-box><p class="t-sm">Loading…</p></div>
+      </details>
+      {% endif %}
     </form>
     <div class="dest__foot">
-      <button class="btn btn--secondary btn--sm" type="button" data-test-dest="{{ dd.id }}">{{ ui.icon("send", "i-sm") }}Send a test</button>
+      {% if dd.can_test %}<button class="btn btn--secondary btn--sm" type="button" data-test-dest="{{ dd.id }}">{{ ui.icon("send", "i-sm") }}Send a test</button>{% endif %}
       <span class="grow"></span>
       <button class="btn btn--ghost btn--sm" type="button" data-confirm="delete-dest" data-name="{{ dd.name }}" data-action="/destinations/{{ dd.id }}/delete">{{ ui.icon("trash-2", "i-sm") }}Remove</button>
     </div>
   </article>
   {% endfor %}
+
+  {% if telegram.configured or dests|selectattr("kind", "equalto", "telegram")|list %}
+  <article class="card dest" id="telegram-bot" aria-labelledby="dest-tg-bot">
+    <div class="dest__head">
+      <span class="dest__logo dest__logo--telegram">{{ ui.icon("send") }}</span>
+      <div class="dest__name"><b id="dest-tg-bot">Telegram bot</b><small>{% if telegram.configured %}{% if telegram.bot %}@{{ telegram.bot }}{% else %}Bot{% endif %} · {{ telegram.masked }}{% else %}No bot yet{% endif %}</small></div>
+      {% if telegram.configured and telegram.bot %}<span class="badge badge--ok">{{ ui.icon("check") }}Ready</span>{% elif telegram.rejected %}<span class="badge badge--bad">{{ ui.icon("circle-alert") }}Not running</span>{% elif telegram.configured %}<span class="badge badge--warn">{{ ui.icon("triangle-alert") }}Not recognised</span>{% else %}<span class="badge badge--warn">{{ ui.icon("triangle-alert") }}Needs a token</span>{% endif %}
+    </div>
+    <div class="dest__body">
+      {% if telegram.rejected %}<div class="notice notice--danger">{{ ui.icon("circle-alert") }}<div><p><strong>{{ telegram.rejected }}</strong></p></div></div>{% elif telegram.configured and not telegram.bot %}<p class="t-sm">Telegram couldn't be reached just now to check this bot. If alerts don't arrive, {% if telegram.from_env %}make a new token with BotFather and put it in VINTED_BOT_TELEGRAM_BOT_TOKEN.{% else %}make a new token with BotFather and paste it below.{% endif %}</p>{% endif %}
+      {% if telegram.from_env %}
+      <p class="t-sm">Its token comes from <span class="code">VINTED_BOT_TELEGRAM_BOT_TOKEN</span> in this copy's environment, so it's changed there, not here. With Docker that's the <span class="code">environment:</span> section of docker-compose.yml (then <span class="code">docker compose up -d</span>), or the app's settings in a NAS app store.</p>
+      {% else %}
+      <p class="t-sm">Every Telegram place sends through this bot. {% if telegram.configured %}To use another bot, paste its token from BotFather.{% else %}Paste the token BotFather gave you: open <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a>, send <span class="code">/mybots</span>, pick your bot, then <b>API Token</b>.{% endif %}</p>
+      <div class="field" data-tg-token>
+        <label class="label" for="tg-token-card">{{ "New bot token" if telegram.configured else "Bot token" }}</label>
+        <div class="row token-row">
+          <input class="input grow" id="tg-token-card" name="telegram_token" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="123456789:AAH4k…">
+          <button class="btn btn--secondary" type="button" data-tg-token-save>Check and save</button>
+        </div>
+        <p class="help" data-tg-token-help>We check it with Telegram, then keep it on this computer.</p>
+      </div>
+      {% endif %}
+    </div>
+    {% if telegram.configured and not telegram.from_env %}
+    <div class="dest__foot">
+      <span class="grow"></span>
+      <button class="btn btn--ghost btn--sm" type="button" data-confirm="remove-bot" data-action="/destinations/telegram/token/remove">{{ ui.icon("trash-2", "i-sm") }}Remove the bot</button>
+    </div>
+    {% endif %}
+  </article>
+  {% endif %}
 
   <article class="card dest" aria-labelledby="dest-browser" data-browser-card>
     <div class="dest__head">
@@ -87,7 +144,7 @@
   <button class="card" type="button" data-open="add-dest" style="border:0;cursor:pointer;display:grid;place-items:center;align-content:center;gap:10px;padding:32px;background:var(--c-surface-2);color:var(--c-text-2);font:inherit;box-shadow:inset 0 0 0 1.5px var(--c-line)">
     <span class="choice__icon" style="background:var(--c-surface)">{{ ui.icon("plus") }}</span>
     <span class="t-h3">Add a place</span>
-    <span class="t-sm">Your phone, Telegram, Discord, email and more</span>
+    <span class="t-sm">Telegram, Discord, email and more</span>
   </button>
 </div>
 {% endblock %}
@@ -99,25 +156,20 @@
     <div class="modal__body">
       <fieldset class="choices" style="border:0;padding:0;margin:0">
         <legend class="sr-only">Where alerts go</legend>
-        {% with kind="ntfy", errors={}, form={} %}{% include "partials/dest_forms.html" %}{% endwith %}
-        <div class="choice choice--group">
-          <label class="choice__row">
-            <input type="radio" name="kind" value="webhook" data-kind-pick>
-            <span class="choice__icon dest__logo dest__logo--webhook">{{ ui.icon("webhook") }}</span>
-            <span class="choice__text"><span class="choice__title">Your own app</span><span class="choice__desc">A signed JSON post, for developers</span></span>
-            <span class="choice__tick">{{ ui.icon("check") }}</span>
-          </label>
-          <div class="choice-more"><div class="stack" style="padding-top:6px">
-            <div class="field"><label class="label" for="wh-url">Address</label><input class="input" id="wh-url" name="webhook_url" type="text" inputmode="url" placeholder="https://example.com/hook"></div>
-            <div class="field"><label class="label" for="wh-secret">Signing secret <small>optional</small></label><input class="input" id="wh-secret" name="webhook_secret" type="text" autocomplete="off"></div>
-          </div></div>
-        </div>
+        {% with kind="", errors={}, form={}, webhook=True %}{% include "partials/dest_forms.html" %}{% endwith %}
       </fieldset>
-      <div class="field" style="margin-top:14px"><label class="label" for="ad-name">Name <small>so you recognise it</small></label><input class="input" id="ad-name" name="name" type="text" placeholder="My phone"></div>
+      <div class="field" style="margin-top:14px"><label class="label" for="ad-name">Name <small>so you recognise it</small></label><input class="input" id="ad-name" name="name" type="text" placeholder="My alerts"></div>
       {# Errors without a field of their own (the kind, a sender's own refusal) show here. #}
       <p class="help help--error" data-add-error hidden></p>
     </div>
     <div class="modal__foot"><button class="btn btn--secondary" type="button" data-close>Cancel</button><button class="btn btn--primary" type="submit">Save and send a test</button></div>
+  </form>
+</dialog>
+<dialog class="modal" id="remove-bot" aria-labelledby="rb-title">
+  <form method="post" data-confirm-form>
+    <div class="modal__head"><h2 class="t-h2" id="rb-title">Remove the Telegram bot?</h2><button class="btn btn--icon" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button></div>
+    <div class="modal__body"><p>vinted-bot forgets its token. Telegram places stop getting alerts until you add a bot again. The bot itself stays in Telegram; BotFather can delete it.</p></div>
+    <div class="modal__foot"><button class="btn btn--secondary" type="button" data-close>Keep it</button><button class="btn btn--danger" type="submit">Remove</button></div>
   </form>
 </dialog>
 <dialog class="modal" id="delete-dest" aria-labelledby="dd-title">

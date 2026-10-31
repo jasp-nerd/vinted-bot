@@ -49,7 +49,7 @@ page's HTML and is cached for a week; filter options and brand search come live 
 new, `filters.py` applies your rules and says why it skipped anything, `poller.py` runs the
 loop for one search and maps failures to actions, `quiet.py` knows when a search should not
 wake anyone, `watcher.py` runs item and seller watches, `watchdog.py` compares searches
-against each other, `health.py` assembles the status view, `updates.py` notices a newer
+against each other and notices a whole site failing, `health.py` assembles the status view, `updates.py` notices a newer
 release once a day, and `validation.py` turns what someone typed into values a search can
 hold. The dashboard, the CLI and the Telegram bot all go through `validation.py`, and the
 repository runs it again before writing, so a bad search cannot be stored whichever way it
@@ -78,12 +78,17 @@ transaction with foreign keys checked before it commits, so a failed upgrade lea
 database at the last version that fully applied. `export.py` writes found listings as CSV or
 JSON for both `vinted-bot export` and the dashboard's download button.
 
-Process settings (where the database lives, intervals, the dashboard password) come from
-the environment through `config.py`. Everything a person owns lives in the database:
-searches, destinations, routes, watches, the seller blocklist, and the handful of settings
-the dashboard changes (`timezone`, `healthcheck_url`, `update_check`, `theme`, whether
-setup has run), which sit as keys in `app_state`. There is never a question of which copy of
-a setting wins.
+Process settings (where the database lives, intervals, ports, logging) come from the
+environment through `config.py`. Everything a person owns lives in the database:
+searches, destinations, routes, watches, the seller blocklist, and the settings the
+dashboard changes (`timezone`, `healthcheck_url`, `update_check`, `theme`, whether setup
+has run), which sit as keys in `app_state`. Three process settings are in both places:
+the Telegram bot's token, the dashboard password and whether other devices may connect.
+The dashboard sets them in `app_state` (`managed.py`, and `web/security.py` for the
+password) and the running app follows at once: `botctl/telegram_bot.py` restarts the bot
+on a new token, and `web/server.py` listens again on the new address inside the process. An environment variable for any of them wins, and the dashboard
+says so instead of offering a control, so there is still never a question of which copy
+wins.
 
 ## Three decisions worth explaining
 
@@ -153,12 +158,15 @@ can confirm delivery works.
 
 The filters come in three tiers, by what they cost:
 
-1. **The listing alone:** words that must or must not appear (whole words, ignoring accents
-   and case), a title pattern, the total price with buyer protection, condition, the seller
-   blocklist.
+1. **The listing alone:** words that must appear (matched at the start of a word, or exactly
+   when quoted) or must not appear (whole words), ignoring accents and case; a title pattern;
+   the total price with buyer protection, converted with the ECB's daily rates when a
+   multi-site search finds a listing in another currency; condition; the seller blocklist.
 2. **The seller's public profile:** country, rating and number of reviews. That is a request,
    so it only runs for searches that ask for it and only for listings that passed everything
-   cheaper, and each profile is cached for a week.
+   cheaper, and each profile is cached for a week. Lookups are paced per check; listings
+   whose seller is still waiting carry over to later checks until they are decided or too
+   old to announce.
 3. **The typical price:** a rolling median of what this search's matches cost. Deal-only
    searches record every match, which is how the median is learned, and only announce the
    ones far enough below it.

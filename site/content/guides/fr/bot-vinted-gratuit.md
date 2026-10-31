@@ -17,7 +17,7 @@ faq:
   - q: "Existe-t-il un bot Vinted gratuit ?"
     a: "Oui. vinted-bot est gratuit et open source (licence MIT), sans formule payante. Il surveille vos recherches Vinted et envoie les nouvelles annonces sur Discord, Telegram, votre téléphone (appli ntfy) ou un webhook. Il tourne sur votre propre ordinateur, qui doit donc rester allumé."
   - q: "Un bot Vinted gratuit sans Discord, c'est possible ?"
-    a: "Oui. vinted-bot fonctionne aussi avec Telegram, avec une notification sur le téléphone via l'appli gratuite ntfy (sans compte), par flux RSS ou par webhook. L'e-mail est possible avec un module optionnel."
+    a: "Oui. vinted-bot fonctionne aussi avec Telegram, avec une notification sur le téléphone via l'appli gratuite ntfy (sans compte), par flux RSS ou par webhook. Et aussi par e-mail."
   - q: "Un bot Vinted 0 délai, ça existe ?"
     a: "Non. Vinted ajoute les nouvelles annonces à sa recherche quelques minutes après leur mise en ligne, et aucun outil, payant ou gratuit, ne les voit avant. Le « 0 délai » se mesure à partir du moment où l'annonce apparaît dans la recherche, pas de la publication."
   - q: "Un bot Vinted gratuit peut-il faire bannir mon compte ?"
@@ -64,7 +64,7 @@ Il n'y a pas de serveur de notre côté. L'application tourne sur votre PC porta
 
 Ce que vous obtenez gratuitement :
 
-- Des alertes sur Discord, Telegram, ntfy (appli de notifications gratuite, sans compte), RSS ou votre propre webhook. L'e-mail et des services comme Slack ou Pushover passent par un module optionnel.
+- Des alertes sur Discord, Telegram, ntfy (appli de notifications gratuite, sans compte), RSS ou votre propre webhook. L'e-mail et des services comme Slack ou Pushover fonctionnent aussi.
 - Le prix total dans chaque alerte, protection acheteurs comprise, et des limites de prix calculées sur ce total.
 - Des mots obligatoires dans le titre et des mots à exclure, pour ne plus voir passer « pour pièces » ou « boîte seule ».
 - Des filtres vendeur : note minimale, nombre d'avis minimum, pays du vendeur, et un bouton pour bloquer un vendeur.
@@ -77,7 +77,7 @@ Ce que vous obtenez gratuitement :
 1. Installez-le. Sur Windows, ouvrez PowerShell et collez la commande d'une ligne de la page d'accueil ; sur Mac ou Linux, ouvrez le Terminal et collez l'autre. Pas besoin de droits administrateur ni de Docker. À la fin, votre navigateur ouvre le tableau de bord sur `http://localhost:8000`.
 2. Faites votre recherche sur Vinted comme d'habitude (mots, catégorie, taille, marque, état) et copiez l'adresse dans la barre du navigateur, ou partagez la recherche depuis l'appli et copiez le lien. Vous pouvez aussi construire la recherche dans le tableau de bord, avec les catégories et les marques de Vinted.
 3. Collez-la dans le tableau de bord. Un compteur indique en direct combien d'annonces actuelles correspondent et combien chaque filtre en retire. Fixez le prix maximum comme le total que vous êtes prêt à payer.
-4. Choisissez où arrivent les alertes. Le plus rapide est une notification sur le téléphone avec l'appli gratuite ntfy : installez-la, ajoutez le nom de sujet affiché par le tableau de bord, c'est fini. Pour Discord ou Telegram, suivez le [guide Discord](/guides/alerte-vinted-discord/) ou le [guide Telegram](/guides/bot-vinted-telegram-gratuit/). Envoyez un test (bouton « Send test ») avant de continuer.
+4. Choisissez où arrivent les alertes. L'application propose d'abord Telegram et Discord : suivez le [guide Telegram](/guides/bot-vinted-telegram-gratuit/) ou le [guide Discord](/guides/alerte-vinted-discord/). Sous « More options » (plus d'options), vous trouverez aussi l'appli de notifications ntfy, l'e-mail et les webhooks. Envoyez un test (bouton « Send a test ») avant de continuer.
 5. Laissez tourner. Le premier passage est volontairement silencieux, pour ne pas vous noyer sous les annonces déjà en ligne. Ensuite, chaque nouvelle annonce arrive avec les photos, le prix total, la taille, l'état, la note du vendeur et des boutons Acheter, Contacter le vendeur et Ouvrir sur Vinted.
 
 {{install}}

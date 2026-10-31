@@ -9,13 +9,20 @@ Published as JSON rather than with headers. Headers have to be ASCII, and Vinted
 full of accents and euro signs, so a header-based push of "Très bon état · 4,90 €" fails
 before it leaves the machine.
 
-Each push carries the price and title, a markdown body with the facts, the photo, the
-project icon and up to three buttons (ntfy's maximum). Deals are sent at a higher priority
-so a phone set to let only urgent pushes through still hears about them.
+Each push carries the price and title, a plain-text body with the facts, the photo, the
+project icon and up to three buttons (ntfy's maximum). Plain text because the iOS app shows
+markdown as raw asterisks and tildes. Deals are sent at a higher priority so a phone set to
+let only urgent pushes through still hears about them.
+
+The public server allows about 250 messages a day per address. So several listings waiting
+at once go out as one push listing them all, and when the server says the day's allowance
+is used up, the destination pauses until it resets at midnight UTC instead of asking again
+every minute all day.
 """
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -23,7 +30,7 @@ import httpx
 from vinted_bot.db.repo import PendingNotification
 from vinted_bot.deliver.base import SenderConfigError, SendResult
 from vinted_bot.deliver.ratelimit import TokenBucket
-from vinted_bot.deliver.render import BOT_NAME, ICON_URL, ListingView, escape_markdown, view
+from vinted_bot.deliver.render import BOT_NAME, ICON_URL, ListingView, view
 
 DEFAULT_SERVER = "https://ntfy.sh"
 
@@ -34,6 +41,12 @@ DEFAULT_PRIORITY = 3
 SILENT_PRIORITY = 2
 
 MAX_ACTIONS = 3
+
+# This many search listings waiting at once go out as one push. One push per listing
+# would spend the public server's daily allowance in an afternoon on a busy search.
+DIGEST_FROM = 3
+# ntfy's answer when the day's message allowance is used up; see server/errors.go.
+_DAILY_QUOTA_CODE = 42908
 
 
 def _server_and_topic(config: dict[str, Any]) -> tuple[str, str]:
@@ -72,18 +85,16 @@ def push(
     first = " · ".join(
         part
         for part in (
-            f"~~{listing.previous_price}~~" if listing.previous_price else None,
+            f"{listing.previous_price} → {listing.price}" if listing.previous_price else None,
             listing.price_note,
         )
         if part
     )
-    seller = escape_markdown(listing.seller_login) if listing.seller_login else None
     lines = [
         first,
-        " · ".join(escape_markdown(value) for _, value in listing.facts),
-        " · ".join(p for p in (seller, listing.rating) if p),
-        # Plain, not _italic_: the iOS app and older Android ones show the underscores.
-        f"{listing.flag} {listing.site} · {escape_markdown(listing.search_name)}".strip(),
+        " · ".join(value for _, value in listing.facts),
+        " · ".join(p for p in (listing.seller_login, listing.rating) if p),
+        f"{listing.flag} {listing.site} · {listing.search_name}".strip(),
     ]
 
     actions = []
@@ -100,7 +111,6 @@ def push(
         "topic": topic,
         "title": title[:250],
         "message": "\n".join(line for line in lines if line),
-        "markdown": True,
         "priority": _priority(listing, default_priority),
         "tags": tags,
         "click": listing.url,
@@ -110,6 +120,44 @@ def push(
     if listing.photos:
         body["attach"] = listing.photos[0]
     return body
+
+
+def digest(
+    listings: list[ListingView], *, topic: str, default_priority: int = DEFAULT_PRIORITY
+) -> dict[str, Any]:
+    """One push for several listings: a line each, the loudest priority among them."""
+    labels = listings[0].labels
+    searches = sorted({listing.search_name for listing in listings})
+    lines = [
+        " · ".join(part for part in (listing.price, *listing.summary, listing.title) if part)
+        for listing in listings
+    ]
+    return {
+        "topic": topic,
+        "title": f"{labels.new_matches.format(n=len(listings))} · {', '.join(searches)}"[:250],
+        "message": "\n".join(lines),
+        "priority": max(_priority(listing, default_priority) for listing in listings),
+        "tags": ["shopping_bags"],
+        "click": listings[0].url,
+        "icon": ICON_URL,
+        "actions": [
+            {"action": "view", "label": f"{n}. {listing.price or labels.open}", "url": listing.url}
+            for n, listing in enumerate(listings[:MAX_ACTIONS], start=1)
+        ],
+    }
+
+
+def _next_midnight_utc(now: datetime) -> int:
+    tomorrow = (now + timedelta(days=1)).date()
+    return int(datetime(tomorrow.year, tomorrow.month, tomorrow.day, tzinfo=UTC).timestamp())
+
+
+def _is_daily_quota(response: httpx.Response) -> bool:
+    try:
+        answer = response.json()
+    except ValueError:
+        return False
+    return isinstance(answer, dict) and answer.get("code") == _DAILY_QUOTA_CODE
 
 
 class NtfySender:
@@ -136,20 +184,45 @@ class NtfySender:
 
     @property
     def max_batch(self) -> int:
-        # One push per listing, and a phone that buzzes five times in a row is already
-        # pushing it.
-        return 5
+        # Enough to make a digest worth it; a phone that buzzes five times in a row for
+        # watch alerts is already pushing it.
+        return 10
 
     def _headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self._token}"} if self._token else {}
 
+    def _pushes(self, batch: list[PendingNotification]) -> list[tuple[dict[str, Any], list[int]]]:
+        """The pushes for a batch, each with the outbox ids it carries.
+
+        Search listings waiting together become one digest; watch alerts, each about one
+        thing someone chose to follow, keep a push of their own.
+        """
+        # Three buttons is ntfy's limit and buy, message and open fill it, so the
+        # dashboard link has nowhere to go.
+        views = [(n, view(n, dashboard_url=None)) for n in batch]
+        listings = [(n, v) for n, v in views if n.kind == "listing"]
+        single = [(n, v) for n, v in views if n.kind != "listing"]
+        pushes = []
+        if len(listings) >= DIGEST_FROM:
+            pushes.append(
+                (
+                    digest(
+                        [v for _, v in listings], topic=self._topic, default_priority=self._priority
+                    ),
+                    [n.outbox_id for n, _ in listings],
+                )
+            )
+        else:
+            single = views
+        pushes += [
+            (push(v, topic=self._topic, default_priority=self._priority), [n.outbox_id])
+            for n, v in single
+        ]
+        return pushes
+
     async def send(self, batch: list[PendingNotification]) -> SendResult:
         delivered: list[int] = []
-        for notification in batch:
-            # Three buttons is ntfy's limit and buy, message and open fill it, so the
-            # dashboard link has nowhere to go.
-            listing = view(notification, dashboard_url=None)
-            body = push(listing, topic=self._topic, default_priority=self._priority)
+        for body, outbox_ids in self._pushes(batch):
             remaining = [n.outbox_id for n in batch if n.outbox_id not in delivered]
 
             await self._bucket.acquire()
@@ -161,7 +234,7 @@ class NtfySender:
                 )
 
             if response.is_success:
-                delivered.append(notification.outbox_id)
+                delivered.extend(outbox_ids)
                 continue
             if response.status_code in (httpx.codes.UNAUTHORIZED, httpx.codes.FORBIDDEN):
                 # A reserved topic or a revoked token; asking again gets the same answer.
@@ -172,12 +245,7 @@ class NtfySender:
                     ),
                 )
             if response.status_code == httpx.codes.TOO_MANY_REQUESTS:
-                return SendResult(
-                    delivered=delivered,
-                    retry=remaining,
-                    retry_after_s=60.0,
-                    error="ntfy daily allowance reached",
-                )
+                return self._too_many(response, delivered, remaining)
             return SendResult(
                 delivered=delivered,
                 retry=remaining,
@@ -185,10 +253,32 @@ class NtfySender:
             )
         return SendResult.ok(delivered)
 
-    async def send_status(self, message: str) -> None:
+    @staticmethod
+    def _too_many(
+        response: httpx.Response, delivered: list[int], remaining: list[int]
+    ) -> SendResult:
+        """A 429: the day's allowance (pause until it resets) or just a burst (retry soon)."""
+        if _is_daily_quota(response):
+            return SendResult(
+                delivered=delivered,
+                retry=remaining,
+                pause_until=_next_midnight_utc(datetime.now(UTC)),
+                error=(
+                    "ntfy's daily message limit is used up; alerts resume at midnight UTC. "
+                    "Narrow the search, or send its alerts to Telegram or Discord"
+                ),
+            )
+        return SendResult(
+            delivered=delivered,
+            retry=remaining,
+            retry_after_s=60.0,
+            error="ntfy asked to slow down",
+        )
+
+    async def send_status(self, message: str) -> str | None:
         await self._bucket.acquire()
         try:
-            await self._client.post(
+            response = await self._client.post(
                 self._server,
                 json={
                     "topic": self._topic,
@@ -199,9 +289,11 @@ class NtfySender:
                 },
                 headers=self._headers(),
             )
-        except httpx.HTTPError:
-            # A status notice is best effort; the same warning is already in the log.
-            return
+        except httpx.HTTPError as exc:
+            return f"could not reach ntfy: {exc}"
+        if not response.is_success:
+            return f"ntfy answered {response.status_code}"
+        return None
 
     async def aclose(self) -> None:
         if self._owns_client:

@@ -9,10 +9,13 @@ from typing import Any
 
 import httpx
 import pytest
+from pydantic import SecretStr
 
+from vinted_bot import managed
 from vinted_bot.botctl.telegram_bot import claim_pairing, create_pairing
 from vinted_bot.config import Settings
-from vinted_bot.db.repo import Query, Repo
+from vinted_bot.db import Database
+from vinted_bot.db.repo import STATUS_NOTICES_KEEP, Query, Repo
 from vinted_bot.deliver.dispatcher import MAX_ATTEMPTS, Dispatcher
 from vinted_bot.vinted.models import Item
 
@@ -313,3 +316,230 @@ async def test_asking_for_a_second_pairing_link_reuses_the_waiting_destination(
     assert len(await repo.list_destinations()) == 1
     assert await claim_pairing(repo, code, chat_id=7, thread_id=None) == first_id
     assert await repo.destination_ids_for_query(query.id) == [first_id]
+
+
+class RecordingEndpoint(FakeEndpoint):
+    def __init__(self) -> None:
+        super().__init__()
+        self.paths: list[str] = []
+
+    def handler(self, request: httpx.Request) -> httpx.Response:
+        self.paths.append(request.url.path)
+        return super().handler(request)
+
+
+async def test_telegram_sends_with_the_token_saved_in_the_dashboard(
+    repo: Repo, settings: Settings
+) -> None:
+    query = await a_search(repo)
+    destination_id = await repo.add_destination(
+        kind="telegram", name="test", config={"chat_id": "123"}
+    )
+    await managed.set_telegram_token(repo, "111111:" + "a" * 35)
+    await repo.record_new_items(query, [listing(1)], [destination_id])
+
+    endpoint = RecordingEndpoint()
+    await make_dispatcher(repo, settings, endpoint).drain()
+
+    assert endpoint.paths[0].startswith("/bot111111:")
+
+
+async def test_a_replaced_token_is_used_from_the_next_send(repo: Repo, settings: Settings) -> None:
+    query = await a_search(repo)
+    destination_id = await repo.add_destination(
+        kind="telegram", name="test", config={"chat_id": "123"}
+    )
+    await managed.set_telegram_token(repo, "111111:" + "a" * 35)
+    endpoint = RecordingEndpoint()
+    dispatcher = make_dispatcher(repo, settings, endpoint)
+    await repo.record_new_items(query, [listing(1)], [destination_id])
+    await dispatcher.drain()
+
+    await managed.set_telegram_token(repo, "222222:" + "b" * 35)
+    await repo.record_new_items(query, [listing(2)], [destination_id])
+    await dispatcher.drain()
+
+    assert endpoint.paths[-1].startswith("/bot222222:")
+
+
+async def test_the_environment_token_wins_over_the_dashboard_one(
+    repo: Repo, settings: Settings
+) -> None:
+    pinned = settings.model_copy(update={"telegram_bot_token": SecretStr("333333:" + "c" * 35)})
+    await managed.set_telegram_token(repo, "111111:" + "a" * 35)
+
+    assert await managed.telegram_token(pinned, repo) == "333333:" + "c" * 35
+
+
+async def test_ntfy_s_daily_limit_pauses_the_destination_with_a_reason(
+    repo: Repo, settings: Settings
+) -> None:
+    query = await a_search(repo)
+    destination_id = await repo.add_destination(kind="ntfy", name="p", config={"topic": "t"})
+    await repo.record_new_items(query, [listing(1)], [destination_id])
+    quota = httpx.Response(429, json={"code": 42908, "error": "daily message quota reached"})
+    dispatcher = make_dispatcher(repo, settings, FakeEndpoint(quota))
+
+    await dispatcher.drain()
+
+    destination = await repo.get_destination(destination_id)
+    assert destination is not None and destination.is_paused(int(time.time()))
+    assert destination.paused_reason is not None and "daily" in destination.paused_reason
+
+
+async def test_a_paused_destination_is_not_sent_to_until_the_pause_ends(
+    repo: Repo, settings: Settings
+) -> None:
+    query = await a_search(repo)
+    destination_id = await repo.add_destination(kind="ntfy", name="p", config={"topic": "t"})
+    await repo.record_new_items(query, [listing(1)], [destination_id])
+    quota = httpx.Response(429, json={"code": 42908, "error": "daily message quota reached"})
+    endpoint = FakeEndpoint(quota)
+    dispatcher = make_dispatcher(repo, settings, endpoint)
+    await dispatcher.drain()
+    await repo.record_new_items(query, [listing(2)], [destination_id])
+
+    await dispatcher.drain()
+
+    assert endpoint.calls == 1
+
+
+# --- Status notices -------------------------------------------------------------------
+
+
+class Offline:
+    """An endpoint that cannot be reached until it is told it can."""
+
+    def __init__(self) -> None:
+        self.online = False
+        self.received: list[str] = []
+
+    def handler(self, request: httpx.Request) -> httpx.Response:
+        if not self.online:
+            raise httpx.ConnectError("[Errno 8] nodename nor servname provided", request=request)
+        self.received.append(request.content.decode())
+        return httpx.Response(200, json={"ok": True})
+
+    def dispatcher(self, repo: Repo, settings: Settings) -> Dispatcher:
+        client = httpx.AsyncClient(transport=httpx.MockTransport(self.handler))
+        return Dispatcher(
+            repo=repo,
+            settings=settings,
+            stop=asyncio.Event(),
+            work_available=asyncio.Event(),
+            client=client,
+        )
+
+
+async def _status_place(repo: Repo) -> int:
+    return await repo.add_destination(
+        kind="webhook", name="status", config={"url": "https://example.test/hook"}
+    )
+
+
+async def _make_due(db: Database) -> None:
+    await db.execute("UPDATE status_notices SET next_attempt_at = 0")
+
+
+async def test_a_status_notice_sent_while_offline_arrives_once_back_online(
+    repo: Repo, db: Database, settings: Settings
+) -> None:
+    """A "site down" notice written during a network loss was lost for good."""
+    await _status_place(repo)
+    endpoint = Offline()
+    dispatcher = endpoint.dispatcher(repo, settings)
+    await dispatcher.notify_status("Every search on vinted.fr has been failing")
+    await dispatcher.drain()
+
+    endpoint.online = True
+    await _make_due(db)
+    await dispatcher.drain()
+
+    assert ["vinted.fr" in body for body in endpoint.received] == [True]
+
+
+async def test_a_failed_status_notice_waits_before_its_next_try(
+    repo: Repo, settings: Settings
+) -> None:
+    await _status_place(repo)
+    endpoint = Offline()
+    dispatcher = endpoint.dispatcher(repo, settings)
+    await dispatcher.notify_status("down")
+    await dispatcher.drain()
+
+    endpoint.online = True
+    await dispatcher.drain()
+
+    assert endpoint.received == []
+
+
+async def test_a_delivered_status_notice_is_not_sent_again(
+    repo: Repo, db: Database, settings: Settings
+) -> None:
+    await _status_place(repo)
+    endpoint = Offline()
+    endpoint.online = True
+    dispatcher = endpoint.dispatcher(repo, settings)
+    await dispatcher.notify_status("up again")
+    await dispatcher.drain()
+
+    await _make_due(db)
+    await dispatcher.drain()
+
+    assert len(endpoint.received) == 1
+
+
+async def test_status_notices_arrive_in_the_order_they_were_written(
+    repo: Repo, db: Database, settings: Settings
+) -> None:
+    await _status_place(repo)
+    endpoint = Offline()
+    dispatcher = endpoint.dispatcher(repo, settings)
+    await dispatcher.notify_status("first: down")
+    await dispatcher.drain()
+    await dispatcher.notify_status("second: back")
+
+    endpoint.online = True
+    await _make_due(db)
+    await dispatcher.drain()
+
+    assert [body.split('"status": "')[1][:5] for body in endpoint.received] == ["first", "secon"]
+
+
+async def test_a_status_notice_a_day_old_is_dropped(
+    repo: Repo, db: Database, settings: Settings
+) -> None:
+    await _status_place(repo)
+    endpoint = Offline()
+    endpoint.online = True
+    dispatcher = endpoint.dispatcher(repo, settings)
+    await repo.queue_status_notice("yesterday's news")
+    await db.execute("UPDATE status_notices SET created_at = created_at - 90000")
+
+    await dispatcher.drain()
+
+    assert (endpoint.received, await repo.due_status_notices()) == ([], [])
+
+
+async def test_status_notices_only_go_where_they_were_asked_for(
+    repo: Repo, settings: Settings
+) -> None:
+    await _status_place(repo)
+    quiet = await repo.add_destination(
+        kind="webhook", name="quiet", config={"url": "https://quiet.test/hook"}
+    )
+    await repo.set_notify_status(quiet, False)
+
+    queued = await repo.queue_status_notice("down")
+
+    assert queued == 1
+
+
+async def test_a_long_outage_keeps_only_the_newest_status_notices(repo: Repo) -> None:
+    await _status_place(repo)
+    for number in range(STATUS_NOTICES_KEEP + 5):
+        await repo.queue_status_notice(f"notice {number}")
+
+    waiting = await repo.due_status_notices()
+
+    assert [len(waiting), waiting[-1].message] == [STATUS_NOTICES_KEEP, "notice 14"]

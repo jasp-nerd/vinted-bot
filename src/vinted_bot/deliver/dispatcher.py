@@ -16,13 +16,15 @@ import asyncio
 import contextlib
 import dataclasses
 import json
+import time
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
 
+from vinted_bot import managed
 from vinted_bot.config import Settings
-from vinted_bot.db.repo import Destination, PendingNotification, Repo
+from vinted_bot.db.repo import Destination, PendingNotification, Repo, StatusNotice
 from vinted_bot.deals import DEAL_PCT, STEAL_PCT, TIERS, Tier, deal_percent, tier_for
 from vinted_bot.deliver.apprise import AppriseSender
 from vinted_bot.deliver.base import Sender, SenderConfigError, parse_tiers
@@ -42,6 +44,13 @@ MAX_ATTEMPTS = 6
 # Retries stay short on purpose. Notifications for one destination go out in order, so a
 # long sleep at the front of the queue holds up every fresher listing behind it.
 MAX_RETRY_DELAY_S = 5.0
+
+# A status notice is tried again on this ladder (seconds, doubling, capped) until it is a
+# day old: the notices that matter most, "every search is failing", are sent while the
+# network is down, and the ladder has to outlast that without spamming once it is back.
+STATUS_RETRY_FIRST_S = 30
+STATUS_RETRY_MAX_S = 300
+STATUS_NOTICE_EXPIRY_S = 86_400
 
 # Telegram counts messages across the whole bot, not per chat, so every Telegram
 # destination shares this.
@@ -95,15 +104,27 @@ def skip_reason(notification: PendingNotification, config: dict[str, Any]) -> st
     """Why this destination should not get this listing, if it should not.
 
     Decided here, at delivery, rather than when the listing is found: one listing goes to
-    several destinations, and only some of them may be picky. Watch alerts (price drops,
-    sales) and a followed seller's uploads were asked for one by one, so they always pass.
+    several destinations, and only some of them may be picky.
+
+    The tiers (`tiers`, `silent_tiers`, `min_deal_pct`) are about search results only.
+    Watch alerts (price drops, sales, reservations, removals) and a followed seller's
+    uploads were asked for one by one, so a "steals only" channel still gets them; a
+    destination that wants none of them says `watch_alerts: false`, and a watch can be
+    routed to chosen destinations instead of all of them.
     """
     if notification.kind != "listing":
+        if config.get("watch_alerts") is False:
+            return "skipped: this destination does not take watch alerts"
         return None
     routing = Routing.from_config(config)
     pct = _deal_pct(notification)
     tier = tier_for(pct)
-    wants_threshold = routing.min_deal_pct is not None
+    # A custom threshold narrows what counts as a deal. Once the tiers have been chosen
+    # and include ordinary listings, the destination wants everything: a threshold left
+    # over from 1.x kept filtering there although the Alerts page showed "everything
+    # else" ticked.
+    takes_everything = "tiers" in config and "normal" in routing.tiers
+    wants_threshold = routing.min_deal_pct is not None and not takes_everything
     if pct is None and (tier not in routing.tiers or wants_threshold):
         return "skipped: this destination only wants deals and there is no typical price yet"
     if tier not in routing.tiers:
@@ -133,21 +154,31 @@ def deliver_silently(notification: PendingNotification, routing: Routing) -> boo
     )
 
 
-def build_sender(destination: Destination, settings: Settings, client: httpx.AsyncClient) -> Sender:
-    """The sender for a destination, or SenderConfigError saying what is missing."""
+def build_sender(
+    destination: Destination,
+    settings: Settings,
+    client: httpx.AsyncClient,
+    *,
+    telegram_token: str | None,
+) -> Sender:
+    """The sender for a destination, or SenderConfigError saying what is missing.
+
+    `telegram_token` is the bot's token as it is now (managed.telegram_token): it can be
+    set or changed from the dashboard while the app runs, so it is not read from settings.
+    """
     config: dict[str, Any] = destination.config
     match destination.kind:
         case "discord":
             return DiscordSender(config, dashboard_url=settings.dashboard_url, client=client)
         case "telegram":
-            token = settings.telegram_bot_token
-            if token is None:
+            if telegram_token is None:
                 raise SenderConfigError(
-                    "a Telegram destination exists but VINTED_BOT_TELEGRAM_BOT_TOKEN is not set"
+                    "a Telegram destination exists but no bot token is set; add it on the "
+                    "Alerts page"
                 )
             return TelegramSender(
                 config,
-                bot_token=token.get_secret_value(),
+                bot_token=telegram_token,
                 dashboard_url=settings.dashboard_url,
                 client=client,
             )
@@ -207,6 +238,7 @@ class Dispatcher:
         expired = await self._repo.expire_stale_notifications(self._settings.outbox_expiry_minutes)
         if expired:
             log.info("outbox.expired", count=expired, reason="older than the delivery window")
+        await self._send_status_notices()
 
         destination_ids = await self._repo.destinations_with_work()
         if not destination_ids:
@@ -232,6 +264,11 @@ class Dispatcher:
     async def _serve(self, destination_id: int) -> int:
         destination = await self._repo.get_destination(destination_id)
         if destination is None or not destination.active:
+            return 0
+
+        if destination.is_paused(int(time.time())):
+            # Its server asked for a break (ntfy's daily allowance); the reason is on the
+            # destination for the Alerts page, and the log said it once when it began.
             return 0
 
         if awaiting_pairing(destination):
@@ -273,6 +310,20 @@ class Dispatcher:
 
         handled = set(result.delivered)
 
+        if result.pause_until is not None:
+            reason = result.error or "the server asked for a break"
+            await self._repo.pause_destination(
+                destination_id, until=result.pause_until, reason=reason
+            )
+            log.warning(
+                "destination.paused",
+                destination_id=destination_id,
+                name=destination.name,
+                reason=reason,
+                until=result.pause_until,
+            )
+            return len(result.delivered)
+
         if result.permanent_error:
             await self._repo.deactivate_destination(destination_id, result.permanent_error)
             await self._drop_sender(destination_id)
@@ -303,26 +354,84 @@ class Dispatcher:
         return len(result.delivered)
 
     async def notify_status(self, message: str) -> None:
-        """Send an operational notice to whichever destinations asked for them."""
-        for destination_id in await self._repo.status_destination_ids():
-            destination = await self._repo.get_destination(destination_id)
-            if destination is None:
+        """Queue an operational notice for whichever destinations asked for them.
+
+        Queued in the database rather than sent here, so a notice written while the
+        network is down still arrives once it is back (see _send_status_notices).
+        """
+        if await self._repo.queue_status_notice(message):
+            self._work.set()
+
+    async def _send_status_notices(self) -> None:
+        """Try each due status notice, keeping each destination's in order."""
+        now = int(time.time())
+        held: set[int] = set()
+        for notice in await self._repo.due_status_notices(now):
+            if notice.destination_id in held:
                 continue
-            with contextlib.suppress(Exception):
-                sender = await self._sender_for(destination)
-                await sender.send_status(message)
+            if now - notice.created_at > STATUS_NOTICE_EXPIRY_S:
+                log.warning(
+                    "status_notice.expired",
+                    destination_id=notice.destination_id,
+                    attempts=notice.attempts,
+                )
+                await self._repo.status_notice_done(notice.id)
+                continue
+            if not await self._send_status_notice(notice):
+                held.add(notice.destination_id)
+
+    async def _send_status_notice(self, notice: StatusNotice) -> bool:
+        """One try. True when the notice is settled: sent, or nowhere left to send it."""
+        destination = await self._repo.get_destination(notice.destination_id)
+        if destination is None or not destination.active:
+            await self._repo.status_notice_done(notice.id)
+            return True
+        if destination.is_paused(int(time.time())) or awaiting_pairing(destination):
+            # It waits like any listing does; the expiry still applies.
+            return False
+        try:
+            sender = await self._sender_for(destination)
+        except SenderConfigError as exc:
+            # The listing path switches the destination off for this, and says why.
+            log.warning("status_notice.unsendable", destination_id=destination.id, error=str(exc))
+            await self._repo.status_notice_done(notice.id)
+            return True
+        try:
+            failure = await sender.send_status(notice.message)
+        except Exception as exc:
+            # A sender raising instead of answering (Apprise's plugins can) is a failed try
+            # like any other; the notice waits on the ladder for the next one.
+            log.exception("status_notice.sender_crashed", destination_id=destination.id)
+            failure = f"{type(exc).__name__}: {exc}"
+        if failure is None:
+            await self._repo.status_notice_done(notice.id)
+            log.info("status_notice.sent", destination_id=destination.id)
+            return True
+        retry_in = min(STATUS_RETRY_FIRST_S * 2**notice.attempts, STATUS_RETRY_MAX_S)
+        await self._repo.status_notice_failed(notice.id, failure, retry_in)
+        log.warning(
+            "status_notice.retrying",
+            destination_id=destination.id,
+            error=failure,
+            retry_in_s=retry_in,
+        )
+        return False
 
     async def _sender_for(self, destination: Destination) -> Sender:
         # Keyed on the settings too: pairing a Telegram chat rewrites them, and a sender
-        # built from the old ones would keep sending nowhere.
-        signature = json.dumps(destination.config, sort_keys=True)
+        # built from the old ones would keep sending nowhere. And on the bot's token,
+        # which the dashboard can replace while this runs.
+        token = None
+        if destination.kind == "telegram":
+            token = await managed.telegram_token(self._settings, self._repo)
+        signature = json.dumps([destination.config, token], sort_keys=True)
         cached = self._senders.get(destination.id)
         if cached is not None and self._signatures.get(destination.id) == signature:
             return cached
         if cached is not None:
             await self._drop_sender(destination.id)
 
-        sender = build_sender(destination, self._settings, self._client)
+        sender = build_sender(destination, self._settings, self._client, telegram_token=token)
         self._senders[destination.id] = sender
         self._signatures[destination.id] = signature
         return sender

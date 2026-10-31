@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import replace
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -279,6 +280,74 @@ async def test_changing_what_a_search_looks_for_starts_it_over_quietly(
     await check(edited, transport, repo, settings, db)
 
     assert await queued(db) == 0
+
+
+async def a_pasted_search(repo: Repo) -> Query:
+    """A search as the setup screen stored a pasted link: "order" first."""
+    query_id = await repo.add_query(
+        name="levis",
+        url="https://www.vinted.nl/catalog?order=newest_first&search_text=levis",
+        tld="nl",
+        params={"order": "newest_first", "search_text": "levis"},
+        poll_interval_s=60,
+    )
+    await repo.add_destination(kind="webhook", name="w", config={"url": "http://127.0.0.1:1/x"})
+    query = await repo.get_query(query_id)
+    assert query is not None
+    return query
+
+
+EDITOR_PARAMS = {"search_text": "levis", "order": "newest_first"}
+
+
+async def test_saving_the_editor_s_spelling_of_a_pasted_search_keeps_its_place(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Any
+) -> None:
+    """A pasted link stores its keys in one order, the editor in another."""
+    query = await a_pasted_search(repo)
+    transport.queue_catalog(page(1000, 5))
+    await check(query, transport, repo, settings, db)
+
+    await repo.update_query(replace(query, params=EDITOR_PARAMS, name="Levi's"))
+
+    assert (await repo.get_state(query.id)).floor_item_id == 1004
+
+
+async def test_setup_and_editor_spellings_of_the_same_filters_keep_the_place(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Any
+) -> None:
+    query = await a_search(repo)
+    query = await repo.update_query(
+        replace(
+            query,
+            params={"order": "newest_first", "brand_ids": "53,14", "price_to": "30.0"},
+        )
+    )
+    transport.queue_catalog(page(1000, 5))
+    await check(query, transport, repo, settings, db)
+
+    await repo.update_query(
+        replace(
+            query,
+            params={"price_to": "30", "brand_ids": "14,53", "order": "newest_first"},
+            max_total_price=Decimal("35"),
+        )
+    )
+
+    assert (await repo.get_state(query.id)).floor_item_id == 1004
+
+
+async def test_saving_a_pasted_search_twice_keeps_its_typical_price(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Any
+) -> None:
+    query = await a_pasted_search(repo)
+    transport.queue_catalog([listing(1000 + n, price="80.0") for n in range(20)])
+    await check(query, transport, repo, settings, db)
+
+    edited = await repo.update_query(replace(query, params=EDITOR_PARAMS))
+    await repo.update_query(edited)
+
+    assert await repo.typical_prices(query.id) == {"EUR": Decimal("80.00")}
 
 
 async def test_renaming_a_search_keeps_its_place(

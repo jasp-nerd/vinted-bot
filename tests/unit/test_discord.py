@@ -608,6 +608,12 @@ async def test_a_status_notice_pings_nobody_even_with_a_mention_configured() -> 
     assert recorder.payload()["allowed_mentions"] == {"parse": []}
 
 
+async def test_a_status_notice_discord_refused_says_so() -> None:
+    recorder = Recorder(httpx.Response(503))
+
+    assert await sender(recorder).send_status("stale search") == "Discord answered 503"
+
+
 # --- When Discord says no -------------------------------------------------------------
 
 

@@ -1,5 +1,17 @@
 {% extends "base.html" %}
 {% block title %}Watchlist{% endblock %}
+{% macro routes(w) -%}
+{% if places|length > 1 %}
+<details class="wrow__routes">
+  <summary class="wrow__sub">Alerts to {{ w.sends_to }} · <span class="t-link">change</span></summary>
+  <form method="post" action="/watchlist/{{ w.id }}/routes" class="row" style="gap:6px;margin-top:6px">
+    {% for d in places %}<label class="chip chip--sm"><input type="checkbox" name="dest" value="{{ d.id }}"{% if d.id in w.routes %} checked{% endif %}>{{ d.name }}</label>{% endfor %}
+    <button class="btn btn--secondary btn--sm" type="submit">Save</button>
+    <span class="t-sm">None ticked: every place.</span>
+  </form>
+</details>
+{% endif %}
+{%- endmacro %}
 {% block content %}
 <div class="page-head">
   <div class="page-head__text">
@@ -16,6 +28,11 @@
   </div>
   {% if error %}<p class="help help--error" id="watch-err">{{ ui.icon("circle-alert") }}<span>{{ error }}</span></p>{% endif %}
   <p class="help">Or open any find's menu and choose "Watch the price" or "Follow this seller".</p>
+  {% if places|length > 1 %}
+  <details class="adv" style="margin-top:6px"><summary>{{ ui.icon("chevron-right") }}Where its alerts go <small class="t-sm">every place, unless you tick some</small></summary>
+    <div class="chips" style="margin-top:8px">{% for d in places %}<label class="chip chip--sm"><input type="checkbox" name="dest" value="{{ d.id }}">{{ ui.dest_icon(d.kind) }}{{ d.name }}</label>{% endfor %}</div>
+  </details>
+  {% endif %}
 </form>
 {% if kinds and ("item" not in kinds or "seller" not in kinds) %}
 <div class="notice notice--sun" style="margin-bottom:18px">{{ ui.icon("info") }}<div><p>{% if "item" not in kinds %}Price watches can't run in this copy of vinted-bot right now.{% else %}Seller follows can't run in this copy of vinted-bot right now.{% endif %} You can still add them; they start when it can.</p></div></div>
@@ -31,10 +48,10 @@
   {% if items %}
   <div class="card">
     {% for w in items %}
-    <div class="wrow" style="grid-template-columns:56px minmax(0,1fr) auto auto">
+    <div class="wrow wrow--watch">
       <div class="wrow__img">{% if w.photo %}<img src="{{ w.photo }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}</div>
       <div class="wrow__main">
-        <span class="wrow__title">{{ w.title }}</span>
+        <a class="wrow__title" href="{{ w.url }}" target="_blank" rel="noopener">{{ w.title }}</a>
         <span class="row" style="gap:8px">
           {% if w.status == "reserved" %}<span class="badge badge--warn">{{ ui.icon("hourglass") }}{{ w.status_label }}</span>
           {% elif w.status == "sold" %}<span class="badge">{{ ui.icon("package") }}{{ w.status_label }}</span>
@@ -42,8 +59,9 @@
           <span class="wrow__sub">{{ w.tld }} · checked {{ w.checked }}{% if not w.active %} · alerts off{% endif %}</span>
         </span>
         {% if w.error %}<span class="wrow__sub" style="color:var(--c-danger-ink)">Last look didn't work: {{ w.error }}</span>{% endif %}
+        {{ routes(w) }}
       </div>
-      <div class="wrow__price"><b>{{ w.now }}</b></div>
+      <div class="wrow__price"><b>{{ w.now }}</b>{% if w.price_note %}<s style="text-decoration:none">{{ w.price_note }}</s>{% endif %}</div>
       <div class="wrow__act row" style="gap:2px;flex-wrap:nowrap">
         <a class="btn btn--icon btn--sm" href="{{ w.url }}" target="_blank" rel="noopener" aria-label="Open on Vinted" title="Open on Vinted">{{ ui.icon("external-link", "i-sm") }}</a>
         <form method="post" action="/watchlist/{{ w.id }}/delete"><button class="btn btn--icon btn--sm" type="submit" aria-label="Stop watching {{ w.title }}" title="Stop watching">{{ ui.icon("x", "i-sm") }}</button></form>
@@ -61,12 +79,13 @@
   {% if sellers %}
   <div class="card">
     {% for sl in sellers %}
-    <div class="wrow" style="grid-template-columns:48px minmax(0,1fr) auto auto">
+    <div class="wrow wrow--seller">
       <span class="avatar" style="--sc: var(--s-{{ loop.index0 % 7 + 1 }})" aria-hidden="true">{{ sl.initial }}</span>
       <div class="wrow__main">
         <a class="wrow__title" href="{{ sl.url }}" target="_blank" rel="noopener">{{ sl.login }}</a>
         <span class="wrow__sub">{{ sl.tld }} · checked {{ sl.checked }}</span>
         {% if sl.error %}<span class="wrow__sub" style="color:var(--c-danger-ink)">Last look didn't work: {{ sl.error }}</span>{% endif %}
+        {{ routes(sl) }}
       </div>
       <form method="post" action="/watchlist/{{ sl.id }}/toggle"><button class="btn btn--ghost btn--sm" type="submit" aria-pressed="{{ 'true' if sl.on else 'false' }}">{{ ui.icon("bell" if sl.on else "bell-off", "i-sm") }}{{ "Alerts on" if sl.on else "Alerts off" }}</button></form>
       <form method="post" action="/watchlist/{{ sl.id }}/delete"><button class="btn btn--icon btn--sm" type="submit" aria-label="Stop following {{ sl.login }}" title="Stop following">{{ ui.icon("x", "i-sm") }}</button></form>

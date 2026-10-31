@@ -1726,11 +1726,12 @@ wheels = [
 
 [[package]]
 name = "vinted-bot"
-version = "2.1.0"
+version = "2.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiogram" },
     { name = "aiosqlite" },
+    { name = "apprise" },
     { name = "fastapi" },
     { name = "httpx", extra = ["brotli", "zstd"] },
     { name = "jinja2" },
@@ -1744,9 +1745,6 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
-apprise = [
-    { name = "apprise" },
-]
 impersonate = [
     { name = "curl-cffi" },
 ]
@@ -1767,7 +1765,7 @@ dev = [
 requires-dist = [
     { name = "aiogram", specifier = ">=3.17" },
     { name = "aiosqlite", specifier = ">=0.20" },
-    { name = "apprise", marker = "extra == 'apprise'", specifier = ">=2.1" },
+    { name = "apprise", specifier = ">=2.1" },
     { name = "curl-cffi", marker = "extra == 'impersonate'", specifier = ">=0.7" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", extras = ["brotli", "zstd"], specifier = ">=0.28" },
@@ -1780,7 +1778,7 @@ requires-dist = [
     { name = "tzdata", specifier = ">=2025.2" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34" },
 ]
-provides-extras = ["impersonate", "apprise"]
+provides-extras = ["impersonate"]
 
 [package.metadata.requires-dev]
 dev = [

@@ -337,9 +337,14 @@ function Install-VbApp($S, [string]$AutostartSetting, [bool]$OpenBrowser) {
     Write-Host "  Your data:     $($S.DataDir)"
     Write-Host "  Log file:      $($S.LogPath)"
     Write-Host ''
-    Write-Host 'Next: in the dashboard, add where alerts should go (Discord or Telegram), then paste'
-    Write-Host 'a Vinted search. Alerts arrive while this PC is on, awake and online: in Settings,'
-    Write-Host 'System, Power, set "Make my device sleep" to Never while plugged in.'
+    if ($already) {
+        Write-Host 'Your searches and alert settings are as you left them.'
+    } else {
+        Write-Host 'Next: in the dashboard, choose where alerts go (Telegram, Discord, or one of the'
+        Write-Host 'other options), then paste a Vinted search.'
+    }
+    Write-Host 'Alerts arrive while this PC is on, awake and online: in Settings, System, Power,'
+    Write-Host 'set "Make my device sleep" to Never while plugged in.'
     Write-Host ''
     Write-Host "  Update:        the dashboard's Update button, or run the install command again"
     if (-not $autostarted) {

@@ -454,8 +454,14 @@ install() {
     say "  Your data:     $dir"
     say "  Log file:      $dir/vinted-bot.log"
     say ""
-    say "Next: in the dashboard, add where alerts should go (Discord or Telegram), then paste"
-    say "a Vinted search. Alerts arrive while this computer is on, awake and online."
+    if [ $already = yes ]; then
+        say "Your searches and alert settings are as you left them. Alerts arrive while this"
+        say "computer is on, awake and online."
+    else
+        say "Next: in the dashboard, choose where alerts go (Telegram, Discord, or one of the"
+        say "other options), then paste a Vinted search. Alerts arrive while this computer is"
+        say "on, awake and online."
+    fi
     say ""
     if [ $autostarted = no ]; then
         say "  Update:        the dashboard's Update button, then start it again; or run the"

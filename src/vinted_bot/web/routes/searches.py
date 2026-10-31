@@ -16,7 +16,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
-from vinted_bot.db.repo import Query
+from vinted_bot.db.repo import DuplicateSearchError, Query
 from vinted_bot.engine import health
 from vinted_bot.engine.validation import InvalidInputError
 from vinted_bot.web import core, data, forms, security, views
@@ -84,10 +84,13 @@ async def _editor(
     query: Query | None,
     errors: dict[str, str] | None = None,
     status_code: int = 200,
+    existing: Query | None = None,
 ) -> Response:
     context = core.ctx(request)
     prefs = await context.repo.app_settings(default_timezone=context.settings.timezone)
     typical = await context.repo.typical_prices(query.id) if query else {}
+    known = json.loads(await data.brand_labels(context.repo, str(values.get("brand_ids") or "")))
+    values = {**values, "labels": json.dumps({**known, **_labels(values)})}
     blocked = await context.repo.list_blocked_sellers()
     return await core.render(
         request,
@@ -106,11 +109,22 @@ async def _editor(
             "link_price": _link_price(values),
             "blocked_count": len(blocked),
             "currency": views.symbol(views.currency_for(values["tld"])),
+            # For the page to relabel the price fields when the site changes.
+            "currencies": {t: views.symbol(views.currency_for(t)) for t, _, _ in views.COUNTRIES},
             "previews": context.previews is not None,
             "builder": context.taxonomy is not None,
+            "existing": existing,
         },
         status_code=status_code,
     )
+
+
+def _labels(values: dict[str, Any]) -> dict[str, Any]:
+    try:
+        parsed = json.loads(values.get("labels") or "{}")
+    except ValueError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
 
 
 def _link_price(values: dict[str, Any]) -> str | None:
@@ -173,10 +187,9 @@ async def create_search(request: Request) -> Response:
             **parsed.filters,
         )
     except InvalidInputError as exc:
-        return await _editor(
-            request, values, query=None, errors={exc.field: exc.message}, status_code=400
-        )
+        return await _refused(request, values, None, exc)
     await context.repo.set_routes(query_id, parsed.destination_ids)
+    await data.remember_brand_names(context.repo, values["labels"])
     return core.redirect(
         core.url("search_detail", id=query_id),
         "Watching it now. The first check skips what's already there, so only new "
@@ -218,10 +231,13 @@ async def bulk(request: Request) -> Response:
 
 
 @router.get("/searches/{query_id}/edit")
-async def edit_search(request: Request, query_id: int) -> Response:
+async def edit_search(request: Request, query_id: int, copy: bool = False) -> Response:
     query = await _query(request, query_id)
     routes = await core.ctx(request).repo.explicit_routes(query_id)
-    return await _editor(request, forms.values_from_query(query, routes), query=query)
+    values = forms.values_from_query(query, routes)
+    # Opened straight after "Duplicate": saving it is what starts the copy.
+    values["resume"] = copy and query.paused
+    return await _editor(request, values, query=query)
 
 
 @router.post("/searches/{query_id}")
@@ -247,13 +263,37 @@ async def update_search(request: Request, query_id: int) -> Response:
             )
         )
     except InvalidInputError as exc:
-        return await _editor(
-            request, values, query=query, errors={exc.field: exc.message}, status_code=400
-        )
+        return await _refused(request, values, query, exc)
     await context.repo.set_routes(query_id, parsed.destination_ids)
+    await data.remember_brand_names(context.repo, values["labels"])
+    if values["resume"] and query.paused:
+        # A copy waits paused until it is saved the way someone wants it; this is that save.
+        await context.repo.set_paused(query_id, False)
+        return core.redirect(
+            core.url("search_detail", id=query_id),
+            "Saved. The copy is running now; its first check skips what's already there.",
+        )
     return core.redirect(
         core.url("search_detail", id=query_id),
         "Changes saved. They apply from the next check.",
+    )
+
+
+async def _refused(
+    request: Request, values: dict[str, Any], query: Query | None, exc: InvalidInputError
+) -> Response:
+    """The repository's refusal shown beside its field, or beside the link when it names
+    something the form has no field for. A link that is already watched also links to
+    the search that watches it."""
+    field = exc.field if exc.field in values else "link"
+    existing = exc.existing if isinstance(exc, DuplicateSearchError) else None
+    return await _editor(
+        request,
+        values,
+        query=query,
+        errors={field: exc.message},
+        status_code=400,
+        existing=existing,
     )
 
 
@@ -280,8 +320,11 @@ async def search_detail(request: Request, query_id: int) -> Response:
     finds = await repo.items_feed(query_id=query_id, mark="all", limit=24)
     yesterday_by_now = await _yesterday_by_now(context, query_id, tz)
 
-    rejections = await repo.rejections_for(query_id, limit=60)
     reasons = await repo.rejection_counts(query_id, since=now - 7 * 86_400)
+    # A reason chip filters the list; any other value shows every reason.
+    reason = request.query_params.get("reason")
+    reason = reason if reason in reasons else None
+    rejections = await repo.rejections_for(query_id, limit=60, reason=reason)
     delivery = await repo.delivery_for_query(query_id)
     typical = await repo.typical_prices(query_id)
     state = await repo.get_state(query_id)
@@ -304,12 +347,16 @@ async def search_detail(request: Request, query_id: int) -> Response:
             "typical": [views.money(v, c) for c, v in typical.items()],
             "delivery": delivery,
             "items": [views.item_view(entry, now) for entry in finds],
+            # The tabs count everything, not the newest few the list shows.
+            "finds_total": await repo.finds_count(query_id),
+            "not_sent_total": sum(reasons.values()),
+            "reason": reason,
             "rejections": [
                 {
                     "photo": r.photo_url,
                     "title": r.title or f"Listing {r.item_id}",
                     "why": views.REJECTION_WORDS.get(r.reason, (r.reason, "x"))[0],
-                    "detail": r.detail,
+                    "detail": views.rejection_detail(r, query),
                     "icon": views.REJECTION_WORDS.get(r.reason, (r.reason, "circle-x"))[1],
                     "price": views.money(r.total_price, r.currency),
                     "age": views.ago(now - r.created_at),
@@ -318,8 +365,8 @@ async def search_detail(request: Request, query_id: int) -> Response:
                 for r in rejections
             ],
             "reasons": [
-                (views.REJECTION_WORDS.get(reason, (reason, ""))[0], count)
-                for reason, count in reasons.items()
+                (key, views.REJECTION_WORDS.get(key, (key, ""))[0], count)
+                for key, count in reasons.items()
             ],
             "quiet": views.quiet_summary(query),
             "timeline": _timeline(state, query, now, tz),
@@ -327,7 +374,7 @@ async def search_detail(request: Request, query_id: int) -> Response:
             "rss": f"/rss/{query_id}.xml"
             + (
                 f"?key={await security.feed_key(repo)}"
-                if context.settings.web_auth_token is not None
+                if await security.password_required(context.settings, repo)
                 else ""
             ),
             "vinted_url": query.url,
@@ -450,8 +497,8 @@ async def duplicate(request: Request, query_id: int) -> Response:
     if copy_id is None:
         raise HTTPException(status_code=404, detail="No such search.")
     return core.redirect(
-        core.url("search_edit", id=copy_id),
-        "Copied. The copy is paused until you save it the way you want.",
+        core.url("search_edit", id=copy_id) + "?copy=1",
+        "Copied. Change what you like; the copy starts running when you save it.",
     )
 
 

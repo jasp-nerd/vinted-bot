@@ -23,7 +23,7 @@
         {% if error %}<p class="help help--error" id="pw-err">{{ ui.icon("circle-alert") }}<span>{{ error }}</span></p>{% endif %}
       </div>
       <button class="btn btn--primary btn--lg btn--block" type="submit">Sign in</button>
-      <details class="faq"><summary>{{ ui.icon("circle-help", "i-sm") }}Forgot it?</summary><div class="prose"><p>It's the VINTED_BOT_WEB_AUTH_TOKEN line in the settings file on the computer running vinted-bot. Look it up there, or change it and restart.</p></div></details>
+      <details class="faq"><summary>{{ ui.icon("circle-help", "i-sm") }}Forgot it?</summary><div class="prose">{% if from_env and container %}<p>It's the VINTED_BOT_WEB_AUTH_TOKEN setting in the <span class="code">environment:</span> section of the container's docker-compose.yml, or in the app's settings in a NAS app store. Look it up there, or change it and run <span class="code">docker compose up -d</span> (a plain restart keeps the old one).</p>{% elif from_env %}<p>It's the VINTED_BOT_WEB_AUTH_TOKEN setting on the computer running vinted-bot (in its environment or its .env file). Look it up there, or change it and restart.</p>{% elif container %}<p>On the machine running the container, in the folder with its docker-compose.yml, run <span class="code">docker compose exec vinted-bot vinted-bot reset-password</span>. From a NAS app store, open the container's console there and run <span class="code">vinted-bot reset-password</span>. It prints a new password and signs every browser out.</p>{% else %}<p>On the computer running vinted-bot, open a terminal and run <span class="code">vinted-bot reset-password</span>. It prints a new password and signs every browser out.</p>{% endif %}</div></details>
     </form>
   </div>
 </main>

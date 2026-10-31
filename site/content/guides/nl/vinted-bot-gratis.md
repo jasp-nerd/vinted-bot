@@ -18,7 +18,7 @@ faq:
   - q: "Heeft een Vinted bot mijn inloggegevens nodig?"
     a: "Een bot die alleen meldingen stuurt niet. Zoekresultaten kan iedereen zonder inloggen bekijken. Alleen tools die voor je kopen, berichten sturen of items opnieuw plaatsen hebben je account nodig, en juist die brengen het in gevaar."
   - q: "Is er een Vinted bot app?"
-    a: "Er zijn betaalde apps, meestal een paar euro per maand. Gratis kan ook: laat vinted-bot op een computer draaien en ontvang de meldingen in de gratis app ntfy op je telefoon, zonder account."
+    a: "Er zijn betaalde apps, meestal een paar euro per maand. Gratis kan ook: laat vinted-bot op een computer draaien en ontvang de meldingen via Telegram of Discord op je telefoon."
   - q: "Kan een gratis Vinted bot automatisch kopen?"
     a: "Deze niet. Automatisch kopen kan alleen met je ingelogde account, en daar komen accountblokkades vandaan. vinted-bot zet in elke melding een Kopen-knop, zodat jij zelf koopt."
 ---
@@ -63,7 +63,7 @@ Er is geen server aan onze kant. De app draait op je laptop, pc, Raspberry Pi of
 
 Wat je krijgt:
 
-- Meldingen via Discord, Telegram, ntfy (een gratis telefoonapp zonder account), RSS of je eigen webhook. E-mail, Slack of Pushover werken via een optionele uitbreiding.
+- Meldingen via Discord, Telegram, ntfy (een gratis telefoonapp zonder account), RSS of je eigen webhook. E-mail, Slack en Pushover werken ook.
 - De totaalprijs in elke melding, kopersbescherming inbegrepen, en prijsgrenzen die met dat totaal rekenen. Het prijsfilter van Vinted negeert die toeslag.
 - Woorden die in de titel moeten staan en woorden om over te slaan, zodat "defect" of "alleen doos" je nooit bereikt.
 - Verkopersfilters: minimale beoordeling, minimaal aantal reviews, land van de verkoper en een knop om iemand te blokkeren.
@@ -76,7 +76,7 @@ Wat je krijgt:
 1. Installeer het. Open op Windows PowerShell en plak de opdracht van de homepage, op een Mac of Linux de Terminal met de andere opdracht. Geen beheerdersrechten, geen Docker. Daarna opent het dashboard in je browser op `http://localhost:8000`.
 2. Zoek op Vinted zoals je altijd doet (woorden, categorie, maat, merk, staat) en kopieer het adres uit de adresbalk, of deel de zoekopdracht vanuit de app en kopieer de link. Je kunt de zoekopdracht ook in het dashboard bouwen, met de categorieën en merken van Vinted.
 3. Plak de link in het dashboard. Je ziet direct hoeveel huidige items passen en hoeveel elk filter eruit haalt. Vul de maximumprijs in als het totaalbedrag dat je wilt betalen.
-4. Kies waar de meldingen heen gaan. Het snelst is een melding op je telefoon met de gratis app ntfy: installeren, de onderwerpnaam uit het dashboard toevoegen, klaar. Voor Discord heb je een webhooklink nodig uit de kanaalinstellingen (Kanaal bewerken, Integraties, Webhooks, Nieuwe webhook). Telegram werkt met een eigen bot die je bij BotFather aanmaakt. Druk daarna op "Send test" (test versturen).
+4. Kies waar de meldingen heen gaan. De app zet Telegram en Discord bovenaan. Telegram werkt met een eigen bot die je bij BotFather aanmaakt; de token plak je in het dashboard. Voor Discord heb je een webhooklink nodig uit de kanaalinstellingen (Kanaal bewerken, Integraties, Webhooks, Nieuwe webhook). Onder "More options" (meer opties) staan ook de telefoonapp ntfy, e-mail en webhooks. Druk daarna op "Send a test" (test versturen).
 5. Laat het draaien. De eerste controle is bewust stil, zodat je niet overspoeld wordt met items die er al stonden. Daarna komt elk nieuw item binnen als bericht met foto's, totaalprijs, maat, staat, beoordeling van de verkoper en knoppen om te kopen, de verkoper te berichten of het item te openen.
 
 {{install}}

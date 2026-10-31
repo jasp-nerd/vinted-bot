@@ -12,8 +12,12 @@ newer version is out.
 
 ## Then: how is each search doing?
 
-The dashboard shows the state of every search. <!-- TODO(web): name the exact page and
-badge wording once the dashboard redesign settles. --> On the command line,
+The dashboard's Searches tab shows the state of every search next to its name, with a
+sentence saying why when you open it: **Running** or **Quiet** (working; quiet just means
+nothing new matched for a while), **Starting**, **Paused** or **Muted** (your doing),
+**Same results lately** (the watchdog's "stale", below), **Slowed down by Vinted** (403 or
+429), **Can't reach Vinted** (a network problem on this side) and **Waiting on Vinted**
+(an answer the app didn't expect). On the command line,
 `vinted-bot status` prints the same: each search with a one-word state, when it last
 succeeded, and what went wrong if anything did. With Docker, put
 `docker compose exec vinted-bot` in front of any `vinted-bot` command.
@@ -36,8 +40,13 @@ The state tells you which of the following sections to read.
 ## Vinted reachable from this machine
 
 Most "it finds nothing" reports come down to one question: does Vinted answer the computer
-vinted-bot runs on? <!-- TODO(web): describe the dashboard's reachability indicator here
-(where it is, what "yes" and "no" look like). --> To test it by hand, try one search once:
+vinted-bot runs on? In the dashboard, a search showing **Slowed down by Vinted** or
+**Can't reach Vinted** is the "no"; **Running** or **Quiet** is the "yes". When every
+search on a site has failed for 15 minutes, destinations with status notices on also get a
+message saying so (whether Vinted is refusing this address, or this computer can't reach
+the internet at all), and another when it works again. A notice that can't be sent right
+away, because the network is down, waits and is sent once it is back (for up to a day).
+To test it by hand, try one search once:
 
 ```bash
 vinted-bot check --url "https://www.vinted.fr/catalog?search_text=nike"
@@ -67,8 +76,11 @@ vinted-bot changes that. See [the 403 section](#failing-with-403) for what does.
 
 ## "ok" but nothing is arriving
 
-The search is working; it just isn't matching anything. Common causes, in the order worth
-checking:
+The search is working; it just isn't matching anything. Start with the search's **Not
+sent** list in the dashboard: every listing it skipped is there with the reason, such as
+over the price limit (with both currencies when a search spans sites), a word it lacks, too
+old, a seller filter, or a seller still waiting to be looked up. Common causes, in the order
+worth checking:
 
 **Your price limit includes buyer protection.** A limit of 20 rejects a listing priced at 18
 that costs 20.50 to actually buy. That is the intended behaviour, but it surprises people.
@@ -79,6 +91,14 @@ either, there is nothing wrong.
 
 **Excluded words are catching more than you meant.** Excluding "new" also excludes "brand new
 condition" and anything else containing it.
+
+**Must-include words match word beginnings.** "jean" matches "jeans" and "Jeans". Put a
+word in double quotes ("jean") when only that exact word will do.
+
+**Seller filters on a busy search.** A country or rating filter needs one look at each new
+seller's profile, and those lookups are paced. On a search with a lot of new listings, the
+ones whose seller hasn't been looked up yet wait for later checks (up to the search's
+freshness window); Not sent says when that is what's happening.
 
 **Everything is a boosted listing.** Paid bumps are skipped, because they are old listings
 resurfacing rather than new ones.
@@ -145,9 +165,26 @@ deleted Discord webhook, a blocked Telegram bot, a wrong chat id. This is delibe
 repeatedly sending to a dead webhook is what gets your address rate-limited by Discord
 itself. Remove it and add the new one.
 
+An ntfy destination can also be **paused**: the public ntfy.sh server allows about 250
+messages a day per internet address and answers "too many requests" after that. vinted-bot
+then stops sending there until the limit resets, and the Alerts page says so. Narrow the
+search, or use Telegram or Discord for busy searches.
+
 Also worth knowing: undelivered notifications are discarded after an hour by default. If
 Discord was down all night, you get the current listings when it comes back rather than a
 flood of stale ones.
+
+## It won't start and names a setting
+
+A setting it can't use stops it at startup with a short message naming the setting and
+what is wrong with it, for example a port that isn't a number. Fix that line where you set
+it: the `.env` file in the data folder, or the `environment:` block of
+`docker-compose.yml` (then `docker compose up -d`).
+
+Two things only warn and carry on: a `VINTED_BOT_` name it doesn't know (a typo, or a
+setting from an older version), which it lists and ignores; and a time zone it can't read,
+such as the `TZ=:/etc/localtime` some systems set, for which it uses the computer's own
+time zone instead.
 
 ## It says "Not running"
 
@@ -157,17 +194,42 @@ running at all. The log says why; see [where the logs are](#where-the-logs-are).
 
 Also worth grepping the logs for `web.no_password`: that warning means the dashboard is
 listening on an address other than localhost with no sign-in, so anyone who can reach the
-port can change your searches and where alerts go. Either set `VINTED_BOT_WEB_AUTH_TOKEN`
-or check that the published port is not public.
+port can change your searches and where alerts go. Set a password in Settings (or
+`VINTED_BOT_WEB_AUTH_TOKEN`), or check that the published port is not public.
+
+## I forgot the dashboard password
+
+On the computer running vinted-bot, run `vinted-bot reset-password` (with Docker:
+`docker compose exec vinted-bot vinted-bot reset-password`). It prints a new password and
+signs every browser out; change it to your own in Settings. If the password is
+`VINTED_BOT_WEB_AUTH_TOKEN`, it is in the environment or `.env` file instead.
 
 ## The dashboard says "Unknown address"
 
 It only answers to names it was told about, so that another website cannot point its own
-name at your computer and use the dashboard through your browser. Localhost and any IP
-address always work. If you reach it by a name (a reverse proxy, a tunnel, `nas.local`),
-add that name to `VINTED_BOT_WEB_ALLOWED_HOSTS`, or set `VINTED_BOT_WEB_PUBLIC_URL` to
-the full address, and restart. Behind a reverse proxy that does not pass the original
+name at your computer and use the dashboard through your browser. Localhost, any IP
+address, one-word names (such as `nas`) and the names routers and VPNs hand out (`.local`,
+`.lan`, `.home`, `.home.arpa`, `.internal`, `fritz.box`, Tailscale's `.ts.net`) always
+work, since those only exist on your own network. If you
+reach it by any other name (a reverse proxy, a tunnel), add that name to
+`VINTED_BOT_WEB_ALLOWED_HOSTS`, or set `VINTED_BOT_WEB_PUBLIC_URL` to the full address,
+and restart it (with Docker, `docker compose up -d`: a plain restart keeps the old
+settings). Behind a reverse proxy that does not pass the original
 `Host` on, add the name it forwards instead (often the container's name).
+
+## The dashboard says "Not on this network"
+
+With phone access on (or `VINTED_BOT_WEB_HOST` set), the dashboard only opens for this
+computer and devices on a private network: your home or office Wi-Fi, a LAN, Tailscale.
+The page names the address it saw. If that is a public internet address, your phone is
+on mobile data or another network: join the same Wi-Fi, or use Tailscale. If you put the
+dashboard on the internet on purpose behind a reverse proxy, set
+`VINTED_BOT_WEB_PUBLIC_URL` to its public address (or `VINTED_BOT_WEB_ALLOW_PUBLIC=true`)
+and start it again.
+
+The Settings switch itself refuses to turn on when the network gives this computer only a
+public address (some universities and offices do): phone access there would put the
+sign-in page on the internet.
 
 ## Telegram never connects
 
@@ -235,8 +297,8 @@ astral.sh, where uv comes from. Try from home.
 
 **"It installed, but didn't start".** The log says why: see below.
 
-**Docker: "unable to open database file"** or "/data is not writable": the folder mounted at
-`/data` belongs to a user the container can't write as. Set `PUID` and `PGID` to the
+**Docker: "/data is not writable"** (the container stops straight after printing it): the
+folder mounted at `/data` belongs to a user the container can't write as. Set `PUID` and `PGID` to the
 folder's owner (`id` on the host prints yours) and start the container normally, without a
 `user:` line, so it can fix the ownership itself.
 
