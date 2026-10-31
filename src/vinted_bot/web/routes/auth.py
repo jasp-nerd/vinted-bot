@@ -7,6 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse, Response
 
+from vinted_bot.config import in_container
 from vinted_bot.web import core, security
 
 router = APIRouter()
@@ -40,6 +41,7 @@ def _form(request: Request, error: str | None, next: str, status_code: int = 200
             "error": error,
             "next": _safe_next(next),
             "from_env": security.password_from_env(context.settings),
+            "container": in_container(),
         },
         status_code=status_code,
     )

@@ -26,8 +26,16 @@ Two things are true everywhere:
 
 [unraid/vinted-bot.xml](unraid/vinted-bot.xml) is a Community Applications template.
 
-To use it before it is listed: Docker tab, Add Container, paste the raw URL of the XML into
-Template, and apply. To get it listed, Community Applications wants a repository with
+To use it before it is listed, save it where Unraid looks for your own templates. In the
+Unraid terminal:
+
+```bash
+curl -fsSL -o /boot/config/plugins/dockerMan/templates-user/my-vinted-bot.xml \
+  https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/deploy/unraid/vinted-bot.xml
+```
+
+then Docker, Add Container, and pick `vinted-bot` under Template (the same steps as
+[docs/self-hosting.md](../docs/self-hosting.md#on-a-nas)). To get it listed, Community Applications wants a repository with
 `ca_profile.xml` at its root and one XML per app, so:
 
 1. Create a repository such as `jasp-nerd/unraid-templates`, from

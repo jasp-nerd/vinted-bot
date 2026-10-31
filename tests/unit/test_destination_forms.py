@@ -11,7 +11,9 @@ from typing import Any
 import apprise
 import pytest
 
+from vinted_bot.db.repo import Destination
 from vinted_bot.engine.validation import InvalidInputError
+from vinted_bot.web import views
 from vinted_bot.web.destinations import email_url
 
 
@@ -135,3 +137,14 @@ def test_a_user_name_without_a_password_is_refused() -> None:
         email_url(_custom(email_user="relay"))
 
     assert raised.value.field == "email_password"
+
+
+def test_one_alert_sent_is_said_in_the_singular() -> None:
+    """ "1 alerts sent so far" on the Alerts page."""
+    destination = Destination(id=1, kind="ntfy", name="Phone", config={"topic": "t"})
+
+    _, _, sentence = views._destination_state(
+        destination, sent=1, failed=0, last_test=None, telegram_ready=True, tz=None
+    )
+
+    assert sentence == "1 alert sent so far."

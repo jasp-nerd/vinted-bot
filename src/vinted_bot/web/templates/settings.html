@@ -134,7 +134,7 @@
 
     <section class="ssec" id="data" aria-labelledby="h-data">
       <h2 class="t-h2" id="h-data">Your data</h2>
-      <p>Everything is stored in one file on this computer.</p>
+      <p>{% if access.container %}Everything is stored in one file, in the container's data volume (<span class="code">/data</span>).{% else %}Everything is stored in one file on this computer.{% endif %}</p>
       <div class="card">
         <div class="set"><div class="set__text"><span class="t-h3">Download your finds</span><span class="t-sm">{{ "{:,}".format(finds) }} {{ "find" if finds == 1 else "finds" }}, with prices, links and which search found them.</span></div><div class="btn-row"><a class="btn btn--secondary btn--sm" href="/export.csv" download>{{ ui.icon("download", "i-sm") }}Spreadsheet (CSV)</a><a class="btn btn--ghost btn--sm" href="/export.json" download>{{ ui.icon("download", "i-sm") }}JSON</a></div></div>
         <div class="set"><div class="set__text"><span class="t-h3">Finds are kept for {{ retention }} days</span><span class="t-sm">Saved and watched ones stay. To keep them longer, set VINTED_BOT_ITEM_RETENTION_DAYS=90 {% if access.container %}in the container's environment and recreate it{% else %}in the .env file in the folder vinted-bot starts from, and restart it{% endif %}.</span></div></div>

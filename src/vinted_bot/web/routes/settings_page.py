@@ -127,7 +127,9 @@ async def settings_page(request: Request) -> Response:
 
 _SOURCES = {
     "environment": "From the environment",
+    "TZ": "From TZ",
     "env file": "From the .env file",
+    "system": "This computer's time zone",
     "default": "Default",
 }
 

@@ -59,6 +59,26 @@ def test_unknown_vinted_keys_are_named_for_a_warning(
     assert Settings.unknown_keys() == ["VINTED_BOT_WEB_PROT", "VINTED_SNIPER_WEB_PORT"]
 
 
+def test_the_installers_own_variables_are_not_called_unknown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """install.sh's VINTED_BOT_AUTOSTART and friends warned at every start."""
+    monkeypatch.chdir(tmp_path)
+    for name in ("VINTED_BOT_AUTOSTART", "VINTED_BOT_KEEP_AWAKE", "VINTED_BOT_NO_BROWSER"):
+        monkeypatch.setenv(name, "1")
+
+    assert Settings.unknown_keys() == []
+
+
+def test_a_value_from_the_env_file_is_said_to_come_from_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text("VINTED_BOT_WEB_PORT=8001\n", encoding="utf-8")
+
+    assert Settings().source("web_port") == "env file"
+
+
 def test_an_existing_data_folder_keeps_being_used(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

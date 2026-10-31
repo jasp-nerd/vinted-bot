@@ -640,7 +640,7 @@ def _destination_state(
         reason = str(last_test.get("message") or "").strip()
         return "failing", "Last test failed", f"The test{tested_at} didn't arrive. {reason}".strip()
     if sent:
-        return "ok", "Working", f"{sent:,} alerts sent so far."
+        return "ok", "Working", f"{sent:,} {'alert' if sent == 1 else 'alerts'} sent so far."
     if last_test and last_test.get("ok"):
         return "ok", "Test arrived", f"Test sent{tested_at}. Real alerts will show here."
     return "untested", "Not tested yet", "Nothing sent yet. Send a test to check it works."

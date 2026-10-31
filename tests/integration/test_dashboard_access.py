@@ -268,6 +268,37 @@ def test_the_sign_in_page_says_where_a_forgotten_password_is(
     assert "vinted-bot reset-password" in make_client().get("/login").text
 
 
+def test_in_docker_the_sign_in_page_gives_the_docker_command(
+    make_client: Callable[..., TestClient], client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("vinted_bot.web.routes.auth.in_container", lambda: True)
+    _set(client, PASSWORD)
+
+    page = make_client().get("/login").text
+
+    assert "docker compose exec vinted-bot vinted-bot reset-password" in page
+
+
+def test_in_docker_an_environment_password_is_changed_in_the_compose_file(
+    make_client: Callable[..., TestClient], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("vinted_bot.web.routes.auth.in_container", lambda: True)
+
+    page = make_client(web_auth_token=SecretStr("from-the-env-1")).get("/login").text
+
+    assert ("docker compose up -d" in page, ".env file" in page) == (True, False)
+
+
+def test_in_docker_your_data_is_said_to_be_in_the_volume(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(security, "in_container", lambda: True)
+
+    page = client.get("/settings").text
+
+    assert ("data volume" in page, "one file on this computer" in page) == (True, False)
+
+
 # --- Phone access -----------------------------------------------------------------------
 
 
@@ -593,6 +624,23 @@ def test_advanced_lists_every_setting_without_a_control_of_its_own(client: TestC
         if name not in DASHBOARD_MANAGED and f"VINTED_BOT_{name.upper()}" not in page
     ]
     assert missing == []
+
+
+def test_advanced_says_a_time_zone_read_from_the_computer_came_from_there(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """It said "From the .env file" on a computer with no .env file."""
+    monkeypatch.delenv("TZ", raising=False)
+    monkeypatch.delenv("VINTED_BOT_TIMEZONE", raising=False)
+
+    assert Settings(_env_file=None).source("timezone") == "system"  # type: ignore[call-arg]
+
+
+def test_advanced_says_a_time_zone_came_from_tz(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TZ", "Europe/Paris")
+    monkeypatch.delenv("VINTED_BOT_TIMEZONE", raising=False)
+
+    assert Settings(_env_file=None).source("timezone") == "TZ"  # type: ignore[call-arg]
 
 
 def test_advanced_says_a_value_came_from_the_environment(

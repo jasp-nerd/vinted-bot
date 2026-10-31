@@ -83,6 +83,20 @@ def default_db_path() -> Path:
 
 ENV_FILE = ".env"
 
+# Read by install.sh and install.ps1 (and the launchers they write), never by the app: not
+# a typo or a key from an older version, so not worth a warning at every start.
+INSTALLER_KEYS = frozenset(
+    {
+        "VINTED_BOT_ALLOW_ROOT",
+        "VINTED_BOT_AUTOSTART",
+        "VINTED_BOT_KEEP_AWAKE",
+        "VINTED_BOT_NO_BROWSER",
+        "VINTED_BOT_PACKAGE",
+        "VINTED_BOT_DATA_DIR",
+        "VINTED_BOT_UNINSTALL",
+    }
+)
+
 
 class Settings(BaseSettings):
     """Static configuration. Every field is documented in docs/configuration.md."""
@@ -260,18 +274,22 @@ class Settings(BaseSettings):
         "already name a public host.",
     )
 
-    def source(self, name: str) -> Literal["environment", "env file", "default"]:
+    def source(self, name: str) -> Literal["environment", "TZ", "env file", "system", "default"]:
         """Where a setting's value came from, for the dashboard's Advanced list.
 
         Set values come from the environment or from the .env file; the environment wins
-        when both say, so a name in os.environ is enough to tell them apart.
+        when both say, so a name in os.environ is enough to tell them apart. The time
+        zone may also come from TZ, or, unset, from the computer itself.
         """
         if name not in self.model_fields_set:
-            return "default"
-        names = {f"VINTED_BOT_{name.upper()}"} | ({"TZ"} if name == "timezone" else set())
+            return "system" if name == "timezone" else "default"
         # Names are matched without regard to case, as pydantic-settings reads them.
-        in_environment = names & {key.upper() for key in os.environ}
-        return "environment" if in_environment else "env file"
+        environment = {variable.upper() for variable in os.environ}
+        if f"VINTED_BOT_{name.upper()}" in environment:
+            return "environment"
+        if name == "timezone" and "TZ" in environment:
+            return "TZ"
+        return "env file"
 
     @property
     def dashboard_url(self) -> str | None:
@@ -309,6 +327,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _check_coherent(self) -> Settings:
+        given = "timezone" in self.model_fields_set
         try:
             self.timezone = parse_timezone(self.timezone)
         except InvalidInputError:
@@ -321,6 +340,10 @@ class Settings(BaseSettings):
                 "to choose another."
             )
             self.timezone = fallback
+        if not given:
+            # Assigning above counts as setting it; the computer's own zone was not set by
+            # anyone, and the Advanced list said "From the .env file" for it.
+            self.model_fields_set.discard("timezone")
         if self.fetch_mode == "mock" and self.mock_scenario_dir is None:
             raise ValueError(
                 "VINTED_BOT_FETCH_MODE is 'mock' but VINTED_BOT_MOCK_SCENARIO_DIR is not set."
@@ -334,17 +357,22 @@ class Settings(BaseSettings):
         Usually a typo or a key from an older version, and silently ignoring it would leave
         someone wondering why their change did nothing.
         """
-        known = {f"VINTED_BOT_{name.upper()}" for name in cls.model_fields}
-        names = set(os.environ)
-        with contextlib.suppress(OSError):
-            # No .env at all is the normal case, not a problem.
-            for line in Path(ENV_FILE).read_text(encoding="utf-8").splitlines():
-                key = line.strip().removeprefix("export ").split("=", 1)[0].strip()
-                if "=" in line and not key.startswith("#"):
-                    names.add(key)
+        known = {f"VINTED_BOT_{name.upper()}" for name in cls.model_fields} | INSTALLER_KEYS
+        names = set(os.environ) | _env_file_keys()
         return sorted(
             n for n in names if n.upper().startswith("VINTED_") and n.upper() not in known
         )
+
+
+def _env_file_keys() -> set[str]:
+    """The names the .env file sets, or none when there is no such file (the usual case)."""
+    names = set()
+    with contextlib.suppress(OSError):
+        for line in Path(ENV_FILE).read_text(encoding="utf-8").splitlines():
+            key = line.strip().removeprefix("export ").split("=", 1)[0].strip()
+            if "=" in line and not key.startswith("#"):
+                names.add(key)
+    return names
 
 
 def explain(error: ValidationError) -> str:
