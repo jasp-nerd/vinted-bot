@@ -126,9 +126,17 @@ jobs:
           name: dist
           path: dist/
 
-      # Also uploads signed attestations of where each file was built. skip-existing lets a
-      # run that failed after uploading be started again without failing here.
-      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+      # Also uploads signed attestations of where each file was built. Signing goes through
+      # Sigstore's public log, which has outages, so a failed upload is tried once more;
+      # skip-existing lets that second try (or a re-run) skip files already on PyPI.
+      - id: upload
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        continue-on-error: true
+        with:
+          skip-existing: true
+
+      - if: steps.upload.outcome == 'failure'
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
           skip-existing: true
 

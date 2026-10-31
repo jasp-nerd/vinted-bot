@@ -82,8 +82,20 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Lets anyone check where the image came from: `gh attestation verify`.
-      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+      # Lets anyone check where the image came from: `gh attestation verify`. The image is
+      # already published by this point, and signing depends on Sigstore's public log, which
+      # has outages; one retry, then a warning rather than a failed release.
+      - id: attest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        continue-on-error: true
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - if: steps.attest.outcome == 'failure'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        continue-on-error: true
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.build.outputs.digest }}
