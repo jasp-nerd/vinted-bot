@@ -111,7 +111,8 @@
   {% else %}<span class="row t-sm">{{ ui.icon("pause", "i-sm") }}Every search is paused, so nothing new comes in. <a href="{{ url('searches') }}">Resume one</a></span>{% endif %}
 </div>
 {% if not items %}
-{% if show == "hidden" %}<div class="card card--pad stack"><h2 class="t-h2">Nothing hidden</h2><p>Listings you hide go here, so you can put them back. <a href="{{ url('home') }}">Show all finds</a></p></div>
+{% if not filtered and has_hidden %}<div class="card card--pad stack"><h2 class="t-h2">Every find is hidden</h2><p>Hidden, above, shows them, so you can put one back. New finds still show up here.</p></div>
+{% elif show == "hidden" %}<div class="card card--pad stack"><h2 class="t-h2">Nothing hidden</h2><p>Listings you hide go here, so you can put them back. <a href="{{ url('home') }}">Show all finds</a></p></div>
 {% else %}<div class="card card--pad stack"><h2 class="t-h2">Nothing matches</h2><p>No finds fit these filters. <a href="{{ url('home') }}">Show all finds</a></p></div>{% endif %}
 {% endif %}
 <div class="newpill" hidden data-newpill><button class="btn btn--primary btn--sm" type="button">{{ ui.icon("arrow-up", "i-sm") }}<span data-newpill-text>1 new find</span></button></div>

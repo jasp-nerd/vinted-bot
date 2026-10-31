@@ -588,7 +588,16 @@
   // On the Hidden view, "Hide" puts a listing back instead.
   const hiddenView = !!(feed && feed.hasAttribute("data-hidden-view"));
   if (hiddenView) $$("[data-act=hide]").forEach((b) => { b.lastChild.textContent = "Put back in my finds"; });
-  async function mark(card, value) {
+  /* The "N finds match" line, kept true as cards are hidden or put back. */
+function recount(by) {
+  const count = $("[data-count]"); if (!count) return;
+  const n = Math.max(0, (parseInt(count.textContent.replace(/\D/g, ""), 10) || 0) + by);
+  count.textContent = String(n);
+  const words = count.nextSibling;
+  if (words && words.nodeType === 3 && /match/.test(words.textContent)) words.textContent = n === 1 ? " find matches" : " finds match";
+}
+
+async function mark(card, value) {
     const r = await post(`/api/items/${itemId(card)}/mark`, { mark: value });
     if (!r.ok) toast(r.error || "That didn't save. Try again.", { bad: true });
     return r.ok;
@@ -641,8 +650,9 @@
       const unhide = hiddenView;
       if (!(await mark(card, unhide ? "none" : "hidden"))) return;
       card.hidden = true;
+      recount(-1);
       const qv = $("#quickview"); if (qv && qv.open) qv.close();
-      toast(unhide ? "Back in your finds" : "Hidden from your finds. Hidden, above, shows it again.", { action: "Undo", onAction: async () => { if (await mark(card, unhide ? "hidden" : "none")) card.hidden = false; } });
+      toast(unhide ? "Back in your finds" : "Hidden from your finds. Hidden, above, shows it again.", { action: "Undo", onAction: async () => { if (await mark(card, unhide ? "hidden" : "none")) { card.hidden = false; recount(1); } } });
     } else if (name === "block") {
       blockFor = card;
       const qv = $("#quickview"); if (qv && qv.open) qv.close();

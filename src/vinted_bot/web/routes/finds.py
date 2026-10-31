@@ -136,6 +136,9 @@ async def home(request: Request) -> Response:
     no_destinations = not [d for d in await repo.list_destinations() if data.can_send(d)]
     # Asked only when everything works; a problem on the page comes first.
     trouble = bool(waiting) or no_destinations
+    # The Hidden chip only appears once something is hidden: it's how to undo it. With
+    # every find hidden the page is not "no finds yet": the chip has to stay.
+    has_hidden = bool(await repo.items_feed(mark="hidden", limit=1))
     return await core.render(
         request,
         "index.html",
@@ -148,7 +151,7 @@ async def home(request: Request) -> Response:
             "paused": len([row for row in rows if row["paused"]]),
             "found_today": totals.found_today,
             "found_total": totals.listings_found,
-            "empty": not cards and not filtered,
+            "empty": not cards and not filtered and not has_hidden,
             "filtered": filtered,
             "show": params.get("show", "all"),
             "search_filter": params.get("search", ""),
@@ -161,8 +164,7 @@ async def home(request: Request) -> Response:
             "last_check_s": int(time.time()) - last_check if last_check else None,
             "latest_seq": await repo.latest_seq(),
             "no_destinations": no_destinations,
-            # The Hidden chip only appears once something is hidden: it's how to undo it.
-            "has_hidden": bool(await repo.items_feed(mark="hidden", limit=1)),
+            "has_hidden": has_hidden,
             "support_look": None if trouble else await support.card_on_visit(repo),
         },
         snapshot=snapshot,

@@ -466,6 +466,16 @@ async def test_hidden_finds_can_be_found_again(client: TestClient, repo: Repo) -
     assert ("Hidden jacket" in page, "Nike Air Max" in page) == (True, False)
 
 
+async def test_hiding_the_only_find_keeps_the_hidden_chip(client: TestClient, repo: Repo) -> None:
+    """The page said "No finds yet, the first check skips everything" and lost the chip."""
+    await _found(repo, await _search(repo), _item(1))
+    await repo.set_mark(1, "hidden")
+
+    page = client.get("/").text
+
+    assert ('value="hidden"' in page, "No finds yet" in page) == (True, False)
+
+
 async def test_the_hidden_chip_appears_once_something_is_hidden(
     client: TestClient, repo: Repo
 ) -> None:
