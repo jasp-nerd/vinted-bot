@@ -64,6 +64,23 @@ def test_included_terms_ignore_accents_and_case() -> None:
     assert reason(item(title="Veste CAFÉ racer"), search(include_terms=["cafe"])) is None
 
 
+@pytest.mark.parametrize(
+    ("title", "term"), [("Levi\u2019s 501", "levi's"), ("Levi's 501", "levi\u2019s")]
+)
+def test_curly_and_straight_apostrophes_match_each_other(title: str, term: str) -> None:
+    assert reason(item(title=title), search(include_terms=[term])) is None
+
+
+def test_an_exclude_word_with_a_straight_apostrophe_catches_a_curly_one() -> None:
+    query = search(banned_keywords=["kid's"])
+
+    assert reason(item(title="Kid\u2019s jacket"), query) == "banned_keyword"
+
+
+def test_a_long_dash_matches_a_typed_one() -> None:
+    assert reason(item(title="T-shirt \u2013 XL"), search(include_terms=["t-shirt - xl"])) is None
+
+
 def test_an_included_word_matches_longer_words_starting_with_it() -> None:
     assert reason(item(title="Levi's Jeans 501"), search(include_terms=["jean"])) is None
 
