@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 
+import structlog
+
 from tests.conftest import ScriptedTransport
 from vinted_bot.db import Database
 from vinted_bot.vinted.session import SessionManager
@@ -47,6 +49,18 @@ async def test_a_session_refused_right_after_it_was_made_is_still_replaced(
     await sessions.get("fr")
 
     assert homepage_loads(transport) == 2
+
+
+async def test_an_expired_session_is_logged_once_when_it_is_replaced(
+    db: Database, transport: ScriptedTransport
+) -> None:
+    sessions = SessionManager(db, transport, rotate_after_minutes=0)
+    await sessions.get("fr")
+
+    with structlog.testing.capture_logs() as events:
+        await sessions.get("fr")
+
+    assert [event["event"] for event in events].count("session.expired") == 1
 
 
 async def test_the_market_comes_from_the_cookie_the_site_set(

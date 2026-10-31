@@ -42,6 +42,15 @@ class Response:
 class TransportError(Exception):
     """The request never produced a response: DNS, TLS, timeout, connection reset."""
 
+    @classmethod
+    def from_exception(cls, exc: Exception) -> TransportError:
+        """Wrap the client's own error, never with an empty message.
+
+        httpx's timeouts carry none, which left "error": "" in the log and "Last error:
+        unknown" in the notice telling someone every search had stopped.
+        """
+        return cls(str(exc) or f"{type(exc).__name__} (no details given)")
+
 
 @runtime_checkable
 class Transport(Protocol):
@@ -160,7 +169,7 @@ class HttpxTransport:
         try:
             response = await self._client.get(url, headers=headers, params=params)
         except httpx.HTTPError as exc:
-            raise TransportError(str(exc)) from exc
+            raise TransportError.from_exception(exc) from exc
 
         set_cookies = dict(response.cookies)
         return (
@@ -229,7 +238,7 @@ class CurlCffiTransport:
                 url, headers=headers, params=params, allow_redirects=False
             )
         except Exception as exc:  # curl_cffi raises its own error hierarchy
-            raise TransportError(str(exc)) from exc
+            raise TransportError.from_exception(exc) from exc
         set_cookies = dict(response.cookies)
         return (
             Response(

@@ -68,6 +68,14 @@ async def test_cookies_set_on_a_redirect_hop_are_sent_onward_and_kept() -> None:
     assert response.cookies == {"access_token_web": "T", "anon_id": "A"}
 
 
+async def test_a_timeout_without_a_message_still_says_what_happened() -> None:
+    def time_out(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("", request=request)
+
+    with pytest.raises(TransportError, match="ReadTimeout"):
+        await httpx_transport(time_out).get("https://www.vinted.fr/", headers={})
+
+
 async def test_redirects_are_left_alone_when_asked() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(307, headers={"location": "/items/1-slug"})
