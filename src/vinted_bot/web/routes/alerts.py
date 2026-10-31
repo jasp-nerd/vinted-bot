@@ -29,6 +29,10 @@ router = APIRouter()
 _TELEGRAM_API = "https://api.telegram.org"
 
 
+class TokenRejectedError(InvalidInputError):
+    """Telegram itself says the token is not valid (as opposed to not answering)."""
+
+
 async def telegram_bot_name(http: httpx.AsyncClient, token: str) -> str:
     """Ask Telegram which bot a token belongs to. Raises InvalidInputError saying why not.
 
@@ -46,7 +50,7 @@ async def telegram_bot_name(http: httpx.AsyncClient, token: str) -> str:
         ) from exc
     # 401 for a token that was never valid or was revoked, 404 for one that is mangled.
     if response.status_code in {401, 404}:
-        raise InvalidInputError(
+        raise TokenRejectedError(
             "telegram_token",
             "Telegram says that token isn't valid. Copy it again from BotFather: it's the "
             'line under "Use this token to access the HTTP API". If you made a new token '
@@ -78,9 +82,19 @@ async def bot_username(context: core.WebContext) -> str | None:
     if token not in context.bot_names:
         try:
             context.bot_names[token] = await telegram_bot_name(context.http, token)
+        except TokenRejectedError:
+            context.bot_names[token] = None
+            context.rejected_tokens.add(token)
         except InvalidInputError:
             context.bot_names[token] = None
     return context.bot_names[token]
+
+
+async def token_rejected(context: core.WebContext) -> bool:
+    """Whether Telegram refused the bot's token, so the bot is not running."""
+    token = await managed.telegram_token(context.settings, context.repo)
+    await bot_username(context)
+    return token is not None and token in context.rejected_tokens
 
 
 async def telegram_ready(context: core.WebContext) -> bool:
@@ -95,6 +109,7 @@ async def telegram_setup(context: core.WebContext) -> dict[str, Any]:
         "from_env": managed.telegram_token_from_env(context.settings),
         "masked": managed.mask_token(token) if token else None,
         "bot": await bot_username(context),
+        "rejected": rejected_token_message(context) if await token_rejected(context) else None,
     }
 
 
@@ -292,6 +307,8 @@ async def start_pairing(request: Request) -> JSONResponse:
             {"error": "Telegram needs a bot first. Paste the token BotFather gave you."},
             status_code=400,
         )
+    if await token_rejected(context):
+        return JSONResponse({"error": rejected_token_message(context)}, status_code=400)
     destination_id, code = await create_pairing(context.repo, "Telegram")
     bot = await bot_username(context)
     return JSONResponse(
@@ -302,6 +319,21 @@ async def start_pairing(request: Request) -> JSONResponse:
             "bot": bot,
             "link": f"https://t.me/{bot}?start={code}" if bot else None,
         }
+    )
+
+
+def rejected_token_message(context: core.WebContext) -> str:
+    """Why no chat can be connected while Telegram refuses the token, and the fix."""
+    if managed.telegram_token_from_env(context.settings):
+        return (
+            "Telegram says the bot token in VINTED_BOT_TELEGRAM_BOT_TOKEN isn't valid, so "
+            "the bot isn't running and can't connect a chat. Make a new token with "
+            "BotFather and put it in that setting. With Docker that's the environment: "
+            "section of docker-compose.yml, then docker compose up -d."
+        )
+    return (
+        "Telegram says this bot's token isn't valid, so the bot isn't running and can't "
+        "connect a chat. Make a new token with BotFather and paste it on the Alerts page."
     )
 
 

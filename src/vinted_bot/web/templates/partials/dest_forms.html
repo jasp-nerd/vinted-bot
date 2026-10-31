@@ -47,12 +47,13 @@
     </div>
     {% endif %}
     <div class="stack-lg" data-pair{% if not telegram.configured %} hidden{% endif %}>
+      {% if telegram.rejected %}<div class="notice notice--danger">{{ ui.icon("circle-alert") }}<div><p><strong>{{ telegram.rejected }}</strong></p></div></div>{% endif %}
       <p class="t-sm" data-tg-bot-line>Your bot: <b>{% if telegram.bot %}@<span data-tg-bot>{{ telegram.bot }}</span>{% else %}<span data-tg-bot>{{ telegram.masked or "" }}</span>{% endif %}</b>{% if telegram.from_env %} (from VINTED_BOT_TELEGRAM_BOT_TOKEN){% endif %}</p>
       <ol class="steps-list">
         <li><span>Tap <b>Connect my chat</b>. We make a one-time code.</span></li>
         <li><span>The button opens your bot in Telegram with the code ready: press <b>Start</b>. In a group, send the code shown instead.</span></li>
       </ol>
-      <div data-pair-step="start"><button class="btn btn--secondary" type="button" data-pair-start>{{ ui.icon("link") }}Connect my chat</button></div>
+      <div data-pair-step="start"><button class="btn btn--secondary" type="button" data-pair-start{% if telegram.rejected %} disabled{% endif %}>{{ ui.icon("link") }}Connect my chat</button></div>
       <div class="pair-code" data-pair-step="wait" hidden>
         <span class="t-sm">Send this to your bot:</span>
         <b class="code" data-pair-command></b>

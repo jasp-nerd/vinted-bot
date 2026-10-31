@@ -271,3 +271,57 @@ def test_continuing_without_a_choice_asks_for_one(client: TestClient) -> None:
     page = client.post("/welcome/alerts", data={"state": json.dumps(state), "submitted": "1"})
 
     assert "Pick where alerts should go." in page.text
+
+
+# --- A token Telegram refuses ------------------------------------------------------------
+
+REFUSED = "987654321:" + "R" * 35
+
+
+@pytest.fixture
+def refused_from_env(make_client: Callable[..., TestClient]) -> TestClient:
+    """A compose file with a token Telegram does not know: the bot never started."""
+    return make_client(telegram_bot_token=SecretStr(REFUSED))
+
+
+def test_pairing_with_a_refused_token_says_why_instead_of_waiting_forever(
+    refused_from_env: TestClient,
+) -> None:
+    answer = refused_from_env.post("/destinations/telegram/pair")
+
+    assert (answer.status_code, "VINTED_BOT_TELEGRAM_BOT_TOKEN" in answer.json()["error"]) == (
+        400,
+        True,
+    )
+
+
+async def test_pairing_with_a_refused_token_makes_no_destination(
+    refused_from_env: TestClient, repo: Repo
+) -> None:
+    refused_from_env.post("/destinations/telegram/pair")
+
+    assert await repo.list_destinations() == []
+
+
+def test_the_bot_card_says_a_refused_token_from_the_environment_is_fixed_there(
+    refused_from_env: TestClient,
+) -> None:
+    page = refused_from_env.get("/alerts").text
+
+    assert ("connect a chat. Make a new token" in page, "paste it here" in page) == (True, False)
+
+
+def test_setup_says_a_refused_token_cannot_connect_a_chat(refused_from_env: TestClient) -> None:
+    state = {"tld": "fr", "search": {"link": "https://www.vinted.fr/catalog?search_text=nike"}}
+    page = refused_from_env.post("/welcome/alerts", data={"state": json.dumps(state)}).text
+
+    assert "connect a chat. Make a new token" in page
+
+
+def test_pairing_still_works_when_telegram_just_cannot_be_reached(
+    make_client: Callable[..., TestClient], telegram: Telegram
+) -> None:
+    telegram.down = True
+    client = make_client(telegram_bot_token=SecretStr(GOOD))
+
+    assert client.post("/destinations/telegram/pair").status_code == 200

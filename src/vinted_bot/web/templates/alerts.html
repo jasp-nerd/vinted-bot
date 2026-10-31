@@ -99,10 +99,10 @@
     <div class="dest__head">
       <span class="dest__logo dest__logo--telegram">{{ ui.icon("send") }}</span>
       <div class="dest__name"><b id="dest-tg-bot">Telegram bot</b><small>{% if telegram.configured %}{% if telegram.bot %}@{{ telegram.bot }}{% else %}Bot{% endif %} · {{ telegram.masked }}{% else %}No bot yet{% endif %}</small></div>
-      {% if telegram.configured and telegram.bot %}<span class="badge badge--ok">{{ ui.icon("check") }}Ready</span>{% elif telegram.configured %}<span class="badge badge--warn">{{ ui.icon("triangle-alert") }}Not recognised</span>{% else %}<span class="badge badge--warn">{{ ui.icon("triangle-alert") }}Needs a token</span>{% endif %}
+      {% if telegram.configured and telegram.bot %}<span class="badge badge--ok">{{ ui.icon("check") }}Ready</span>{% elif telegram.rejected %}<span class="badge badge--bad">{{ ui.icon("circle-alert") }}Not running</span>{% elif telegram.configured %}<span class="badge badge--warn">{{ ui.icon("triangle-alert") }}Not recognised</span>{% else %}<span class="badge badge--warn">{{ ui.icon("triangle-alert") }}Needs a token</span>{% endif %}
     </div>
     <div class="dest__body">
-      {% if telegram.configured and not telegram.bot %}<p class="t-sm">Telegram didn't recognise this token just now, or couldn't be reached. If alerts don't arrive, make a new token with BotFather and paste it here.</p>{% endif %}
+      {% if telegram.rejected %}<div class="notice notice--danger">{{ ui.icon("circle-alert") }}<div><p><strong>{{ telegram.rejected }}</strong></p></div></div>{% elif telegram.configured and not telegram.bot %}<p class="t-sm">Telegram couldn't be reached just now to check this bot. If alerts don't arrive, {% if telegram.from_env %}make a new token with BotFather and put it in VINTED_BOT_TELEGRAM_BOT_TOKEN.{% else %}make a new token with BotFather and paste it below.{% endif %}</p>{% endif %}
       {% if telegram.from_env %}
       <p class="t-sm">Its token comes from <span class="code">VINTED_BOT_TELEGRAM_BOT_TOKEN</span> in this copy's environment, so it's changed there, not here. With Docker that's the <span class="code">environment:</span> section of docker-compose.yml (then <span class="code">docker compose up -d</span>), or the app's settings in a NAS app store.</p>
       {% else %}

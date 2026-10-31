@@ -61,6 +61,8 @@ class WebContext:
     http: httpx.AsyncClient | None = None
     # Each token's bot @name, as Telegram told us, or None when it couldn't say.
     bot_names: dict[str, str | None] = field(default_factory=dict)
+    # Tokens Telegram said are not valid: the bot cannot run on them, so nothing pairs.
+    rejected_tokens: set[str] = field(default_factory=set)
     # Set when the bot's token changes, for the running app to restart the bot on it.
     telegram_token_changed: asyncio.Event = field(default_factory=asyncio.Event)
     login_throttle: LoginThrottle = field(default_factory=LoginThrottle)
