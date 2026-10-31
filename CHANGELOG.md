@@ -116,6 +116,41 @@ dashboard, and takes effect without a restart.
 - The command line refuses destinations the dashboard would refuse, keeps an ntfy topic
   address as an address, and `check` uses the proxy file.
 - A test webhook says `"search_id": null` instead of `0`.
+- Status notices ("every search on vinted.fr is failing", "back to normal", "updated
+  itself") wait and are tried again until they arrive, for up to a day, instead of being
+  lost when the network is down. They say when this computer can't reach the internet
+  rather than blaming Vinted, give long outages in hours, and no longer count time the
+  computer was asleep.
+- After the computer wakes from sleep or joins another network, searches check again
+  within seconds instead of sitting out a backoff of up to 15 minutes. The banner says how
+  long Vinted has been refusing once that outlasts an hour.
+- Listings waiting for a seller lookup are kept across restarts and edits that leave the
+  search itself alone, and each gets a final verdict in "Not sent", including "too many
+  listings waiting: narrow the search or loosen its seller filters".
+- Running setup again with a link you already watch keeps that search exactly as it is.
+- Include and exclude words match curly and straight apostrophes, quotes and dashes alike.
+- A listing found on two country sites is judged once, at its own site's price.
+- Exchange rates are fetched as soon as a search spanning currencies starts.
+- Telegram pairing says so when Telegram refuses the bot's token, instead of waiting forever.
+- Email alerts keep their links in the plain-text part. The test alert is the steal the
+  preview shows (so it pings your mention) and opens a real search on Vinted.
+- Router and VPN names (`.lan`, `.home`, `.home.arpa`, `.internal`, `fritz.box`,
+  Tailscale's `.ts.net`) open the dashboard; the "Unknown address" page is styled.
+- Smaller things: Docker-aware password recovery, accurate "where this setting came from"
+  labels, no warnings about the installers' own variables, tab counts that count
+  everything, reason chips in "Not sent" that filter, setup saying when Vinted didn't
+  answer the preview, and command-line errors as sentences instead of tracebacks.
+
+### Security
+
+- With phone access on (or `VINTED_BOT_WEB_HOST` set), the dashboard only serves this
+  computer and private networks: home and office ranges, Tailscale and their IPv6
+  counterparts. On a network that gives the computer a public address, the sign-in page was
+  reachable from the internet; now such visitors get a plain 403, the switch refuses to turn
+  on there, and only private addresses are offered to the phone. A reverse proxy serving the
+  internet is said with a public `VINTED_BOT_WEB_PUBLIC_URL`, or the new
+  `VINTED_BOT_WEB_ALLOW_PUBLIC=true`.
+- Dashboard passwords need at least 10 characters.
 
 ## [2.1.0] - 2026-10-30
 
