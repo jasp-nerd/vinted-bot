@@ -76,8 +76,9 @@ def discord_url(raw: str) -> str:
     if _DISCORD_CHANNEL.search(text):
         raise InvalidInputError(
             "discord_url",
-            "That's a link to the channel itself, not its webhook link. Follow the steps "
-            "above and use Copy Webhook URL. It starts with discord.com/api/webhooks/.",
+            "That's a link to the channel itself, not its webhook link. In Discord, open "
+            "the channel's settings, then Integrations, Webhooks, and Copy Webhook URL. It "
+            "starts with discord.com/api/webhooks/.",
         )
     match = _DISCORD_WEBHOOK.match(text)
     if match is None:

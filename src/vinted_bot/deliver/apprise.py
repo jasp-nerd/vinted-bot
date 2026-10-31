@@ -13,7 +13,10 @@ everybody already has, and "install an extra first" is where a dashboard setup s
 
 from __future__ import annotations
 
+import contextlib
+import logging
 import re
+from collections.abc import Iterator
 from typing import Any
 
 import apprise
@@ -79,6 +82,24 @@ def message(listing: ListingView, *, links_written_out: bool = False) -> tuple[s
     return title[:250], "\n\n".join(line for line in lines if line)
 
 
+@contextlib.contextmanager
+def _apprise_silenced() -> Iterator[None]:
+    """Apprise's own log off for a moment.
+
+    Refusing an address, it logs "Unsupported URL" with the address in it, ahead of our
+    explanation (on the command line, straight to the screen). The address usually holds
+    a password or token, and SenderConfigError says what to do. Adding addresses is
+    synchronous, so nothing else of Apprise's runs meanwhile.
+    """
+    logger = logging.getLogger("apprise")
+    was_disabled = logger.disabled
+    logger.disabled = True
+    try:
+        yield
+    finally:
+        logger.disabled = was_disabled
+
+
 def quiet_url(url: str) -> str:
     """An Apprise address made to deliver without a sound, where its service can."""
     scheme = url.split("://", 1)[0].lower()
@@ -112,10 +133,11 @@ class AppriseSender:
         for position, url in enumerate(urls, start=1):
             group = _EMAIL if url.split("://", 1)[0].lower() in _EMAIL_SCHEMES else _OTHERS
             self._groups.add(group)
-            # The URL itself stays out of the message: it usually holds a password or token.
-            if not self._apprise.add(url, tag=group) or not self._quiet.add(
-                quiet_url(url), tag=group
-            ):
+            with _apprise_silenced():
+                added = self._apprise.add(url, tag=group) and self._quiet.add(
+                    quiet_url(url), tag=group
+                )
+            if not added:
                 raise SenderConfigError(f"Apprise does not recognise URL number {position}")
         self._dashboard_url = dashboard_url
 

@@ -15,6 +15,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
+from urllib.parse import unquote_plus
 from zoneinfo import ZoneInfo
 
 import aiosqlite
@@ -661,6 +662,11 @@ def _feed_item(row: aiosqlite.Row) -> FeedItem:
     )
 
 
+def _url_key(url: str) -> str:
+    """A search link as find_query_by_url compares it."""
+    return unquote_plus(url).casefold()
+
+
 def _pending(row: aiosqlite.Row) -> PendingNotification:
     """A claimed outbox row, joined with its listing and search, ready to render.
 
@@ -883,9 +889,15 @@ class Repo:
         return self._to_query(row) if row else None
 
     async def find_query_by_url(self, url: str) -> Query | None:
-        row = await self._db.fetch_one(
-            "SELECT * FROM queries WHERE url = ? ORDER BY id LIMIT 1", (url,)
-        )
+        """The search already watching this link, if one is.
+
+        Compared without regard to case or how the words are encoded: Vinted's search
+        ignores case, so search_text=Nike and search_text=nike watch the same listings,
+        and the plain comparison let the second in as a duplicate.
+        """
+        wanted = _url_key(url)
+        rows = await self._db.fetch_all("SELECT * FROM queries ORDER BY id")
+        row = next((row for row in rows if _url_key(row["url"]) == wanted), None)
         return self._to_query(row) if row else None
 
     async def set_paused(self, query_id: int, paused: bool) -> None:

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
+import sqlite3
 import sys
 import time
 from collections.abc import Sequence
@@ -346,6 +348,9 @@ async def _cmd_export(settings: Settings, args: argparse.Namespace) -> int:
     rendered = exporter.render(entries, args.format)
     if args.output == "-":
         sys.stdout.write(rendered)
+        # Flushed here, so a reader that went away is a BrokenPipeError main() can handle,
+        # not one at interpreter exit, which nothing can.
+        sys.stdout.flush()
     else:
         await asyncio.to_thread(Path(args.output).write_text, rendered, encoding="utf-8")
         print(f"Wrote {len(entries)} listing(s) to {args.output}.", file=sys.stderr)
@@ -362,11 +367,15 @@ async def _cmd_searches(settings: Settings) -> int:
     for query in queries:
         flags = " (paused)" if query.paused else ""
         limit = f", max {query.max_total_price}" if query.max_total_price else ""
-        print(
-            f"{query.id}: {query.name}{flags} — vinted.{query.tld}, "
-            f"every {query.poll_interval_s}s{limit}"
-        )
+        sites = ", ".join(f"vinted.{site}" for site in query.sites)
+        print(f"{query.id}: {query.name}{flags} — {sites}, every {query.poll_interval_s}s{limit}")
         print(f"    {query.url}")
+        if query.include_terms:
+            print(f"    must include: {', '.join(query.include_terms)}")
+        if query.banned_keywords:
+            print(f"    leaves out: {', '.join(query.banned_keywords)}")
+        if query.countries:
+            print(f"    sellers in: {', '.join(query.countries)}")
     return 0
 
 
@@ -535,7 +544,15 @@ async def _cmd_backup(settings: Settings, target: str) -> int:
         print(f"There is no database at {settings.db_path} yet.", file=sys.stderr)
         return 1
     async with Database(settings.db_path) as db:
-        await db.backup_to(path)
+        try:
+            await db.backup_to(path)
+        except sqlite3.OperationalError as exc:
+            print(
+                f"Couldn't write the backup to {target} ({exc}). Pick a folder you can write "
+                "to, such as your home folder.",
+                file=sys.stderr,
+            )
+            return 1
     print(f"Backed up {settings.db_path} to {target}.")
     return 0
 
@@ -601,6 +618,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return asyncio.run(_run(args))
     except KeyboardInterrupt:
         return 130
+    except BrokenPipeError:
+        # The reader went away early, as `vinted-bot export | head` does on purpose. The
+        # rest of the output has nowhere to go; point stdout at nothing so the flush at
+        # exit does not raise the same error again as a traceback.
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, sys.stdout.fileno())
+        return 0
 
 
 if __name__ == "__main__":

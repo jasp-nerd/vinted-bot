@@ -7,6 +7,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -227,3 +230,77 @@ def test_check_goes_through_the_proxy_file_like_a_search(
     run_command("check", "--url", URL)
 
     assert used == ["http://proxy.example:8080"]
+
+
+def test_a_backup_to_a_folder_that_cannot_be_written_says_so(
+    db_path: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """It ended in sqlite3.OperationalError's traceback."""
+    run("watch", URL)
+
+    code = run_command("backup", str(tmp_path / "no-such-folder" / "backup.db"))
+
+    assert (code, "Couldn't write the backup" in capsys.readouterr().err) == (1, True)
+
+
+def test_export_into_a_reader_that_stops_early_ends_quietly(db_path: Path) -> None:
+    """`vinted-bot export | head` ended in a BrokenPipeError traceback.
+
+    A real process, since the fix rewires the process's own standard output.
+    """
+    command = [sys.executable, "-m", "vinted_bot", "export"]
+    env = {**os.environ, "VINTED_BOT_DB_PATH": str(db_path)}
+    with subprocess.Popen(
+        command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env
+    ) as export:
+        assert export.stdout is not None and export.stderr is not None
+        export.stdout.close()  # the reader is gone before anything is written
+        errors = export.stderr.read().decode()
+        code = export.wait(timeout=60)
+
+    assert (code, "Traceback" in errors) == (0, False)
+
+
+def test_a_discord_channel_link_is_explained_without_pointing_at_steps_above(
+    db_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The dashboard's wording, "follow the steps above", made no sense in a terminal."""
+    run_command("destination", "discord", "https://discord.com/channels/123/456")
+
+    error = capsys.readouterr().err
+    assert ("Copy Webhook URL" in error, "above" in error) == (True, False)
+
+
+def test_an_apprise_address_it_does_not_know_is_refused_in_our_words_only(
+    db_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Apprise logged its own line, with the address in it, before the explanation; the
+    command line's logging printed it."""
+    code = run_command("destination", "apprise", "nosuchservice://secret-token@host")
+
+    assert (code, "secret-token" in caplog.text) == (2, False)
+
+
+def test_a_link_differing_only_in_letter_case_is_a_duplicate(
+    db_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Vinted's search ignores case, so search_text=Barbour watches the same listings."""
+    run("watch", URL)
+
+    assert run("watch", URL.replace("barbour", "Barbour")) == 1
+
+
+def test_searches_lists_each_search_s_sites_words_and_countries(
+    db_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run("watch", URL, "--include", "jacket", "--countries", "fr,be", "--also-on", "be")
+    capsys.readouterr()
+
+    asyncio.run(cli._cmd_searches(Settings(_env_file=None)))  # type: ignore[call-arg]
+
+    listed = capsys.readouterr().out
+    assert ("vinted.fr, vinted.be" in listed, "jacket" in listed, "FR, BE" in listed) == (
+        True,
+        True,
+        True,
+    )
