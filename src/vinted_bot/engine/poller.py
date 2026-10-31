@@ -25,7 +25,7 @@ from zoneinfo import ZoneInfo
 
 from vinted_bot.config import MAX_BACKOFF_S, Settings
 from vinted_bot.db.repo import Query, QueryState, RejectedListing, Repo
-from vinted_bot.engine import dedup, filters, quiet, rates
+from vinted_bot.engine import dedup, filters, quiet, rates, wakeups
 from vinted_bot.log import get_logger
 from vinted_bot.vinted.client import PER_PAGE, VintedClient
 from vinted_bot.vinted.errors import (
@@ -48,6 +48,9 @@ _JITTER_FRACTION = 0.15
 
 # A network error retries sooner than a block, but no sooner than this ceiling allows.
 _NETWORK_BACKOFF_CAP_S = 120.0
+
+# After waking up, searches check again within this many seconds of each other.
+_WAKE_SPREAD_S = 10.0
 
 # Member pages change slowly; a week-old country is still the right country.
 SELLER_CACHE_S = 7 * 86_400
@@ -113,6 +116,7 @@ class Poller:
         seller_lookup: SellerLookup | None = None,
         start_delay_s: float = 0.0,
         rng: random.Random | None = None,
+        woke: asyncio.Event | None = None,
     ) -> None:
         self.query = query
         self._repo = repo
@@ -123,6 +127,8 @@ class Poller:
         self._work_available = work_available
         self._seller_lookup = seller_lookup
         self._start_delay_s = start_delay_s
+        # Set when the computer woke up or changed networks; see engine/wakeups.py.
+        self._woke = woke or asyncio.Event()
         self._rng = rng or random.Random()
         self._rules = filters.Rules(query)
         self._consecutive_errors = 0
@@ -597,6 +603,18 @@ class Poller:
         return step + self._rng.uniform(0, step * _JITTER_FRACTION)
 
     async def _wait(self, seconds: float) -> None:
-        """Sleep, but wake immediately if the app is shutting down."""
-        with contextlib.suppress(TimeoutError):
-            await asyncio.wait_for(self._stop.wait(), timeout=seconds)
+        """Sleep, but wake immediately if the app is shutting down, and early when the
+        computer woke up or changed networks.
+
+        A backoff earned while the network was gone says nothing about the network now,
+        so it starts over. The early check is spread over a few seconds, so a dozen
+        searches waking together do not hit the site in the same one.
+        """
+        if await wakeups.wait_for_any(seconds, self._stop, self._woke) is self._woke:
+            self._consecutive_errors = 0
+            self._consecutive_auth_failures = 0
+            self._log.info("poll.woke_up", previous_wait_s=round(seconds))
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(
+                    self._stop.wait(), timeout=self._rng.uniform(0, _WAKE_SPREAD_S)
+                )

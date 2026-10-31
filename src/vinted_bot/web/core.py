@@ -29,7 +29,7 @@ from fastapi.templating import Jinja2Templates
 from vinted_bot import __version__
 from vinted_bot.config import Settings
 from vinted_bot.db.repo import Repo
-from vinted_bot.engine import health, updates
+from vinted_bot.engine import health, updates, wakeups
 from vinted_bot.engine.self_update import InstallKind, Phase, Updater
 from vinted_bot.vinted.client import VintedClient
 from vinted_bot.vinted.taxonomy import Taxonomy
@@ -246,34 +246,27 @@ def redirect(target: str, flash: str | None = None) -> RedirectResponse:
     return response
 
 
-# Where the probes below pretend to send: a documentation address stands for "the
-# internet" (the default route), Tailscale's own resolver for its network when it runs.
-_PROBES = ("192.0.2.1", "100.100.100.100")
+# Where the probes below pretend to send: "the internet" (the default route) for the home
+# network, and Tailscale's own resolver for its network when it runs.
+_PROBES = (wakeups.INTERNET, "100.100.100.100")
 
 
 def lan_addresses() -> list[str]:
     """This computer's private IPv4 addresses a phone can open the dashboard at.
 
-    Asking the OS which interface it would send through (connecting a UDP socket sends
-    nothing) gives the address that matters: once towards the internet, for the home
-    network, and once towards Tailscale's resolver, which only routes somewhere of its own
-    while Tailscale runs. Only when neither helps, as on a computer with no route out, are
-    the addresses its own name resolves to tried: that list also holds virtual machines'
-    and containers' networks, which a phone can't reach.
+    Asking the OS which interface it would send through (wakeups.local_address, which
+    sends nothing) gives the address that matters: once towards the internet, for the
+    home network, and once towards Tailscale's resolver, which only routes somewhere of
+    its own while Tailscale runs. Only when neither helps, as on a computer with no route
+    out, are the addresses its own name resolves to tried: that list also holds virtual
+    machines' and containers' networks, which a phone can't reach.
 
     Only private addresses (security.is_local_address) are offered. Some networks
     (universities, offices) give every computer a public one, and offering that would
     send people to an address the dashboard refuses anyway, as it should: it would be
     on the internet.
     """
-    found: list[str] = []
-    for target in _PROBES:
-        with (
-            contextlib.suppress(OSError),
-            socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe,
-        ):
-            probe.connect((target, 9))
-            found.append(probe.getsockname()[0])
+    found = [address for target in _PROBES if (address := wakeups.local_address(target))]
     if not _usable(found):
         with contextlib.suppress(OSError):
             for *_, sockaddr in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):

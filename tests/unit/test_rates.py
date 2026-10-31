@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from decimal import Decimal
 
 import httpx
@@ -79,5 +80,23 @@ async def test_rates_are_fetched_at_most_once_a_day(repo: Repo) -> None:
     async with ecb(calls) as http:
         await rates.refresh(repo, http, await repo.list_queries(), now=1_000_000)
         await rates.refresh(repo, http, await repo.list_queries(), now=1_000_000 + 3600)
+
+    assert len(calls) == 1
+
+
+async def test_a_search_starting_gets_its_rates_without_waiting_for_the_next_look(
+    repo: Repo,
+) -> None:
+    """A new vinted.pl + vinted.lt search waited up to five minutes for its rates."""
+    calls: list[str] = []
+    stop, started = asyncio.Event(), asyncio.Event()
+    async with ecb(calls) as http:
+        running = asyncio.create_task(rates.keep_fresh(repo, http, stop, started))
+        await asyncio.sleep(0.05)  # the first look: nothing spans currencies yet
+        await add_search(repo, extra=["lt"])
+        started.set()
+        await asyncio.sleep(0.05)
+        stop.set()
+        await asyncio.wait_for(running, 1)
 
     assert len(calls) == 1

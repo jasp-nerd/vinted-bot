@@ -7,12 +7,17 @@ converted. Comparing the bare numbers let that listing through as "39, under 80"
 The rates are the European Central Bank's daily reference rates: free, keyless, one small
 anonymous request a day, and only made while some search spans more than one currency.
 They are stored in app_state, so a restart does not ask again.
+
+Whether some search needs them is looked at every few minutes, and at once when a search
+starts: a new vinted.pl + vinted.lt search used to wait up to five minutes for its rates.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
+import sqlite3
 import time
 from collections.abc import Iterable, Mapping
 from decimal import Decimal, InvalidOperation
@@ -21,6 +26,7 @@ import httpx
 
 from vinted_bot.db.repo import Query, Repo
 from vinted_bot.deals import site_currency
+from vinted_bot.engine.wakeups import wait_for_any
 from vinted_bot.log import get_logger
 
 log = get_logger(__name__)
@@ -31,6 +37,10 @@ ECB_URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
 REFRESH_EVERY_S = 86_400
 # After a failed fetch, try again this much later rather than on every pass.
 RETRY_AFTER_S = 3600
+
+# How often to look whether a search needs rates. Looking costs one read of the database;
+# the request itself is made at most once a day.
+LOOK_EVERY_S = 300.0
 
 _RATES_KEY = "exchange_rates"
 _TRIED_KEY = "exchange_rates_tried_at"
@@ -120,3 +130,17 @@ async def refresh(
         json.dumps({"fetched_at": moment, "rates": {c: str(v) for c, v in rates.items()}}),
     )
     log.info("rates.updated", currencies=len(rates))
+
+
+async def keep_fresh(
+    repo: Repo, http: httpx.AsyncClient, stop: asyncio.Event, search_started: asyncio.Event
+) -> None:
+    """Refresh the rates whenever needed, until `stop`; `search_started` looks at once."""
+    while not stop.is_set():
+        try:
+            await refresh(repo, http, await repo.list_queries(include_paused=False))
+        except sqlite3.OperationalError as exc:
+            # A locked database; the next pass catches up.
+            log.warning("rates.db_unavailable", error=str(exc))
+        search_started.clear()
+        await wait_for_any(LOOK_EVERY_S, stop, search_started)
