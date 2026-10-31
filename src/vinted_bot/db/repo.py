@@ -45,6 +45,11 @@ TYPICAL_PRICE_WINDOW_S = 14 * 86_400
 # "Why wasn't this sent?" only needs recent history.
 REJECTIONS_KEEP = 2_000
 REJECTIONS_MAX_AGE_S = 7 * 86_400
+# What "Not sent" says of a listing that was waiting on its seller when its search changed.
+_WAIT_ENDED_BY_EDIT = (
+    "stopped waiting for the seller's details: the search was changed, and this listing "
+    "came from its old results"
+)
 # Status notices kept waiting per destination; older ones make way for newer.
 STATUS_NOTICES_KEEP = 10
 
@@ -804,6 +809,13 @@ class Repo:
                 (*columns.values(), now, stored.id),
             )
             if before is not None and _fetches_differently(before, stored):
+                # Listings waiting on their seller belonged to the old results too.
+                await conn.execute(
+                    "UPDATE rejections SET detail = ? WHERE query_id = ? AND item_id IN "
+                    "(SELECT item_id FROM seller_waits WHERE query_id = ?)",
+                    (_WAIT_ENDED_BY_EDIT, stored.id, stored.id),
+                )
+                await conn.execute("DELETE FROM seller_waits WHERE query_id = ?", (stored.id,))
                 await conn.execute(
                     "UPDATE query_state SET last_success_at = NULL, floor_item_id = NULL, "
                     "newest_raw_id = NULL, raw_advanced_at = NULL, stale_cycles = 0, "
@@ -1416,6 +1428,33 @@ class Repo:
                     ],
                 )
         return len(items)
+
+    # --- Listings waiting on their seller ---------------------------------------------
+
+    async def seller_waits(self, query_id: int) -> dict[int, tuple[Item, int]]:
+        """A search's listings waiting for a seller lookup: id -> (listing, waiting since)."""
+        rows = await self._db.fetch_all(
+            "SELECT item_id, since, item_json FROM seller_waits WHERE query_id = ? "
+            "ORDER BY item_id",
+            (query_id,),
+        )
+        return {
+            row["item_id"]: (Item.model_validate_json(row["item_json"]), row["since"])
+            for row in rows
+        }
+
+    async def save_seller_waits(self, query_id: int, waits: dict[int, tuple[Item, int]]) -> None:
+        """Replace a search's waiting list with `waits`."""
+        async with self._db.transaction() as conn:
+            await conn.execute("DELETE FROM seller_waits WHERE query_id = ?", (query_id,))
+            await conn.executemany(
+                "INSERT INTO seller_waits (query_id, item_id, since, item_json) "
+                "VALUES (?, ?, ?, ?)",
+                [
+                    (query_id, item_id, since, item.model_dump_json(exclude={"raw"}))
+                    for item_id, (item, since) in waits.items()
+                ],
+            )
 
     @staticmethod
     async def _write_rejections(

@@ -4,6 +4,7 @@ several sites, and seller lookups. Real poller, real database, scripted Vinted."
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import random
 import time
 from collections.abc import Callable
@@ -16,7 +17,8 @@ import pytest
 from tests.conftest import ScriptedTransport
 from vinted_bot.config import Settings
 from vinted_bot.db.connection import Database
-from vinted_bot.db.repo import Repo
+from vinted_bot.db.repo import Query, Repo
+from vinted_bot.engine import poller as poller_module
 from vinted_bot.engine.poller import Poller, SellerLookup
 from vinted_bot.vinted.client import VintedClient
 from vinted_bot.vinted.errors import BlockedError, NetworkError, RateLimitedError
@@ -536,6 +538,116 @@ async def test_a_listing_waiting_on_its_seller_is_judged_after_it_leaves_the_pag
     await poll.tick()
 
     assert await queued_ids(repo, destination_id) == [200]
+
+
+def restarted(poll: Poller, query: Query, sellers: SellerLookup) -> Poller:
+    """The same search's poller after an edit or a restart: nothing kept in memory."""
+    return Poller(
+        query,
+        repo=poll._repo,
+        client=poll._client,
+        sessions=poll._sessions,
+        settings=poll._settings,
+        stop=asyncio.Event(),
+        seller_lookup=sellers,
+        rng=random.Random(1),
+    )
+
+
+async def test_a_listing_waiting_on_its_seller_survives_a_rename(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    """Renaming, muting or pausing the search, or a restart, lost the waiting list."""
+    poll = await poller(
+        transport,
+        repo,
+        settings,
+        db,
+        countries=["FR"],
+        seller_lookup=FakeSellers(NetworkError("timed out")),
+    )
+    destination_id = await repo.add_destination(kind="webhook", name="w", config={"url": "x"})
+    await seed(poll, transport, make_item)
+    transport.queue_catalog([make_item(200, photo_ts=int(time.time()))])
+    await poll.tick()
+    renamed = await repo.update_query(dataclasses.replace(poll.query, name="nike, renamed"))
+
+    again = restarted(poll, renamed, FakeSellers(french()))
+    transport.queue_catalog([])
+    await again.tick()
+
+    assert await queued_ids(repo, destination_id) == [200]
+
+
+async def test_a_listing_judged_after_a_restart_leaves_no_waiting_row(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    """330 rows said "tried again on the next check" for hours after a restart."""
+    poll = await poller(
+        transport,
+        repo,
+        settings,
+        db,
+        countries=["BE"],
+        seller_lookup=FakeSellers(NetworkError("timed out")),
+    )
+    await seed(poll, transport, make_item)
+    transport.queue_catalog([make_item(200, photo_ts=int(time.time()))])
+    await poll.tick()
+
+    again = restarted(poll, poll.query, FakeSellers(french()))
+    transport.queue_catalog([])
+    await again.tick()
+
+    assert [r.reason for r in await repo.rejections_for(poll.query.id)] == ["seller_country"]
+
+
+async def test_changing_what_a_search_fetches_ends_the_wait_and_says_why(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    poll = await poller(
+        transport,
+        repo,
+        settings,
+        db,
+        countries=["FR"],
+        seller_lookup=FakeSellers(NetworkError("timed out")),
+    )
+    await seed(poll, transport, make_item)
+    transport.queue_catalog([make_item(200, photo_ts=int(time.time()))])
+    await poll.tick()
+
+    await repo.update_query(dataclasses.replace(poll.query, params={"search_text": "adidas"}))
+
+    (rejection,) = await repo.rejections_for(poll.query.id)
+    assert (
+        rejection.detail.startswith("stopped waiting"),
+        await repo.seller_waits(poll.query.id),
+    ) == (
+        True,
+        {},
+    )
+
+
+async def test_a_full_waiting_list_says_so_instead_of_gave_up_after_0_min(
+    transport: ScriptedTransport,
+    repo: Repo,
+    settings: Settings,
+    db: Database,
+    make_item: MakeItem,
+    *,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(poller_module, "_UNDECIDED_MAX", 2)
+    sellers = FakeSellers(*(NetworkError("timed out") for _ in range(5)))
+    poll = await poller(transport, repo, settings, db, countries=["FR"], seller_lookup=sellers)
+    await seed(poll, transport, make_item)
+    transport.queue_catalog(busy_page(1000, 5))
+
+    await poll.tick()
+
+    details = [r.detail for r in await repo.rejections_for(poll.query.id)]
+    assert sum("Narrow the search, or loosen its seller filters" in d for d in details) == 3
 
 
 def busy_page(first: int, count: int) -> list[dict[str, Any]]:

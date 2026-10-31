@@ -62,10 +62,11 @@ SELLER_CACHE_S = 7 * 86_400
 _LOOKUPS_PER_CHECK_MIN = 10
 _LOOKUPS_PER_CHECK_MAX = 40
 
-# Listings still waiting on a seller lookup, kept between checks. A listing used to be
-# judged only while it was on the first page, so on a busy search most dropped off the
-# page undecided and were never judged at all. They wait at most the search's freshness
-# window (an alert later than that is not news), and at most this many at once.
+# Listings still waiting on a seller lookup, kept between checks in the database, so an
+# edit that leaves the search itself alone, or a restart, does not lose them. A listing
+# used to be judged only while it was on the first page, so on a busy search most dropped
+# off the page undecided and were never judged at all. They wait at most the search's
+# freshness window (an alert later than that is not news), and at most this many at once.
 _UNDECIDED_MAX = 300
 # Marks a listing left waiting by the budget, worded once the check knows how many were.
 _BUDGET = "budget"
@@ -142,8 +143,6 @@ class Poller:
         self._site = query.tld
         self._warned_no_lookup = False
         self._lookup_budget = _LOOKUPS_PER_CHECK_MIN
-        # Listing id -> (listing, when it first waited on its seller); see _UNDECIDED_MAX.
-        self._undecided: dict[int, tuple[Item, int]] = {}
         # Euro exchange rates, read each check, for a search whose sites price in more
         # than one currency; see engine/rates.py.
         self._rates: dict[str, Decimal] = {}
@@ -369,9 +368,8 @@ class Poller:
         the new ones, which get the lookups first: they are the freshest news.
         """
         fresh_ids = {item.item_id for item in new}
-        carried = [
-            item for item_id, (item, _) in self._undecided.items() if item_id not in fresh_ids
-        ]
+        waits = await self._repo.seller_waits(self.query.id)
+        carried = [item for item_id, (item, _) in waits.items() if item_id not in fresh_ids]
         candidates = [*new, *carried]
         if not candidates and not too_old:
             return 0
@@ -387,7 +385,7 @@ class Poller:
                 verdicts.matched.append(item)
             elif final:
                 verdicts.rejected.append(RejectedListing(item, rejection.reason, rejection.detail))
-        self._settle_undecided(verdicts, now=now, window_s=window_s)
+        waits = self._settle_undecided(verdicts, waits, now=now, window_s=window_s)
         verdicts.matched.sort(key=lambda item: item.item_id)
 
         typical = await self._repo.typical_prices(self.query.id)
@@ -414,6 +412,8 @@ class Poller:
             silent=silent,
             keep_raw=self._settings.keep_raw_json,
         )
+        if waits or carried:
+            await self._repo.save_seller_waits(self.query.id, waits)
         return len(verdicts.announce) if destination_ids else 0
 
     async def _judge_seller(
@@ -497,11 +497,15 @@ class Poller:
             return _BUDGET
         return None
 
-    def _settle_undecided(self, verdicts: _Verdicts, *, now: int, window_s: int) -> None:
+    def _settle_undecided(
+        self, verdicts: _Verdicts, waits: dict[int, tuple[Item, int]], *, now: int, window_s: int
+    ) -> dict[int, tuple[Item, int]]:
         """Carry listings still waiting on their seller to the next check, or give up.
+        Returns the waiting list to keep.
 
         Each is logged in "Not sent" with the precise reason it is waiting, and replaced
-        by its verdict once one is reached. Also adjusts the lookup budget for next time.
+        by its verdict once one is reached: a match, a rejection, or giving up with the
+        reason why. Also adjusts the lookup budget for next time.
         """
         exhausted = verdicts.lookups_made >= self._lookup_budget
         if verdicts.refused:
@@ -509,39 +513,39 @@ class Poller:
         elif exhausted:
             self._lookup_budget = min(self._lookup_budget * 2, _LOOKUPS_PER_CHECK_MAX)
 
-        waiting_ids = {item.item_id for item, _ in verdicts.waiting}
-        for item_id in list(self._undecided):
-            if item_id not in waiting_ids:
-                del self._undecided[item_id]
         in_line = sum(1 for _, why in verdicts.waiting if why == _BUDGET)
         budget_reason = (
             f"waiting for a seller lookup: {in_line} listings were still waiting after "
             f"this check's {verdicts.lookups_made} lookups"
         )
+        kept: dict[int, tuple[Item, int]] = {}
         for item, held_back in verdicts.waiting:
-            since = self._undecided.get(item.item_id, (item, now))[1]
+            since = waits.get(item.item_id, (item, now))[1]
             why = budget_reason if held_back == _BUDGET else held_back
-            full = item.item_id not in self._undecided and len(self._undecided) >= _UNDECIDED_MAX
-            if full or now - since >= window_s:
-                self._undecided.pop(item.item_id, None)
+            if len(kept) >= _UNDECIDED_MAX:
+                given_up = (
+                    f"not looked up: {_UNDECIDED_MAX} listings were already waiting for a "
+                    "seller lookup. Narrow the search, or loosen its seller filters, so "
+                    "fewer listings need one"
+                )
+            elif now - since >= window_s:
+                given_up = (
+                    f"gave up after {round((now - since) / 60)} min without the seller's "
+                    f"details; last reason: {why}"
+                )
+            else:
+                kept[item.item_id] = (item, since)
                 verdicts.rejected.append(
                     RejectedListing(
                         item,
                         "seller_unknown",
-                        f"gave up after {round((now - since) / 60)} min without the seller's "
-                        f"details; last reason: {why}",
+                        f"{why}; tried again on the next check, for up to {window_s // 60} min",
+                        final=False,
                     )
                 )
                 continue
-            self._undecided[item.item_id] = (item, since)
-            verdicts.rejected.append(
-                RejectedListing(
-                    item,
-                    "seller_unknown",
-                    f"{why}; tried again on the next check, for up to {window_s // 60} min",
-                    final=False,
-                )
-            )
+            verdicts.rejected.append(RejectedListing(item, "seller_unknown", given_up))
+        return kept
 
     def _warn_no_lookup(self) -> None:
         if not self._warned_no_lookup:
