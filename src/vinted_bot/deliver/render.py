@@ -389,8 +389,10 @@ def view(notification: PendingNotification, *, dashboard_url: str | None) -> Lis
             else None
         ),
         dashboard_url=dashboard,
-        buy_url=item.buy_url,
-        message_url=item.message_url,
+        # A link that is no listing page (the test alert's sample, which opens a real
+        # search instead) has no buy or message page behind it either.
+        buy_url=item.buy_url if "/items/" in item.url else absolute(item.url, item.tld),
+        message_url=item.message_url if "/items/" in item.url else absolute(item.url, item.tld),
         favourites=item.favourite_count,
         accent=accent,
         silent=notification.silent,

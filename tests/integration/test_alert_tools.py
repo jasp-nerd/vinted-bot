@@ -311,6 +311,21 @@ async def test_the_test_button_sends_a_sample_listing(settings: Settings) -> Non
     assert json.loads(endpoint.requests[0].content)["items"][0]["title"].endswith("(test alert)")
 
 
+async def test_a_test_pings_the_mention_the_preview_shows(settings: Settings) -> None:
+    """The preview showed a steal with the role ping; the test sent an ordinary listing
+    that pinged nobody, so the mention could not be checked."""
+    endpoint = Endpoint()
+
+    await send_test(
+        destination("discord", {"url": "https://discord.test/hook", "mention": "<@&42>"}),
+        settings=settings,
+        telegram_token=None,
+        client=endpoint.client(),
+    )
+
+    assert "<@&42>" in endpoint.requests[0].content.decode()
+
+
 async def test_a_test_against_a_deleted_webhook_says_so(settings: Settings) -> None:
     endpoint = Endpoint(httpx.Response(404, json={"message": "Unknown Webhook"}))
 

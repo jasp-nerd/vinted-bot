@@ -72,11 +72,11 @@ class TestResult:
 def sample_notification(
     kind: str = "listing", *, tld: str = DEFAULT_SAMPLE_TLD, index: int = 0, deal: bool = False
 ) -> PendingNotification:
-    """A realistic, clearly invented listing, worded in the site's language.
+    """A realistic, clearly invented listing, worded in the site's language, whose links
+    open a real search on the site.
 
-    An ordinary listing by default, so a test arrives at the destination's normal
-    priority and without reseller sums nobody asked for. `deal` prices it as a steal
-    with a resale margin, for previews that show what those look like. No listing time,
+    An ordinary listing by default. `deal` prices it as a steal with a resale margin,
+    for the previews and the test send, which show what those look like. No listing time,
     like every real search result now, and no seller id, so a test alert's "block
     seller" button cannot block anyone real.
     """
@@ -89,7 +89,9 @@ def sample_notification(
         item_id=item_id,
         tld=tld,
         title=f"Levi's 501 straight jeans ({marker})",
-        url=f"https://www.vinted.{tld}/items/{item_id}",
+        # A real search for jeans like these, not an invented listing page that Vinted
+        # would answer with "page not found".
+        url=f"https://www.vinted.{tld}/catalog?search_text=levi%27s%20501",
         brand="Levi's",
         size="W31",
         condition=condition,
@@ -196,7 +198,10 @@ async def send_test(
                 ok=False, message="This destination is not set up correctly.", detail=str(exc)
             )
         try:
-            result = await sender.send([sample_notification(tld=tld)])
+            # The same steal the preview beside the button shows, so the test pings the
+            # mention and buzzes the way the preview promises; an ordinary listing never
+            # showed the "ping for steals" mention at all.
+            result = await sender.send([sample_notification(tld=tld, deal=True)])
         finally:
             await sender.aclose()
 

@@ -15,6 +15,7 @@ from vinted_bot.deliver.labels import (
     labels_for,
     money_text,
 )
+from vinted_bot.deliver.preview import sample_notification
 from vinted_bot.deliver.render import (
     BRAND_COLOUR,
     DEAL_COLOUR,
@@ -308,3 +309,12 @@ def test_the_photo_search_hands_lens_the_photo_url() -> None:
 
 def test_a_listing_without_a_photo_has_no_photo_search() -> None:
     assert view(pending(), dashboard_url=None).photo_search_url is None
+
+
+def test_a_test_alert_opens_a_real_search_rather_than_an_invented_listing() -> None:
+    """Its "Open on Vinted" led to a listing that does not exist."""
+    listing = view(sample_notification(tld="fr"), dashboard_url=None)
+
+    assert {listing.url, listing.buy_url, listing.message_url} == {
+        "https://www.vinted.fr/catalog?search_text=levi%27s%20501"
+    }
