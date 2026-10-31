@@ -59,7 +59,8 @@ def item_json(notification: PendingNotification) -> dict[str, Any]:
         "photo_url": absolute(item.photo_url, item.tld) if item.photo_url else None,
         "listed_at": item.listed_at.isoformat() if item.listed_at else None,
         "seller": item.seller_login,
-        "seller_rating": item.seller_rating,
+        # Rounded: a rating worked out from stars arrived as 0.9800000000000001.
+        "seller_rating": round(item.seller_rating, 2) if item.seller_rating is not None else None,
         "links": {"message_seller": item.message_url, "buy": item.buy_url},
         # --- added in version 2 ---
         "kind": notification.kind,

@@ -1812,11 +1812,14 @@ class Repo:
             (item_id, mark, int(time.time())),
         )
 
-    async def rejections_for(self, query_id: int, *, limit: int = 100) -> list[RejectionRecord]:
-        """The listings a search skipped most recently, and why."""
+    async def rejections_for(
+        self, query_id: int, *, limit: int = 100, reason: str | None = None
+    ) -> list[RejectionRecord]:
+        """The listings a search skipped most recently, and why; only for `reason` if given."""
         rows = await self._db.fetch_all(
-            "SELECT * FROM rejections WHERE query_id = ? ORDER BY created_at DESC, id DESC LIMIT ?",
-            (query_id, limit),
+            "SELECT * FROM rejections WHERE query_id = ? AND (? IS NULL OR reason = ?) "
+            "ORDER BY created_at DESC, id DESC LIMIT ?",
+            (query_id, reason, reason, limit),
         )
         return [
             RejectionRecord(
@@ -1834,6 +1837,15 @@ class Repo:
             )
             for row in rows
         ]
+
+    async def finds_count(self, query_id: int) -> int:
+        """How many finds a search's page lists in all, of which it shows the newest."""
+        row = await self._db.fetch_one(
+            "SELECT COUNT(*) AS n FROM items i WHERE EXISTS (SELECT 1 FROM query_items qx "
+            "WHERE qx.item_id = i.item_id AND qx.query_id = ? AND qx.status = 'matched')",
+            (query_id,),
+        )
+        return int(row["n"]) if row else 0
 
     async def rejection_counts(self, query_id: int, *, since: int) -> dict[str, int]:
         """How many listings each reason turned away since a moment, for "why so quiet?"."""

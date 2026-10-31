@@ -665,6 +665,54 @@ async def test_the_not_sent_tab_says_why_in_words(client: TestClient, repo: Repo
     assert "Too expensive" in client.get(f"/searches/{query_id}").text
 
 
+async def _turned_away(repo: Repo, *reasons: str) -> int:
+    from vinted_bot.db.repo import RejectedListing  # noqa: PLC0415
+
+    query_id = await _search(repo)
+    query = await repo.get_query(query_id)
+    assert query is not None
+    await repo.record_new_items(
+        query,
+        [],
+        [],
+        rejected=[
+            RejectedListing(_item(100 + n), reason, "why") for n, reason in enumerate(reasons)
+        ],
+    )
+    return query_id
+
+
+async def test_a_reason_chip_shows_only_the_listings_turned_away_for_it(
+    client: TestClient, repo: Repo
+) -> None:
+    """The chips looked like buttons and did nothing."""
+    query_id = await _turned_away(repo, "over_budget", "promoted", "promoted")
+
+    page = client.get(f"/searches/{query_id}", params={"reason": "over_budget"}).text
+
+    assert page.count('class="rej"') == 1
+
+
+async def test_the_not_sent_tab_counts_everything_not_just_what_it_lists(
+    client: TestClient, repo: Repo
+) -> None:
+    """It said 60, the length of the list, with 398 turned away."""
+    query_id = await _turned_away(repo, *["promoted"] * 65)
+
+    page = client.get(f"/searches/{query_id}").text
+
+    assert 'Not sent <span class="badge">65</span>' in page
+
+
+async def test_the_recent_finds_tab_counts_every_find(client: TestClient, repo: Repo) -> None:
+    query_id = await _search(repo)
+    await _found(repo, query_id, *(_item(n) for n in range(1, 31)))
+
+    page = client.get(f"/searches/{query_id}").text
+
+    assert 'Recent finds <span class="badge">30</span>' in page
+
+
 # --- Finds -----------------------------------------------------------------------------
 
 

@@ -271,6 +271,16 @@ async def test_the_webhook_names_an_ordinary_listing_s_tier() -> None:
     assert recorder.payload()["items"][0]["deal_tier"] == "normal"
 
 
+async def test_the_webhook_rounds_the_seller_rating() -> None:
+    recorder = Recorder()
+    listing = notification(1)
+    item = listing.item.model_copy(update={"seller_rating": 0.9800000000000001})
+
+    await hook(recorder).send([dataclasses.replace(listing, item=item)])
+
+    assert recorder.payload()["items"][0]["seller_rating"] == 0.98
+
+
 async def test_the_webhook_carries_the_margin() -> None:
     recorder = Recorder()
 

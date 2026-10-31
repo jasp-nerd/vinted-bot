@@ -320,8 +320,11 @@ async def search_detail(request: Request, query_id: int) -> Response:
     finds = await repo.items_feed(query_id=query_id, mark="all", limit=24)
     yesterday_by_now = await _yesterday_by_now(context, query_id, tz)
 
-    rejections = await repo.rejections_for(query_id, limit=60)
     reasons = await repo.rejection_counts(query_id, since=now - 7 * 86_400)
+    # A reason chip filters the list; any other value shows every reason.
+    reason = request.query_params.get("reason")
+    reason = reason if reason in reasons else None
+    rejections = await repo.rejections_for(query_id, limit=60, reason=reason)
     delivery = await repo.delivery_for_query(query_id)
     typical = await repo.typical_prices(query_id)
     state = await repo.get_state(query_id)
@@ -344,6 +347,10 @@ async def search_detail(request: Request, query_id: int) -> Response:
             "typical": [views.money(v, c) for c, v in typical.items()],
             "delivery": delivery,
             "items": [views.item_view(entry, now) for entry in finds],
+            # The tabs count everything, not the newest few the list shows.
+            "finds_total": await repo.finds_count(query_id),
+            "not_sent_total": sum(reasons.values()),
+            "reason": reason,
             "rejections": [
                 {
                     "photo": r.photo_url,
@@ -358,8 +365,8 @@ async def search_detail(request: Request, query_id: int) -> Response:
                 for r in rejections
             ],
             "reasons": [
-                (views.REJECTION_WORDS.get(reason, (reason, ""))[0], count)
-                for reason, count in reasons.items()
+                (key, views.REJECTION_WORDS.get(key, (key, ""))[0], count)
+                for key, count in reasons.items()
             ],
             "quiet": views.quiet_summary(query),
             "timeline": _timeline(state, query, now, tz),
