@@ -99,7 +99,10 @@ For the maintainer. A release is one button; the workflows do the rest.
 1. In a pull request: in `CHANGELOG.md`, rename `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD`,
    add a fresh empty `## [Unreleased]` above it, and update the compare links at the bottom.
    Set `version = "X.Y.Z"` in `pyproject.toml` and `__version__` in
-   `src/vinted_bot/__init__.py`, run `uv lock`, and merge it to main.
+   `src/vinted_bot/__init__.py`, and the same version in the Umbrel app
+   (`version` in `deploy/umbrel/jasp-vinted-bot/umbrel-app.yml` and the image tag in its
+   `docker-compose.yml`; a test fails while they differ). Run `uv lock`, and merge it to
+   main.
 2. On GitHub, open **Actions**, choose **Release** on the left, click **Run workflow**, leave
    the branch on `main`, and click the green **Run workflow** button. There is nothing to
    fill in.

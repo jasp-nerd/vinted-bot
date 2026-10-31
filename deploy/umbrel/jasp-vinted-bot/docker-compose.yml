@@ -8,8 +8,8 @@ services:
   web:
     # Pin the release tag and its digest here when publishing to the store, so every
     # Umbrel runs the version that was tested:
-    #   docker buildx imagetools inspect ghcr.io/jasp-nerd/vinted-bot:2.1.0
-    image: ghcr.io/jasp-nerd/vinted-bot:2.1.0
+    #   docker buildx imagetools inspect ghcr.io/jasp-nerd/vinted-bot:2.2.0
+    image: ghcr.io/jasp-nerd/vinted-bot:2.2.0
     restart: on-failure
     stop_grace_period: 30s
     environment:

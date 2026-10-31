@@ -11,12 +11,14 @@ from typing import Any
 import apprise
 import httpx
 import pytest
+from apprise.conversion import convert_between
 from apprise.decorators import notify
 
 from tests.unit.sending import Recorder, bare, fast_bucket, notification
-from vinted_bot.deliver.apprise import AppriseSender, quiet_url
+from vinted_bot.deliver.apprise import AppriseSender, message, quiet_url
 from vinted_bot.deliver.base import SenderConfigError
 from vinted_bot.deliver.ntfy import NtfySender
+from vinted_bot.deliver.render import view
 from vinted_bot.deliver.webhook import WebhookSender
 
 # --- ntfy ------------------------------------------------------------------------------
@@ -436,6 +438,23 @@ async def test_apprise_body_links_the_listing() -> None:
     await AppriseSender({"urls": ["vstest://"]}).send([notification(1)])
 
     assert "**[Item 1](https://www.vinted.co.uk/items/1)**" in _received[0]["body"]
+
+
+def test_an_email_body_keeps_its_links_in_the_plain_text_part() -> None:
+    """Apprise's HTML-to-text conversion kept "Open on Vinted" and dropped the address."""
+    _, body = message(view(notification(1), dashboard_url=None), links_written_out=True)
+
+    # Apprise's own conversions, as its email plugin runs them.
+    html = convert_between(apprise.NotifyFormat.MARKDOWN, apprise.NotifyFormat.HTML, body)  # type: ignore[no-untyped-call]
+    text = convert_between(apprise.NotifyFormat.HTML, apprise.NotifyFormat.TEXT, html)  # type: ignore[no-untyped-call]
+
+    assert "https://www.vinted.co.uk/items/1" in text
+
+
+def test_other_services_keep_tidy_markdown_links() -> None:
+    _, body = message(view(notification(1), dashboard_url=None))
+
+    assert "](https://www.vinted.co.uk/items/1)" in body.splitlines()[-1]
 
 
 async def test_apprise_attaches_the_cover_photo() -> None:
