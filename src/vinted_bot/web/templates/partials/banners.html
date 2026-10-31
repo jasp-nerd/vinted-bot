@@ -17,7 +17,7 @@
 <div class="banner banner--sun" role="status">
   <div class="container banner__row">
     {{ ui.icon("hourglass") }}
-    <p class="banner__text"><b>{{ info.site }} is slowing us down.</b> {{ info.searches }} {{ "search waits" if info.searches == 1 else "searches wait" }} a few minutes before trying again. This usually clears up on its own within an hour. Your Vinted account is not affected.</p>
+    <p class="banner__text"><b>{{ info.site }} is slowing us down.</b> {{ info.searches }} {{ "search waits" if info.searches == 1 else "searches wait" }} a few minutes before trying again. {% if info.long %}It has been going on for {{ info["for"] }}; longer blocks usually lift within a day, and turning off a VPN or restarting your router can help.{% else %}This usually clears up on its own within an hour.{% endif %} Your Vinted account is not affected.</p>
     <a class="btn btn--secondary btn--sm" href="{{ url('settings') }}#vinted">What can I do?</a>
   </div>
 </div>

@@ -1358,3 +1358,31 @@ async def test_setup_never_asks_for_support(client: TestClient, repo: Repo) -> N
     await _delivered(repo)
 
     assert "ko-fi.com" not in client.get("/welcome/ready").text
+
+
+async def _refused_since(repo: Repo, db: Database, seconds_ago: int) -> None:
+    query_id = await _search(repo)
+    await repo.record_failure(query_id, "http_403", "Forbidden")
+    await db.execute(
+        "UPDATE query_state SET last_success_at = ? WHERE query_id = ?",
+        (int(time.time()) - seconds_ago, query_id),
+    )
+
+
+async def test_a_fresh_block_is_expected_to_clear_within_an_hour(
+    client: TestClient, repo: Repo, db: Database
+) -> None:
+    await _refused_since(repo, db, 600)
+
+    assert "within an hour" in client.get("/searches").text
+
+
+async def test_a_block_past_an_hour_says_how_long_it_has_lasted(
+    client: TestClient, repo: Repo, db: Database
+) -> None:
+    """The banner still said "clears up within an hour" an hour and a half in."""
+    await _refused_since(repo, db, 90 * 60)
+
+    page = client.get("/searches").text
+
+    assert ("going on for 1 hour" in page, "within an hour" in page) == (True, False)

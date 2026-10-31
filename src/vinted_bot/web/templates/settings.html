@@ -43,7 +43,7 @@
           <div class="receipt__row" data-diag-result hidden>{{ ui.icon("activity") }}<span data-diag-text></span><b data-diag-ms></b></div>
           <div style="padding-top:12px;display:grid;gap:10px">
             {% if trouble %}
-            <p class="t-sm" style="color:var(--field-ink)">This usually clears up on its own within an hour. Nothing is wrong with your internet, and your Vinted account is not affected.</p>
+            <p class="t-sm" style="color:var(--field-ink)">{% if app.blocked and app.blocked.long %}Vinted has been turning checks away for {{ app.blocked["for"] }}; longer blocks usually lift within a day.{% else %}This usually clears up on its own within an hour.{% endif %} Nothing is wrong with your internet, and your Vinted account is not affected.</p>
             <details><summary class="t-sm" style="cursor:pointer">Still happening after a day?</summary><p class="t-sm" style="color:var(--field-ink)">Turn off any VPN, or restart your router to get a new internet address. Checking less often helps too. <a href="{{ app.troubleshooting }}" target="_blank" rel="noopener">Troubleshooting guide</a></p></details>
             {% endif %}
             <div class="btn-row">

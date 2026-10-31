@@ -136,6 +136,10 @@ async def needs_timezone(context: WebContext) -> bool:
     return await context.repo.get_state_value("timezone") is None
 
 
+# Most refusals from Vinted lift within this long; past it the banner says how long instead.
+_BLOCK_USUALLY_LIFTS_S = 3600
+
+
 async def shell(context: WebContext, snapshot: health.Snapshot | None = None) -> dict[str, Any]:
     """What the frame around every page shows: counts, banners, the next-check ring."""
     snapshot = snapshot or await health.snapshot(context.repo)
@@ -157,7 +161,15 @@ async def shell(context: WebContext, snapshot: health.Snapshot | None = None) ->
     blocked = None
     if refused:
         sites = sorted({f"vinted.{search.tld}" for search in refused})
-        blocked = {"site": ", ".join(sites), "searches": len(refused)}
+        # Since the last good check of any of them: the banner said "clears up within an
+        # hour" an hour and a half in, which reads as a promise broken.
+        last_good = max((search.last_success_at or 0 for search in refused), default=0)
+        blocked = {
+            "site": ", ".join(sites),
+            "searches": len(refused),
+            "for": views.duration(now - last_good) if last_good else None,
+            "long": bool(last_good) and now - last_good >= _BLOCK_USUALLY_LIFTS_S,
+        }
 
     # Installing updates by itself means checking for them too, whatever the other switch says.
     checking = prefs.update_check or prefs.auto_update
