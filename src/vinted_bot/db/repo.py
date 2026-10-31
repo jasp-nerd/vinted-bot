@@ -1468,8 +1468,12 @@ class Repo:
         await conn.executemany(
             "INSERT INTO rejections (query_id, item_id, reason, detail, title, total_price, "
             "currency, photo_url, url, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            # The price with the reason: "over the price limit" beside the price it was
+            # judged at, never an older one.
             "ON CONFLICT(query_id, item_id) DO UPDATE SET "
-            "reason = excluded.reason, detail = excluded.detail",
+            "reason = excluded.reason, detail = excluded.detail, title = excluded.title, "
+            "total_price = excluded.total_price, currency = excluded.currency, "
+            "photo_url = excluded.photo_url, url = excluded.url",
             [
                 (
                     query_id,

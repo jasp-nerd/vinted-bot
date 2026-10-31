@@ -225,17 +225,22 @@ class Poller:
     async def _fetch(self) -> tuple[list[Item], bool]:
         """Every site's first page, in order, and whether each page was full.
 
-        Listing ids are shared across sites, so one floor covers them all.
+        Listing ids are shared across sites, so one floor covers them all. A listing on
+        several of them is kept once, as the first site shows it, which is the search's own
+        (Query.sites): that price is in the search's currency, the very total its buyer
+        pays, where the other site's would be converted at the day's rate and come out a
+        little different. Both copies used to be judged, the last one's verdict winning.
         """
-        items: list[Item] = []
+        found: dict[int, Item] = {}
         all_full = True
         for site in self.query.sites:
             self._site = site
             page = await self._client.search(site, self.query.params)
             all_full = all_full and len(page) >= PER_PAGE
-            items.extend(page)
+            for item in page:
+                found.setdefault(item.item_id, item)
         self._site = self.query.tld
-        return items, all_full
+        return list(found.values()), all_full
 
     async def _check(self) -> None:
         items, page_is_full = await self._fetch()

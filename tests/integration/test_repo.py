@@ -466,6 +466,27 @@ async def test_a_later_match_clears_its_old_rejection(repo: Repo) -> None:
     assert await repo.rejections_for(query.id) == []
 
 
+async def test_a_rejection_judged_again_shows_the_price_beside_its_new_reason(
+    repo: Repo,
+) -> None:
+    """The first price stayed beside the last reason, so the two could disagree."""
+    query = await add(repo)
+    first = RejectedListing(listing(5), "seller_unknown", "lookup failed", final=False)
+    await repo.record_new_items(query, [], [], rejected=[first])
+    pricier = listing(5, total_price=Decimal("92.95"), currency="PLN")
+
+    await repo.record_new_items(
+        query, [], [], rejected=[RejectedListing(pricier, "over_budget", "above 80 PLN")]
+    )
+
+    (record,) = await repo.rejections_for(query.id)
+    assert (record.reason, record.total_price, record.currency) == (
+        "over_budget",
+        Decimal("92.95"),
+        "PLN",
+    )
+
+
 async def test_the_rejection_log_is_capped(repo: Repo) -> None:
     query = await add(repo)
     await repo.record_new_items(

@@ -523,6 +523,40 @@ async def test_a_limit_converts_a_listing_from_a_site_with_another_currency(
     assert [r.reason for r in await repo.rejections_for(poll.query.id)] == ["over_budget"]
 
 
+async def _on_both_sites(
+    transport: ScriptedTransport, repo: Repo, poll: Poller, make_item: MakeItem
+) -> None:
+    """Listing 200 on the search's own vinted.fr at €19 and on vinted.co.uk at £18."""
+    await repo.set_state_value("exchange_rates", '{"fetched_at": 1, "rates": {"GBP": "0.8"}}')
+    now = int(time.time())
+    transport.queue_catalog([make_item(100, photo_ts=now - 60)])
+    transport.queue_catalog([])
+    await poll.tick()
+    euros = {"amount": "19.00", "currency_code": "EUR"}
+    pounds = {"amount": "18.00", "currency_code": "GBP"}
+    transport.queue_catalog(
+        [make_item(200, photo_ts=now) | {"price": euros, "total_item_price": euros}]
+    )
+    transport.queue_catalog(
+        [make_item(200, photo_ts=now) | {"price": pounds, "total_item_price": pounds}]
+    )
+    await poll.tick()
+
+
+async def test_a_listing_on_two_sites_is_judged_at_its_own_site_s_price(
+    transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    """£18 converts to €22.50, over the limit, though the buyer pays €19 on vinted.fr: the
+    copy from the other site was judged too, and "Not sent" said it was over the limit."""
+    poll = await poller(
+        transport, repo, settings, db, extra_tlds=["co.uk"], max_total_price=Decimal("20")
+    )
+
+    await _on_both_sites(transport, repo, poll, make_item)
+
+    assert await repo.rejections_for(poll.query.id) == []
+
+
 async def test_a_listing_waiting_on_its_seller_is_judged_after_it_leaves_the_page(
     transport: ScriptedTransport, repo: Repo, settings: Settings, db: Database, make_item: MakeItem
 ) -> None:
