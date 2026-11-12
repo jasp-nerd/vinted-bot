@@ -142,7 +142,7 @@ class HttpxTransport:
             # Cookies are held by the session layer, which persists them across restarts.
             # A jar that refuses everything keeps httpx from becoming a second source of
             # truth that leaks one session's cookies into the next.
-            cookies=httpx.Cookies(CookieJar(policy=_RefuseAllCookies())),
+            cookies=CookieJar(policy=_RefuseAllCookies()),
         )
 
     async def get(
