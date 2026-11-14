@@ -29,3 +29,8 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    # A new Python version has to move both stages and the CI matrix together, so that
+    # is done by hand. Dependabot keeps the digests and patch releases current.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]

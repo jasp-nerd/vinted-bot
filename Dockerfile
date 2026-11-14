@@ -58,7 +58,9 @@ ENV PATH="/app/bin:/app/.venv/bin:$PATH" \
     VINTED_BOT_LOG_FORMAT=json \
     VINTED_BOT_WEB_HOST=0.0.0.0
 
-RUN mkdir -p /data && chown vinted:vinted /data
+# Starting the app once fails the build if the virtualenv no longer fits this image, as when
+# the two stages end up on different Python versions.
+RUN /app/.venv/bin/vinted-bot --version && mkdir -p /data && chown vinted:vinted /data
 VOLUME ["/data"]
 
 # No USER line on purpose: the container starts as root only long enough for the wrapper
