@@ -6,10 +6,14 @@ becomes the text of its GitHub release, so write it for the people running the a
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-11-14
+
 ### Fixed
 
-- Searches could stop when an anonymous session was renewed, even though Vinted was
-  reachable. The app no longer sends the old session's cookie when starting a new one.
+- Searches stopped about an hour after starting, with "served a page but set no
+  access_token_web cookie", and only a restart brought them back. Renewing the session
+  sent the old session's cookie along, so Vinted never handed out a new one. It no longer
+  does. Thanks to @c0coco for the fix (#21, #22).
 
 ## [2.2.0] - 2026-10-30
 
@@ -327,7 +331,8 @@ First version, never tagged as a release: polling with a stale-catalog watchdog,
 the total price including buyer protection, Discord, Telegram, ntfy, RSS and webhook
 delivery through a reliable outbox, and a web dashboard.
 
-[Unreleased]: https://github.com/jasp-nerd/vinted-bot/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/jasp-nerd/vinted-bot/compare/v2.2.1...HEAD
+[2.2.1]: https://github.com/jasp-nerd/vinted-bot/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/jasp-nerd/vinted-bot/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/jasp-nerd/vinted-bot/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/jasp-nerd/vinted-bot/compare/v0.1.0...v2.0.0
