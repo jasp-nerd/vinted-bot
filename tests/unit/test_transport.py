@@ -39,6 +39,20 @@ async def test_cookies_set_on_one_request_never_ride_along_on_the_next() -> None
     assert seen == ["", "access_token_web=NEW"]
 
 
+async def test_fresh_request_does_not_send_a_previous_sessions_cookies() -> None:
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(cookie_header(request))
+        return httpx.Response(200, headers={"set-cookie": "access_token_web=OLD; Path=/"})
+
+    transport = httpx_transport(handler)
+    await transport.get("https://www.vinted.fr/", headers={})
+    await transport.get("https://www.vinted.fr/", headers={})
+
+    assert seen == ["", ""]
+
+
 async def test_a_response_reports_the_cookies_it_set() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, headers={"set-cookie": "anon_id=abc; Path=/"})

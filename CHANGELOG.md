@@ -6,6 +6,11 @@ becomes the text of its GitHub release, so write it for the people running the a
 
 ## [Unreleased]
 
+### Fixed
+
+- Searches could stop when an anonymous session was renewed, even though Vinted was
+  reachable. The app no longer sends the old session's cookie when starting a new one.
+
 ## [2.2.0] - 2026-10-30
 
 Nobody needs to edit a `.env` file any more. Everything a normal setup needs is in the
