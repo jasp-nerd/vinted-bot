@@ -1,7 +1,7 @@
 # Build stage: resolve and install dependencies into a self-contained virtualenv.
 # Both base images are pinned by digest so a rebuild of the same commit gets the same bytes;
 # Dependabot moves the digests forward weekly.
-FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim@sha256:6ff812e34a0e14b4b8bc9ddf25e77b3e16bac6e0c4d9b67641f40366fa382d4c AS build
+FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim@sha256:9a9f205ad2f9aaf63597afef4042c455392f9253937028264b98226e91c09518 AS build
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
