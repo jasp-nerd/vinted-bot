@@ -4,7 +4,7 @@ description: "Vinted Push-Benachrichtigung funktioniert nicht oder kommt zu spä
 slug: vinted-benachrichtigung-funktioniert-nicht
 key: notifications-not-working
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - vinted push benachrichtigung funktioniert nicht
   - vinted keine benachrichtigung mehr
@@ -20,7 +20,7 @@ faq:
   - q: "Wie bekomme ich die Vinted Benachrichtigungen wieder?"
     a: "Benachrichtigungen in der Vinted-App und in den Handy-Einstellungen prüfen, Energiesparen für Vinted abschalten, App aktualisieren, ab- und wieder anmelden. Für Suchen, die dir wichtig sind, ist ein Tool wie vinted-bot verlässlicher."
   - q: "Warum kommen Vinted Benachrichtigungen zu spät?"
-    a: "Zwei Verzögerungen addieren sich: Vinted nimmt neue Artikel erst einige Minuten nach dem Hochladen in die Suche auf, und die Benachrichtigung zur gespeicherten Suche kommt noch später. Energiesparen und Fokus-Modi können sie weiter zurückhalten."
+    a: "Zwei Verzögerungen addieren sich: Vinted nimmt neue Artikel erst etwa 15 bis 30 Sekunden nach dem Hochladen in die Suche auf, und die Benachrichtigung zur gespeicherten Suche kommt noch später. Energiesparen und Fokus-Modi können sie weiter zurückhalten."
 ---
 
 Wenn die Benachrichtigung deiner gespeicherten Suche bei Vinted nicht kommt, liegt es oft nicht an deinem Handy. Viele Nutzer haben alles eingeschaltet und bekommen die Benachrichtigungen trotzdem spät oder gar nicht, und Vinted erklärt nicht genau, wie diese gebündelt werden. Prüf zuerst die Einstellungen unten, weil sie manche Fälle tatsächlich lösen. Hilft das nicht, ist ein Tool, das die Suche selbst prüft, die verlässliche Lösung.
@@ -33,7 +33,7 @@ Soweit die Theorie. Die Beschwerde, dass gespeicherte Suchen nie Bescheid geben,
 
 Zwei Dinge solltest du vorher wissen:
 
-- Vinted nimmt neue Artikel erst einige Minuten nach dem Hochladen in die Suche auf. Alles, was auf der Suche aufbaut, auch die Benachrichtigung von Vinted selbst, kann erst danach auslösen.
+- Vinted nimmt neue Artikel erst etwa 15 bis 30 Sekunden nach dem Hochladen in die Suche auf. Alles, was auf der Suche aufbaut, auch die Benachrichtigung von Vinted selbst, kann erst danach auslösen.
 - 2026 berichteten mehrere Nutzer von Änderungen an gespeicherten Suchen: höchstens 20 Marken pro gespeicherter Suche (längere Listen wurden gekürzt), der Zähler für neue Artikel verschwand, manche Filter fielen ohne Hinweis weg, und unter "Neueste zuerst" tauchten ältere Artikel auf. Wenn deine gespeicherte Suche "nichts mehr findet", öffne sie und prüf, was wirklich noch drinsteht.
 
 ## Das solltest du zuerst prüfen
@@ -68,11 +68,11 @@ Eine Suche mit Tausenden Treffern ändert sich ständig. Wie auch immer Vinted e
 
 Hast du alles oben gemacht und bekommst trotzdem nichts, oder die Benachrichtigung kommt zwanzig Minuten nach dem Verkauf, dann bist du an der Grenze der Funktion angekommen. Wie Vinted seine Benachrichtigungen plant, kannst du nicht ändern, und eine Einstellung "für diese Suche sofort melden" gibt es nicht.
 
-Was du ändern kannst: wer die Suche prüft. Statt darauf zu warten, dass Vinted eine Benachrichtigung schickt, kann ein eigenes Tool die Ergebnisse deiner Suche jede Minute selbst laden und dir schreiben, sobald etwas Neues auftaucht.
+Was du ändern kannst: wer die Suche prüft. Statt darauf zu warten, dass Vinted eine Benachrichtigung schickt, kann ein eigenes Tool die Ergebnisse deiner Suche alle paar Sekunden selbst laden und dir schreiben, sobald etwas Neues auftaucht.
 
 ## Die kostenlose Alternative: ein Tool, das die Suche selbst prüft
 
-vinted-bot ist eine kostenlose Open-Source-App, die genau das macht. Du fügst denselben Vinted-Suchlink ein, und die App prüft ihn jede Minute von deinem Rechner aus. Jeder neue Artikel kommt als Nachricht per Telegram, Discord, ntfy aufs Handy oder Webhook, mit Fotos, Endpreis inklusive Käuferschutz, Größe, Zustand, Bewertung des Verkäufers und einem Button zum Artikel.
+vinted-bot ist eine kostenlose Open-Source-App, die genau das macht. Du fügst denselben Vinted-Suchlink ein, und die App prüft ihn alle 5 Sekunden von deinem Rechner aus. Jeder neue Artikel kommt als Nachricht per Telegram, Discord, ntfy aufs Handy oder Webhook, mit Fotos, Endpreis inklusive Käuferschutz, Größe, Zustand, Bewertung des Verkäufers und einem Button zum Artikel.
 
 Dazu löst sie einiges, was die gespeicherte Suche nicht kann:
 
@@ -81,13 +81,11 @@ Dazu löst sie einiges, was die gespeicherte Suche nicht kann:
 - Keine Grenze von 20 Marken. Eine Suche kann außerdem mehrere Vinted-Länder gleichzeitig abdecken.
 - Jede Suche zeigt, ob sie läuft, gerade ruhig ist, hängt oder von Vinted gebremst wird. Die häufigste Beschwerde über Benachrichtigungs-Tools, die von Vinted eingeschlossen, ist ja, dass sie ohne Hinweis aufhören.
 
-Einen Vinted-Login braucht sie nicht. Sie liest öffentliche Suchergebnisse als nicht angemeldeter Besucher, es ist kein Konto beteiligt.
-
 {{install}}
 
 ### Was sie nicht lösen kann
 
-Sie sieht einen Artikel nicht früher als die Vinted-Suche. Neue Artikel erscheinen dort einige Minuten nach dem Hochladen, und das gilt für jedes Tool. In der Praxis hörst du meist wenige Minuten nach dem Einstellen davon. Das ist viel besser als eine Benachrichtigung, die nie kommt, aber keine Garantie, dass du der Erste bist.
+Sie sieht einen Artikel nicht früher als die Vinted-Suche. Neue Artikel erscheinen dort etwa 15 bis 30 Sekunden nach dem Hochladen, und das gilt für jedes Tool. vinted-bot prüft alle 5 Sekunden und umgeht den Zwischenspeicher, in dem Vinted Suchergebnisse zwei Minuten lang aufbewahrt. In der Praxis hörst du deshalb meist 15 bis 35 Sekunden nach dem Einstellen davon. Das ist viel besser als eine Benachrichtigung, die nie kommt, aber keine Garantie, dass du der Erste bist.
 
 Außerdem läuft sie auf deinem Rechner, die Nachrichten kommen also nur, solange er an und wach ist. Ein Raspberry Pi oder ein alter Laptop am Netzteil löst das.
 

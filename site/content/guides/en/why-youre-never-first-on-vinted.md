@@ -4,7 +4,7 @@ description: "Why good Vinted listings are gone before you see them: search dela
 slug: why-youre-never-first-on-vinted
 key: never-first
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - how to be first on vinted
   - why are vinted items sold so fast
@@ -16,22 +16,24 @@ faq:
   - q: "Why are Vinted items sold so fast?"
     a: "Underpriced listings in popular categories are watched by many people with alerts, and some resellers use autobuy bots that check out within seconds of a listing appearing in search. In less contested categories, items don't usually go that fast."
   - q: "Why don't new listings show on Vinted straight away?"
-    a: "Vinted adds new uploads to its search a few minutes after they're posted, sometimes longer. Until then, nobody searching can see them, whether they use the app, a saved search or a bot."
+    a: "Vinted adds new uploads to its search about 15 to 30 seconds after they're posted. Until then, nobody searching can see them, whether they use the app, a saved search or a bot."
   - q: "How do I see new Vinted listings first?"
-    a: "Use tight searches with newest first, get alerts that check every minute instead of relying on saved-search notifications, follow sellers who list what you want, and keep your payment details saved so checkout takes seconds."
+    a: "Use tight searches with newest first, get alerts that check every few seconds instead of relying on saved-search notifications, follow sellers who list what you want, and keep your payment details saved so checkout takes seconds."
   - q: "Why does newest first show old items on Vinted?"
     a: "Bumped (promoted) listings and relisted items appear among new ones. Several users also reported in 2026 that newest first sometimes showed older items. Alert tools that compare listing ids can tell new listings from old ones."
 ---
 
-You're rarely first on Vinted for three reasons. New listings reach Vinted's search a few minutes after upload, so nobody sees them instantly. Saved-search notifications arrive later still, or not at all. And in popular categories, people with alerts and autobuy bots act within seconds of a listing appearing. You can't beat autobuy on a hyped item, but you can see most new listings within a few minutes and win far more often in the categories that matter to you.
+You're rarely first on Vinted for three reasons. New listings reach Vinted's search 15 to 30 seconds after upload, so nobody sees them instantly. Saved-search notifications arrive later still, or not at all. And in popular categories, people with alerts and autobuy bots act within seconds of a listing appearing. You can't beat autobuy on a hyped item, but you can hear about most new listings 15 to 35 seconds after they go up and win far more often in the categories that matter to you.
 
 ## Why good listings disappear before you see them
 
-### 1. Vinted's search is a few minutes behind
+### 1. Vinted's search is a little behind
 
-When someone uploads, the listing doesn't appear in search results at once. It shows up a few minutes later, sometimes longer. During that window the listing exists, but searching won't find it.
+When someone uploads, the listing doesn't appear in search results at once. It shows up about 15 to 30 seconds later. During that window the listing exists, but searching won't find it.
 
 This is the same for everyone: the app, the website, saved searches and every bot, paid or free. Anyone claiming "zero delay" is measuring from the moment the listing reached search.
+
+On top of that, Vinted serves each search from a cache it refreshes every two minutes, shared by everyone running that search. Reloading the search, by hand or with a tool that simply reloads it, can show results up to two minutes old.
 
 ### 2. Saved-search notifications are slower still
 
@@ -53,9 +55,9 @@ A search for "Nike" sorted by newest first changes every few seconds. You'll nev
 
 ### Get alerts that check the search themselves
 
-The biggest improvement over saved-search notifications is a tool that loads your search every minute and messages you about anything new. vinted-bot does this for free from your own computer and sends new listings to Discord, Telegram or your phone. It skips bumped listings, compares listing ids so old items resurfacing aren't announced as new, and the first check of a new search stays silent so you don't get a flood.
+The biggest improvement over saved-search notifications is a tool that checks your search every few seconds and messages you about anything new. vinted-bot does this for free from your own computer and sends new listings to Discord, Telegram or your phone. It skips bumped listings, compares listing ids so old items resurfacing aren't announced as new, and the first check of a new search stays silent so you don't get a flood.
 
-It won't beat Vinted's own search delay, and neither will anything else. In practice you'll hear about most listings within a few minutes of upload.
+vinted-bot checks every 5 seconds by default and skips Vinted's two-minute cache. It won't beat Vinted's own search delay, and neither will anything else. In practice you'll hear about most listings 15 to 35 seconds after upload.
 
 {{install}}
 
@@ -92,12 +94,12 @@ Many sellers list when they have free time, in the evening or at the weekend, bu
 
 If you're up against autobuy for underpriced electronics, an alert gives you a chance, not a win. Resellers who use bots say even they lose most races. You'll do better spending the same effort on niches you know, sizes others skip, or collectibles where knowing the item matters more than speed.
 
-If you're a collector, a size hunter or a parent watching for a particular bundle, you're mostly competing with ordinary shoppers. Hearing within a few minutes puts you ahead of nearly all of them.
+If you're a collector, a size hunter or a parent watching for a particular bundle, you're mostly competing with ordinary shoppers. Hearing within seconds puts you ahead of nearly all of them.
 
 ## Checklist
 
 - Tight searches with size, condition and a total-price limit.
-- Alerts that check every minute instead of saved-search notifications.
+- Alerts that check every few seconds instead of saved-search notifications.
 - Sellers you trust followed.
 - Payment method saved, Buy button straight from the alert.
 - Sound only for the searches that matter.

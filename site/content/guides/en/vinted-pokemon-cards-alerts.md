@@ -4,7 +4,7 @@ description: "Find Pokémon cards on Vinted before they sell: search recipes for
 slug: vinted-pokemon-cards-alerts
 key: pokemon
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - vinted pokemon cards bot
   - pokemon cards vinted
@@ -14,20 +14,20 @@ keywords:
   - vinted trading cards
 faq:
   - q: "Is there a bot for Pokémon cards on Vinted?"
-    a: "Yes. Any Vinted alert bot works for Pokémon cards if you give it good searches. vinted-bot is free: it checks your card searches every minute and sends new listings to Discord, Telegram or your phone, with words to skip like proxy or custom."
+    a: "Yes. Any Vinted alert bot works for Pokémon cards if you give it good searches. vinted-bot is free: it checks your card searches every few seconds and sends new listings to Discord, Telegram or your phone, with words to skip like proxy or custom."
   - q: "Are Pokémon cards on Vinted fake?"
     a: "Most aren't, but fakes and proxies do turn up, especially in cheap bulk lots and high-value singles. Ask for clear photos of the front, back and edges, compare with a card you own, and check the seller's reviews."
   - q: "Is it safe to buy Pokémon cards on Vinted?"
     a: "Buying through Vinted's checkout is covered by buyer protection if an item doesn't arrive or isn't as described. Never pay outside Vinted, and be extra careful with sealed packs, which can be resealed."
 ---
 
-To find Pokémon cards on Vinted before they sell, set up narrow searches for the exact sets, cards or graded slabs you want, cap them at the total price you'll pay including buyer protection, skip words like "proxy" and "custom", and get alerts that check those searches every minute. Good cards at fair prices go quickly, so relying on Vinted's saved-search notifications usually means arriving after they've sold.
+To find Pokémon cards on Vinted before they sell, set up narrow searches for the exact sets, cards or graded slabs you want, cap them at the total price you'll pay including buyer protection, skip words like "proxy" and "custom", and get alerts that check those searches every few seconds. Good cards at fair prices go quickly, so relying on Vinted's saved-search notifications usually means arriving after they've sold.
 
 ## Why Pokémon cards go so fast on Vinted
 
 Cards are small, easy to post and easy to price, which makes them attractive to resellers as well as collectors. Many sellers are parents or people clearing out childhood collections who don't check market prices. Those listings are exactly what everyone is watching for, and the good ones can sell within minutes.
 
-On top of that, Vinted adds new uploads to its search a few minutes after they're posted. Nobody sees a listing before then. What decides who gets it is how quickly you hear about it afterwards and how fast you check out.
+On top of that, Vinted adds new uploads to its search about 15 to 30 seconds after they're posted. Nobody sees a listing before then. What decides who gets it is how quickly you hear about it afterwards and how fast you check out.
 
 ## Search recipes that work
 
@@ -82,7 +82,7 @@ Always buy through Vinted's checkout, so buyer protection applies. Never agree t
 
 ## Setting up Pokémon card alerts
 
-vinted-bot is a free, open-source app that runs on your computer, checks your Vinted searches every minute and sends new listings to Discord, Telegram or your phone. It never logs in to Vinted.
+vinted-bot is a free, open-source app that runs on your computer, checks your Vinted searches every 5 seconds and sends new listings to Discord, Telegram or your phone.
 
 1. Install it with the one-line command from the homepage.
 2. Paste each search link from Vinted, or build the search in the dashboard and pick the trading cards category.
@@ -100,4 +100,4 @@ Cards are the same in every country, but sellers aren't. The same search on vint
 
 ## Be realistic about speed
 
-A €2 Charizard in a lot listed by someone who doesn't know what they have will attract everyone. Alerts get you there within minutes of the listing appearing in search, but you can still lose to someone faster. You'll win far more often on less hyped sets, graded cards at fair prices and mixed lots that take a moment to read. For more on the race itself, see [why you're never first on Vinted](/guides/why-youre-never-first-on-vinted/).
+A €2 Charizard in a lot listed by someone who doesn't know what they have will attract everyone. Alerts get you there within seconds of the listing appearing in search, but you can still lose to someone faster. You'll win far more often on less hyped sets, graded cards at fair prices and mixed lots that take a moment to read. For more on the race itself, see [why you're never first on Vinted](/guides/why-youre-never-first-on-vinted/).

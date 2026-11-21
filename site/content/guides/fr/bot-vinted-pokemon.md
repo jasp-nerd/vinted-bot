@@ -4,7 +4,7 @@ description: "Bot Vinted Pokémon gratuit : recherches par extension et cartes g
 slug: bot-vinted-pokemon
 key: pokemon
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - bot vinted pokemon
   - bot vinted carte pokemon
@@ -14,20 +14,20 @@ keywords:
   - lot cartes pokemon vinted
 faq:
   - q: "Existe-t-il un bot Vinted pour les cartes Pokémon ?"
-    a: "Oui. N'importe quel bot d'alerte Vinted fonctionne pour les cartes Pokémon si on lui donne de bonnes recherches. vinted-bot est gratuit : il vérifie vos recherches de cartes chaque minute et envoie les nouvelles annonces sur Discord, Telegram ou votre téléphone, en excluant des mots comme proxy ou custom."
+    a: "Oui. N'importe quel bot d'alerte Vinted fonctionne pour les cartes Pokémon si on lui donne de bonnes recherches. vinted-bot est gratuit : il vérifie vos recherches de cartes toutes les quelques secondes et envoie les nouvelles annonces sur Discord, Telegram ou votre téléphone, en excluant des mots comme proxy ou custom."
   - q: "Les cartes Pokémon sur Vinted sont-elles fausses ?"
     a: "La plupart ne le sont pas, mais des contrefaçons et des proxys circulent, surtout dans les lots bon marché et les cartes chères. Demandez des photos nettes du recto, du verso et des bords, comparez avec une carte que vous possédez et regardez les évaluations du vendeur."
   - q: "Acheter des cartes Pokémon sur Vinted, c'est sûr ?"
     a: "Un achat passé par le paiement Vinted est couvert par la protection acheteurs si l'article n'arrive pas ou ne correspond pas à l'annonce. Ne payez jamais en dehors de Vinted, et soyez très prudent avec les boosters à l'unité, qui peuvent avoir été refermés."
 ---
 
-Pour trouver des cartes Pokémon sur Vinted avant qu'elles partent, créez des recherches précises pour les extensions, les cartes ou les cartes gradées que vous voulez, plafonnez-les au prix total que vous paierez protection acheteurs comprise, excluez des mots comme « proxy » et « custom », et faites-vous prévenir par des alertes qui vérifient ces recherches chaque minute. Les bonnes cartes à bon prix partent vite : compter sur les notifications de recherche sauvegardée de Vinted, c'est souvent arriver après la vente.
+Pour trouver des cartes Pokémon sur Vinted avant qu'elles partent, créez des recherches précises pour les extensions, les cartes ou les cartes gradées que vous voulez, plafonnez-les au prix total que vous paierez protection acheteurs comprise, excluez des mots comme « proxy » et « custom », et faites-vous prévenir par des alertes qui vérifient ces recherches toutes les quelques secondes. Les bonnes cartes à bon prix partent vite : compter sur les notifications de recherche sauvegardée de Vinted, c'est souvent arriver après la vente.
 
 ## Pourquoi les cartes Pokémon partent si vite sur Vinted
 
 Les cartes sont petites, faciles à envoyer et faciles à estimer, ce qui attire autant les revendeurs que les collectionneurs. Beaucoup de vendeurs sont des parents ou des adultes qui vident leur collection d'enfance sans vérifier la cote. Ce sont exactement ces annonces que tout le monde guette, et les meilleures peuvent partir en quelques minutes.
 
-En plus, Vinted ajoute les nouvelles annonces à sa recherche quelques minutes après leur publication. Personne ne voit une annonce avant. Ce qui décide qui l'obtient, c'est la rapidité avec laquelle on est prévenu ensuite, et la vitesse du paiement.
+En plus, Vinted ajoute les nouvelles annonces à sa recherche environ 15 à 30 secondes après leur publication. Personne ne voit une annonce avant. Ce qui décide qui l'obtient, c'est la rapidité avec laquelle on est prévenu ensuite, et la vitesse du paiement.
 
 ## Des recherches qui marchent
 
@@ -82,7 +82,7 @@ Achetez toujours via le paiement Vinted, pour que la protection acheteurs s'appl
 
 ## Mettre en place vos alertes Pokémon
 
-vinted-bot est une application gratuite et open source qui tourne sur votre ordinateur, vérifie vos recherches Vinted chaque minute et envoie les nouvelles annonces sur Discord, Telegram ou votre téléphone. Elle ne se connecte jamais à Vinted.
+vinted-bot est une application gratuite et open source qui tourne sur votre ordinateur, vérifie vos recherches Vinted toutes les 5 secondes et envoie les nouvelles annonces sur Discord, Telegram ou votre téléphone.
 
 1. Installez-la avec la commande d'une ligne de la page d'accueil.
 2. Collez chaque lien de recherche Vinted, ou construisez la recherche dans le tableau de bord en choisissant la catégorie des cartes à collectionner.
@@ -100,6 +100,6 @@ Les cartes sont les mêmes partout, mais pas les vendeurs. La même recherche su
 
 ## Rester réaliste sur la vitesse
 
-Un Dracaufeu à 2 € glissé dans un lot par quelqu'un qui ne sait pas ce qu'il a attirera tout le monde. Les alertes vous y amènent dans les minutes qui suivent l'apparition de l'annonce dans la recherche, mais quelqu'un de plus rapide peut passer avant, surtout s'il utilise l'achat automatique. Vous gagnerez bien plus souvent sur les extensions moins à la mode, les cartes gradées à prix correct et les lots qui demandent un instant de lecture. Avoir son moyen de paiement enregistré dans Vinted et acheter directement depuis le bouton de l'alerte fait gagner de précieuses secondes.
+Un Dracaufeu à 2 € glissé dans un lot par quelqu'un qui ne sait pas ce qu'il a attirera tout le monde. Les alertes vous y amènent dans les secondes qui suivent l'apparition de l'annonce dans la recherche, mais quelqu'un de plus rapide peut passer avant, surtout s'il utilise l'achat automatique. Vous gagnerez bien plus souvent sur les extensions moins à la mode, les cartes gradées à prix correct et les lots qui demandent un instant de lecture. Avoir son moyen de paiement enregistré dans Vinted et acheter directement depuis le bouton de l'alerte fait gagner de précieuses secondes.
 
 Pour comprendre le fonctionnement des bots et ce que promet vraiment le « 0 délai », lisez [bot Vinted, c'est quoi ?](/guides/bot-vinted-c-est-quoi/). Et si vous revendez vos trouvailles, [achat-revente sur Vinted](/guides/achat-revente-vinted/) explique le calcul de marge et les règles.

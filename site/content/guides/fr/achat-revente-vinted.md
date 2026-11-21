@@ -4,7 +4,7 @@ description: "Achat revente Vinted sans bot payant : calcul de marge avec protec
 slug: achat-revente-vinted
 key: reselling
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - achat revente vinted
   - bot vinted achat revente
@@ -19,12 +19,12 @@ faq:
   - q: "Vinted déclare-t-il mes ventes aux impôts ?"
     a: "Selon les règles européennes DAC7, Vinted transmet à l'administration fiscale les données des vendeurs qui atteignent 30 ventes ou 2 000 € de ventes dans l'année. Être déclaré ne veut pas dire être imposé : vendre ses propres vêtements d'occasion n'est en général pas imposable, l'achat-revente l'est."
   - q: "Faut-il un bot pour faire de l'achat-revente sur Vinted ?"
-    a: "Non, mais des alertes aident beaucoup, car les annonces bien placées partent vite. Un bot d'alerte gratuit qui vérifie vos recherches chaque minute et filtre sur le prix total couvre l'essentiel. L'achat automatique est l'option chère, et elle expose votre compte."
+    a: "Non, mais des alertes aident beaucoup, car les annonces bien placées partent vite. Un bot d'alerte gratuit qui vérifie vos recherches toutes les quelques secondes et filtre sur le prix total couvre l'essentiel. L'achat automatique est l'option chère, et elle expose votre compte."
   - q: "Quelles niches marchent en achat-revente Vinted ?"
     a: "Les vêtements de marque dans les tailles courantes, les baskets, les jeux vidéo et consoles, les maillots de foot et les cartes à collectionner se vendent vite. Ce sont aussi les catégories les plus disputées : une niche que vous connaissez mieux que les autres donne souvent de meilleures marges."
 ---
 
-On peut faire de l'achat-revente sur Vinted sans payer de bot. Ce qu'il faut : une courte liste de recherches que vous connaissez par cœur, un calcul de marge honnête qui inclut la protection acheteurs et le port, et des alertes qui vous préviennent dans les minutes qui suivent l'apparition d'une annonce. Un outil d'alerte gratuit couvre tout ça. Les bots payants ajoutent surtout l'achat automatique, qui coûte cher et met votre compte Vinted en jeu.
+On peut faire de l'achat-revente sur Vinted sans payer de bot. Ce qu'il faut : une courte liste de recherches que vous connaissez par cœur, un calcul de marge honnête qui inclut la protection acheteurs et le port, et des alertes qui vous préviennent dans les secondes qui suivent l'apparition d'une annonce. Un outil d'alerte gratuit couvre tout ça. Les bots payants ajoutent surtout l'achat automatique, qui coûte cher et met votre compte Vinted en jeu.
 
 Ce guide parle de trouver du stock sur Vinted. Ce n'est pas une méthode pour « se faire un salaire » : les marges sont fines et dépendent beaucoup du temps que vous y passez. Méfiez-vous des formations et des serveurs qui promettent l'inverse.
 
@@ -90,7 +90,7 @@ La même recherche sur vinted.be, vinted.es ou vinted.it montre un autre mélang
 
 ## Mettre en place des alertes gratuites
 
-vinted-bot est gratuit et open source. Il tourne sur votre propre ordinateur, vérifie chaque recherche toutes les minutes et envoie les nouvelles annonces sur Discord, Telegram ou votre téléphone, avec le prix total, la note du vendeur et des boutons Acheter et Contacter. Il ne se connecte jamais à Vinted.
+vinted-bot est gratuit et open source. Il tourne sur votre propre ordinateur, vérifie chaque recherche toutes les 5 secondes et envoie les nouvelles annonces sur Discord, Telegram ou votre téléphone, avec le prix total, la note du vendeur et des boutons Acheter et Contacter.
 
 1. Installez-le avec la commande d'une ligne de la page d'accueil.
 2. Collez chaque lien de recherche, ou construisez les recherches dans le tableau de bord.
@@ -101,7 +101,7 @@ vinted-bot est gratuit et open source. Il tourne sur votre propre ordinateur, v�
 
 ## La vitesse : ce que les alertes peuvent faire, et ce qu'elles ne peuvent pas
 
-Vinted ajoute les nouvelles annonces à sa recherche quelques minutes après leur publication. Tout outil, payant ou gratuit, ne les voit qu'à ce moment-là : le « 0 délai » n'existe pas. vinted-bot vérifie chaque minute, donc vous êtes en général prévenu quelques minutes après la mise en ligne. Dans une niche calme, c'est largement suffisant. Sur un article très recherché, l'achat automatique passe souvent avant.
+Vinted ajoute les nouvelles annonces à sa recherche environ 15 à 30 secondes après leur publication. Tout outil, payant ou gratuit, ne les voit qu'à ce moment-là : le « 0 délai » n'existe pas. vinted-bot vérifie toutes les 5 secondes et contourne le cache de deux minutes que Vinted applique aux recherches, donc vous êtes en général prévenu 15 à 35 secondes après la mise en ligne. Dans une niche calme, c'est largement suffisant. Sur un article très recherché, l'achat automatique passe souvent avant.
 
 Quelques habitudes aident plus qu'un bot plus rapide :
 
@@ -128,4 +128,4 @@ Depuis la directive européenne DAC7, les plateformes comme Vinted transmettent 
 
 ### Les bots et votre compte
 
-Les outils qui achètent, envoient des messages ou republient pour vous ont besoin de votre connexion, et Vinted restreint les comptes qu'il soupçonne d'automatisation. Pour un revendeur, le compte et ses évaluations, c'est l'affaire elle-même. Un outil d'alerte qui ne se connecte jamais le laisse en dehors du jeu. Plus de détails dans [bot Vinted : légal, interdit, risque de ban ?](/guides/bot-vinted-legal-ban/), et pour comparer les outils, [meilleur bot Vinted gratuit ou payant](/guides/meilleur-bot-vinted-gratuit/).
+Les outils qui achètent, envoient des messages ou republient pour vous ont besoin de votre connexion, et Vinted restreint les comptes qu'il soupçonne d'automatisation. Pour un revendeur, le compte et ses évaluations, c'est l'affaire elle-même. Un outil d'alerte qui lit seulement les annonces publiques le laisse en dehors du jeu. Plus de détails dans [bot Vinted : légal, interdit, risque de ban ?](/guides/bot-vinted-legal-ban/), et pour comparer les outils, [meilleur bot Vinted gratuit ou payant](/guides/meilleur-bot-vinted-gratuit/).

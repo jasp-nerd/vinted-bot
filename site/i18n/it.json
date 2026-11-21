@@ -4,14 +4,14 @@
     "locale": "it_IT",
     "name": "Italiano",
     "title": "Bot Vinted gratis: notifiche nuovi articoli su Telegram",
-    "description": "Bot Vinted gratis e open source: ricevi i nuovi articoli delle tue ricerche su Telegram, Discord o sul telefono. Nessun abbonamento, nessun login Vinted.",
+    "description": "Bot Vinted gratis e open source: ricevi i nuovi articoli delle tue ricerche su Telegram, Discord o sul telefono. Nessun abbonamento, nessuna pubblicità.",
     "og_title": "Bot Vinted gratis: notifiche su Telegram appena la tua ricerca trova qualcosa di nuovo",
-    "og_description": "Notifiche gratuite e open source per le tue ricerche Vinted su Telegram, Discord o sul telefono. Gira sul tuo computer, senza login Vinted e senza abbonamento.",
+    "og_description": "Notifiche gratuite e open source per le tue ricerche Vinted su Telegram, Discord o sul telefono. Gira sul tuo computer, senza abbonamento.",
     "og_image_alt": "vinted-bot: la scheda di un articolo con il prezzo spese incluse, e Mags la gazza con in mano un telefono che mostra una nuova notifica",
     "og_headline": ["Bot Vinted gratis.", "Notifiche Telegram", "appena la tua ricerca", "trova novità."],
-    "og_sub": ["Avvisi su Telegram, Discord o sul telefono.", "Sempre gratis. Senza abbonamento né login."],
+    "og_sub": ["Avvisi su Telegram, Discord o sul telefono.", "Sempre gratis. Senza abbonamento né pubblicità."],
     "og_card": {"new": "Nuovo", "deal": "24% sotto la media", "title": "Jeans Levi's 501 dritti", "meta": "W31 L32 · Ottime condizioni", "price": "23,80 €", "fees": "spese incluse"},
-    "app_description": "Bot Vinted gratuito e open source che controlla le tue ricerche Vinted e invia i nuovi articoli corrispondenti su Telegram, Discord, ntfy, email e altro ancora. Gira sul tuo computer e non accede mai a Vinted con il tuo account. Non affiliato a Vinted.",
+    "app_description": "Bot Vinted gratuito e open source che controlla le tue ricerche Vinted e invia i nuovi articoli corrispondenti su Telegram, Discord, ntfy, email e altro ancora. Gira sul tuo computer. Non affiliato a Vinted.",
     "site_description": "vinted-bot invia i nuovi articoli delle tue ricerche Vinted su Telegram, Discord o sul telefono. Gratuito e open source."
   },
   "common": {
@@ -44,7 +44,7 @@
     "note": "Windows, Mac, Linux, Raspberry Pi, Docker o un NAS.",
     "independent": "Progetto indipendente e open source. Non affiliato a Vinted.",
     "trust_aria": "In breve",
-    "trust": ["0 €, mentre i bot a pagamento costano da 5 a 300 € al mese", "Nessun login Vinted", "Niente pubblicità, niente tracciamento nell'app"],
+    "trust": ["0 €, mentre i bot a pagamento costano da 5 a 300 € al mese", "Controlla ogni 5 secondi", "Niente pubblicità, niente tracciamento nell'app"],
     "stage_caption": "Una demo della dashboard: i nuovi articoli Vinted compaiono in cima alla griglia e per ognuno arriva una notifica.",
     "push_now": "ora",
     "stage_title": "Trovati",
@@ -86,7 +86,7 @@
     "steps": [
       {"when": "Prima", "title": "Incolla una ricerca da Vinted", "text": "Cerca su Vinted con le tue taglie, marche e prezzo, poi copia il link nella dashboard. Oppure crea la ricerca direttamente lì, con le categorie e le marche di Vinted."},
       {"when": "Poi", "title": "Scegli dove arrivano le notifiche", "text": "Telegram, Discord, una notifica push sul telefono, email o una tra altre cento app. Prima manda un test, così sai che arriva."},
-      {"when": "Da lì in poi", "title": "Scopri i nuovi articoli", "text": "Controlla ogni ricerca ogni minuto e ti manda solo quello che prima non c'era. Il primo controllo resta silenzioso, così non ricevi una valanga di vecchi annunci."}
+      {"when": "Da lì in poi", "title": "Scopri i nuovi articoli", "text": "Controlla ogni ricerca ogni 5 secondi e ti manda solo quello che prima non c'era. Il primo controllo resta silenzioso, così non ricevi una valanga di vecchi annunci."}
     ],
     "dest_phone": "Notifica sul telefono"
   },
@@ -132,12 +132,12 @@
     ]
   },
   "features": {
-    "title": "Tutto quello che ti serve, senza il tuo login",
-    "lead": "Fa tutto tranne comprare o scrivere messaggi al posto tuo. Per quello serve il tuo account Vinted, ed è da lì che arrivano i ban degli account.",
+    "title": "Tutto quello che ti serve, niente di superfluo",
+    "lead": "Fa tutto tranne comprare o scrivere messaggi al posto tuo. Ogni notifica ha un pulsante Compra, e lo premi tu.",
     "items": [
       {"title": "Il prezzo che pagheresti davvero", "text": "Imposti un massimo di 35 € e significa 35 € con la Protezione acquisti inclusa. Il filtro prezzo di Vinted ignora la commissione."},
       {"title": "Ti avvisa quando smette di funzionare", "text": "Ogni ricerca mostra se è attiva, tranquilla, ferma o bloccata, e ricevi un messaggio quando una va controllata."},
-      {"title": "Nessun account, niente da bannare", "text": "Legge gli annunci pubblici in forma anonima e non ti chiede mai il login Vinted. Non c'è nessun account che Vinted possa limitare."},
+      {"title": "Secondi, non minuti", "text": "Controlla ogni ricerca ogni 5 secondi e salta la cache di due minuti che Vinted applica alle ricerche, così di solito una notifica arriva tra 15 e 35 secondi dopo la pubblicazione di un annuncio."},
       {"title": "Badge per gli affari", "text": "Impara il prezzo tipico di ogni ricerca e segnala gli articoli che stanno chiaramente sotto. Se vuoi, ti manda solo quelli."},
       {"title": "Filtri che Vinted non ha", "text": "Parole che il titolo deve contenere, anche con “questo o quello”. Parole da escludere, come “per ricambi” o “solo scatola”. Espressioni regolari, se ti piacciono."},
       {"title": "Filtri sui venditori e lista dei bloccati", "text": "Valutazione e numero di recensioni minimi, i paesi da cui spediscono i venditori e un pulsante per bloccare il venditore che mette la tua ricerca nei tag di ogni annuncio."},
@@ -170,10 +170,9 @@
     "label_paid": "Tipico bot a pagamento",
     "rows": [
       {"q": "Prezzo", "us": "Gratis. Niente piani, niente prova, niente abbonamento.", "them": "Da 5 a 30 € al mese. Piani con acquisto automatico fino a 300 €.", "yes": true},
-      {"q": "Il tuo login Vinted", "us": "Mai richiesto", "them": "Non per le notifiche. L'acquisto automatico e i messaggi automatici richiedono il tuo account, ed è da lì che arrivano le limitazioni.", "yes": true},
       {"q": "Quando smette di funzionare", "us": "Te lo dice, per ogni ricerca, con parole semplici", "them": "Di solito te ne accorgi quando tutto tace", "yes": true},
       {"q": "Filtro prezzo", "us": "Include la Protezione acquisti", "them": "Di solito il prezzo dell'annuncio", "yes": true},
-      {"q": "Velocità", "us": "Di solito pochi minuti dopo la pubblicazione di un annuncio", "them": "Spesso venduto come “istantaneo”. Ogni strumento dipende da quando Vinted mostra un annuncio nella ricerca.", "yes": false},
+      {"q": "Velocità", "us": "Di solito tra 15 e 35 secondi dopo la pubblicazione di un annuncio", "them": "Spesso venduto come “istantaneo”. Ogni strumento dipende da quando Vinted mostra un annuncio nella ricerca.", "yes": false},
       {"q": "Dove gira", "us": "Sul tuo computer, un Raspberry Pi o un NAS", "them": "Sui loro server", "yes": false},
       {"q": "Codice sorgente", "us": "Aperto, licenza MIT", "them": "Chiuso", "yes": true}
     ],
@@ -230,10 +229,10 @@
     "lead": "Hai un'altra domanda? <a href=\"https://github.com/jasp-nerd/vinted-bot/issues\">Chiedi su GitHub</a>.",
     "items": [
       {"q": "È davvero gratis?", "a": "<p><strong>Sì, e resterà così.</strong> È open source con licenza MIT, senza piani a pagamento, abbonamenti, prove, account o pubblicità. Gira sul tuo computer, quindi non c'è nessun server da pagare e niente da venderti in più.</p><p>I bot Vinted a pagamento chiedono da 5 a 30 € al mese per le notifiche, e fino a 300 € per l'acquisto automatico. Se preferisci non tenere acceso un computer, un piccolo server in affitto costa pochi euro al mese. Quei soldi vanno al provider, non a questo progetto.</p>"},
-      {"q": "Vinted mi bannerà?", "a": "<p><strong>Il tuo account no: non c'è nessun account di mezzo.</strong> vinted-bot legge gli annunci pubblici in forma anonima. Non accede mai e non ti chiede mai i tuoi dati Vinted, quindi non c'è nessun account che Vinted possa limitare.</p><p>Quello che Vinted può fare è smettere di rispondere alla tua connessione internet (il tuo indirizzo IP) per un po', se vede troppe richieste. È temporaneo. Di base fa un controllo al minuto per ricerca, e vinted-bot rallenta da solo quando Vinted glielo chiede.</p>"},
+      {"q": "Vinted mi bannerà?", "a": "<p><strong>Il tuo account non è coinvolto.</strong> vinted-bot legge gli annunci pubblici come un visitatore non loggato, quindi non c'è nessun account che Vinted possa limitare.</p><p>Quello che Vinted può fare è smettere di rispondere alla tua connessione internet (il tuo indirizzo IP) per un po', se vede troppe richieste. È temporaneo. Di base fa un controllo ogni 5 secondi per ricerca, e vinted-bot rallenta da solo quando Vinted glielo chiede. Molte ricerche controllate ogni secondo dallo stesso indirizzo lo rendono più probabile.</p>"},
       {"q": "Devo lasciare il computer acceso?", "a": "<p>Sì. Le notifiche arrivano solo mentre il computer su cui gira è acceso, non in sospensione e connesso a internet. Un portatile in sospensione non invia niente. L'installer per Mac può tenere sveglio un Mac collegato alla corrente.</p><p>Per avere notifiche giorno e notte, usalo su un Raspberry Pi, un NAS o un vecchio portatile lasciato collegato alla corrente. Il telefono si limita a ricevere le notifiche.</p>"},
-      {"q": "Perché non è istantaneo?", "a": "<p>Vinted mostra i nuovi annunci nella ricerca qualche minuto dopo la pubblicazione, quindi ogni strumento, a pagamento o gratuito, li vede con un po' di ritardo. vinted-bot controlla ogni minuto di default e di solito ti avvisa entro pochi minuti dalla pubblicazione di un annuncio.</p><p>Basta per i collezionisti, per chi cerca una taglia precisa e per la maggior parte degli affari. Se fai a gara con i bot di acquisto automatico per le console sottoprezzo, nessuna notifica vincerà, e preferiamo dirlo chiaramente.</p>"},
-      {"q": "È legale? È permesso?", "a": "<p>I termini di Vinted vietano l'accesso automatizzato. È un contratto tra te e Vinted, non una legge: violarlo non è un reato, ma dà a Vinted un motivo per smettere di servirti. Nell'UE, leggere pagine accessibili pubblicamente non è di per sé illecito.</p><p>Questo strumento legge gli annunci pubblici in forma anonima, con calma, e non compra, non pubblica e non scrive messaggi al posto tuo. Usarlo è una tua scelta. Se Vinted ti chiede di smettere, smetti. Maggiori dettagli nelle <a href=\"/docs/legal/\">note su regole e rischi</a> (in inglese). Non è una consulenza legale.</p>"},
+      {"q": "Perché non è istantaneo?", "a": "<p>La ricerca di Vinted mostra un nuovo annuncio da 15 a 30 secondi circa dopo la pubblicazione, e nessuno strumento, a pagamento o gratuito, può vederlo prima. Vinted inoltre serve ogni ricerca da una cache che aggiorna ogni due minuti, quindi uno strumento che si limita a ricaricare la ricerca può restare indietro fino a due minuti. vinted-bot salta quella cache e controlla ogni 5 secondi di default, quindi di solito una notifica arriva tra 15 e 35 secondi dopo la pubblicazione di un annuncio.</p><p>Basta per i collezionisti, per chi cerca una taglia precisa e per la maggior parte degli affari. Se fai a gara con i bot di acquisto automatico per le console sottoprezzo, nessuna notifica vincerà, e preferiamo dirlo chiaramente.</p>"},
+      {"q": "È legale? È permesso?", "a": "<p>I termini di Vinted vietano l'accesso automatizzato. È un contratto tra te e Vinted, non una legge: violarlo non è un reato, ma dà a Vinted un motivo per smettere di servirti. Nell'UE, leggere pagine accessibili pubblicamente non è di per sé illecito.</p><p>Questo strumento legge gli annunci pubblici, rallenta da solo quando Vinted glielo chiede, e non compra, non pubblica e non scrive messaggi al posto tuo. Usarlo è una tua scelta. Se Vinted ti chiede di smettere, smetti. Maggiori dettagli nelle <a href=\"/docs/legal/\">note su regole e rischi</a> (in inglese). Non è una consulenza legale.</p>"},
       {"q": "Può comprare o scrivere ai venditori al posto mio?", "a": "<p>No, e non lo farà. Per comprare serve un account Vinted connesso, ed è da lì che arrivano le limitazioni degli account. Ogni notifica ha un pulsante Compra; lo premi tu.</p>"},
       {"q": "Che fine fanno i miei dati?", "a": "<p>Restano in un file sul tuo computer. vinted-bot salva solo quello che serve per una notifica e cancella gli annunci dopo 30 giorni. Non invia niente da nessuna parte, a parte le notifiche che imposti e un controllo giornaliero delle nuove versioni, che puoi disattivare. Nemmeno questo sito usa cookie.</p>"},
       {"q": "In quali paesi funziona?", "a": "<p>Su tutti i 27 siti nazionali di Vinted, tra cui vinted.it, .fr, .de, .nl, .be, .es, .pl e .co.uk. I prezzi sono nella valuta del sito e le notifiche usano la lingua del sito per le poche parole fisse.</p>"}
@@ -294,7 +293,7 @@
       {"h": "Chi lo sviluppa", "body": "<p>vinted-bot è sviluppato e mantenuto da <a href=\"https://github.com/jasp-nerd\">jasp-nerd</a>, uno sviluppatore che vive nei Paesi Bassi. È nato ad agosto 2026 come piccolo strumento da riga di comando ed è cresciuto fino a diventare l'app di oggi, con dashboard, badge per gli affari, controlli di stato e installer da una riga.</p>"},
       {"h": "Perché è gratis", "body": "<p>Le notifiche per le tue ricerche non dovrebbero costare un abbonamento mensile. Visto che vinted-bot gira sul tuo computer, non c'è nessun server da pagare, quindi non c'è niente da farti pagare. Niente piani a pagamento, niente prova, niente account e niente pubblicità, e non ci saranno mai. Il codice ha licenza MIT: puoi leggerlo, modificarlo e usarlo come vuoi.</p>"},
       {"h": "Come si finanzia", "body": "<p>Non si finanzia. Niente pubblicità, niente versione a pagamento, e nessun dato su di te viene raccolto o venduto. Se ti ha fatto trovare un buon affare, puoi <a href=\"{kofi}\">offrirmi un caffè</a> o <a href=\"{sponsors}\">sponsorizzarlo su GitHub</a>. Anche una stella su GitHub aiuta altre persone a trovarlo.</p>"},
-      {"h": "Cosa non farà mai", "body": "<p>Non ti chiederà mai il login Vinted e non comprerà, pubblicherà, metterà like o scriverà messaggi al posto tuo. Per queste cose serve il tuo account, ed è da lì che arrivano le limitazioni. Legge gli annunci pubblici in forma anonima, con calma, e rallenta da solo quando Vinted glielo chiede. Maggiori dettagli in <a href=\"/docs/legal/\">regole e rischi</a> (in inglese).</p>"},
+      {"h": "Cosa non farà mai", "body": "<p>Non comprerà mai, né pubblicherà, metterà like o scriverà messaggi al posto tuo. Legge gli annunci pubblici e rallenta da solo quando Vinted glielo chiede. Maggiori dettagli in <a href=\"/docs/legal/\">regole e rischi</a> (in inglese).</p>"},
       {"h": "Non affiliato a Vinted", "body": "<p>vinted-bot è un progetto indipendente. Non è affiliato, approvato o collegato in alcun modo a Vinted UAB. Vinted è un marchio del suo proprietario. Il nome dice cosa fa, un bot per Vinted. Non significa che venga da Vinted.</p>"},
       {"h": "Contatti", "body": "<p>Hai trovato un bug o hai un'idea? <a href=\"https://github.com/jasp-nerd/vinted-bot/issues\">Apri una segnalazione su GitHub</a>. I problemi di sicurezza passano dalla <a href=\"https://github.com/jasp-nerd/vinted-bot/blob/main/SECURITY.md\">policy di sicurezza</a> (in inglese). Tutte le modifiche sono nel <a href=\"/changelog/\">changelog</a> (in inglese).</p>"}
     ]

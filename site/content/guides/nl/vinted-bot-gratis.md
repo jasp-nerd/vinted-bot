@@ -1,10 +1,10 @@
 ---
 title: "Gratis Vinted bot: melding bij nieuwe items zonder abonnement"
-description: "Gratis Vinted bot: krijg nieuwe items uit je zoekopdrachten op Discord, Telegram of je telefoon. Open source, geen abonnement, geen Vinted-login."
+description: "Gratis Vinted bot: krijg nieuwe items uit je zoekopdrachten op Discord, Telegram of je telefoon. Open source, geen abonnement, geen advertenties."
 slug: vinted-bot-gratis
 key: free-bot
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - vinted bot gratis
   - vinted bot free
@@ -23,7 +23,7 @@ faq:
     a: "Deze niet. Automatisch kopen kan alleen met je ingelogde account, en daar komen accountblokkades vandaan. vinted-bot zet in elke melding een Kopen-knop, zodat jij zelf koopt."
 ---
 
-Ja, een Vinted bot kan gratis. vinted-bot is een gratis open-source app die je Vinted-zoekopdrachten in de gaten houdt en elk nieuw item naar Discord, Telegram of je telefoon stuurt, met de prijs die je echt betaalt. Het draait op je eigen computer in plaats van op de server van een ander bedrijf. Daarom kost het niets, en het vraagt nooit om je Vinted-login.
+Ja, een Vinted bot kan gratis. vinted-bot is een gratis open-source app die je Vinted-zoekopdrachten in de gaten houdt en elk nieuw item naar Discord, Telegram of je telefoon stuurt, met de prijs die je echt betaalt. Het draait op je eigen computer in plaats van op de server van een ander bedrijf. Daarom kost het niets.
 
 Hieronder: wat mensen bedoelen met "Vinted bot", welke gratis opties er zijn, hoe je in een minuut of tien begint, en de beperkingen die je moet kennen.
 
@@ -89,7 +89,7 @@ De meldingen komen van het apparaat waarop de app draait. Een laptop in slaapsta
 
 ### Direct kan niet, bij niemand
 
-Vinted zet nieuwe items pas een paar minuten na het uploaden in de zoekresultaten. Elke tool die de zoekresultaten leest, betaald of gratis, ziet ze pas dan. vinted-bot controleert standaard elke minuut. Vaker controleren levert niets eerder op en zorgt er alleen voor dat Vinted je verbinding afremt. Tegen autobuy-bots die op goedkope consoles jagen wint geen meldingstool. Zoek je een bepaalde maat, een merk of een verzamelobject, dan is een minuut ruim voldoende.
+Vinted zet nieuwe items pas zo'n 15 tot 30 seconden na het uploaden in de zoekresultaten. Elke tool die de zoekresultaten leest, betaald of gratis, ziet ze pas dan. Vinted geeft elke zoekopdracht bovendien uit een cache die het elke twee minuten ververst, dus een tool die gewoon de zoekopdracht opnieuw laadt, kan tot twee minuten achterlopen. vinted-bot slaat die cache over en controleert standaard elke 5 seconden, dus een melding komt meestal 15 tot 35 seconden na de upload. Je kunt tot elke seconde gaan, op eigen risico: veel verzoeken vanaf één adres kunnen ervoor zorgen dat Vinted je verbinding afremt. Tegen autobuy-bots die op goedkope consoles jagen wint geen meldingstool. Zoek je een bepaalde maat, een merk of een verzamelobject, dan is dat ruim voldoende.
 
 ### Je verbinding telt mee
 

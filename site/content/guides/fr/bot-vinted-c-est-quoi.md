@@ -4,7 +4,7 @@ description: "Bot Vinted, c'est quoi ? Bots d'alerte, d'achat automatique, de re
 slug: bot-vinted-c-est-quoi
 key: what-is-a-bot
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - bot vinted c'est quoi
   - bot vinted comment ça marche
@@ -17,7 +17,7 @@ faq:
   - q: "Comment marche un bot Vinted ?"
     a: "Il charge une recherche Vinted triée par plus récents, encore et encore, compare les résultats avec ce qu'il a vu la fois précédente et agit sur ce qui est nouveau : envoyer une alerte ou, pour un bot d'achat automatique, lancer l'achat avec votre compte connecté."
   - q: "Un bot Vinted 0 délai, c'est vrai ?"
-    a: "Non. Vinted ajoute les nouvelles annonces à sa recherche quelques minutes après leur publication. Le « 0 délai » ou « moins d'une seconde » se mesure entre l'apparition dans la recherche et l'alerte, pas depuis la mise en ligne."
+    a: "Non. Vinted ajoute les nouvelles annonces à sa recherche environ 15 à 30 secondes après leur publication. Le « 0 délai » ou « moins d'une seconde » se mesure entre l'apparition dans la recherche et l'alerte, pas depuis la mise en ligne."
   - q: "Un bot Vinted, ça vaut le coup ?"
     a: "Un bot d'alerte vaut le coup si vous cherchez des articles, des tailles ou des pièces de collection précises et que les notifications de Vinted vous déçoivent, surtout s'il est gratuit. Payer pour de l'achat automatique se justifie rarement hors revente à gros volume, et expose votre compte."
 ---
@@ -53,7 +53,7 @@ Le fonctionnement est plus simple que ce que le marketing laisse croire :
 1. Il ouvre une session avec Vinted, comme le fait un navigateur quand vous visitez le site sans être connecté.
 2. Il demande à Vinted les résultats de votre recherche, triés par plus récents.
 3. Il compare les annonces avec celles qu'il a vues la fois précédente. Tout ce qui est nouveau et passe vos filtres devient une alerte.
-4. Il attend, puis recommence. Un intervalle raisonnable, c'est environ une minute.
+4. Il attend, puis recommence. vinted-bot attend 5 secondes par défaut.
 
 Les bons outils ignorent aussi les annonces mises en avant (des articles anciens qui remontent), évitent d'alerter sur tout ce qui existait déjà quand vous avez ajouté la recherche, et remarquent quand Vinted cesse de répondre ou renvoie toujours les mêmes résultats.
 
@@ -61,13 +61,13 @@ Un détail qui compte : les résultats de recherche de Vinted n'indiquent plus l
 
 ## Pourquoi le « 0 délai » n'existe pas
 
-Les serveurs Discord qui promettent un bot Vinted « 0 délai » ou « instantané » sont partout. Voici le piège. Vinted ajoute les nouvelles annonces à sa recherche quelques minutes après leur publication, parfois plus. Tout outil qui lit la recherche, payant ou gratuit, voit l'annonce à ce moment-là, pas au moment de la mise en ligne.
+Les serveurs Discord qui promettent un bot Vinted « 0 délai » ou « instantané » sont partout. Voici le piège. Vinted ajoute les nouvelles annonces à sa recherche environ 15 à 30 secondes après leur publication. Tout outil qui lit la recherche, payant ou gratuit, voit l'annonce à ce moment-là, pas au moment de la mise en ligne.
 
-Quand un service annonce « moins d'une seconde », il parle du temps entre l'apparition de l'annonce dans la recherche et l'alerte sur votre téléphone. C'est réel, mais c'est la petite partie du délai. Les quelques minutes d'avant sont les mêmes pour tout le monde, notifications de Vinted comprises.
+Quand un service annonce « moins d'une seconde », il parle du temps entre l'apparition de l'annonce dans la recherche et l'alerte sur votre téléphone. C'est réel, mais ça laisse de côté les 15 à 30 secondes d'avant, qui sont les mêmes pour tout le monde, notifications de Vinted comprises. Vinted sert aussi chaque recherche depuis un cache qu'il rafraîchit toutes les deux minutes, donc un outil qui recharge simplement une recherche peut avoir jusqu'à deux minutes de retard en plus.
 
 Deux conséquences :
 
-- Vérifier chaque seconde au lieu de chaque minute ne fait presque rien gagner, et augmente nettement le risque que Vinted ralentisse votre connexion.
+- Contourner ce cache compte plus que vérifier sans arrêt. vinted-bot le contourne et vérifie toutes les 5 secondes : ses alertes arrivent en général 15 à 35 secondes après la mise en ligne. Vérifier chaque seconde fait gagner quelques secondes au plus, et augmente le risque que Vinted ralentisse votre connexion.
 - Dans les catégories où ça se bat, ceux qui gagnent sont ceux qui réagissent le plus vite une fois l'annonce apparue. C'est souvent l'achat automatique, d'où l'avis des revendeurs : les alertes seules perdent contre lui.
 
 ## Où tournent les bots Vinted
@@ -84,7 +84,7 @@ Les serveurs communautaires gratuits publient les annonces de recherches prédé
 
 Les bots open source tournent sur une machine à vous : votre portable, un Raspberry Pi, un NAS. Ils sont gratuits, vous réglez tous les filtres, et vos recherches et liens d'alerte restent chez vous. La contrepartie : la machine doit rester allumée.
 
-vinted-bot est de ce type. Il est gratuit et open source, ne se connecte jamais à Vinted et envoie les alertes sur Discord, Telegram, votre téléphone (via l'appli gratuite ntfy) ou un webhook. Il affiche les prix protection acheteurs comprise, permet d'exclure des mots et les vendeurs mal notés, et vous dit en clair quand une recherche ne fonctionne plus.
+vinted-bot est de ce type. Il est gratuit et open source, vérifie toutes les 5 secondes et envoie les alertes sur Discord, Telegram, votre téléphone (via l'appli gratuite ntfy) ou un webhook. Il affiche les prix protection acheteurs comprise, permet d'exclure des mots et les vendeurs mal notés, et vous dit en clair quand une recherche ne fonctionne plus.
 
 {{install}}
 

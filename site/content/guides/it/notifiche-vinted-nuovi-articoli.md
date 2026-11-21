@@ -4,7 +4,7 @@ description: "Come ricevere notifiche Vinted sui nuovi articoli, su iPhone o su 
 slug: notifiche-vinted-nuovi-articoli
 key: get-notified
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - come ricevere notifiche vinted
   - come ricevere notifiche vinted su iphone
@@ -14,13 +14,13 @@ keywords:
   - vinted alert
 faq:
   - q: "Come ricevere notifiche Vinted quando qualcuno carica un articolo?"
-    a: "Per un singolo venditore, seguilo e Vinted ti avvisa quando carica. Per una ricerca, salvala nell'app, ma quegli avvisi arrivano spesso in ritardo o mai. Per avvisi affidabili usa uno strumento esterno come vinted-bot, che controlla la ricerca ogni minuto."
+    a: "Per un singolo venditore, seguilo e Vinted ti avvisa quando carica. Per una ricerca, salvala nell'app, ma quegli avvisi arrivano spesso in ritardo o mai. Per avvisi affidabili usa uno strumento esterno come vinted-bot, che controlla la ricerca ogni pochi secondi."
   - q: "Come ricevere notifiche Vinted su iPhone?"
     a: "In Impostazioni, Notifiche, Vinted consenti le notifiche e controlla che Full immersion e il Riepilogo programmato non le trattengano. Per le ricerche, molti preferiscono ricevere gli avvisi su Telegram, che su iPhone arrivano senza problemi."
   - q: "Come ricevere notifiche Vinted su PC?"
     a: "Vinted non ha notifiche desktop per le ricerche salvate. Puoi usare Telegram o Discord da computer: vinted-bot manda lì i nuovi annunci, e ha anche una dashboard nel browser con il feed in diretta."
   - q: "Quanto sono veloci le notifiche Vinted?"
-    a: "Vinted aggiunge gli annunci alla ricerca qualche minuto dopo il caricamento, quindi ogni avviso, ufficiale o no, arriva dopo. vinted-bot controlla ogni minuto, quindi di solito lo sai entro pochi minuti dalla pubblicazione."
+    a: "Vinted aggiunge gli annunci alla ricerca da 15 a 30 secondi circa dopo il caricamento, quindi ogni avviso, ufficiale o no, arriva dopo. vinted-bot controlla ogni 5 secondi di default, quindi di solito lo sai tra 15 e 35 secondi dopo la pubblicazione."
 ---
 
 Per ricevere una notifica quando esce un nuovo articolo su Vinted hai tre strade: salvare la ricerca nell'app Vinted, seguire i venditori che ti interessano, oppure usare uno strumento che controlla la tua ricerca e ti scrive. Le prime due sono integrate e gratuite ma limitate. La terza è l'unica affidabile per una ricerca, e può essere gratuita anche lei.
@@ -70,11 +70,10 @@ Su iPhone e Android le notifiche di Telegram, Discord o ntfy funzionano come que
 | | Ricerca salvata (Vinted) | Seguire un venditore | Avvisi gratis (vinted-bot) | Servizio a pagamento |
 |---|---|---|---|---|
 | Costo | Gratis | Gratis | Gratis | Circa 5-30 euro al mese |
-| Affidabilità | Spesso in ritardo o assenti | In genere buona | Controllo ogni minuto, ti avvisa se si ferma | Dipende dal servizio |
+| Affidabilità | Spesso in ritardo o assenti | In genere buona | Controllo ogni 5 secondi, ti avvisa se si ferma | Dipende dal servizio |
 | Filtro prezzo con commissioni | No | Non applicabile | Sì | Varia |
 | Parole da escludere | No | No | Sì | Varia |
 | Serve un computer acceso | No | No | Sì | No |
-| Serve il login Vinted | È nel tuo account | Sì | No | Non per gli avvisi |
 
 In breve: segui i venditori di cui ti fidi, tieni la ricerca salvata per sfogliare, e metti le ricerche che contano davvero in uno strumento di avvisi. Se non hai niente che resti acceso e non vuoi installare nulla, un servizio a pagamento che non chiede il login è una scelta onesta.
 
@@ -98,4 +97,4 @@ Se un avviso alle tre di notte non vale la sveglia, le ore di silenzio trattengo
 
 ## Perché nessun avviso è istantaneo
 
-Vinted aggiunge i nuovi caricamenti alla sua ricerca con qualche minuto di ritardo. Ogni avviso, quelli di Vinted e quelli di qualsiasi strumento, può scattare solo dopo. Chi pubblicizza "zero ritardo" misura dal momento in cui l'annuncio è entrato nella ricerca. Per collezionisti, chi cerca una taglia precisa o un articolo specifico, pochi minuti vanno benissimo. Per l'elettronica sottoprezzo che i rivenditori si contendono, spesso no. Per partire senza spendere niente, leggi la guida al [bot Vinted gratis](/guides/bot-vinted-gratis/).
+Vinted aggiunge i nuovi caricamenti alla sua ricerca da 15 a 30 secondi circa dopo la pubblicazione. Ogni avviso, quelli di Vinted e quelli di qualsiasi strumento, può scattare solo dopo. Vinted inoltre serve ogni ricerca da una cache che aggiorna ogni due minuti, quindi uno strumento che si limita a ricaricare la ricerca può restare indietro fino a due minuti. vinted-bot salta quella cache e controlla ogni 5 secondi, quindi di solito i suoi avvisi arrivano tra 15 e 35 secondi dopo il caricamento. Chi pubblicizza "zero ritardo" misura dal momento in cui l'annuncio è entrato nella ricerca. Per collezionisti, chi cerca una taglia precisa o un articolo specifico, basta e avanza. Per l'elettronica sottoprezzo che i rivenditori si contendono, spesso no. Per partire senza spendere niente, leggi la guida al [bot Vinted gratis](/guides/bot-vinted-gratis/).

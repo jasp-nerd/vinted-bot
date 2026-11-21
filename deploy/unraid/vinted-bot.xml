@@ -8,7 +8,7 @@
   <Privileged>false</Privileged>
   <Icon>https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/docs/media/icon.png</Icon>
   <WebUI>http://[IP]:[PORT:8000]/</WebUI>
-  <Overview>Get a message on Discord, Telegram, ntfy or another app the moment a new Vinted listing matches your search. Paste a Vinted search into the dashboard, or build one there. It filters on the price you actually pay (buyer protection included), notices when a search goes quiet, and never logs in to Vinted, so there is no account to put at risk. Not affiliated with Vinted.</Overview>
+  <Overview>Get a message on Discord, Telegram, ntfy or another app the moment a new Vinted listing matches your search. Paste a Vinted search into the dashboard, or build one there. It filters on the price you actually pay (buyer protection included) and notices when a search goes quiet. Not affiliated with Vinted.</Overview>
   <Support>https://github.com/jasp-nerd/vinted-bot/issues</Support>
   <Project>https://github.com/jasp-nerd/vinted-bot</Project>
   <TemplateURL>https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/deploy/unraid/vinted-bot.xml</TemplateURL>

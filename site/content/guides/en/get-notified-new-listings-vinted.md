@@ -4,7 +4,7 @@ description: "How to get notified when someone uploads on Vinted: saved searches
 slug: get-notified-new-listings-vinted
 key: get-notified
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - how to get notifications when someone uploads on vinted
   - how to get vinted alerts
@@ -14,13 +14,13 @@ keywords:
   - vinted email alerts
 faq:
   - q: "How do I get notifications when someone uploads on Vinted?"
-    a: "For one seller, follow them and Vinted notifies you when they upload. For a search, save it in the app, but those alerts are often late or missing. For dependable alerts, use an external tool such as vinted-bot, which checks your search every minute and messages you."
+    a: "For one seller, follow them and Vinted notifies you when they upload. For a search, save it in the app, but those alerts are often late or missing. For dependable alerts, use an external tool such as vinted-bot, which checks your search every few seconds and messages you."
   - q: "Can I get Vinted alerts by email?"
     a: "Vinted doesn't offer saved-search emails you can count on. vinted-bot can send alerts by email: type your address, pick your provider and paste an app password. Most people find Discord or Telegram quicker to glance at, though."
   - q: "Is there a Vinted alert app?"
     a: "There are paid alert apps, typically a few euros a month. A free alternative is to run vinted-bot on a computer and get its alerts in Telegram or Discord on your phone."
   - q: "How fast are Vinted alerts?"
-    a: "Vinted adds listings to its search a few minutes after upload, so any alert, official or not, comes after that. vinted-bot checks every minute by default, so you typically hear within a few minutes of a listing going up."
+    a: "Vinted adds listings to its search about 15 to 30 seconds after upload, so any alert, official or not, comes after that. vinted-bot checks every 5 seconds by default, so you typically hear 15 to 35 seconds after a listing goes up."
 ---
 
 There are three ways to get notified when a new item is listed on Vinted: save the search in the Vinted app, follow the sellers you like, or use an alert tool that checks your search and messages you. The first two are built in and free but limited. The third is the only one that works reliably for a search, and it can be free too.
@@ -66,11 +66,10 @@ Each alert shows the photos, the total price, size, condition, brand, the seller
 | | Saved search (Vinted) | Follow a seller | Free alert tool (vinted-bot) | Paid alert service |
 |---|---|---|---|---|
 | Cost | Free | Free | Free | About €5 to €30 a month |
-| Reliability | Often late or missing | Generally fine | Checks every minute, tells you if it stops | Depends on the service |
+| Reliability | Often late or missing | Generally fine | Checks every 5 seconds, tells you if it stops | Depends on the service |
 | Price filter includes fees | No | Not applicable | Yes | Varies |
 | Words to exclude | No | No | Yes | Varies |
 | Needs a computer left on | No | No | Yes | No |
-| Needs your Vinted login | Yes (it's in your account) | Yes | No | Not for alerts |
 
 Roughly: follow the sellers you trust, keep the saved search for browsing, and put the searches you really care about into an alert tool. If you have nothing that stays switched on and don't want to install anything, a paid service is the fair choice. We compare both sides in [free vs paid Vinted bots](/guides/free-vs-paid-vinted-bots/).
 
@@ -94,4 +93,4 @@ If an alert at 3am isn't worth waking up for, quiet hours hold alerts until morn
 
 ## Why no alert is instant
 
-Vinted adds new uploads to its search a few minutes late. Every alert, Vinted's own and every third-party tool, can only fire after that. A tool advertising "zero delay" is measuring from the moment the listing showed up in search, not from the upload. For collectors, size hunters and anyone hunting something specific, a few minutes is fine. For underpriced electronics that resellers race for, it often isn't, and [why you're never first on Vinted](/guides/why-youre-never-first-on-vinted/) explains what helps.
+Vinted adds new uploads to its search about 15 to 30 seconds after they're posted. Every alert, Vinted's own and every third-party tool, can only fire after that. Vinted also serves each search from a cache it refreshes every two minutes, so a tool that simply reloads the search can be up to two minutes behind. vinted-bot skips that cache and checks every 5 seconds, so its alerts usually arrive 15 to 35 seconds after the upload. A tool advertising "zero delay" is measuring from the moment the listing showed up in search, not from the upload. For collectors, size hunters and anyone hunting something specific, that's plenty. For underpriced electronics that resellers race for, it often isn't, and [why you're never first on Vinted](/guides/why-youre-never-first-on-vinted/) explains what helps.

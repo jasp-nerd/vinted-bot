@@ -4,7 +4,7 @@ description: "Bot Vinted Telegram gratis e open source: crea il tuo bot con BotF
 slug: bot-vinted-telegram
 key: telegram
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - vinted bot telegram
   - vinted bot telegram italia
@@ -20,7 +20,7 @@ faq:
   - q: "Mi serve il chat ID di Telegram?"
     a: "No. La dashboard di vinted-bot ti dà un codice monouso, lo mandi al tuo bot e l'app trova la chat da sola. Funziona anche con i gruppi e con i topic dei gruppi forum."
   - q: "Il bot Vinted per Telegram mi chiede il login di Vinted?"
-    a: "No. vinted-bot legge gli annunci pubblici come un visitatore non loggato e non tocca mai il tuo account Vinted. Gli acquisti li fai tu, con il tuo account, dal pulsante nell'avviso."
+    a: "No. vinted-bot legge gli annunci pubblici come un visitatore non loggato, quindi il tuo account Vinted non è coinvolto. Gli acquisti li fai tu, con il tuo account, dal pulsante nell'avviso."
 ---
 
 Puoi ricevere gli annunci nuovi di Vinted su Telegram gratis. Crea il tuo bot privato con BotFather (circa tre minuti), incolla il suo token nella dashboard di vinted-bot e collega la chat con un codice monouso. Da quel momento ogni nuovo articolo delle tue ricerche Vinted arriva su Telegram con la foto, il prezzo totale, la taglia, le condizioni e i pulsanti per comprare o aprire l'annuncio.
@@ -33,7 +33,7 @@ Molti bot Vinted su Telegram sono servizi condivisi: un solo bot per tutti gli u
 
 "Bot", qui, è solo il nome che Telegram dà a un account da cui un'app può inviare messaggi. Crearlo è gratis e non serve saper programmare.
 
-vinted-bot è un'app gratuita e open source (licenza MIT) che gira sul tuo computer, su un Raspberry Pi o su un NAS. Controlla le tue ricerche Vinted ogni minuto e non chiede mai il login di Vinted.
+vinted-bot è un'app gratuita e open source (licenza MIT) che gira sul tuo computer, su un Raspberry Pi o su un NAS. Controlla le tue ricerche Vinted ogni 5 secondi.
 
 ## Passo 1: crea il bot con BotFather
 
@@ -95,7 +95,7 @@ Nella dashboard incolla il link di una ricerca Vinted (dal browser o dal pulsant
 
 ## Quanto è veloce
 
-vinted-bot controlla ogni ricerca ogni minuto. Vinted però aggiunge i nuovi annunci alla sua ricerca qualche minuto dopo il caricamento, e questo vale per tutti gli strumenti, gratuiti o a pagamento. In pratica ricevi la maggior parte degli annunci entro pochi minuti dalla pubblicazione. Chi promette "zero ritardo" misura dal momento in cui l'annuncio compare nella ricerca, non dal caricamento.
+vinted-bot controlla ogni ricerca ogni 5 secondi di default. Vinted però aggiunge i nuovi annunci alla sua ricerca da 15 a 30 secondi circa dopo il caricamento, e questo vale per tutti gli strumenti, gratuiti o a pagamento. Vinted inoltre serve ogni ricerca da una cache che aggiorna ogni due minuti: vinted-bot la salta, mentre uno strumento che si limita a ricaricare la ricerca può restare indietro fino a due minuti. In pratica ricevi la maggior parte degli annunci tra 15 e 35 secondi dopo la pubblicazione. Chi promette "zero ritardo" misura dal momento in cui l'annuncio compare nella ricerca, non dal caricamento.
 
 Ricorda anche che l'app gira sul tuo computer: gli avvisi arrivano solo mentre quel computer è acceso e sveglio. Un Raspberry Pi o un vecchio portatile lasciato in carica risolvono il problema.
 

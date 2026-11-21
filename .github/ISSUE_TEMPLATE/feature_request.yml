@@ -2,10 +2,6 @@ name: Idea or feature request
 description: Something vinted-bot could do better.
 labels: ["enhancement"]
 body:
-  - type: markdown
-    attributes:
-      value: |
-        One thing this project won't do: anything that needs your Vinted account, such as buying, messaging sellers or making offers. It never logs in to Vinted, so there is no account to put at risk.
   - type: textarea
     id: problem
     attributes:

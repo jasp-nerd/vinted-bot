@@ -62,11 +62,7 @@ def test_the_readme_does_not_promise_buying() -> None:
     """A deliberate non-feature. If this ever fails, the claim and the code disagree."""
     lowered = README.lower()
 
-    assert (
-        "cannot buy" in lowered
-        or "does not log into your" in lowered
-        or "never logs in, buys" in lowered
-    )
+    assert "doesn't buy" in lowered
 
 
 def test_the_umbrel_app_names_this_version() -> None:

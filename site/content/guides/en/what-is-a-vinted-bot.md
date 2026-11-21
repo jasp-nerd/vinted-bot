@@ -4,7 +4,7 @@ description: "What are Vinted bots and how do they work? Alert bots, autobuy, re
 slug: what-is-a-vinted-bot
 key: what-is-a-bot
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - what are vinted bots
   - how do vinted bots work
@@ -54,7 +54,7 @@ The mechanics are simpler than the marketing suggests:
 1. It opens a session with Vinted the way a browser does when you visit as a logged-out visitor.
 2. It asks Vinted for your search's results, sorted by newest first.
 3. It compares the listings with what it saw last time. Anything new that passes your filters becomes an alert.
-4. It waits, then does it again. A sensible interval is about a minute.
+4. It waits, then does it again. vinted-bot waits 5 seconds by default.
 
 Good tools also skip promoted listings (old items resurfacing), avoid alerting on everything that was already there when you added the search, and notice when Vinted stops answering or keeps serving the same results.
 
@@ -62,13 +62,13 @@ A detail that matters for honesty: Vinted's search results no longer say when a 
 
 ## Why nothing is truly "zero delay"
 
-French and UK Discord servers advertise "0 délai" and "instant" all the time. Here's the catch. Vinted adds new uploads to its search a few minutes after they're posted, sometimes longer. Every tool that reads the search, paid or free, sees the listing at that moment, not at the moment of upload.
+French and UK Discord servers advertise "0 délai" and "instant" all the time. Here's the catch. Vinted adds new uploads to its search about 15 to 30 seconds after they're posted. Every tool that reads the search, paid or free, sees the listing at that moment, not at the moment of upload.
 
-When a service says "under one second", it means one second from the listing appearing in search to the alert reaching you. That's real, but it's the small part of the delay. The few minutes before it are the same for everyone, including Vinted's own notifications.
+When a service says "under one second", it means one second from the listing appearing in search to the alert reaching you. That's real, but it leaves out the 15 to 30 seconds before it, which are the same for everyone, including Vinted's own notifications. Vinted also serves each search from a cache it refreshes every two minutes, so a tool that simply reloads a search can be up to two minutes behind on top of that.
 
 This has two consequences:
 
-- Checking every second instead of every minute gains you very little and makes Vinted much more likely to slow your connection down.
+- Skipping that cache matters more than checking constantly. vinted-bot skips it and checks every 5 seconds, so its alerts usually arrive 15 to 35 seconds after the upload. Checking every second gains a few seconds at most and makes Vinted more likely to slow your connection down.
 - In the categories where people race, the winners are the ones who act fastest after a listing appears. That's usually autobuy, which is why resellers say alerts alone lose to it. More on this in [why you're never first on Vinted](/guides/why-youre-never-first-on-vinted/).
 
 ## Where Vinted bots run
@@ -85,7 +85,7 @@ Free community servers post listings from preset searches into shared channels. 
 
 Open-source bots run on a machine you own: your laptop, a Raspberry Pi, a NAS. They're free, you control the filters, and your searches and alert links stay with you. The trade-off is that the machine has to stay on.
 
-vinted-bot is this kind. It's free and open source, never logs in, and sends alerts to Discord, Telegram, your phone (through the free ntfy app) or a webhook. It shows prices including buyer protection, lets you skip words and low-rated sellers, and tells you in plain words when a search stops working.
+vinted-bot is this kind. It's free and open source, checks every 5 seconds, and sends alerts to Discord, Telegram, your phone (through the free ntfy app) or a webhook. It shows prices including buyer protection, lets you skip words and low-rated sellers, and tells you in plain words when a search stops working.
 
 {{install}}
 

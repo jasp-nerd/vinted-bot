@@ -1,10 +1,10 @@
 ---
 title: "Bot Vinted gratuit : des alertes nouvelles annonces sans payer"
-description: "Bot Vinted gratuit et open source : les nouvelles annonces de vos recherches sur Discord, Telegram ou mobile. Sans abonnement, sans connexion Vinted."
+description: "Bot Vinted gratuit et open source : les nouvelles annonces de vos recherches sur Discord, Telegram ou mobile. Sans abonnement, sans publicité."
 slug: bot-vinted-gratuit
 key: free-bot
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - bot vinted gratuit
   - bot vinted gratuit discord
@@ -19,12 +19,12 @@ faq:
   - q: "Un bot Vinted gratuit sans Discord, c'est possible ?"
     a: "Oui. vinted-bot fonctionne aussi avec Telegram, avec une notification sur le téléphone via l'appli gratuite ntfy (sans compte), par flux RSS ou par webhook. Et aussi par e-mail."
   - q: "Un bot Vinted 0 délai, ça existe ?"
-    a: "Non. Vinted ajoute les nouvelles annonces à sa recherche quelques minutes après leur mise en ligne, et aucun outil, payant ou gratuit, ne les voit avant. Le « 0 délai » se mesure à partir du moment où l'annonce apparaît dans la recherche, pas de la publication."
+    a: "Non. Vinted ajoute les nouvelles annonces à sa recherche environ 15 à 30 secondes après leur mise en ligne, et aucun outil, payant ou gratuit, ne les voit avant. Le « 0 délai » se mesure à partir du moment où l'annonce apparaît dans la recherche, pas de la publication."
   - q: "Un bot Vinted gratuit peut-il faire bannir mon compte ?"
-    a: "Un bot d'alerte qui ne se connecte jamais à votre compte n'a aucun compte à faire suspendre. Le risque concerne surtout les bots qui achètent, envoient des messages ou republient à votre place. Vinted peut en revanche ralentir temporairement une adresse IP trop insistante."
+    a: "Un bot d'alerte qui lit seulement les annonces publiques n'a aucun compte à faire suspendre. Le risque concerne surtout les bots qui achètent, envoient des messages ou republient à votre place. Vinted peut en revanche ralentir temporairement une adresse IP trop insistante."
 ---
 
-Oui, un bot Vinted gratuit existe. vinted-bot est une application gratuite et open source qui surveille vos recherches Vinted et envoie chaque nouvelle annonce sur Discord, Telegram ou votre téléphone, avec le prix que vous paierez vraiment. Elle tourne sur votre propre ordinateur plutôt que sur le serveur d'une société, ce qui explique qu'elle ne coûte rien, et elle ne demande jamais vos identifiants Vinted.
+Oui, un bot Vinted gratuit existe. vinted-bot est une application gratuite et open source qui surveille vos recherches Vinted et envoie chaque nouvelle annonce sur Discord, Telegram ou votre téléphone, avec le prix que vous paierez vraiment. Elle tourne sur votre propre ordinateur plutôt que sur le serveur d'une société, ce qui explique qu'elle ne coûte rien.
 
 Ce guide explique ce qu'on appelle un « bot Vinted », quelles options gratuites existent vraiment, comment en installer un en une dizaine de minutes, et ses limites avant de compter dessus.
 
@@ -90,7 +90,7 @@ Les alertes partent de la machine où il tourne. Un portable en veille n'envoie 
 
 ### Le « 0 délai » n'existe pas
 
-Vinted ajoute les nouvelles annonces à sa recherche quelques minutes après leur publication. Tous les outils qui lisent la recherche, payants ou gratuits, les voient à ce moment-là. Les serveurs qui promettent « 0 délai » mesurent le temps entre l'apparition dans la recherche et l'alerte, pas depuis la mise en ligne. vinted-bot vérifie chaque minute par défaut. Vérifier plus souvent ne trouve rien plus tôt et fait ralentir votre connexion par Vinted. Si vous voulez battre les bots d'achat automatique sur des consoles bradées, aucun outil d'alerte ne gagnera cette course. Si vous cherchez une taille, une marque ou une pièce de collection précise, une minute suffit largement.
+Vinted ajoute les nouvelles annonces à sa recherche environ 15 à 30 secondes après leur publication. Tous les outils qui lisent la recherche, payants ou gratuits, les voient à ce moment-là. Les serveurs qui promettent « 0 délai » mesurent le temps entre l'apparition dans la recherche et l'alerte, pas depuis la mise en ligne. Vinted sert aussi chaque recherche depuis un cache qu'il rafraîchit toutes les deux minutes, donc un outil qui recharge simplement une recherche peut avoir jusqu'à deux minutes de retard. vinted-bot contourne ce cache et vérifie toutes les 5 secondes par défaut : une alerte arrive en général 15 à 35 secondes après la mise en ligne. Vous pouvez descendre jusqu'à une vérification par seconde, à vos risques : beaucoup de requêtes depuis une même adresse peuvent faire ralentir votre connexion par Vinted. Si vous voulez battre les bots d'achat automatique sur des consoles bradées, aucun outil d'alerte ne gagnera cette course. Si vous cherchez une taille, une marque ou une pièce de collection précise, c'est largement suffisant.
 
 ### Votre connexion compte
 

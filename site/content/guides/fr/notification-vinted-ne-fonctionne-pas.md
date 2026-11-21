@@ -4,7 +4,7 @@ description: "Notification ou alerte Vinted qui ne fonctionne pas, en retard ou 
 slug: notification-vinted-ne-fonctionne-pas
 key: notifications-not-working
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - notification vinted ne fonctionne pas
   - alerte vinted ne fonctionne pas
@@ -20,7 +20,7 @@ faq:
   - q: "Comment avoir les notifications Vinted sur iPhone ?"
     a: "Dans Réglages, Notifications, Vinted, activez Autoriser les notifications. Vérifiez qu'aucun mode Concentration ne bloque Vinted et sortez l'appli du résumé programmé. Dans l'appli Vinted, activez les notifications dans Profil, Paramètres, Notifications."
   - q: "Que faire si la recherche sauvegardée Vinted ne marche pas ?"
-    a: "Recréez la recherche et vérifiez ses filtres après l'avoir sauvegardée. Si les alertes restent absentes, utilisez un outil qui consulte la recherche lui-même, comme vinted-bot, gratuit, qui vérifie chaque minute et vous envoie les nouvelles annonces."
+    a: "Recréez la recherche et vérifiez ses filtres après l'avoir sauvegardée. Si les alertes restent absentes, utilisez un outil qui consulte la recherche lui-même, comme vinted-bot, gratuit, qui vérifie toutes les 5 secondes et vous envoie les nouvelles annonces."
 ---
 
 Si vos notifications Vinted pour une recherche sauvegardée n'arrivent pas, ce n'est souvent pas votre téléphone. Beaucoup de membres qui ont tout activé reçoivent ces alertes en retard ou jamais, et Vinted n'a jamais vraiment expliqué comment il les envoie. Vérifiez d'abord les réglages ci-dessous, car ils règlent certains cas. Sinon, la solution fiable est un outil d'alerte qui consulte la recherche lui-même.
@@ -33,7 +33,7 @@ Vous faites une recherche sur Vinted, vous réglez vos filtres et vous sauvegard
 
 Deux choses à savoir avant de chercher la panne :
 
-- Vinted ajoute les nouvelles annonces à sa recherche quelques minutes après leur mise en ligne. Tout ce qui s'appuie sur la recherche, y compris les alertes de Vinted, ne peut se déclencher qu'après.
+- Vinted ajoute les nouvelles annonces à sa recherche environ 15 à 30 secondes après leur mise en ligne. Tout ce qui s'appuie sur la recherche, y compris les alertes de Vinted, ne peut se déclencher qu'après.
 - En 2026, plusieurs membres ont signalé des changements sur les recherches sauvegardées elles-mêmes : un plafond de 20 marques par recherche (les listes plus longues ont été coupées), le compteur de nouveautés qui disparaît, des filtres retirés sans prévenir et des articles anciens qui remontent dans le tri par plus récents. Si votre recherche « ne trouve plus rien », ouvrez-la et regardez ce qu'elle contient vraiment.
 
 ## Les réglages à vérifier d'abord
@@ -68,11 +68,11 @@ Une recherche qui renvoie des milliers de résultats change en permanence. Quell
 
 Si vous avez tout fait et que vous ne recevez toujours rien, ou que l'alerte arrive vingt minutes après la vente, vous avez atteint la limite de la fonction de Vinted. Vous ne pouvez pas changer la façon dont Vinted programme ses notifications, et il n'existe pas de réglage « préviens-moi tout de suite pour cette recherche ».
 
-Ce que vous pouvez changer, c'est qui consulte la recherche. Au lieu d'attendre une notification de Vinted, un outil séparé peut charger les résultats de votre recherche chaque minute et vous envoyer un message dès qu'il y a du nouveau.
+Ce que vous pouvez changer, c'est qui consulte la recherche. Au lieu d'attendre une notification de Vinted, un outil séparé peut charger les résultats de votre recherche toutes les quelques secondes et vous envoyer un message dès qu'il y a du nouveau.
 
 ## L'alternative gratuite : des alertes qui consultent la recherche elles-mêmes
 
-vinted-bot est une application gratuite et open source qui fait exactement ça. Vous collez le même lien de recherche Vinted, et elle le consulte chaque minute depuis votre propre ordinateur. Chaque nouvelle annonce arrive sur Discord, Telegram, ntfy sur votre téléphone ou un webhook, avec les photos, le prix total protection acheteurs comprise, la taille, l'état, la note du vendeur et un bouton pour ouvrir l'annonce.
+vinted-bot est une application gratuite et open source qui fait exactement ça. Vous collez le même lien de recherche Vinted, et elle le consulte toutes les 5 secondes depuis votre propre ordinateur. Chaque nouvelle annonce arrive sur Discord, Telegram, ntfy sur votre téléphone ou un webhook, avec les photos, le prix total protection acheteurs comprise, la taille, l'état, la note du vendeur et un bouton pour ouvrir l'annonce.
 
 Elle corrige aussi ce que les recherches sauvegardées de Vinted ne font pas :
 
@@ -81,13 +81,11 @@ Elle corrige aussi ce que les recherches sauvegardées de Vinted ne font pas :
 - Pas de plafond de 20 marques, et une même recherche peut couvrir plusieurs pays Vinted.
 - Chaque recherche indique si elle fonctionne, si elle est calme, bloquée ou ralentie par Vinted. Le reproche le plus fréquent fait aux outils d'alerte, ceux de Vinted compris, c'est de s'arrêter sans prévenir.
 
-Elle n'a pas besoin de votre compte Vinted. Elle lit les résultats publics comme un visiteur non connecté, donc aucun compte n'est en jeu.
-
 {{install}}
 
 ### Ce qu'elle ne peut pas corriger
 
-Elle ne voit pas une annonce avant la recherche de Vinted. Les nouveaux articles apparaissent dans la recherche quelques minutes après leur mise en ligne, et c'est vrai pour tous les outils. En pratique, vous êtes prévenu en général quelques minutes après la publication, ce qui vaut bien mieux qu'une notification qui n'arrive jamais, sans garantie d'être le premier sur les annonces les plus convoitées.
+Elle ne voit pas une annonce avant la recherche de Vinted. Les nouveaux articles apparaissent dans la recherche environ 15 à 30 secondes après leur mise en ligne, et c'est vrai pour tous les outils. vinted-bot vérifie toutes les 5 secondes et contourne le cache de deux minutes que Vinted applique aux recherches : en pratique, vous êtes prévenu en général 15 à 35 secondes après la publication, ce qui vaut bien mieux qu'une notification qui n'arrive jamais, sans garantie d'être le premier sur les annonces les plus convoitées.
 
 Elle tourne aussi sur votre ordinateur : les alertes n'arrivent que s'il est allumé et éveillé. Un Raspberry Pi ou un vieux portable laissé branché règle la question.
 

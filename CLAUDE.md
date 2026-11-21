@@ -9,8 +9,6 @@ never opened a terminal.
 
 - **Free and self-hosted.** No subscription, no ads, no account with us. It runs on the
   user's own computer, NAS or server.
-- **Never logs in to Vinted.** It reads public listings anonymously, so there is no account to
-  ban. That also means no autobuy, auto-message or auto-offer, on purpose.
 - **Honest.** Prices include the buyer-protection fee. It says plainly when something stops
   working (a search goes quiet, Vinted blocks the connection) instead of failing silently, and
   it never claims to be faster than Vinted itself allows.

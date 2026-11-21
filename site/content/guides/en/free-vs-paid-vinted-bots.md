@@ -4,7 +4,7 @@ description: "Best Vinted bot? Free vs paid Vinted bots compared on price, speed
 slug: free-vs-paid-vinted-bots
 key: free-vs-paid
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - best vinted bot
   - best vinted bot free
@@ -18,12 +18,12 @@ faq:
   - q: "How much do Vinted bots cost?"
     a: "As of October 2026, alert-only services cost roughly €5 to €30 a month, Discord groups with autobuy about £20 to £50 a month, and autobuy tools €30 to €110 a month, with top plans that have reached €300. Open-source tools are free."
   - q: "Are paid Vinted bots faster than free ones?"
-    a: "The part you can measure, from a listing appearing in search to the alert, can be faster on paid services. But Vinted adds listings to search a few minutes after upload for everyone, so the difference is seconds on top of the same minutes."
+    a: "Not necessarily. Vinted adds listings to its search about 15 to 30 seconds after upload, for everyone. After that it depends on how often a tool checks and whether it waits on the two-minute cache Vinted puts on each search. vinted-bot checks every 5 seconds and skips that cache, so its alerts usually arrive 15 to 35 seconds after a listing goes up."
   - q: "Is a free Vinted bot safe?"
-    a: "An alert bot that never asks for your Vinted login has no account to put at risk. Check that it's open source or from a source you trust, and never give any bot your Vinted password."
+    a: "An alert bot that only reads public listings has no account to put at risk. Check that it's open source or from a source you trust, and never give any bot your Vinted password."
 ---
 
-The best Vinted bot depends on what you need it for. If you want alerts for specific searches, a free open-source bot or a cheap alert service does the job, and nothing is genuinely instant because Vinted shows new listings in search a few minutes late for everyone. Paid bots win when you have no computer that stays on, or when you resell at volume and want autobuy, which costs much more and puts your account at risk.
+The best Vinted bot depends on what you need it for. If you want alerts for specific searches, a free open-source bot or a cheap alert service does the job, and nothing is genuinely instant because Vinted shows new listings in search 15 to 30 seconds after upload, for everyone. Paid bots win when you have no computer that stays on, or when you resell at volume and want autobuy, which costs much more and puts your account at risk.
 
 This comparison uses categories instead of a ranking. Prices were checked on vendor pages and directories in October 2026 and change often.
 
@@ -46,9 +46,9 @@ Alert-only services are the closest thing to what a free tool does, and they cos
 
 ### Speed, honestly
 
-Every service sells speed: "0 delay", "under one second", "instant". Here's what those numbers measure. Vinted adds new uploads to its search a few minutes after they're posted. A tool can only react once the listing is in search. "Under one second" is the time from that point to your phone, not from the upload.
+Every service sells speed: "0 delay", "under one second", "instant". Here's what those numbers measure. Vinted adds new uploads to its search about 15 to 30 seconds after they're posted. A tool can only react once the listing is in search. "Under one second" is the time from that point to your phone, not from the upload. Vinted also serves each search from a cache it refreshes every two minutes, so a tool that simply reloads a search can be up to two minutes behind.
 
-So yes, a paid service polling constantly from good servers can beat a free tool checking once a minute by some seconds. Whether that matters depends on your category. For a collector waiting months for one figure, it doesn't. For a reseller chasing a €40 console listed at €15, it does, and even then the alert usually loses to autobuy.
+vinted-bot skips that cache and checks every 5 seconds by default, so its alerts usually arrive 15 to 35 seconds after the upload. A paid service polling constantly from good servers can't see the listing any sooner, and at best beats that by a few seconds. Whether that matters depends on your category. For a collector waiting months for one figure, it doesn't. For a reseller chasing a €40 console listed at €15, it does, and even then the alert usually loses to autobuy.
 
 ### Login and account risk
 
@@ -86,7 +86,6 @@ If you have nothing that stays on and don't want to install anything, a paid ale
 
 - It costs nothing and has no search limits.
 - You set every filter yourself, not just the presets.
-- No account involved, so nothing to restrict.
 - Your data and links stay on your own machine.
 - With an open-source tool, you can check exactly what it does.
 
@@ -99,7 +98,7 @@ vinted-bot is free and open source (MIT), and it sticks to alerts. It does what 
 - One search across several Vinted countries, quiet hours, and price-drop and sold alerts for listings you watch.
 - A plain-words status for every search, and a warning when a search goes quiet in a way that isn't normal.
 
-It checks every minute by default, never logs in and never buys. Its limits are the ones above: your computer has to stay on, and it won't beat autobuy on a hyped listing.
+It checks every 5 seconds by default and never buys. Its limits are the ones above: your computer has to stay on, and it won't beat autobuy on a hyped listing.
 
 {{install}}
 

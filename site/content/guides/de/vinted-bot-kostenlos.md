@@ -1,10 +1,10 @@
 ---
 title: "Vinted Bot kostenlos: Benachrichtigung bei neuen Artikeln ohne Abo"
-description: "Vinted Bot kostenlos: neue Artikel deiner Suchen per Discord, Telegram oder aufs Handy. Open Source, ohne Abo, ohne Vinted-Login. Einrichtung und Grenzen."
+description: "Vinted Bot kostenlos: neue Artikel deiner Suchen per Discord, Telegram oder aufs Handy. Open Source, ohne Abo, ohne Werbung. Einrichtung und Grenzen."
 slug: vinted-bot-kostenlos
 key: free-bot
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - vinted bot kostenlos
   - vinted snipe bot kostenlos
@@ -23,7 +23,7 @@ faq:
     a: "Dieser nicht. Automatisches Kaufen braucht dein angemeldetes Konto, und daher kommen Kontosperren. vinted-bot legt stattdessen einen Kaufen-Button in jede Benachrichtigung, der Kauf bleibt bei dir."
 ---
 
-Ja, einen Vinted Bot gibt es kostenlos. vinted-bot ist eine kostenlose Open-Source-App, die deine Vinted-Suchen beobachtet und jeden neuen Artikel an Discord, Telegram oder dein Handy schickt, mit dem Preis, den du wirklich zahlst. Sie läuft auf deinem eigenen Rechner statt auf fremden Servern. Deshalb kostet sie nichts, und sie fragt nie nach deinem Vinted-Login.
+Ja, einen Vinted Bot gibt es kostenlos. vinted-bot ist eine kostenlose Open-Source-App, die deine Vinted-Suchen beobachtet und jeden neuen Artikel an Discord, Telegram oder dein Handy schickt, mit dem Preis, den du wirklich zahlst. Sie läuft auf deinem eigenen Rechner statt auf fremden Servern. Deshalb kostet sie nichts.
 
 Hier steht, was mit "Vinted Bot" meistens gemeint ist, welche kostenlosen Wege es gibt, wie du in etwa zehn Minuten startest und welche Grenzen du kennen solltest.
 
@@ -89,7 +89,7 @@ Die Benachrichtigungen kommen von dem Gerät, auf dem die App läuft. Ein Laptop
 
 ### Sofort geht es nicht, bei niemandem
 
-Vinted nimmt neue Artikel erst einige Minuten nach dem Hochladen in die Suche auf. Jedes Tool, das die Suche liest, ob bezahlt oder kostenlos, sieht sie erst dann. vinted-bot prüft standardmäßig jede Minute. Häufiger zu prüfen bringt nichts und sorgt nur dafür, dass Vinted deine Verbindung bremst. Gegen Autobuy-Bots bei günstigen Konsolen gewinnt kein Benachrichtigungs-Tool. Wer eine bestimmte Größe, Marke oder ein Sammlerstück sucht, ist mit einer Minute gut bedient.
+Vinted nimmt neue Artikel erst etwa 15 bis 30 Sekunden nach dem Hochladen in die Suche auf. Jedes Tool, das die Suche liest, ob bezahlt oder kostenlos, sieht sie erst dann. Außerdem liefert Vinted jede Suche aus einem Zwischenspeicher, den es alle zwei Minuten erneuert, und ein Tool, das eine Suche einfach neu lädt, kann deshalb bis zu zwei Minuten hinterherhinken. vinted-bot umgeht diesen Zwischenspeicher und prüft standardmäßig alle 5 Sekunden, eine Benachrichtigung kommt also meist 15 bis 35 Sekunden nach dem Hochladen. Du kannst bis auf jede Sekunde heruntergehen, auf eigenes Risiko: Viele Anfragen von einer Adresse können dafür sorgen, dass Vinted deine Verbindung bremst. Gegen Autobuy-Bots bei günstigen Konsolen gewinnt kein Benachrichtigungs-Tool. Wer eine bestimmte Größe, Marke oder ein Sammlerstück sucht, ist damit gut bedient.
 
 ### Deine Verbindung zählt
 

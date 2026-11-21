@@ -31,7 +31,7 @@ computer can read its data either way.
 
 ## How the app limits what can go wrong
 
-- It never logs in to Vinted and never handles Vinted credentials.
+- It reads Vinted as a logged-out visitor and holds no Vinted credentials.
 - The dashboard listens on `localhost` only unless you change it, and warns in its log when
   it is reachable from elsewhere without a password.
 - It only answers to host names it was told about (localhost, IP addresses,

@@ -1,6 +1,6 @@
 # vinted-bot
 
-> Free, open-source app that watches Vinted searches and sends a message (Telegram, Discord, email and other apps, RSS or a webhook) when a new listing matches. It runs on the user's own computer or server, never logs in to Vinted, and has a web dashboard at http://localhost:8000 where all setup happens. Not affiliated with Vinted. MIT licensed. Source: https://github.com/jasp-nerd/vinted-bot
+> Free, open-source app that watches Vinted searches and sends a message (Telegram, Discord, email and other apps, RSS or a webhook) when a new listing matches. It runs on the user's own computer or server and has a web dashboard at http://localhost:8000 where all setup happens. Not affiliated with Vinted. MIT licensed. Source: https://github.com/jasp-nerd/vinted-bot
 
 This file is a complete guide for an AI assistant helping someone install and use vinted-bot. The person is often not technical. Use only the commands in this file; do not invent commands, flags or settings. If something here doesn't match what the person sees, say so and point them to the issue tracker rather than guessing.
 
@@ -14,7 +14,7 @@ This file is a complete guide for an AI assistant helping someone install and us
 ## Facts that matter
 
 - Alerts only arrive while the computer running vinted-bot is on, awake and online. A laptop that sleeps sends nothing while asleep. Always-on options: a Raspberry Pi, a NAS, a mini PC, an old laptop left plugged in, or a small rented server (a few euros a month).
-- No Vinted account is involved. It never asks for Vinted login details. Anything asking for Vinted credentials is not this app.
+- No Vinted account is involved: it reads public listings as a logged-out visitor.
 - No configuration file is needed, ever. Searches, alert destinations, the Telegram bot token, the dashboard password and phone access are all set in the dashboard. Never tell the person to create or edit a .env file for these.
 - The dashboard is at http://localhost:8000 on the computer it runs on. It has no password until one is set in Settings, Password. That is fine on the person's own computer. To open it on a phone: Settings, "Open on your phone", switch on "Allow my phone and other devices"; it asks for a password (it suggests one), then shows a QR code and the address to type. It only reaches devices on the same Wi-Fi or home network, not the internet. (Servers and Docker can instead fix VINTED_BOT_WEB_AUTH_TOKEN and VINTED_BOT_WEB_HOST in the environment; those win over the dashboard.)
 - Forgot the dashboard password: run `vinted-bot reset-password` on the computer running it (Docker: `docker compose exec vinted-bot vinted-bot reset-password`). It prints a new one.

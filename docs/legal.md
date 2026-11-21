@@ -14,9 +14,8 @@ is the right to block you and, if you have an account, to close it.
 
 ## What that means in practice
 
-This tool reads public listing pages anonymously. It never logs in, never sends your
-credentials anywhere, and never touches your Vinted account. There is no account attached for
-Vinted to restrict.
+This tool reads public listing pages anonymously. It doesn't log in, so no credentials are
+stored and there is no account attached for Vinted to restrict.
 
 The realistic worst case is that your IP address stops being served, which is temporary and
 reversible. That is a meaningfully different risk from tools that log in to buy automatically:
