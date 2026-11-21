@@ -34,7 +34,7 @@ no Vinted account and no monthly fee, where paid Vinted bots charge €5 to €3
 2. **Paste it into vinted-bot** and pick where alerts go: Telegram or Discord, or email and more.
 3. **Get a message** for each new listing, with photos, the total price including buyer protection, size, condition and seller rating.
 
-It checks every minute. The first check is silent on purpose, so you only hear about listings that appear after you added the search.
+It checks every 5 seconds, and you can go down to every second. The first check is silent on purpose, so you only hear about listings that appear after you added the search.
 
 > [!IMPORTANT]
 > Vinted moved its search to a new address in September 2026, and versions before 2.0 have found nothing since. If you installed earlier, [update](#updating).
@@ -230,9 +230,9 @@ With Docker: `docker compose down` stops it; `docker compose down -v` also delet
 
 **Does my computer have to stay on?** Yes. Alerts come from the machine it runs on, so they stop while it sleeps. A Raspberry Pi, a NAS or an old laptop left plugged in fixes that: see [Running it somewhere](https://github.com/jasp-nerd/vinted-bot/blob/main/docs/self-hosting.md).
 
-**Why isn't it instant?** Vinted adds new listings to its search a few minutes after they're uploaded, so every tool that reads the search, paid or free, sees them then. Checking more often doesn't change that. It's fast enough for collectors and size hunters, not for racing bots that buy automatically.
+**How fast is it?** A new listing usually reaches your phone 15 to 35 seconds after the seller posts it. Most of that is Vinted itself: its search takes about 15 to 30 seconds to show a new upload, and no tool can see a listing before that. Vinted also keeps each search's results for two minutes, so a tool that just reloads a search can be up to two minutes behind. vinted-bot asks in a way that skips that, then checks again every 5 seconds and sends the alert straight away. It's quick enough to be among the first to see a listing, but it doesn't buy for you.
 
-**Is this allowed?** Vinted's terms prohibit automated access, so running it is your own call. It reads public listings as a logged-out visitor, slowly. More in [docs/legal.md](https://github.com/jasp-nerd/vinted-bot/blob/main/docs/legal.md).
+**Is this allowed?** Vinted's terms prohibit automated access, so running it is your own call. It reads public listings as a logged-out visitor. More in [docs/legal.md](https://github.com/jasp-nerd/vinted-bot/blob/main/docs/legal.md).
 
 ## Docs
 

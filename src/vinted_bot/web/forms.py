@@ -24,7 +24,7 @@ from vinted_bot.vinted import urls
 BUILDER_LISTS = ("catalog_ids", "brand_ids", "size_ids", "status_ids", "color_ids")
 _MANAGED = {"search_text", "order", *BUILDER_LISTS}
 
-INTERVAL_PRESETS = (30, 60, 120, 300, 900)
+INTERVAL_PRESETS = (1, 3, 5, 10, 30, 60, 300, 900)
 
 
 @dataclass

@@ -6,6 +6,33 @@ becomes the text of its GitHub release, so write it for the people running the a
 
 ## [Unreleased]
 
+Alerts are much faster: a new listing usually reaches you 15 to 35 seconds after the seller
+posts it, where it could take up to three minutes before.
+
+### Changed
+
+- **Every check sees what Vinted has right now.** Vinted keeps each search's results for
+  two minutes and hands the same answer to everyone who asks, so a search could show
+  listings up to two minutes late however often it was checked. Each check now asks in a way
+  that skips that copy, without changing what the search finds.
+- **Checks every 5 seconds by default**, instead of every minute. The search editor offers
+  1, 3, 5, 10 and 30 seconds and 1, 5 and 15 minutes; 1 second is the fastest and marked
+  "at your own risk". Searches still on the old default of one minute move to 5 seconds;
+  any other interval you picked is kept. `VINTED_BOT_POLL_DEFAULT_INTERVAL_S` now accepts
+  anything from 1.
+- **Never more than 8 searches a second** leave your computer, all searches together; any
+  more wait their turn for a moment. Change it with `VINTED_BOT_MAX_SEARCHES_PER_S`.
+- A search covering several countries checks them all at once instead of one after another.
+
+### Fixed
+
+- A listing found while another alert was being sent could wait up to two seconds before
+  going out. It now goes straight after.
+- The dashboard and setup started new searches at one minute even when a shorter default was
+  set.
+- A search checked often is no longer called "stale" after a minute without new listings:
+  that now takes ten minutes, however often it checks.
+
 ## [2.2.1] - 2026-11-14
 
 ### Fixed

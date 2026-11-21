@@ -231,11 +231,19 @@ class Poller:
         pays, where the other site's would be converted at the day's rate and come out a
         little different. Both copies used to be judged, the last one's verdict winning.
         """
+        sites = self.query.sites
+        # All sites at once: they are separate hosts, and waiting for each in turn put
+        # every site's round trip on top of the alert's delay.
+        pages = await asyncio.gather(
+            *(self._client.search(site, self.query.params) for site in sites),
+            return_exceptions=True,
+        )
         found: dict[int, Item] = {}
         all_full = True
-        for site in self.query.sites:
-            self._site = site
-            page = await self._client.search(site, self.query.params)
+        for site, page in zip(sites, pages, strict=True):
+            if isinstance(page, BaseException):
+                self._site = site
+                raise page
             all_full = all_full and len(page) >= PER_PAGE
             for item in page:
                 found.setdefault(item.item_id, item)

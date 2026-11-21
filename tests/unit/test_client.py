@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import time
 from pathlib import Path
 
 import pytest
@@ -63,6 +65,49 @@ async def test_search_asks_the_search_service_with_translated_filters(
     assert request["url"] == "https://api.vinted.fr/svc-catalogue/items"
     assert request["params"]["attribute_ids[brand]"] == "53"
     assert "brand_ids" not in request["params"]
+
+
+async def test_each_check_of_a_search_misses_vinteds_two_minute_cache(
+    client: VintedClient, transport: ScriptedTransport, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Vinted caches each search's answer for two minutes, shared by everyone asking it.
+    Trailing spaces in the words change nothing about the results but are part of that
+    cache's key, so a search checked every few seconds sees listings as they arrive."""
+    sent: list[str] = []
+    for second in range(1_800_000_000, 1_800_000_180):
+        monkeypatch.setattr("vinted_bot.vinted.client.time.time", lambda second=second: second)
+        transport.queue(ok(recorded("catalogue_fr.json")))
+        await client.search("fr", {"search_text": "nike air", "brand_ids": "53"})
+        sent.append(transport.requests[-1]["params"]["search_text"])
+
+    assert len(set(sent)) == len(sent)
+    assert {text.rstrip(" ") for text in sent} == {"nike air"}
+
+
+async def test_a_search_without_words_misses_the_cache_too(
+    client: VintedClient, transport: ScriptedTransport
+) -> None:
+    transport.queue(ok(recorded("catalogue_fr.json")))
+
+    await client.search("fr", {"brand_ids": "53"})
+
+    assert transport.requests[-1]["params"]["search_text"].strip() == ""
+
+
+async def test_many_searches_at_once_leave_no_faster_than_the_cap(
+    transport: ScriptedTransport, sessions: SessionManager
+) -> None:
+    """Thirty searches checked every second would be thirty requests a second from one
+    address, and Vinted starts refusing around twenty."""
+    client = VintedClient(transport, sessions, searches_per_s=20)
+    for _ in range(5):
+        transport.queue(ok(recorded("catalogue_fr.json")))
+    await client.search("fr", {"search_text": "warm-up"})  # the session's homepage load
+    started = time.monotonic()
+
+    await asyncio.gather(*(client.search("fr", {"search_text": f"s{n}"}) for n in range(4)))
+
+    assert time.monotonic() - started >= 3 / 20
 
 
 async def test_search_names_the_market_and_the_visitor_it_belongs_to(

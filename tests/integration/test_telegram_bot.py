@@ -155,11 +155,12 @@ async def test_add_names_the_search_after_its_text(repo: Repo) -> None:
     assert query.name == "nike air"
 
 
-async def test_add_never_polls_faster_than_the_floor(repo: Repo) -> None:
+async def test_add_checks_as_often_as_the_app_is_set_to(repo: Repo) -> None:
+    """/add used to raise anything under ten seconds to ten, whatever was configured."""
     await add_search_text(repo, SEARCH_URL, chat_id=PAIRED_CHAT, interval_s=1)
 
     (query,) = await repo.list_queries()
-    assert query.poll_interval_s >= 10
+    assert query.poll_interval_s == 1
 
 
 async def test_add_refuses_a_duplicate(repo: Repo) -> None:

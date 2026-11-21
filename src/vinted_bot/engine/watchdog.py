@@ -41,6 +41,11 @@ log = get_logger(__name__)
 # How long a site must have been advancing for us to trust it as a comparison.
 _RECENT_MOVEMENT_S = 900
 
+# However often a search checks, it is only called frozen after this long with nothing
+# new: a narrow search checked every few seconds goes a dozen checks without a listing
+# all the time.
+STALE_AFTER_S = 600
+
 # How long every search on a site must have been failing before it counts as down. Shorter
 # than this is the backoff ladder doing its job after a blip.
 SITE_DOWN_AFTER_S = 900
@@ -124,7 +129,11 @@ class Watchdog:
             query = queries.get(query_id)
             if query is None or state.is_first_run:
                 continue
-            if state.stale_cycles < self._settings.watchdog_stale_cycles:
+            quiet_for_s = state.stale_cycles * query.poll_interval_s
+            if (
+                state.stale_cycles < self._settings.watchdog_stale_cycles
+                or quiet_for_s < STALE_AFTER_S
+            ):
                 self._already_warned.discard(query_id)
                 continue
             if query.tld not in moving_sites:

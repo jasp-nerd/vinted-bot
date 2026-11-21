@@ -8,6 +8,7 @@ assumed it was are the ones whose issue trackers fill up with tracebacks.
 
 from __future__ import annotations
 
+import asyncio
 import random
 import time
 from collections.abc import Callable
@@ -46,6 +47,14 @@ log = get_logger(__name__)
 # jitter included, is free and keeps our requests from looking machine-timed.
 _TIME_SKEW_RANGE_S = (0, 180)
 
+# Vinted answers a search from a cache that it shares between everyone asking that same
+# search and refreshes every two minutes (measured November 2026: about ninety listings
+# land at once, on the same second from two different addresses). Trailing spaces in the
+# words change nothing about the results but are part of the cache's key, so each check
+# pads them with a count taken from the clock. Every second of this cycle gets its own
+# count, and the cycle is longer than the cache lives, so no check reads a stale answer.
+_CACHE_MISS_CYCLE_S = 180
+
 # Vinted's ways of saying "your token is no longer valid" inside a body: the numeric code
 # of /api/v2, and the string code of the svc-* services.
 _INVALID_TOKEN_CODES: Final = frozenset({100, "UNAUTHORIZED"})
@@ -60,6 +69,28 @@ _RequestStyle = Literal["catalogue", "api", "page"]
 _T = TypeVar("_T")
 
 
+class Pace:
+    """Spaces requests out to at most `per_s` a second, in the order they asked.
+
+    Each caller reserves the next free moment and waits for it outside the lock, so a
+    burst of searches comes due on the same tick and leaves one after another instead of
+    all at once.
+    """
+
+    def __init__(self, per_s: float) -> None:
+        self._gap_s = 1.0 / per_s
+        self._next = 0.0
+        self._lock = asyncio.Lock()
+
+    async def wait(self) -> None:
+        async with self._lock:
+            now = time.monotonic()
+            start = max(now, self._next)
+            self._next = start + self._gap_s
+        if start > now:
+            await asyncio.sleep(start - now)
+
+
 class VintedClient:
     """Reads search results, members and listings from one or more Vinted country sites."""
 
@@ -70,11 +101,14 @@ class VintedClient:
         *,
         keep_raw: bool = False,
         rng: random.Random | None = None,
+        searches_per_s: float | None = None,
     ) -> None:
         self._transport = transport
         self._sessions = sessions
         self._keep_raw = keep_raw
         self._rng = rng or random.Random()
+        # Every search goes through the same address, and Vinted counts them together.
+        self._pace = Pace(searches_per_s) if searches_per_s else None
 
     async def search(self, tld: str, params: dict[str, str]) -> list[Item]:
         """Return the current first page of a search, newest first.
@@ -89,9 +123,14 @@ class VintedClient:
         return await self._search(tld, params, per_page=PER_PAGE)
 
     async def _search(self, tld: str, params: dict[str, str], *, per_page: int) -> list[Item]:
+        if self._pace is not None:
+            await self._pace.wait()
         query = urls.catalogue_params(params)
+        now = int(time.time())
+        padding = " " * (now % _CACHE_MISS_CYCLE_S + 1)
+        query["search_text"] = query.get("search_text", "") + padding
         query["per_page"] = str(per_page)
-        query["time"] = str(int(time.time()) - self._rng.randint(*_TIME_SKEW_RANGE_S))
+        query["time"] = str(now - self._rng.randint(*_TIME_SKEW_RANGE_S))
         return await self._request(
             tld, urls.catalog_endpoint(tld), "catalogue", query, self._read_items(tld)
         )

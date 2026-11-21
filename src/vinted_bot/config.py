@@ -16,11 +16,12 @@ import platformdirs
 from pydantic import AliasChoices, Field, PrivateAttr, SecretStr, ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from vinted_bot.engine.validation import InvalidInputError, parse_timezone
-
-# Not configurable. Polling faster than this earns 403s without finding items any sooner,
-# because Vinted's own catalog lags behind uploads by far more than a few seconds.
-MIN_POLL_INTERVAL_S = 10
+from vinted_bot.engine.validation import (
+    MIN_INTERVAL_S,
+    RECOMMENDED_INTERVAL_S,
+    InvalidInputError,
+    parse_timezone,
+)
 
 # Ceiling for the 403 backoff ladder.
 MAX_BACKOFF_S = 900
@@ -165,14 +166,21 @@ class Settings(BaseSettings):
         description="Discard and re-bootstrap a site session once it reaches this age. "
         "Blocks correlate with session age more than with request rate.",
     )
+    max_searches_per_s: float = Field(
+        default=8.0,
+        gt=0,
+        description="At most this many searches leave this computer per second, all searches "
+        "together; any more wait their turn. Vinted answered 12 a second from one address "
+        "without complaint and started refusing at 20.",
+    )
     request_timeout_s: float = Field(
         default=15.0, gt=0, description="Seconds to wait for Vinted before giving up on a request."
     )
 
     # --- Polling -------------------------------------------------------------------
     poll_default_interval_s: int = Field(
-        default=60,
-        ge=MIN_POLL_INTERVAL_S,
+        default=RECOMMENDED_INTERVAL_S,
+        ge=MIN_INTERVAL_S,
         description="Default seconds between checks for a new search. Per-search overrides "
         "live in the database.",
     )

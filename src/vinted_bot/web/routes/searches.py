@@ -17,7 +17,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
 from vinted_bot.db.repo import DuplicateSearchError, Query
-from vinted_bot.engine import health
+from vinted_bot.engine import health, validation
 from vinted_bot.engine.validation import InvalidInputError
 from vinted_bot.web import core, data, forms, security, views
 
@@ -104,6 +104,8 @@ async def _editor(
             "countries": views.COUNTRIES,
             "slots": views.SLOT_COLORS,
             "presets": forms.INTERVAL_PRESETS,
+            "recommended": validation.RECOMMENDED_INTERVAL_S,
+            "fastest": validation.MIN_INTERVAL_S,
             "timezone": prefs.timezone,
             "typical": [views.money(v, c) for c, v in typical.items()],
             "link_price": _link_price(values),
@@ -151,7 +153,7 @@ async def _new_values(request: Request) -> dict[str, Any]:
     )
     return forms.default_values(
         tld=tld,
-        interval=max(context.settings.poll_default_interval_s, 60),
+        interval=context.settings.poll_default_interval_s,
         color=views.SLOT_COLORS[len(queries) % len(views.SLOT_COLORS)],
     )
 

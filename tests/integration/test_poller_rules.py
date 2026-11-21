@@ -307,6 +307,40 @@ async def test_a_search_on_several_sites_fetches_each_and_announces_once(
     assert await queued_ids(repo, destination_id) == [200, 201]
 
 
+class BothAtOnce(ScriptedTransport):
+    """Answers a search only once two are waiting, so asking one site after the other
+    never gets an answer."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.waiting = 0
+        self.both = asyncio.Event()
+
+    async def get(self, url: str, **kwargs: Any) -> Any:
+        if "/svc-" in url:
+            self.waiting += 1
+            if self.waiting == 2:
+                self.both.set()
+            await self.both.wait()
+        return await super().get(url, **kwargs)
+
+
+async def test_a_search_on_several_sites_asks_them_all_at_once(
+    repo: Repo, settings: Settings, db: Database, make_item: MakeItem
+) -> None:
+    """One site after another put every site's round trip on top of the alert's delay."""
+    transport = BothAtOnce()
+    poll = await poller(transport, repo, settings, db, extra_tlds=["be"])
+    now = int(time.time())
+    transport.queue_catalog([make_item(100, photo_ts=now)])
+    transport.queue_catalog([make_item(100, photo_ts=now)])
+
+    async with asyncio.timeout(3):
+        await poll.tick()
+
+    assert poll.successes == 1
+
+
 class FakeSellers:
     """Stands in for the transport's member-page lookup, counting its calls."""
 

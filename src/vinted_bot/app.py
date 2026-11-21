@@ -121,7 +121,12 @@ class Application:
                     rotate_after_minutes=settings.session_rotate_minutes,
                     proxies=proxies,
                 )
-                client = VintedClient(None, sessions, keep_raw=settings.keep_raw_json)
+                client = VintedClient(
+                    None,
+                    sessions,
+                    keep_raw=settings.keep_raw_json,
+                    searches_per_s=settings.max_searches_per_s,
+                )
                 dispatcher = Dispatcher(
                     repo=repo,
                     settings=settings,

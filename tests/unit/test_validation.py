@@ -29,9 +29,9 @@ def test_prices_that_are_not_prices_are_refused_not_dropped(typed: str) -> None:
         validation.parse_price(typed)
 
 
-@pytest.mark.parametrize("typed", ["-5", "5", "abc", "1.5", str(10**20)])
+@pytest.mark.parametrize("typed", ["-5", "0", "abc", "1.5", str(10**20)])
 def test_intervals_out_of_range_are_refused_not_clamped(typed: str) -> None:
-    """-5 used to become 10, the most aggressive interval allowed."""
+    """-5 used to become the floor, the most aggressive interval allowed."""
     with pytest.raises(InvalidInputError):
         validation.parse_interval(typed, default=60)
 

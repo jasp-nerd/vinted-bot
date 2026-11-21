@@ -43,7 +43,7 @@ from aiogram.types import (
 )
 
 from vinted_bot import managed
-from vinted_bot.config import MIN_POLL_INTERVAL_S, Settings
+from vinted_bot.config import Settings
 from vinted_bot.db.repo import DuplicateSearchError, Repo
 from vinted_bot.deliver.labels import labels_for
 from vinted_bot.deliver.telegram import ACTION_PREFIX, BLOCK, HIDE, MUTE
@@ -245,7 +245,7 @@ async def add_search_text(
             url=normalised,
             tld=tld,
             params=params,
-            poll_interval_s=max(interval_s, MIN_POLL_INTERVAL_S),
+            poll_interval_s=interval_s,
         )
     except DuplicateSearchError as exc:
         return html.escape(f"{exc.message} It is search {exc.existing.id}.")
