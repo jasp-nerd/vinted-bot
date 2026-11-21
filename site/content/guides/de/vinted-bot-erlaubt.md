@@ -4,7 +4,7 @@ description: "Ist ein Vinted Bot erlaubt? Was die AGB sagen, welche Bots dein Ko
 slug: vinted-bot-erlaubt
 key: bots-allowed
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - vinted bot erlaubt
   - vinted bot legal
@@ -16,14 +16,14 @@ faq:
   - q: "Sind Vinted Bots erlaubt?"
     a: "Nein. Die Nutzungsbedingungen von Vinted verbieten automatisierten Zugriff, also auch Bots und Scraper. Das ist ein Vertrag zwischen dir und Vinted, kein Strafgesetz. Er gibt Vinted das Recht, dich auszusperren oder dein Konto zu schließen."
   - q: "Kann Vinted mein Konto wegen eines Bots sperren?"
-    a: "Ja, wenn der Bot dein Konto nutzt. Autobuy-, Nachrichten-, Relist- und Follow-Bots handeln alle über deinen Login, und Vinted schränkt Konten ein, die es der Automatisierung verdächtigt. Ein Benachrichtigungs-Bot, der sich nie anmeldet, hat kein Konto, das gesperrt werden könnte."
+    a: "Ja, wenn der Bot dein Konto nutzt. Autobuy-, Nachrichten-, Relist- und Follow-Bots handeln alle über deinen Login, und Vinted schränkt Konten ein, die es der Automatisierung verdächtigt. Ein Benachrichtigungs-Bot, der nur öffentliche Artikel liest, hat kein Konto, das gesperrt werden könnte."
   - q: "Sperrt Vinted IP-Adressen?"
-    a: "Vinted kann aufhören, einer Internetadresse zu antworten, die zu viele Anfragen schickt, meist vorübergehend. Rechenzentrums- und VPN-Adressen trifft das öfter als normale Anschlüsse zu Hause. Wer langsam prüft, wie es Benachrichtigungs-Tools sollten, hat damit selten Probleme."
+    a: "Vinted kann aufhören, einer Internetadresse zu antworten, die zu viele Anfragen schickt, meist vorübergehend. Rechenzentrums- und VPN-Adressen trifft das öfter als normale Anschlüsse zu Hause. Wer von einer Adresse aus nicht übertrieben viele Anfragen schickt, hat damit selten Probleme."
   - q: "Ist Reselling auf Vinted erlaubt?"
     a: "Gekauftes weiterzuverkaufen ist erlaubt, aber Vinted ist für Privatverkäufer gedacht. Wer regelmäßig zum Weiterverkauf einkauft, handelt gewerblich, und dafür erwartet Vinted ein Pro-Konto. Dazu kommen die Regeln für Gewerbe und Steuern in deinem Land."
 ---
 
-Streng genommen nein: Die Nutzungsbedingungen von Vinted verbieten automatisierten Zugriff, Bots und Scraper eingeschlossen. Das Risiko hängt aber stark davon ab, was der Bot macht. Bots, die sich mit deinem Konto anmelden (Autobuy, automatische Nachrichten, Relist, Follow und Likes), können zur Kontosperre führen. Ein Benachrichtigungs-Bot, der nur öffentliche Artikel liest und sich nie anmeldet, hat kein Konto, das gesperrt werden könnte. Das realistische Schlimmste ist, dass Vinted deiner Internetverbindung vorübergehend nicht mehr antwortet.
+Streng genommen nein: Die Nutzungsbedingungen von Vinted verbieten automatisierten Zugriff, Bots und Scraper eingeschlossen. Das Risiko hängt aber stark davon ab, was der Bot macht. Bots, die sich mit deinem Konto anmelden (Autobuy, automatische Nachrichten, Relist, Follow und Likes), können zur Kontosperre führen. Ein Benachrichtigungs-Bot, der nur öffentliche Artikel liest, hat kein Konto, das gesperrt werden könnte. Das realistische Schlimmste ist, dass Vinted deiner Internetverbindung vorübergehend nicht mehr antwortet.
 
 Das hier ist keine Rechtsberatung. Es beschreibt, wie die Regeln in der Praxis wirken, damit du selbst entscheiden kannst.
 
@@ -53,7 +53,7 @@ Vorsicht besonders bei:
 - Follow-, Like- und View-Bots, die Aufmerksamkeit sammeln.
 - Allem, was nach deinem Vinted-Passwort fragt oder eine Erweiterung installieren will, um "dein Konto zu verbinden".
 
-### Benachrichtigungs-Bots ohne Login: kein Konto, das du verlieren kannst
+### Benachrichtigungs-Bots, die öffentliche Artikel lesen: kein Konto, das du verlieren kannst
 
 Ein Benachrichtigungs-Bot liest dieselben Suchergebnisse, die jeder sieht, der Vinted ohne Anmeldung öffnet. Er braucht kein Konto, also hängt auch keins an seiner Tätigkeit. Gekauft wird weiterhin mit deinem eigenen Konto, von Hand, wie bei jedem anderen Käufer.
 
@@ -68,21 +68,21 @@ Deshalb werben bezahlte Benachrichtigungsdienste mit "kein Vinted-Login nötig",
 
 Das trifft deine Verbindung, nicht dein Konto. Surfst du über dieselbe Verbindung auf Vinted, merkst du es aber vielleicht. Wahrscheinlicher wird es durch:
 
-- Zu häufiges Prüfen. Alle paar Sekunden bringt ohnehin nichts, weil Vinted neue Artikel erst einige Minuten später in der Suche zeigt.
+- Zu häufiges Prüfen. Jede Prüfung ist eine Anfrage, je kürzer also das Intervall, desto mehr Verkehr kommt von deiner Adresse.
 - Viele Suchen gleichzeitig von einer Adresse.
 - Betrieb in einem Rechenzentrum. Cloud-Server und manche VPNs werden viel öfter geprüft als Anschlüsse zu Hause.
 
 ## "Kann Vinted mein Gerät sperren?"
 
-Das wird oft gefragt. Vinted veröffentlicht nicht, wie es Geräte erkennt, deshalb kann das außerhalb von Vinted niemand genau beantworten. Klar ist: Kontosperren hängen am Konto, Verbindungssperren an der Internetadresse. Ein Tool, das sich nie anmeldet und zurückhaltend prüft, bleibt nach allem, was man weiß, bei beidem außen vor.
+Das wird oft gefragt. Vinted veröffentlicht nicht, wie es Geräte erkennt, deshalb kann das außerhalb von Vinted niemand genau beantworten. Klar ist: Kontosperren hängen am Konto, Verbindungssperren an der Internetadresse. Ein Tool, das kein Konto nutzt und zurückhaltend prüft, bleibt nach allem, was man weiß, bei beidem außen vor.
 
 ## Wie vinted-bot auf der sicheren Seite bleibt
 
 vinted-bot ist ein kostenloses Open-Source-Tool für Benachrichtigungen, das um genau diesen Unterschied herum gebaut ist:
 
-- Es meldet sich nie an, fragt nie nach deinem Vinted-Passwort und fasst dein Konto nicht an.
+- Es liest öffentliche Artikel als nicht angemeldeter Besucher, dein Konto ist also nicht im Spiel.
 - Es kauft nicht, schreibt nicht und stellt nichts neu ein. Kaufen ist bewusst keine Funktion und wird auch keine. Jede Nachricht hat einen Kaufen-Button, der den Checkout von Vinted öffnet, du kaufst also als du selbst.
-- Es prüft jede Suche standardmäßig einmal pro Minute und lehnt Intervalle unter zehn Sekunden ab.
+- Es prüft jede Suche standardmäßig alle 5 Sekunden, höchstens einmal pro Sekunde, und begrenzt, wie viele Suchen pro Sekunde deinen Rechner verlassen.
 - Pro Prüfung schickt es eine Anfrage je Vinted-Länderseite, die eine Suche abdeckt. Es blättert nicht durch Seiten und öffnet nicht jeden Artikel.
 - Es nutzt Sitzungen weiter, statt ständig neue aufzubauen, und wartet, wenn Vinted darum bittet.
 - Bremst Vinted es doch aus, sagt das Dashboard das in klaren Worten, statt still zu versagen.
@@ -95,7 +95,7 @@ Auch die Daten anderer hält es klein: nur was eine Nachricht oder ein Filter br
 
 - Gib keinem Bot dein Vinted-Passwort und sei skeptisch bei Erweiterungen, die sich mit deinem Konto "verbinden".
 - Nimm lieber Tools, die öffentliche Artikel lesen, als Tools, die für dich handeln.
-- Prüf seltener statt öfter. Einmal pro Minute reicht für fast jede Suche.
+- Prüf nur so oft, wie du es brauchst. Alle paar Sekunden reicht für eine gefragte Suche, ruhige Suchen können länger warten.
 - Lass es über deinen Anschluss zu Hause laufen, wenn es geht.
 - Veröffentliche keine fremden Anzeigen. Die Nachrichten sind für dich. Ein Link ist in Ordnung, ein öffentlicher Spiegel mit den Fotos anderer Leute nicht.
 - Fordert Vinted dich auf, damit aufzuhören, dann hör auf.
@@ -104,4 +104,4 @@ Auch die Daten anderer hält es klein: nur was eine Nachricht oder ein Filter br
 
 Auf Vinted einzukaufen, um weiterzuverkaufen, hat mit Bots erst einmal nichts zu tun. Vinted erwartet, dass gewerbliche Verkäufer das angeben und ein Pro-Konto nutzen. Nach den EU-Regeln aus DAC7 meldet Vinted Verkäufer mit 30 oder mehr Verkäufen oder 2.000 € oder mehr Umsatz im Jahr an die Steuerbehörden. Ob du gewerblich handelst, hängt von den Regeln in Deutschland oder Österreich ab, im Zweifel frag beim Finanzamt oder einer Steuerberatung nach.
 
-Wie du ganz ohne Risiko für dein Konto an schnelle Benachrichtigungen kommst, steht in [Vinted Bot kostenlos](/guides/vinted-bot-kostenlos/).
+Wie du kostenlos an schnelle Benachrichtigungen kommst, steht in [Vinted Bot kostenlos](/guides/vinted-bot-kostenlos/).

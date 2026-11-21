@@ -4,7 +4,7 @@ description: "¿La alerta de Vinted no funciona o las notificaciones llegan tard
 slug: vinted-alerta-no-funciona
 key: notifications-not-working
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - vinted alerta no funciona
   - notificaciones vinted no llegan
@@ -16,9 +16,9 @@ faq:
   - q: "¿Vinted avisa de las búsquedas guardadas?"
     a: "Las páginas de ayuda de Vinted dicen que las búsquedas guardadas pueden avisarte de artículos nuevos. En la práctica muchos usuarios reciben esos avisos tarde o nunca, incluso con todos los ajustes activados. Las notificaciones de los miembros que sigues suelen ser más fiables."
   - q: "¿Por qué las notificaciones de Vinted llegan tarde?"
-    a: "Se suman dos retrasos. Vinted añade los anuncios nuevos a su búsqueda unos minutos después de subirlos, y los avisos de búsquedas guardadas salen algo después. El ahorro de batería y los modos de concentración o No molestar pueden retenerlos aún más."
+    a: "Se suman dos retrasos. Vinted añade los anuncios nuevos a su búsqueda unos 15 a 30 segundos después de subirlos, y los avisos de búsquedas guardadas salen algo después. El ahorro de batería y los modos de concentración o No molestar pueden retenerlos aún más."
   - q: "¿Cómo consigo alertas fiables de una búsqueda de Vinted?"
-    a: "Usa una herramienta externa que revise la búsqueda por sí misma y te escriba. vinted-bot lo hace gratis: revisa cada minuto, envía los artículos nuevos a Telegram, Discord o el móvil y te avisa cuando una búsqueda deja de funcionar."
+    a: "Usa una herramienta externa que revise la búsqueda por sí misma y te escriba. vinted-bot lo hace gratis: revisa cada 5 segundos, envía los artículos nuevos a Telegram, Discord o el móvil y te avisa cuando una búsqueda deja de funcionar."
 ---
 
 Si la alerta de tu búsqueda guardada en Vinted no funciona, muchas veces no es culpa de tu móvil. Muchos usuarios con todas las notificaciones activadas reciben estos avisos tarde o nunca, y Vinted no ha explicado nunca bien cómo los envía. Revisa primero los ajustes de abajo, porque en algunos casos lo arreglan. Si no, la solución fiable es una herramienta que revise la búsqueda por sí misma.
@@ -31,7 +31,7 @@ Esa es la teoría. La queja de que las búsquedas guardadas no avisan viene de h
 
 Dos cosas más antes de ponerte a arreglar:
 
-- Vinted añade los anuncios nuevos a su búsqueda unos minutos después de subirlos. Todo lo que depende de la búsqueda, incluidas las alertas de Vinted, solo puede saltar después.
+- Vinted añade los anuncios nuevos a su búsqueda unos 15 a 30 segundos después de subirlos. Todo lo que depende de la búsqueda, incluidas las alertas de Vinted, solo puede saltar después.
 - En 2026 varios usuarios contaron cambios en las búsquedas guardadas: un máximo de 20 marcas por búsqueda (las listas más largas se recortaron), el contador de artículos nuevos desaparecido, algunos filtros quitados sin aviso y artículos antiguos entre los más recientes. Si tu búsqueda guardada "ya no encuentra nada", ábrela y revisa qué contiene de verdad.
 
 ## Primero, los arreglos rápidos
@@ -66,11 +66,11 @@ Una búsqueda con miles de resultados cambia sin parar. Una concreta (talla, mar
 
 Si has hecho todo lo anterior y sigue sin llegar nada, o el aviso llega veinte minutos después de que se vendiera el artículo, has llegado al límite de la función de Vinted. No puedes cambiar cómo programa Vinted sus notificaciones, y no hay ninguna opción de "avísame al momento solo para esta búsqueda".
 
-Lo que sí puedes cambiar es quién revisa la búsqueda. En lugar de esperar a que Vinted te avise, una herramienta aparte puede cargar los resultados de tu búsqueda cada minuto y escribirte cuando aparezca algo nuevo.
+Lo que sí puedes cambiar es quién revisa la búsqueda. En lugar de esperar a que Vinted te avise, una herramienta aparte puede cargar los resultados de tu búsqueda cada pocos segundos y escribirte cuando aparezca algo nuevo.
 
 ## La alternativa gratis: alertas que revisan la búsqueda por sí mismas
 
-vinted-bot es una aplicación gratuita y de código abierto que hace exactamente eso, sin suscripción. Pegas el mismo enlace de tu búsqueda de Vinted y la revisa cada minuto desde tu ordenador. Cada artículo nuevo llega como mensaje a Telegram, Discord, ntfy en el móvil o un webhook, con las fotos, el precio total con la protección al comprador, talla y estado, la valoración del vendedor y un botón para abrir el anuncio.
+vinted-bot es una aplicación gratuita y de código abierto que hace exactamente eso, sin suscripción. Pegas el mismo enlace de tu búsqueda de Vinted y la revisa cada 5 segundos desde tu ordenador. Cada artículo nuevo llega como mensaje a Telegram, Discord, ntfy en el móvil o un webhook, con las fotos, el precio total con la protección al comprador, talla y estado, la valoración del vendedor y un botón para abrir el anuncio.
 
 También arregla cosas que las búsquedas guardadas de Vinted no hacen:
 
@@ -79,13 +79,11 @@ También arregla cosas que las búsquedas guardadas de Vinted no hacen:
 - Sin tope de 20 marcas, y una búsqueda puede cubrir varios sitios de Vinted de distintos países.
 - Cada búsqueda muestra si funciona, si está tranquila, atascada o frenada por Vinted. La queja más común sobre las herramientas de alertas, Vinted incluida, es que dejan de funcionar sin decirlo.
 
-No necesita tu cuenta de Vinted: lee los resultados públicos como un visitante sin sesión, así que ninguna cuenta está implicada.
-
 {{install}}
 
 ### Lo que no puede arreglar
 
-No puede ver un anuncio antes que la búsqueda de Vinted, igual que cualquier otra herramienta. En la práctica te enteras de la mayoría de los anuncios a los pocos minutos de subirse: mucho mejor que un aviso que nunca llega, pero no la garantía de ser el primero.
+No puede ver un anuncio antes que la búsqueda de Vinted, igual que cualquier otra herramienta, y los anuncios nuevos tardan unos 15 a 30 segundos en aparecer en ella. vinted-bot revisa cada 5 segundos y se salta la caché de dos minutos que Vinted pone en las búsquedas, así que en la práctica te enteras de la mayoría de los anuncios entre 15 y 35 segundos después de subirse: mucho mejor que un aviso que nunca llega, pero no la garantía de ser el primero.
 
 Además funciona en tu ordenador, así que las alertas solo llegan mientras esté encendido y despierto. Una Raspberry Pi o un portátil viejo enchufado lo resuelven.
 

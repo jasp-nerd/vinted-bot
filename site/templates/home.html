@@ -234,7 +234,7 @@
       <p class="lead">{{ t.features.lead }}</p>
     </div>
     <ul class="features">
-      {%- for item, ic in zip(t.features['items'], ['shield-check', 'heart-pulse', 'lock', 'trending-down', 'filter', 'user-x', 'moon', 'eye', 'globe', 'send', 'layout-grid', 'circle-help']) %}
+      {%- for item, ic in zip(t.features['items'], ['shield-check', 'heart-pulse', 'timer', 'trending-down', 'filter', 'user-x', 'moon', 'eye', 'globe', 'send', 'layout-grid', 'circle-help']) %}
       <li class="feature"><span class="feature__icon" aria-hidden="true"><svg class="i"><use href="{{ icons }}#i-{{ ic }}"></use></svg></span><div><h3>{{ item.title }}</h3><p>{{ item.text }}</p></div></li>
       {%- endfor %}
     </ul>

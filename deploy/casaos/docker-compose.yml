@@ -56,7 +56,7 @@ x-casaos:
   tagline:
     en_US: Alerts for new Vinted listings
   description:
-    en_US: Get a message on Telegram, Discord or another app the moment a new Vinted listing matches your search. Never logs in to Vinted. Not affiliated with Vinted.
+    en_US: Get a message on Telegram, Discord or another app the moment a new Vinted listing matches your search. Not affiliated with Vinted.
   port_map: "8000"
   scheme: http
   index: /

@@ -4,14 +4,14 @@
     "locale": "nl_NL",
     "name": "Nederlands",
     "title": "Gratis Vinted bot: melding bij nieuwe items | vinted-bot",
-    "description": "Gratis open-source Vinted bot: krijg een melding op Discord, Telegram of je telefoon zodra je zoekopdracht iets nieuws vindt. Geen abonnement, geen login.",
+    "description": "Gratis open-source Vinted bot: krijg een melding op Discord, Telegram of je telefoon zodra je zoekopdracht iets nieuws vindt. Geen abonnement, geen advertenties.",
     "og_title": "Gratis Vinted bot: een melding zodra je zoekopdracht iets nieuws vindt",
-    "og_description": "Gratis open-source meldingen voor je Vinted-zoekopdrachten op Discord, Telegram of je telefoon. Draait op je eigen computer, zonder Vinted-login en zonder abonnement.",
+    "og_description": "Gratis open-source meldingen voor je Vinted-zoekopdrachten op Discord, Telegram of je telefoon. Draait op je eigen computer, zonder abonnement.",
     "og_image_alt": "vinted-bot: een kaartje van een artikel met de prijs inclusief kosten, en Mags de ekster met een telefoon waarop een nieuwe melding binnenkomt",
     "og_headline": ["Gratis Vinted bot.", "Een melding zodra", "je zoekopdracht", "iets nieuws vindt."],
-    "og_sub": ["Alerts op Discord, Telegram of je telefoon.", "Altijd gratis. Geen abonnement, geen login."],
+    "og_sub": ["Alerts op Discord, Telegram of je telefoon.", "Altijd gratis. Geen abonnement, geen advertenties."],
     "og_card": {"new": "Nieuw", "deal": "24% onder normaal", "title": "Levi's 501 jeans, rechte pijp", "meta": "W31 L32 · Zeer goed", "price": "€ 23,80", "fees": "incl. kosten"},
-    "app_description": "Gratis open-source Vinted bot die je Vinted-zoekopdrachten in de gaten houdt en nieuwe artikelen die passen naar Discord, Telegram, ntfy, e-mail en meer stuurt. Draait op je eigen computer en logt nooit in bij Vinted. Niet verbonden aan Vinted.",
+    "app_description": "Gratis open-source Vinted bot die je Vinted-zoekopdrachten in de gaten houdt en nieuwe artikelen die passen naar Discord, Telegram, ntfy, e-mail en meer stuurt. Draait op je eigen computer. Niet verbonden aan Vinted.",
     "site_description": "vinted-bot stuurt nieuwe items uit je Vinted-zoekopdrachten naar Discord, Telegram of je telefoon. Gratis en open source."
   },
   "common": {
@@ -44,7 +44,7 @@
     "note": "Windows, Mac, Linux, Raspberry Pi, Docker of een NAS.",
     "independent": "Onafhankelijk en open source. Niet verbonden aan Vinted.",
     "trust_aria": "In het kort",
-    "trust": ["€ 0, waar betaalde bots € 5 tot € 300 per maand vragen", "Geen Vinted-login", "Geen advertenties, geen tracking in de app"],
+    "trust": ["€ 0, waar betaalde bots € 5 tot € 300 per maand vragen", "Checkt elke 5 seconden", "Geen advertenties, geen tracking in de app"],
     "stage_caption": "Een demo van het dashboard: nieuwe Vinted-artikelen verschijnen bovenaan in het overzicht, en voor elk artikel komt er een melding binnen.",
     "push_now": "nu",
     "stage_title": "Vondsten",
@@ -86,7 +86,7 @@
     "steps": [
       {"when": "Eerst", "title": "Plak een zoekopdracht van Vinted", "text": "Zoek op Vinted met je maten, merken en prijs, en kopieer de link naar het dashboard. Of stel de zoekopdracht daar meteen samen, met de categorieën en merken van Vinted zelf."},
       {"when": "Daarna", "title": "Kies waar je alerts heen gaan", "text": "Discord, Telegram, een pushmelding op je telefoon, e-mail of een van honderd andere apps. Stuur eerst een test, dan weet je zeker dat het aankomt."},
-      {"when": "Vanaf dan", "title": "Hoor het als er iets nieuws is", "text": "Hij checkt elke zoekopdracht elke minuut en stuurt alleen wat er nog niet was. De eerste check blijft stil, zodat je niet overspoeld wordt met oude artikelen."}
+      {"when": "Vanaf dan", "title": "Hoor het als er iets nieuws is", "text": "Hij checkt elke zoekopdracht elke 5 seconden en stuurt alleen wat er nog niet was. De eerste check blijft stil, zodat je niet overspoeld wordt met oude artikelen."}
     ],
     "dest_phone": "Melding op je telefoon"
   },
@@ -132,12 +132,12 @@
     ]
   },
   "features": {
-    "title": "Alles wat je nodig hebt, zonder dat je hoeft in te loggen",
-    "lead": "Hij doet alles behalve voor je kopen of berichten sturen. Daarvoor is je Vinted-account nodig, en juist daar komen accountblokkades vandaan.",
+    "title": "Alles wat je nodig hebt, niets wat je niet nodig hebt",
+    "lead": "Hij doet alles behalve voor je kopen of berichten sturen. Elke melding heeft een knop Kopen, en die tik je zelf aan.",
     "items": [
       {"title": "De prijs die je echt betaalt", "text": "Stel je een maximum van € 35 in, dan is dat € 35 inclusief kopersbescherming. Het prijsfilter van Vinted zelf telt die kosten niet mee."},
       {"title": "Laat weten als hij niet meer werkt", "text": "Bij elke zoekopdracht zie je of hij actief, stil, vastgelopen of geblokkeerd is, en je krijgt een bericht als er een aandacht nodig heeft."},
-      {"title": "Geen account, niets om te blokkeren", "text": "Hij leest openbare artikelen anoniem en vraagt nooit om je Vinted-login. Er is dus geen account dat Vinted kan beperken."},
+      {"title": "Seconden, geen minuten", "text": "Hij checkt elke zoekopdracht elke 5 seconden en slaat de cache van twee minuten over die Vinted op zoekopdrachten zet. Een melding komt dus meestal 15 tot 35 seconden nadat een artikel online staat."},
       {"title": "Deal-labels", "text": "Hij leert per zoekopdracht wat de normale prijs is en markeert artikelen die daar duidelijk onder zitten. Als je wilt, krijg je alleen die."},
       {"title": "Filters die Vinted niet heeft", "text": "Woorden die in de titel moeten staan, met “dit of dat”. Woorden om over te slaan, zoals “voor onderdelen” of “alleen doos”. Reguliere expressies, als je daar handig mee bent."},
       {"title": "Verkopersfilters en een blokkeerlijst", "text": "Minimale score en aantal beoordelingen, uit welke landen verkopers verzenden, en een blokkeerknop voor die ene verkoper die je zoekterm in elke advertentie zet."},
@@ -170,10 +170,9 @@
     "label_paid": "Gemiddelde betaalde bot",
     "rows": [
       {"q": "Prijs", "us": "Gratis. Geen pakketten, geen proefperiode, geen abonnement.", "them": "€ 5 tot € 30 per maand. Autobuy-pakketten tot € 300.", "yes": true},
-      {"q": "Je Vinted-login", "us": "Wordt nooit gevraagd", "them": "Niet voor meldingen. Autobuy en automatische berichten hebben je account nodig, en daar komen beperkingen vandaan.", "yes": true},
       {"q": "Als het stukgaat", "us": "Zegt het je, per zoekopdracht, in gewone taal", "them": "Meestal merk je het pas als het stil is geworden", "yes": true},
       {"q": "Prijsfilter", "us": "Inclusief kopersbescherming", "them": "Meestal de vraagprijs", "yes": true},
-      {"q": "Snelheid", "us": "Meestal een paar minuten nadat een artikel online staat", "them": "Vaak verkocht als “direct”. Elke tool hangt af van wanneer Vinted een artikel in de zoekresultaten laat zien.", "yes": false},
+      {"q": "Snelheid", "us": "Meestal 15 tot 35 seconden nadat een artikel online staat", "them": "Vaak verkocht als “direct”. Elke tool hangt af van wanneer Vinted een artikel in de zoekresultaten laat zien.", "yes": false},
       {"q": "Waar het draait", "us": "Op je eigen computer, een Raspberry Pi of een NAS", "them": "Op hun servers", "yes": false},
       {"q": "Broncode", "us": "Open, MIT-licentie", "them": "Gesloten", "yes": true}
     ],
@@ -230,10 +229,10 @@
     "lead": "Iets anders? <a href=\"https://github.com/jasp-nerd/vinted-bot/issues\">Vraag het op GitHub</a>.",
     "items": [
       {"q": "Is het echt gratis?", "a": "<p><strong>Ja, en dat blijft zo.</strong> Het is open source onder de MIT-licentie, zonder betaalde versie, abonnement, proefperiode, account of advertenties. Het draait op je eigen computer, dus er is geen server waar iemand voor moet betalen, en niets om je later alsnog aan te verkopen.</p><p>Betaalde Vinted bots vragen € 5 tot € 30 per maand voor meldingen, en tot € 300 voor autobuy. Wil je liever geen computer aan laten staan? Een kleine gehuurde server kost een paar euro per maand. Dat gaat naar de hostingpartij, niet naar dit project.</p>"},
-      {"q": "Blokkeert Vinted mij?", "a": "<p><strong>Je account niet: daar komt er geen aan te pas.</strong> vinted-bot leest openbare artikelen anoniem. Hij logt nooit in en vraagt nooit om je Vinted-gegevens, dus er is geen account dat Vinted kan beperken.</p><p>Wat Vinted wel kan doen, is je internetverbinding (je IP-adres) een tijdje niet meer bedienen als het te veel verzoeken ziet. Dat is tijdelijk. Standaard is het één check per minuut per zoekopdracht, en vinted-bot gaat vanzelf langzamer als Vinted daarom vraagt.</p>"},
+      {"q": "Blokkeert Vinted mij?", "a": "<p><strong>Je account komt er niet aan te pas.</strong> vinted-bot leest openbare artikelen als niet-ingelogde bezoeker, dus er is geen account dat Vinted kan beperken.</p><p>Wat Vinted wel kan doen, is je internetverbinding (je IP-adres) een tijdje niet meer bedienen als het te veel verzoeken ziet. Dat is tijdelijk. Standaard is het één check per 5 seconden per zoekopdracht, en vinted-bot gaat vanzelf langzamer als Vinted daarom vraagt. Veel zoekopdrachten die elke seconde checken vanaf één adres maken de kans groter.</p>"},
       {"q": "Moet mijn computer aan blijven staan?", "a": "<p>Ja. Meldingen komen alleen binnen zolang de computer waarop hij draait aan, wakker en online is. Een laptop in slaapstand stuurt niets. De installer voor de Mac kan een Mac die aan de stroom zit voor je wakker houden.</p><p>Voor meldingen de klok rond draai je hem op een Raspberry Pi, een NAS of een oude laptop die aan de stroom blijft. Je telefoon ontvangt alleen de meldingen.</p>"},
-      {"q": "Waarom is het niet direct?", "a": "<p>Vinted laat nieuwe artikelen pas een paar minuten na plaatsing in de zoekresultaten zien, dus elke tool, betaald of gratis, ziet ze iets later. vinted-bot checkt standaard elke minuut en meldt een artikel meestal binnen een paar minuten nadat het online is gezet.</p><p>Dat is snel genoeg voor verzamelaars, wie jaagt op een bepaalde maat, en de meeste koopjes. Probeer je autobuy-bots voor te zijn bij te goedkope consoles, dan wint geen enkele melding dat, en dat zeggen we liever eerlijk.</p>"},
-      {"q": "Is het legaal? Mag het?", "a": "<p>De voorwaarden van Vinted verbieden geautomatiseerde toegang. Dat is een afspraak tussen jou en Vinted, geen wet: het overtreden is geen misdrijf, maar het geeft Vinted wel een reden om je niet meer te bedienen. In de EU is het lezen van openbaar toegankelijke pagina's op zich niet onrechtmatig.</p><p>Deze tool leest openbare artikelen anoniem, in een rustig tempo, en koopt, plaatst of stuurt nooit iets voor je. Of je hem gebruikt, is jouw keuze. Vraagt Vinted je om te stoppen, stop dan. Meer in de <a href=\"/docs/legal/\">uitleg over regels en risico's</a> (in het Engels). Dit is geen juridisch advies.</p>"},
+      {"q": "Waarom is het niet direct?", "a": "<p>Vinted laat een nieuw artikel pas zo'n 15 tot 30 seconden na plaatsing in de zoekresultaten zien, en geen enkele tool, betaald of gratis, ziet het eerder. Vinted geeft elke zoekopdracht bovendien uit een cache die het elke twee minuten ververst, dus een tool die gewoon de zoekopdracht opnieuw laadt, kan tot twee minuten achterlopen. vinted-bot slaat die cache over en checkt standaard elke 5 seconden, dus een melding komt meestal 15 tot 35 seconden nadat een artikel online is gezet.</p><p>Dat is snel genoeg voor verzamelaars, wie jaagt op een bepaalde maat, en de meeste koopjes. Probeer je autobuy-bots voor te zijn bij te goedkope consoles, dan wint geen enkele melding dat, en dat zeggen we liever eerlijk.</p>"},
+      {"q": "Is het legaal? Mag het?", "a": "<p>De voorwaarden van Vinted verbieden geautomatiseerde toegang. Dat is een afspraak tussen jou en Vinted, geen wet: het overtreden is geen misdrijf, maar het geeft Vinted wel een reden om je niet meer te bedienen. In de EU is het lezen van openbaar toegankelijke pagina's op zich niet onrechtmatig.</p><p>Deze tool leest openbare artikelen, gaat vanzelf langzamer als Vinted daarom vraagt, en koopt, plaatst of stuurt nooit iets voor je. Of je hem gebruikt, is jouw keuze. Vraagt Vinted je om te stoppen, stop dan. Meer in de <a href=\"/docs/legal/\">uitleg over regels en risico's</a> (in het Engels). Dit is geen juridisch advies.</p>"},
       {"q": "Kan hij voor me kopen of verkopers een bericht sturen?", "a": "<p>Nee, en dat gaat ook niet gebeuren. Kopen kan alleen met een ingelogd Vinted-account, en juist daar komen accountbeperkingen vandaan. Elke melding heeft een knop Kopen; die tik je zelf aan.</p>"},
       {"q": "Wat gebeurt er met mijn gegevens?", "a": "<p>Die blijven in een bestand op je computer. vinted-bot bewaart alleen wat een melding nodig heeft en verwijdert artikelen na 30 dagen. Hij stuurt nergens iets heen behalve de meldingen die je instelt, plus een dagelijkse check op nieuwe versies die je kunt uitzetten. Deze website gebruikt ook geen cookies.</p>"},
       {"q": "In welke landen werkt het?", "a": "<p>Op alle 27 landensites van Vinted, waaronder vinted.nl, .be, .fr, .de, .es, .it, .pl en .co.uk. Prijzen staan in de valuta van die site, en meldingen gebruiken de taal van die site voor hun paar vaste woorden.</p>"}
@@ -294,7 +293,7 @@
       {"h": "Wie het maakt", "body": "<p>vinted-bot wordt gebouwd en onderhouden door <a href=\"https://github.com/jasp-nerd\">jasp-nerd</a>, een ontwikkelaar in Nederland. Het begon in augustus 2026 als een klein command-line-programma en groeide uit tot de app die het nu is, met een dashboard, deal-labels, statuschecks en installers van één regel.</p>"},
       {"h": "Waarom het gratis is", "body": "<p>Meldingen voor je eigen zoekopdrachten horen geen maandbedrag te kosten. Omdat vinted-bot op je eigen computer draait, is er geen server om te betalen, en dus ook niets om geld voor te vragen. Er is geen betaalde versie, geen proefperiode, geen account en geen advertenties, en dat komt er ook niet. De code valt onder de MIT-licentie: je mag hem lezen, aanpassen en gebruiken zoals je wilt.</p>"},
       {"h": "Hoe het betaald wordt", "body": "<p>Niet. Er zijn geen advertenties, geen betaalde versie, en er wordt niets over jou verzameld of verkocht. Heb je er een mooie vondst mee gedaan? Dan kun je <a href=\"{kofi}\">me op een koffie trakteren</a> of <a href=\"{sponsors}\">het sponsoren op GitHub</a>. Een ster op GitHub helpt ook anderen het te vinden.</p>"},
-      {"h": "Wat hij nooit zal doen", "body": "<p>Hij vraagt nooit om je Vinted-login, en hij zal nooit voor je kopen, iets plaatsen, liken of berichten sturen. Daarvoor is je account nodig, en daar komen beperkingen vandaan. Hij leest openbare artikelen anoniem, in een rustig tempo, en gaat vanzelf langzamer als Vinted daarom vraagt. Meer in <a href=\"/docs/legal/\">regels en risico's</a> (in het Engels).</p>"},
+      {"h": "Wat hij nooit zal doen", "body": "<p>Hij zal nooit voor je kopen, iets plaatsen, liken of berichten sturen. Hij leest openbare artikelen en gaat vanzelf langzamer als Vinted daarom vraagt. Meer in <a href=\"/docs/legal/\">regels en risico's</a> (in het Engels).</p>"},
       {"h": "Niet verbonden aan Vinted", "body": "<p>vinted-bot is een onafhankelijk project. Het is niet verbonden aan, goedgekeurd door of gelieerd aan Vinted UAB. Vinted is een handelsmerk van de eigenaar. De naam zegt wat het is: een bot voor Vinted. Het komt niet van Vinted zelf.</p>"},
       {"h": "Contact", "body": "<p>Een bug gevonden, of een idee? <a href=\"https://github.com/jasp-nerd/vinted-bot/issues\">Open een issue op GitHub</a>. Beveiligingsproblemen gaan via het <a href=\"https://github.com/jasp-nerd/vinted-bot/blob/main/SECURITY.md\">beveiligingsbeleid</a> (in het Engels). Alles wat verandert, staat in de <a href=\"/changelog/\">changelog</a> (in het Engels).</p>"}
     ]

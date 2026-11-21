@@ -68,8 +68,6 @@ the maintainer's alike. The short version:
   `db/repo.py`, structlog events named like `poller.started`.
 - No retry or fallback whose only job is to make a symptom go away.
 - The README and docs never claim something the code doesn't do.
-- Never log in to Vinted, and no features that need a Vinted account (buying, messaging,
-  offers). That is a deliberate line, not a missing feature.
 
 ## Commit messages
 

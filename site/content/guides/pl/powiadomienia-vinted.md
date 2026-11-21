@@ -4,7 +4,7 @@ description: "Powiadomienia Vinted: jak ustawić je na telefonie, dlaczego nie p
 slug: powiadomienia-vinted
 key: get-notified
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - powiadomienia vinted
   - jak ustawić powiadomienia vinted na telefonie
@@ -20,7 +20,7 @@ faq:
   - q: "Czy Vinted wysyła powiadomienia o zapisanych wyszukiwaniach?"
     a: "Strony pomocy Vinted mówią, że tak. W praktyce wiele osób dostaje je z opóźnieniem albo wcale. Powiadomienia o nowych przedmiotach od obserwowanych członków są zwykle pewniejsze."
   - q: "Jak szybko przychodzą powiadomienia o nowych ogłoszeniach na Vinted?"
-    a: "Vinted dodaje ogłoszenia do wyszukiwarki kilka minut po wystawieniu, więc każde powiadomienie przychodzi później. vinted-bot sprawdza co minutę, więc zwykle dowiadujesz się kilka minut po wystawieniu."
+    a: "Vinted dodaje ogłoszenia do wyszukiwarki około 15 do 30 sekund po wystawieniu, więc każde powiadomienie przychodzi później. vinted-bot domyślnie sprawdza co 5 sekund, więc zwykle dowiadujesz się 15 do 35 sekund po wystawieniu."
 ---
 
 Powiadomienia Vinted o nowych ogłoszeniach możesz dostawać na trzy sposoby: przez zapisane wyszukiwanie w aplikacji Vinted, przez obserwowanie sprzedających albo przez narzędzie, które samo sprawdza Twoje wyszukiwanie i wysyła Ci wiadomość. Dwa pierwsze są wbudowane i darmowe, ale zawodne. Trzeci jest jedynym pewnym sposobem dla wyszukiwania i też może być darmowy.
@@ -82,7 +82,7 @@ Możesz za to zmienić to, kto sprawdza wyszukiwanie.
 
 Narzędzie do powiadomień, często nazywane botem Vinted, co jakiś czas wczytuje najnowsze wyniki Twojego wyszukiwania i wysyła Ci to, czego jeszcze nie widziało. Sam decydujesz, dokąd trafiają wiadomości: na telefon, na Discorda, na Telegrama.
 
-Płatne usługi robią to ze swoich serwerów za mniej więcej 5 do 30 euro miesięcznie (stan na październik 2026). vinted-bot robi to za darmo, z Twojego komputera, bez abonamentu i bez logowania do Vinted:
+Płatne usługi robią to ze swoich serwerów za mniej więcej 5 do 30 euro miesięcznie (stan na październik 2026). vinted-bot robi to za darmo, z Twojego komputera i bez abonamentu:
 
 1. Zainstaluj go jednolinijkowym poleceniem ze strony głównej. Panel otworzy się w przeglądarce.
 2. Wklej link do wyszukiwania z Vinted albo zbuduj wyszukiwanie w panelu z kategoriami, markami i rozmiarami Vinted.
@@ -101,12 +101,11 @@ Ograniczenie: aplikacja działa na Twoim komputerze, więc powiadomienia przycho
 | | Zapisane wyszukiwanie (Vinted) | Obserwowanie sprzedającego | Darmowy bot (vinted-bot) | Płatna usługa |
 |---|---|---|---|---|
 | Koszt | Za darmo | Za darmo | Za darmo | Ok. 5 do 30 euro miesięcznie |
-| Niezawodność | Często z opóźnieniem lub wcale | Zwykle dobra | Sprawdza co minutę, mówi, gdy przestanie działać | Zależy od usługi |
+| Niezawodność | Często z opóźnieniem lub wcale | Zwykle dobra | Sprawdza co 5 sekund, mówi, gdy przestanie działać | Zależy od usługi |
 | Filtr ceny z opłatą | Nie | Nie dotyczy | Tak | Różnie |
 | Słowa do pominięcia | Nie | Nie | Tak | Różnie |
 | Wymaga włączonego komputera | Nie | Nie | Tak | Nie |
-| Wymaga konta Vinted | To część Twojego konta | Tak | Nie | Nie do powiadomień |
 
 ## Dlaczego żadne powiadomienie nie jest natychmiastowe
 
-Vinted dodaje nowe ogłoszenia do wyszukiwarki z kilkuminutowym opóźnieniem. Każde powiadomienie, z Vinted czy z dowolnego narzędzia, może przyjść dopiero potem. Kto reklamuje "zero opóźnienia", liczy od momentu pojawienia się ogłoszenia w wyszukiwarce, a nie od wystawienia. Dla kolekcjonerów i osób szukających konkretnego rozmiaru kilka minut w zupełności wystarczy. Więcej o tym, jak zacząć bez płacenia, przeczytasz w poradniku o [darmowym bocie Vinted](/guides/darmowy-bot-vinted/).
+Vinted dodaje nowe ogłoszenia do wyszukiwarki około 15 do 30 sekund po wystawieniu. Każde powiadomienie, z Vinted czy z dowolnego narzędzia, może przyjść dopiero potem. Vinted podaje też każde wyszukiwanie z pamięci podręcznej odświeżanej co dwie minuty, więc narzędzie, które po prostu odświeża wyszukiwanie, może być do dwóch minut w tyle. vinted-bot omija tę pamięć podręczną i sprawdza co 5 sekund, więc jego powiadomienia zwykle przychodzą 15 do 35 sekund po wystawieniu. Kto reklamuje "zero opóźnienia", liczy od momentu pojawienia się ogłoszenia w wyszukiwarce, a nie od wystawienia. Dla kolekcjonerów i osób szukających konkretnego rozmiaru to w zupełności wystarczy. Więcej o tym, jak zacząć bez płacenia, przeczytasz w poradniku o [darmowym bocie Vinted](/guides/darmowy-bot-vinted/).

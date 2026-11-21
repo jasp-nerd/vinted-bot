@@ -4,7 +4,7 @@ description: "Vinted melding voor je zoekopdracht instellen: zoekopdracht opslaa
 slug: vinted-melding-nieuw-artikel
 key: get-notified
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - vinted melding zoekopdracht
   - vinted melding nieuw artikel
@@ -14,7 +14,7 @@ keywords:
   - vinted opgeslagen zoekopdrachten
 faq:
   - q: "Hoe krijg ik een melding als er iets nieuws op Vinted komt?"
-    a: "Voor één verkoper volg je die, dan meldt Vinted nieuwe items. Voor een zoekopdracht sla je die op in de app, maar die meldingen komen vaak laat of niet. Betrouwbaar gaat het met een aparte tool zoals vinted-bot, die je zoekopdracht elke minuut controleert."
+    a: "Voor één verkoper volg je die, dan meldt Vinted nieuwe items. Voor een zoekopdracht sla je die op in de app, maar die meldingen komen vaak laat of niet. Betrouwbaar gaat het met een aparte tool zoals vinted-bot, die je zoekopdracht om de paar seconden controleert."
   - q: "Hoe sla ik een zoekopdracht op in Vinted?"
     a: "Zoek in de app of op de website, stel je filters in en tik boven de resultaten op de optie om de zoekopdracht op te slaan. Je vindt hem daarna terug bij je opgeslagen zoekopdrachten."
   - q: "Hoe zet ik Vinted meldingen aan op mijn iPhone?"
@@ -49,7 +49,7 @@ Dat werkt alleen voor mensen die je al kent. De volgende goede verkoper vind je 
 
 Zo'n tool, vaak Vinted bot of monitor genoemd, laadt regelmatig de nieuwste resultaten van je zoekopdracht en stuurt je alles wat hij nog niet eerder zag. Waar het heen gaat, kies je zelf: een Discord-kanaal, een Telegram-chat, een pushmelding op je telefoon, e-mail.
 
-Betaalde diensten doen dit vanaf hun eigen servers voor ongeveer €5 tot €30 per maand (stand oktober 2026). vinted-bot doet het gratis vanaf je eigen computer, open source en zonder Vinted-login. Zo stel je het in:
+Betaalde diensten doen dit vanaf hun eigen servers voor ongeveer €5 tot €30 per maand (stand oktober 2026). vinted-bot doet het gratis en open source vanaf je eigen computer. Zo stel je het in:
 
 1. Installeer het met de opdracht van de homepage. Het dashboard opent in je browser.
 2. Plak de link van je Vinted-zoekopdracht, of bouw de zoekopdracht in het dashboard met de categorieën, merken en maten van Vinted.
@@ -66,11 +66,10 @@ Elk bericht toont de foto's, de totaalprijs, maat, staat, merk, de beoordeling v
 | | Opgeslagen zoekopdracht (Vinted) | Leden volgen | Gratis tool (vinted-bot) | Betaalde dienst |
 |---|---|---|---|---|
 | Kosten | Gratis | Gratis | Gratis | Ongeveer €5 tot €30 per maand |
-| Betrouwbaarheid | Vaak laat of niet | Meestal goed | Controleert elke minuut, meldt als het hapert | Verschilt per dienst |
+| Betrouwbaarheid | Vaak laat of niet | Meestal goed | Controleert elke 5 seconden, meldt als het hapert | Verschilt per dienst |
 | Prijsfilter met kopersbescherming | Nee | N.v.t. | Ja | Verschilt |
 | Woorden uitsluiten | Nee | Nee | Ja | Verschilt |
 | Computer moet aan blijven | Nee | Nee | Ja | Nee |
-| Vinted-login nodig | Je eigen account | Je eigen account | Nee | Niet voor meldingen |
 
 Kort gezegd: volg de verkopers die je vertrouwt, houd de opgeslagen zoekopdracht om te bladeren, en zet de zoekopdrachten die er echt toe doen in een meldingstool. Heb je niets dat aan blijft en wil je niets installeren, dan is een betaalde dienst de eerlijke keuze. De gratis route uitgebreid: [gratis Vinted bot](/guides/vinted-bot-gratis/).
 
@@ -98,4 +97,4 @@ Is een vondst om drie uur 's nachts het wakker worden niet waard, dan houden sti
 
 ## Waarom geen melding direct komt
 
-Vinted zet nieuwe uploads pas een paar minuten later in de zoekresultaten. Elke melding, die van Vinted zelf en die van elke andere tool, kan pas daarna komen. Een tool die "zonder vertraging" belooft, meet vanaf het moment dat het item in de zoekresultaten staat, niet vanaf de upload. Voor verzamelaars, maatjagers en iedereen die iets specifieks zoekt, zijn een paar minuten prima. Bij goedkope elektronica waar doorverkopers op jagen vaak niet, en daar kopen sommigen met autobuy-bots die hun account op het spel zetten. Meer daarover in [Is een Vinted bot toegestaan?](/guides/vinted-bot-toegestaan/).
+Vinted zet nieuwe uploads pas zo'n 15 tot 30 seconden later in de zoekresultaten. Elke melding, die van Vinted zelf en die van elke andere tool, kan pas daarna komen. Vinted geeft elke zoekopdracht bovendien uit een cache die het elke twee minuten ververst, dus een tool die gewoon de zoekopdracht opnieuw laadt, kan tot twee minuten achterlopen. vinted-bot slaat die cache over en controleert elke 5 seconden, dus een melding komt meestal 15 tot 35 seconden na de upload. Een tool die "zonder vertraging" belooft, meet vanaf het moment dat het item in de zoekresultaten staat, niet vanaf de upload. Voor verzamelaars, maatjagers en iedereen die iets specifieks zoekt, is dat ruim voldoende. Bij goedkope elektronica waar doorverkopers op jagen vaak niet, en daar kopen sommigen met autobuy-bots die hun account op het spel zetten. Meer daarover in [Is een Vinted bot toegestaan?](/guides/vinted-bot-toegestaan/).

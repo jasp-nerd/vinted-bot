@@ -1,10 +1,10 @@
 ---
 title: "Bot Vinted na Discordzie: webhook w 2 minuty, za darmo"
-description: "Darmowy bot Vinted na Discordzie: załóż serwer, skopiuj URL webhooka na komputerze lub telefonie i odbieraj nowe ogłoszenia. Bez abonamentu i logowania."
+description: "Darmowy bot Vinted na Discordzie: załóż serwer, skopiuj URL webhooka na komputerze lub telefonie i odbieraj nowe ogłoszenia. Bez abonamentu i reklam."
 slug: vinted-bot-discord
 key: discord
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - vinted bot discord
   - vinted bot discord polska
@@ -67,7 +67,7 @@ Mała pułapka: Discord nie przyjmuje nazw webhooków zawierających słowo "dis
 
 ## Krok 3: wklej go do vinted-bot
 
-vinted-bot to darmowa aplikacja open source, która obserwuje Twoje wyszukiwania na Vinted i wysyła nowe ogłoszenia na przykład na Discorda. Nie wymaga abonamentu ani logowania do Vinted. Po instalacji panel otwiera się pod adresem `http://localhost:8000`.
+vinted-bot to darmowa aplikacja open source, która obserwuje Twoje wyszukiwania na Vinted i wysyła nowe ogłoszenia na przykład na Discorda. Nie wymaga abonamentu. Po instalacji panel otwiera się pod adresem `http://localhost:8000`.
 
 1. Otwórz stronę "Alerts" (miejsca, do których trafiają powiadomienia) i kliknij "Add a place" (dodaj miejsce).
 2. Wybierz Discorda i wklej URL webhooka.
@@ -115,7 +115,7 @@ Jeśli URL trafił gdzieś publicznie, usuń ten webhook w Discordzie (edycja ka
 
 ### Wyszukiwanie działa, ale nic nie przychodzi
 
-Sprawdź limit ceny. Zawiera on ochronę kupujących, więc limit 80 zł odrzuci ogłoszenie za 77 zł, które z opłatą kosztuje więcej. Panel prowadzi listę pominiętych ogłoszeń z powodem, co odpowiada na większość pytań "dlaczego tego nie dostałem?". Pamiętaj też, że Vinted dodaje nowe ogłoszenia do wyszukiwarki kilka minut po wystawieniu, więc żadne powiadomienie nie jest natychmiastowe.
+Sprawdź limit ceny. Zawiera on ochronę kupujących, więc limit 80 zł odrzuci ogłoszenie za 77 zł, które z opłatą kosztuje więcej. Panel prowadzi listę pominiętych ogłoszeń z powodem, co odpowiada na większość pytań "dlaczego tego nie dostałem?". Pamiętaj też, że Vinted dodaje nowe ogłoszenia do wyszukiwarki około 15 do 30 sekund po wystawieniu, więc żadne powiadomienie nie jest natychmiastowe.
 
 ## Wolisz coś innego niż Discord?
 

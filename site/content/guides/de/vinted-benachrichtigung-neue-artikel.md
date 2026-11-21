@@ -4,7 +4,7 @@ description: "Vinted Benachrichtigung, wenn ein neuer Artikel kommt: gespeichert
 slug: vinted-benachrichtigung-neue-artikel
 key: get-notified
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - vinted benachrichtigung wenn neuer artikel
   - vinted benachrichtigung einstellen
@@ -14,13 +14,13 @@ keywords:
   - vinted benachrichtigung favoriten
 faq:
   - q: "Wie bekomme ich bei Vinted eine Benachrichtigung, wenn ein neuer Artikel eingestellt wird?"
-    a: "Für einen bestimmten Verkäufer folgst du ihm, dann meldet Vinted neue Artikel. Für eine Suche speicherst du sie in der App, diese Benachrichtigungen kommen aber oft spät oder gar nicht. Zuverlässig geht es mit einem externen Tool wie vinted-bot, das deine Suche jede Minute prüft."
+    a: "Für einen bestimmten Verkäufer folgst du ihm, dann meldet Vinted neue Artikel. Für eine Suche speicherst du sie in der App, diese Benachrichtigungen kommen aber oft spät oder gar nicht. Zuverlässig geht es mit einem externen Tool wie vinted-bot, das deine Suche alle paar Sekunden prüft."
   - q: "Wo stelle ich die Vinted Benachrichtigung für eine gespeicherte Suche ein?"
     a: "In der App unter Profil, Einstellungen, Benachrichtigungen. Dort müssen Push-Benachrichtigungen und die Benachrichtigungen zu neuen Artikeln und gespeicherten Suchen eingeschaltet sein. Die Bezeichnungen ändern sich je nach App-Version etwas."
   - q: "Bekomme ich eine Benachrichtigung bei Preissenkung von Favoriten?"
     a: "Was Vinted zu Favoriten meldet, hängt von deinen Benachrichtigungseinstellungen in der App ab. Unabhängig davon kannst du mit vinted-bot einzelne Artikel beobachten und bekommst eine Nachricht, wenn der Preis sinkt oder der Artikel verkauft ist."
   - q: "Wie schnell kommen Vinted Benachrichtigungen?"
-    a: "Vinted nimmt neue Artikel erst einige Minuten nach dem Hochladen in die Suche auf, jede Benachrichtigung kommt also danach. vinted-bot prüft standardmäßig jede Minute, du hörst meist wenige Minuten nach dem Einstellen davon."
+    a: "Vinted nimmt neue Artikel erst etwa 15 bis 30 Sekunden nach dem Hochladen in die Suche auf, jede Benachrichtigung kommt also danach. vinted-bot prüft standardmäßig alle 5 Sekunden, du hörst meist 15 bis 35 Sekunden nach dem Einstellen davon."
 ---
 
 Für eine Benachrichtigung bei neuen Artikeln auf Vinted gibt es drei Wege: die Suche in der App speichern, interessanten Mitgliedern folgen oder ein Tool nutzen, das deine Suche selbst prüft und dir schreibt. Die ersten beiden sind eingebaut und kostenlos, aber eingeschränkt. Der dritte ist der einzige, der für eine Suche verlässlich funktioniert, und er kann ebenfalls kostenlos sein.
@@ -49,7 +49,7 @@ Das deckt allerdings nur Leute ab, die du schon kennst. Den nächsten guten Verk
 
 Ein solches Tool, oft Vinted Bot oder Monitor genannt, lädt regelmäßig die neuesten Ergebnisse deiner Suche und schickt dir alles, was es noch nicht gesehen hat. Wohin, entscheidest du: Telegram, Discord, eine Push-Benachrichtigung aufs Handy, E-Mail.
 
-Bezahlte Dienste machen das von ihren Servern aus für grob 5 bis 30 € im Monat (Stand Oktober 2026). vinted-bot macht es kostenlos von deinem eigenen Rechner aus, Open Source und ohne Vinted-Login. So richtest du es ein:
+Bezahlte Dienste machen das von ihren Servern aus für grob 5 bis 30 € im Monat (Stand Oktober 2026). vinted-bot macht es kostenlos und als Open Source von deinem eigenen Rechner aus. So richtest du es ein:
 
 1. Mit dem Einzeiler von der Startseite installieren. Das Dashboard öffnet sich im Browser.
 2. Den Link deiner Vinted-Suche einfügen oder die Suche im Dashboard mit den Kategorien, Marken und Größen von Vinted bauen.
@@ -66,11 +66,10 @@ Jede Nachricht zeigt Fotos, Endpreis, Größe, Zustand, Marke, die Bewertung des
 | | Gespeicherte Suche (Vinted) | Mitgliedern folgen | Kostenloses Tool (vinted-bot) | Bezahlter Dienst |
 |---|---|---|---|---|
 | Kosten | Kostenlos | Kostenlos | Kostenlos | Etwa 5 bis 30 € im Monat |
-| Zuverlässigkeit | Oft spät oder gar nicht | Meist in Ordnung | Prüft jede Minute, meldet, wenn es hakt | Je nach Dienst |
+| Zuverlässigkeit | Oft spät oder gar nicht | Meist in Ordnung | Prüft alle 5 Sekunden, meldet, wenn es hakt | Je nach Dienst |
 | Preisfilter mit Käuferschutz | Nein | Entfällt | Ja | Unterschiedlich |
 | Wörter ausschließen | Nein | Nein | Ja | Unterschiedlich |
 | Rechner muss laufen | Nein | Nein | Ja | Nein |
-| Vinted-Login nötig | Dein Konto | Dein Konto | Nein | Für Benachrichtigungen nicht |
 
 Grob gesagt: Folg den Verkäufern, denen du vertraust, behalt die gespeicherte Suche zum Stöbern und leg die Suchen, die dir wirklich wichtig sind, in ein Benachrichtigungs-Tool. Hast du keinen Rechner, der eingeschaltet bleibt, und willst nichts installieren, ist ein bezahlter Dienst die faire Wahl. Die kostenlose Variante ausführlich: [Vinted Bot kostenlos](/guides/vinted-bot-kostenlos/).
 
@@ -98,4 +97,4 @@ Wenn sich ein Fund um drei Uhr nachts nicht lohnt, halten Ruhezeiten die Nachric
 
 ## Warum keine Benachrichtigung sofort kommt
 
-Vinted nimmt neue Artikel erst einige Minuten nach dem Hochladen in die Suche auf. Jede Benachrichtigung, die von Vinted selbst und die jedes anderen Tools, kann erst danach kommen. Wer mit "null Verzögerung" wirbt, misst ab dem Moment, in dem der Artikel in der Suche auftaucht, nicht ab dem Hochladen. Für Sammler, Größenjäger und alle, die etwas Bestimmtes suchen, reichen ein paar Minuten völlig. Bei günstiger Elektronik, um die sich Wiederverkäufer reißen, oft nicht. Dort kaufen manche mit Autobuy-Bots, die über das eigene Konto laufen und es damit riskieren, mehr dazu in [Ist ein Vinted Bot erlaubt?](/guides/vinted-bot-erlaubt/).
+Vinted nimmt neue Artikel erst etwa 15 bis 30 Sekunden nach dem Hochladen in die Suche auf. Jede Benachrichtigung, die von Vinted selbst und die jedes anderen Tools, kann erst danach kommen. Außerdem liefert Vinted jede Suche aus einem Zwischenspeicher, den es alle zwei Minuten erneuert, ein Tool, das die Suche einfach neu lädt, kann also bis zu zwei Minuten hinterherhinken. vinted-bot umgeht diesen Zwischenspeicher und prüft alle 5 Sekunden, seine Benachrichtigungen kommen meist 15 bis 35 Sekunden nach dem Hochladen. Wer mit "null Verzögerung" wirbt, misst ab dem Moment, in dem der Artikel in der Suche auftaucht, nicht ab dem Hochladen. Für Sammler, Größenjäger und alle, die etwas Bestimmtes suchen, reicht das völlig. Bei günstiger Elektronik, um die sich Wiederverkäufer reißen, oft nicht. Dort kaufen manche mit Autobuy-Bots, die über das eigene Konto laufen und es damit riskieren, mehr dazu in [Ist ein Vinted Bot erlaubt?](/guides/vinted-bot-erlaubt/).

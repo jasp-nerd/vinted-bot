@@ -4,7 +4,7 @@ description: "Notifiche Vinted che non arrivano o in ritardo? Le vere cause, le 
 slug: notifiche-vinted-non-arrivano
 key: notifications-not-working
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - notifiche vinted non arrivano
   - vinted notifiche in ritardo
@@ -16,9 +16,9 @@ faq:
   - q: "Vinted manda notifiche per le ricerche salvate?"
     a: "Le pagine di aiuto di Vinted dicono che le ricerche salvate possono avvisarti dei nuovi articoli. Nella pratica molti utenti le ricevono in ritardo o per niente, anche con tutte le impostazioni attive. Le notifiche sui membri che segui tendono a essere più affidabili."
   - q: "Perché le notifiche di Vinted arrivano in ritardo?"
-    a: "Si sommano due ritardi. Vinted aggiunge i nuovi annunci alla ricerca qualche minuto dopo il caricamento, e le notifiche delle ricerche salvate partono un po' dopo. Risparmio batteria e modalità Full immersion o Non disturbare possono trattenerle ancora."
+    a: "Si sommano due ritardi. Vinted aggiunge i nuovi annunci alla ricerca da 15 a 30 secondi circa dopo il caricamento, e le notifiche delle ricerche salvate partono un po' dopo. Risparmio batteria e modalità Full immersion o Non disturbare possono trattenerle ancora."
   - q: "Come ricevere notifiche Vinted affidabili per una ricerca?"
-    a: "Usa uno strumento esterno che controlla la ricerca e ti scrive. vinted-bot lo fa gratis: controlla ogni minuto, manda i nuovi annunci su Telegram, Discord o sul telefono e ti dice quando una ricerca smette di funzionare."
+    a: "Usa uno strumento esterno che controlla la ricerca e ti scrive. vinted-bot lo fa gratis: controlla ogni 5 secondi, manda i nuovi annunci su Telegram, Discord o sul telefono e ti dice quando una ricerca smette di funzionare."
 ---
 
 Se le notifiche Vinted delle tue ricerche salvate non arrivano, spesso non è colpa del telefono. Molti utenti con tutte le impostazioni attive ricevono questi avvisi in ritardo o mai, e Vinted non ha mai spiegato bene come li invia. Controlla prima le impostazioni qui sotto, perché in alcuni casi risolvono. Se non bastano, la soluzione affidabile è uno strumento che controlla la ricerca da solo.
@@ -31,7 +31,7 @@ Questa è la teoria. La lamentela "le ricerche salvate non mi avvisano mai" va a
 
 Altre due cose da sapere prima di metterti a sistemare:
 
-- Vinted aggiunge i nuovi annunci alla sua ricerca qualche minuto dopo il caricamento. Tutto ciò che si basa sulla ricerca, avvisi di Vinted compresi, può scattare solo dopo.
+- Vinted aggiunge i nuovi annunci alla sua ricerca da 15 a 30 secondi circa dopo il caricamento. Tutto ciò che si basa sulla ricerca, avvisi di Vinted compresi, può scattare solo dopo.
 - Nel 2026 diversi utenti hanno segnalato cambiamenti alle ricerche salvate: un massimo di 20 marche per ricerca (gli elenchi più lunghi sono stati tagliati), il contatore dei nuovi articoli sparito, alcuni filtri tolti senza avviso e articoli vecchi tra i "più recenti". Se la tua ricerca salvata "non trova più niente", aprila e controlla cosa contiene davvero.
 
 ## Prima le soluzioni rapide
@@ -66,11 +66,11 @@ Una ricerca con migliaia di risultati cambia di continuo. Una ricerca stretta (t
 
 Se hai fatto tutto e non arriva ancora niente, o l'avviso arriva venti minuti dopo che l'articolo è stato venduto, hai raggiunto il limite della funzione di Vinted. Non puoi cambiare il modo in cui Vinted programma le notifiche, e non esiste un'opzione "avvisami subito solo per questa ricerca".
 
-Puoi però cambiare chi controlla la ricerca. Invece di aspettare la notifica di Vinted, uno strumento separato può caricare i risultati della tua ricerca ogni minuto e scriverti quando compare qualcosa di nuovo.
+Puoi però cambiare chi controlla la ricerca. Invece di aspettare la notifica di Vinted, uno strumento separato può caricare i risultati della tua ricerca ogni pochi secondi e scriverti quando compare qualcosa di nuovo.
 
 ## L'alternativa gratuita: avvisi che controllano la ricerca da soli
 
-vinted-bot è un'app gratuita e open source che fa proprio questo. Incolli lo stesso link della ricerca Vinted e lui la controlla ogni minuto dal tuo computer. Ogni nuovo annuncio arriva come messaggio su Telegram, Discord, ntfy sul telefono o un webhook, con le foto, il prezzo totale con la protezione acquisti, taglia e condizioni, la valutazione del venditore e un pulsante per aprire l'annuncio.
+vinted-bot è un'app gratuita e open source che fa proprio questo. Incolli lo stesso link della ricerca Vinted e lui la controlla ogni 5 secondi dal tuo computer. Ogni nuovo annuncio arriva come messaggio su Telegram, Discord, ntfy sul telefono o un webhook, con le foto, il prezzo totale con la protezione acquisti, taglia e condizioni, la valutazione del venditore e un pulsante per aprire l'annuncio.
 
 Sistema anche alcune cose che le ricerche salvate di Vinted non fanno:
 
@@ -79,13 +79,11 @@ Sistema anche alcune cose che le ricerche salvate di Vinted non fanno:
 - Nessun limite di 20 marche, e una ricerca può coprire più siti Vinted di paesi diversi.
 - Ogni ricerca mostra se funziona, se è tranquilla, bloccata o rallentata da Vinted. La lamentela più comune sugli strumenti di avviso, Vinted compreso, è che smettono di funzionare senza dirlo.
 
-Non ha bisogno del tuo login Vinted: legge i risultati pubblici come un visitatore non loggato, quindi nessun account è coinvolto.
-
 {{install}}
 
 ### Cosa non può risolvere
 
-Non può vedere un annuncio prima che lo veda la ricerca di Vinted, come nessun altro strumento. In pratica ricevi la maggior parte degli annunci entro pochi minuti dalla pubblicazione: molto meglio di una notifica che non arriva mai, ma non la garanzia di essere il primo.
+Non può vedere un annuncio prima che lo veda la ricerca di Vinted, come nessun altro strumento, e i nuovi annunci ci mettono da 15 a 30 secondi circa a comparire. vinted-bot controlla ogni 5 secondi e salta la cache di due minuti che Vinted applica alle ricerche, quindi in pratica ricevi la maggior parte degli annunci tra 15 e 35 secondi dopo la pubblicazione: molto meglio di una notifica che non arriva mai, ma non la garanzia di essere il primo.
 
 Gira poi sul tuo computer, quindi gli avvisi arrivano solo mentre è acceso e sveglio. Un Raspberry Pi o un vecchio portatile lasciato in carica risolvono.
 

@@ -4,7 +4,7 @@ description: "Meilleur bot Vinted gratuit ou payant ? Prix en octobre 2026, vite
 slug: meilleur-bot-vinted-gratuit
 key: free-vs-paid
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - meilleur bot vinted gratuit
   - meilleur bot vinted
@@ -18,12 +18,12 @@ faq:
   - q: "Combien coûte un bot Vinted ?"
     a: "En octobre 2026 : environ 5 à 30 € par mois pour les services d'alerte seuls, environ 15 à 50 € par mois pour les serveurs Discord avec achat automatique, 30 à 110 € par mois pour les outils d'achat automatique, avec des formules haut de gamme qui ont atteint 300 €. Les outils open source sont gratuits."
   - q: "Les bots Vinted payants sont-ils plus rapides ?"
-    a: "La partie mesurable, entre l'apparition d'une annonce dans la recherche et l'alerte, peut être plus rapide chez un service payant. Mais Vinted ajoute les annonces à sa recherche quelques minutes après leur publication pour tout le monde : l'écart se joue en secondes sur les mêmes minutes."
+    a: "Pas forcément. Vinted ajoute les annonces à sa recherche environ 15 à 30 secondes après leur publication, pour tout le monde. Ensuite, tout dépend de la fréquence de vérification de l'outil et du fait qu'il attende ou non le cache de deux minutes que Vinted applique à chaque recherche. vinted-bot vérifie toutes les 5 secondes et contourne ce cache : ses alertes arrivent en général 15 à 35 secondes après la mise en ligne."
   - q: "Un bot Vinted gratuit est-il sûr ?"
-    a: "Un bot d'alerte qui ne demande jamais vos identifiants Vinted n'a aucun compte à mettre en danger. Vérifiez qu'il est open source ou d'une source de confiance, et ne donnez jamais votre mot de passe Vinted à un bot."
+    a: "Un bot d'alerte qui lit seulement les annonces publiques n'a aucun compte à mettre en danger. Vérifiez qu'il est open source ou d'une source de confiance, et ne donnez jamais votre mot de passe Vinted à un bot."
 ---
 
-Le meilleur bot Vinted dépend de ce que vous en attendez. Pour des alertes sur des recherches précises, un bot gratuit et open source ou un service d'alerte bon marché suffit, et rien n'est vraiment instantané puisque Vinted montre les nouvelles annonces dans sa recherche avec quelques minutes de retard, pour tout le monde. Les bots payants gagnent quand vous n'avez aucun ordinateur qui reste allumé, ou quand vous revendez en volume et voulez l'achat automatique, bien plus cher et risqué pour votre compte.
+Le meilleur bot Vinted dépend de ce que vous en attendez. Pour des alertes sur des recherches précises, un bot gratuit et open source ou un service d'alerte bon marché suffit, et rien n'est vraiment instantané puisque Vinted montre les nouvelles annonces dans sa recherche 15 à 30 secondes après leur publication, pour tout le monde. Les bots payants gagnent quand vous n'avez aucun ordinateur qui reste allumé, ou quand vous revendez en volume et voulez l'achat automatique, bien plus cher et risqué pour votre compte.
 
 Ce comparatif procède par catégories, sans classement ni marque. Les prix ont été relevés sur les pages des services et des annuaires en octobre 2026 et changent souvent.
 
@@ -46,9 +46,9 @@ Les services d'alerte seuls sont ce qui ressemble le plus à un outil gratuit, e
 
 ### La vitesse, sans enjoliver
 
-Tous les services vendent de la vitesse : « 0 délai », « moins d'une seconde », « instantané ». Voici ce que mesurent ces chiffres. Vinted ajoute les nouvelles annonces à sa recherche quelques minutes après leur publication. Un outil ne peut réagir qu'une fois l'annonce dans la recherche. « Moins d'une seconde », c'est le temps entre ce moment et votre téléphone, pas depuis la mise en ligne.
+Tous les services vendent de la vitesse : « 0 délai », « moins d'une seconde », « instantané ». Voici ce que mesurent ces chiffres. Vinted ajoute les nouvelles annonces à sa recherche environ 15 à 30 secondes après leur publication. Un outil ne peut réagir qu'une fois l'annonce dans la recherche. « Moins d'une seconde », c'est le temps entre ce moment et votre téléphone, pas depuis la mise en ligne. Vinted sert aussi chaque recherche depuis un cache qu'il rafraîchit toutes les deux minutes, donc un outil qui recharge simplement une recherche peut avoir jusqu'à deux minutes de retard.
 
-Donc oui, un service payant qui interroge sans arrêt depuis de bons serveurs peut battre de quelques secondes un outil gratuit qui vérifie chaque minute. Que ça compte dépend de votre catégorie. Pour un collectionneur qui attend une figurine depuis des mois, non. Pour un revendeur qui vise une console à 15 € qui en vaut 40, oui, et même là, l'alerte perd souvent contre l'achat automatique.
+vinted-bot contourne ce cache et vérifie toutes les 5 secondes par défaut : ses alertes arrivent en général 15 à 35 secondes après la mise en ligne. Un service payant qui interroge sans arrêt depuis de bons serveurs ne peut pas voir l'annonce plus tôt, et gagne au mieux quelques secondes. Que ça compte dépend de votre catégorie. Pour un collectionneur qui attend une figurine depuis des mois, non. Pour un revendeur qui vise une console à 15 € qui en vaut 40, oui, et même là, l'alerte perd souvent contre l'achat automatique.
 
 ### La connexion et le risque pour le compte
 
@@ -86,7 +86,6 @@ Si rien ne reste allumé chez vous et que vous ne voulez rien installer, un serv
 
 - Ça ne coûte rien, sans limite de recherches.
 - Vous réglez chaque filtre vous-même, pas seulement des préréglages.
-- Aucun compte en jeu, donc rien à restreindre.
 - Vos données et vos liens restent sur votre machine.
 - Avec un outil open source, vous pouvez vérifier exactement ce qu'il fait.
 
@@ -99,7 +98,7 @@ vinted-bot est gratuit, open source (licence MIT) et s'en tient aux alertes. Il 
 - Une même recherche sur plusieurs pays Vinted, des heures de silence, et des alertes de baisse de prix et de vente pour les annonces que vous surveillez.
 - Un état en clair pour chaque recherche, et un avertissement quand une recherche devient anormalement silencieuse.
 
-Il vérifie chaque minute par défaut, ne se connecte jamais et n'achète jamais. Ses limites sont celles décrites plus haut : votre ordinateur doit rester allumé, et il ne battra pas l'achat automatique sur une annonce très convoitée.
+Il vérifie toutes les 5 secondes par défaut et n'achète jamais. Ses limites sont celles décrites plus haut : votre ordinateur doit rester allumé, et il ne battra pas l'achat automatique sur une annonce très convoitée.
 
 {{install}}
 

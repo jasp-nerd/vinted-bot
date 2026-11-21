@@ -95,11 +95,8 @@ wins.
 ### Anonymous only
 
 Vinted hands a session cookie to anyone who loads the site, and that cookie is all the
-catalog needs. Logging in would unlock more, including buying, and would mean storing
-someone's credentials, and would put a real account at risk of the restrictions Vinted has
-been applying to suspected automation. Reading public pages as a logged-out visitor is both
-safer and simpler, and it makes "we cannot buy for you" an honest statement rather than a
-missing feature.
+catalog needs. Reading public pages as a logged-out visitor keeps things simple: there are
+no credentials to store and no account involved.
 
 ### Errors are not interchangeable
 

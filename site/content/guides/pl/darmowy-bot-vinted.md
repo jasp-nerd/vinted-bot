@@ -1,10 +1,10 @@
 ---
 title: "Darmowy bot Vinted: powiadomienia o nowych ogłoszeniach"
-description: "Darmowy bot Vinted open source: nowe ogłoszenia z Twoich wyszukiwań na Discordzie, Telegramie lub telefonie. Bez abonamentu i bez logowania do Vinted."
+description: "Darmowy bot Vinted open source: nowe ogłoszenia z Twoich wyszukiwań na Discordzie, Telegramie lub telefonie. Bez abonamentu i bez reklam."
 slug: darmowy-bot-vinted
 key: free-bot
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - bot vinted
   - bot vinted pl
@@ -23,7 +23,7 @@ faq:
     a: "Ten nie. Automatyczne kupowanie wymaga zalogowanego konta, a stąd biorą się blokady kont. vinted-bot dodaje do każdego powiadomienia przycisk kupna, więc zakup robisz Ty."
 ---
 
-Tak, darmowy bot Vinted istnieje. vinted-bot to darmowa aplikacja open source, która obserwuje Twoje wyszukiwania na Vinted i wysyła każde nowe ogłoszenie na Discorda, Telegrama albo telefon, razem z ceną, którą naprawdę zapłacisz. Działa na Twoim własnym komputerze, a nie na cudzym serwerze, dlatego nic nie kosztuje, i nigdy nie prosi o login do Vinted.
+Tak, darmowy bot Vinted istnieje. vinted-bot to darmowa aplikacja open source, która obserwuje Twoje wyszukiwania na Vinted i wysyła każde nowe ogłoszenie na Discorda, Telegrama albo telefon, razem z ceną, którą naprawdę zapłacisz. Działa na Twoim własnym komputerze, a nie na cudzym serwerze, dlatego nic nie kosztuje.
 
 Poniżej: co zwykle oznacza "bot Vinted", jakie są darmowe opcje, jak go uruchomić w około dziesięć minut i jakie ma ograniczenia.
 
@@ -89,7 +89,7 @@ Powiadomienia wychodzą z komputera, na którym działa aplikacja. Uśpiony lapt
 
 ### To nie jest natychmiastowe, i nic nie jest
 
-Vinted dodaje nowe ogłoszenia do wyszukiwarki kilka minut po ich wystawieniu. Każde narzędzie, które czyta wyszukiwarkę, darmowe czy płatne, widzi je dopiero wtedy. vinted-bot sprawdza co minutę. Częstsze sprawdzanie nie znajdzie niczego wcześniej, a sprawi, że Vinted zacznie spowalniać Twoje łącze. Jeśli ścigasz się z botami do automatycznego kupowania o tanie konsole, żaden bot do powiadomień nie wygra. Jeśli szukasz konkretnego rozmiaru, marki albo przedmiotu kolekcjonerskiego, minuta w zupełności wystarczy.
+Vinted dodaje nowe ogłoszenia do wyszukiwarki około 15 do 30 sekund po ich wystawieniu. Każde narzędzie, które czyta wyszukiwarkę, darmowe czy płatne, widzi je dopiero wtedy. Vinted podaje też każde wyszukiwanie z pamięci podręcznej odświeżanej co dwie minuty, więc narzędzie, które po prostu odświeża wyszukiwanie, może być do dwóch minut w tyle. vinted-bot omija tę pamięć podręczną i domyślnie sprawdza co 5 sekund, więc powiadomienie zwykle przychodzi 15 do 35 sekund po wystawieniu. Możesz ustawić sprawdzanie nawet co sekundę, na własne ryzyko: dużo zapytań z jednego adresu może sprawić, że Vinted zacznie spowalniać Twoje łącze. Jeśli ścigasz się z botami do automatycznego kupowania o tanie konsole, żaden bot do powiadomień nie wygra. Jeśli szukasz konkretnego rozmiaru, marki albo przedmiotu kolekcjonerskiego, to w zupełności wystarczy.
 
 ### Łącze ma znaczenie
 
@@ -97,7 +97,7 @@ Vinted częściej blokuje adresy z centrów danych i niektórych VPN niż domowe
 
 ### Nie kupuje za Ciebie
 
-Celowo. Automatyczne kupowanie wymaga zalogowanego konta, a tak właśnie konta trafiają pod ograniczenia. Regulamin Vinted zabrania automatycznego dostępu: bot, który się nie loguje, nie ma konta do stracenia, a ten, który kupuje za Ciebie, ma.
+Celowo. Automatyczne kupowanie wymaga zalogowanego konta, a tak właśnie konta trafiają pod ograniczenia. Regulamin Vinted zabrania automatycznego dostępu: bot, który tylko czyta publiczne ogłoszenia, nie ma konta do stracenia, a ten, który kupuje za Ciebie, ma.
 
 ## Darmowy czy płatny?
 

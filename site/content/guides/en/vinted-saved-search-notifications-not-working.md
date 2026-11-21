@@ -4,7 +4,7 @@ description: "Vinted saved search notifications not working, late or missing? Th
 slug: vinted-saved-search-notifications-not-working
 key: notifications-not-working
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - vinted saved search notifications not working
   - vinted saved searches not updating
@@ -17,11 +17,11 @@ faq:
   - q: "Does Vinted send notifications for saved searches?"
     a: "Vinted's help pages say saved searches can notify you about new items. In practice many users report getting those notifications late or not at all, even with every notification setting switched on. Notifications about sellers you follow tend to be more dependable."
   - q: "Why are my Vinted notifications delayed?"
-    a: "Two delays stack up. Vinted adds new listings to its search a few minutes after upload, and saved-search notifications are sent some time after that. Phone battery savers and Focus or Do Not Disturb modes can hold notifications back further."
+    a: "Two delays stack up. Vinted adds new listings to its search about 15 to 30 seconds after upload, and saved-search notifications are sent some time after that. Phone battery savers and Focus or Do Not Disturb modes can hold notifications back further."
   - q: "Why are my Vinted saved searches not updating?"
     a: "Users have reported several changes in 2026: saved searches capped at 20 brands, the count of new items no longer shown, some filters silently dropped and old items showing under newest first. Re-create the search and check its filters after saving it."
   - q: "How do I get reliable alerts for a Vinted search?"
-    a: "Use an external alert tool that checks the search itself and messages you. vinted-bot does this for free: it checks every minute and sends new listings to Discord, Telegram or your phone, and it tells you when a search stops working."
+    a: "Use an external alert tool that checks the search itself and messages you. vinted-bot does this for free: it checks every 5 seconds and sends new listings to Discord, Telegram or your phone, and it tells you when a search stops working."
 ---
 
 If your Vinted saved search notifications aren't arriving, it's often not your phone. Many users with every notification setting switched on still get saved-search alerts late or not at all, and Vinted has never said much about how these alerts are batched. Check the settings below first, since they do fix some cases. If they don't, the reliable fix is an alert tool that checks the search itself.
@@ -34,7 +34,7 @@ That's the theory. The complaint that saved searches never notify goes back year
 
 Two other things to know before you start fixing:
 
-- Vinted adds new listings to its search a few minutes after they're uploaded. Anything built on the search, Vinted's own alerts included, can only fire after that.
+- Vinted adds new listings to its search about 15 to 30 seconds after they're uploaded. Anything built on the search, Vinted's own alerts included, can only fire after that.
 - In 2026 several users reported changes to saved searches themselves: a cap of 20 brands per saved search (longer lists were cut), the "new items" counter disappearing, some filters dropped without warning and older items showing up under newest first. If your saved search "stopped finding things", open it and check what's actually in it.
 
 ## Fixes worth trying first
@@ -69,11 +69,11 @@ A search with thousands of results changes all the time. Whatever Vinted does to
 
 If you've done all of the above and still get nothing, or get notified twenty minutes after the item sold, you've hit the limit of Vinted's feature. You can't change how Vinted schedules its notifications, and there's no setting for "notify me immediately for this search only".
 
-What you can control is who checks the search. Instead of waiting for Vinted to push a notification, a separate tool can load your saved search's results itself every minute and message you when something new appears.
+What you can control is who checks the search. Instead of waiting for Vinted to push a notification, a separate tool can load your saved search's results itself every few seconds and message you when something new appears.
 
 ## The free alternative: alerts that check the search themselves
 
-vinted-bot is a free, open-source app that does exactly that. You paste the same Vinted search link, and it checks it every minute from your own computer. Each new listing arrives as a message on Discord, Telegram, ntfy on your phone or a webhook, with the photos, the total price including buyer protection, the size and condition, the seller's rating and a button that opens the listing.
+vinted-bot is a free, open-source app that does exactly that. You paste the same Vinted search link, and it checks it every 5 seconds from your own computer. Each new listing arrives as a message on Discord, Telegram, ntfy on your phone or a webhook, with the photos, the total price including buyer protection, the size and condition, the seller's rating and a button that opens the listing.
 
 It also fixes a few things Vinted's saved searches don't do:
 
@@ -82,13 +82,11 @@ It also fixes a few things Vinted's saved searches don't do:
 - No 20-brand cap. A search can also cover several Vinted country sites at once.
 - Each search shows whether it's working, quiet, stuck or being slowed down by Vinted. The most common complaint about alert tools, Vinted's included, is that they stop without telling you.
 
-It doesn't need your Vinted login. It reads public search results as a logged-out visitor, so there's no account involved.
-
 {{install}}
 
 ### What it can't fix
 
-It can't see a listing before Vinted's search does. New items appear in search a few minutes after upload, and that applies to every tool. In practice that means you'll usually hear about a listing within a few minutes of it going up, which is a lot better than a notification that never comes, but not a guarantee you'll be first. [Why you're never first on Vinted](/guides/why-youre-never-first-on-vinted/) explains the race.
+It can't see a listing before Vinted's search does. New items appear in search about 15 to 30 seconds after upload, and that applies to every tool. vinted-bot checks every 5 seconds and skips the two-minute cache Vinted puts on searches, so you'll usually hear about a listing 15 to 35 seconds after it goes up, which is a lot better than a notification that never comes, but not a guarantee you'll be first. [Why you're never first on Vinted](/guides/why-youre-never-first-on-vinted/) explains the race.
 
 It also runs on your computer, so alerts only arrive while that computer is on and awake. A Raspberry Pi or an old laptop left plugged in solves that.
 

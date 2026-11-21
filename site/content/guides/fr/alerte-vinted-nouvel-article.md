@@ -4,7 +4,7 @@ description: "Créer une alerte Vinted pour chaque nouvel article : recherche sa
 slug: alerte-vinted-nouvel-article
 key: get-notified
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - alerte vinted
   - créer alerte vinted
@@ -15,7 +15,7 @@ keywords:
   - alerte vinted recherche
 faq:
   - q: "Comment créer une alerte sur Vinted ?"
-    a: "Faites votre recherche, appliquez vos filtres et sauvegardez la recherche avec le bouton au-dessus des résultats. Activez ensuite les notifications dans Profil, Paramètres, Notifications. Ces alertes arrivent souvent en retard : pour une alerte fiable, utilisez un outil qui consulte la recherche chaque minute."
+    a: "Faites votre recherche, appliquez vos filtres et sauvegardez la recherche avec le bouton au-dessus des résultats. Activez ensuite les notifications dans Profil, Paramètres, Notifications. Ces alertes arrivent souvent en retard : pour une alerte fiable, utilisez un outil qui consulte la recherche toutes les quelques secondes."
   - q: "Comment activer les notifications Vinted ?"
     a: "Dans l'appli Vinted, allez dans Profil, Paramètres, Notifications et activez les notifications push. Sur le téléphone, autorisez les notifications de Vinted et retirez l'appli de l'optimisation de batterie et des résumés de notifications."
   - q: "Existe-t-il une application d'alerte Vinted gratuite ?"
@@ -67,11 +67,10 @@ Chaque alerte affiche les photos, le prix total, la taille, l'état, la marque, 
 | | Recherche sauvegardée (Vinted) | Suivre un membre | Alerte gratuite (vinted-bot) | Service d'alerte payant |
 |---|---|---|---|---|
 | Prix | Gratuit | Gratuit | Gratuit | Environ 5 à 30 € par mois |
-| Fiabilité | Souvent en retard ou absente | Plutôt correcte | Vérifie chaque minute, prévient s'il s'arrête | Selon le service |
+| Fiabilité | Souvent en retard ou absente | Plutôt correcte | Vérifie toutes les 5 secondes, prévient s'il s'arrête | Selon le service |
 | Prix filtré frais compris | Non | Sans objet | Oui | Variable |
 | Mots à exclure | Non | Non | Oui | Variable |
 | Ordinateur allumé nécessaire | Non | Non | Oui | Non |
-| Connexion à votre compte Vinted | Oui (c'est votre compte) | Oui | Non | Pas pour les alertes |
 
 En résumé : suivez les vendeurs de confiance, gardez la recherche sauvegardée pour flâner, et confiez les recherches qui comptent vraiment à un outil d'alerte. Si rien ne reste allumé chez vous et que vous ne voulez rien installer, un service payant est un choix honnête. Les deux sont comparés dans [meilleur bot Vinted gratuit ou payant](/guides/meilleur-bot-vinted-gratuit/).
 
@@ -95,4 +94,4 @@ Si une alerte à 3 h du matin ne mérite pas de vous réveiller, les heures de s
 
 ## Pourquoi aucune alerte n'est instantanée
 
-Vinted ajoute les nouvelles annonces à sa recherche avec quelques minutes de retard. Toutes les alertes, celles de Vinted comme celles des outils tiers, ne peuvent partir qu'après. Un outil qui promet « 0 délai » mesure à partir de l'apparition dans la recherche, pas de la mise en ligne. Pour un collectionneur, quelqu'un qui cherche sa taille ou un article précis, quelques minutes suffisent. Pour l'électronique bradée que se disputent les revendeurs, souvent non : là, ce qui compte est d'avoir son moyen de paiement enregistré et d'acheter directement depuis l'alerte.
+Vinted ajoute les nouvelles annonces à sa recherche environ 15 à 30 secondes après leur publication. Toutes les alertes, celles de Vinted comme celles des outils tiers, ne peuvent partir qu'après. Vinted sert aussi chaque recherche depuis un cache qu'il rafraîchit toutes les deux minutes, donc un outil qui recharge simplement une recherche peut avoir jusqu'à deux minutes de retard. vinted-bot contourne ce cache et vérifie toutes les 5 secondes : ses alertes arrivent en général 15 à 35 secondes après la mise en ligne. Un outil qui promet « 0 délai » mesure à partir de l'apparition dans la recherche, pas de la mise en ligne. Pour un collectionneur, quelqu'un qui cherche sa taille ou un article précis, c'est largement suffisant. Pour l'électronique bradée que se disputent les revendeurs, souvent non : là, ce qui compte est d'avoir son moyen de paiement enregistré et d'acheter directement depuis l'alerte.

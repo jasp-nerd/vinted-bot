@@ -165,7 +165,6 @@ Or open it directly: **[Open in Claude](https://claude.ai/new?q=Please%20help%20
 
 - **It tells you when it stops working.** Each search says in plain words how it's doing, and a watchdog notices when Vinted goes quiet and renews the session itself.
 - No lost or doubled alerts: each one is saved before it's sent and sent once.
-- No Vinted account and no login, so there is no account to lose.
 - No flood of old listings when you add a search.
 
 </td>
@@ -224,7 +223,7 @@ With Docker: `docker compose down` stops it; `docker compose down -v` also delet
 
 ## FAQ
 
-**Can my Vinted account get banned?** It never logs in, so no account is involved. What Vinted can do is stop answering your internet address for a while if it's asked too often. The app slows down by itself when that happens, and the dashboard tells you.
+**Can my Vinted account get banned?** It reads public listings as a logged-out visitor, so your account isn't involved. What Vinted can do is stop answering your internet address for a while if it's asked too often. The app slows down by itself when that happens, and the dashboard tells you.
 
 **Is it really free?** Yes. MIT licence, no paid tier, no sign-up. Paid Vinted alert services cost from about €5 a month, and some charge up to €300.
 
@@ -254,4 +253,4 @@ It's free, without ads, and it stays that way. If it got you a good find, you ca
 
 ---
 
-<sub>Independent open-source tool. Not affiliated with Vinted. It reads public listings anonymously and never logs in, buys, or lists anything; buying for you is deliberately not a feature. MIT licensed.</sub>
+<sub>Independent open-source tool. Not affiliated with Vinted. It reads public listings anonymously and doesn't buy, message or list anything for you. MIT licensed.</sub>

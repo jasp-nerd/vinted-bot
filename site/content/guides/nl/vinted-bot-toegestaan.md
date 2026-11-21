@@ -4,7 +4,7 @@ description: "Is een Vinted bot toegestaan in Nederland? Wat de voorwaarden zegg
 slug: vinted-bot-toegestaan
 key: bots-allowed
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - vinted bot toegestaan in nederland
   - vinted bot toegestaan
@@ -16,14 +16,14 @@ faq:
   - q: "Is een Vinted bot toegestaan in Nederland?"
     a: "Volgens de voorwaarden van Vinted niet: die verbieden geautomatiseerde toegang, ook bots en scrapers. Dat is een afspraak tussen jou en Vinted, geen strafwet. Het geeft Vinted het recht om je te weren of je account te sluiten."
   - q: "Kan Vinted mijn account blokkeren voor een bot?"
-    a: "Ja, als de bot je account gebruikt. Autobuy-, bericht-, relist- en volgbots werken allemaal via je login, en Vinted beperkt accounts die het van automatisering verdenkt. Een meldingsbot die nooit inlogt heeft geen account dat geblokkeerd kan worden."
+    a: "Ja, als de bot je account gebruikt. Autobuy-, bericht-, relist- en volgbots werken allemaal via je login, en Vinted beperkt accounts die het van automatisering verdenkt. Een meldingsbot die alleen openbare items leest, heeft geen account dat geblokkeerd kan worden."
   - q: "Blokkeert Vinted IP-adressen?"
-    a: "Vinted kan stoppen met antwoorden aan een internetadres dat te veel verzoeken stuurt, meestal tijdelijk. Adressen van datacenters en VPN's worden vaker tegengehouden dan thuisverbindingen. Wie rustig controleert, zoals meldingstools horen te doen, heeft er zelden last van."
+    a: "Vinted kan stoppen met antwoorden aan een internetadres dat te veel verzoeken stuurt, meestal tijdelijk. Adressen van datacenters en VPN's worden vaker tegengehouden dan thuisverbindingen. Wie het aantal verzoeken vanaf één adres redelijk houdt, heeft er zelden last van."
   - q: "Hoe werken Vinted bots?"
     a: "Een meldingsbot laadt steeds opnieuw de nieuwste resultaten van een zoekopdracht, vergelijkt ze met de vorige keer en stuurt je wat nieuw is. Een autobuy-bot doet hetzelfde, maar rekent daarna af met je ingelogde account."
 ---
 
-Strikt genomen niet: de gebruiksvoorwaarden van Vinted verbieden geautomatiseerde toegang, bots en scrapers inbegrepen. Het risico hangt alleen sterk af van wat de bot doet. Bots die inloggen als jou (autobuy, automatische berichten, relisten, volgen en liken) kunnen je account laten beperken. Een meldingsbot die alleen openbare items leest en nooit inlogt, heeft geen account dat geblokkeerd kan worden. Het realistische ergste geval is dat Vinted tijdelijk niet meer antwoordt aan je internetverbinding.
+Strikt genomen niet: de gebruiksvoorwaarden van Vinted verbieden geautomatiseerde toegang, bots en scrapers inbegrepen. Het risico hangt alleen sterk af van wat de bot doet. Bots die inloggen als jou (autobuy, automatische berichten, relisten, volgen en liken) kunnen je account laten beperken. Een meldingsbot die alleen openbare items leest, heeft geen account dat geblokkeerd kan worden. Het realistische ergste geval is dat Vinted tijdelijk niet meer antwoordt aan je internetverbinding.
 
 Dit is geen juridisch advies. Het beschrijft hoe de regels in de praktijk uitpakken, zodat je zelf kunt kiezen.
 
@@ -53,7 +53,7 @@ Let vooral op bij:
 - Volg-, like- en viewbots die aandacht verzamelen.
 - Alles wat om je Vinted-wachtwoord vraagt of een extensie wil installeren om "je account te koppelen".
 
-### Meldingsbots zonder login: geen account om kwijt te raken
+### Meldingsbots die openbare items lezen: geen account om kwijt te raken
 
 Een meldingsbot leest dezelfde zoekresultaten die iedereen ziet die Vinted opent zonder in te loggen. Hij heeft geen account nodig, dus er hangt ook geen account aan wat hij doet. Kopen doe je nog steeds met je eigen account, met de hand, zoals elke andere koper.
 
@@ -68,21 +68,21 @@ Daarom adverteren betaalde meldingsdiensten met "geen Vinted-login nodig", en da
 
 Dat raakt je verbinding, niet je account. Gebruik je Vinted op dezelfde verbinding, dan merk je het misschien wel. De kans wordt groter door:
 
-- Te vaak controleren. Elke paar seconden heeft sowieso geen zin, want Vinted zet nieuwe items pas een paar minuten later in de zoekresultaten.
+- Te vaak controleren. Elke controle is een verzoek, dus hoe korter het interval, hoe meer verkeer er van je adres komt.
 - Veel zoekopdrachten tegelijk vanaf één adres.
 - Draaien vanuit een datacenter. Cloudservers en sommige VPN's worden veel vaker tegengehouden dan thuisverbindingen.
 
 ## "Kan Vinted mijn apparaat blokkeren?"
 
-Dat wordt vaak gevraagd. Vinted publiceert niet hoe het apparaten herkent, dus buiten Vinted kan niemand dat precies beantwoorden. Wat wel duidelijk is: accountblokkades volgen het account, verbindingsblokkades het internetadres. Een tool die nooit inlogt en rustig controleert, blijft voor zover bekend buiten allebei.
+Dat wordt vaak gevraagd. Vinted publiceert niet hoe het apparaten herkent, dus buiten Vinted kan niemand dat precies beantwoorden. Wat wel duidelijk is: accountblokkades volgen het account, verbindingsblokkades het internetadres. Een tool die geen account gebruikt en netjes controleert, blijft voor zover bekend buiten allebei.
 
 ## Hoe vinted-bot aan de veilige kant blijft
 
 vinted-bot is een gratis open-source meldingstool die rond precies dit verschil is gebouwd:
 
-- Het logt nooit in, vraagt nooit om je Vinted-wachtwoord en komt niet aan je account.
+- Het leest openbare items als niet-ingelogde bezoeker, dus je account komt er niet aan te pas.
 - Het koopt niet, stuurt geen berichten en plaatst niets opnieuw. Kopen is bewust geen functie en wordt het ook niet. Elk bericht heeft een Kopen-knop die de kassa van Vinted opent, zodat je als jezelf koopt.
-- Het controleert elke zoekopdracht standaard één keer per minuut en weigert intervallen korter dan tien seconden.
+- Het controleert elke zoekopdracht standaard elke 5 seconden, nooit vaker dan één keer per seconde, en beperkt hoeveel zoekopdrachten er per seconde je computer verlaten.
 - Per controle doet het één verzoek voor elke Vinted-landensite die een zoekopdracht dekt. Het bladert niet door pagina's en opent niet elk item.
 - Het hergebruikt sessies in plaats van steeds nieuwe te starten, en wacht als Vinted daarom vraagt.
 - Remt Vinted het toch af, dan zegt het dashboard dat in gewone taal in plaats van stil te falen.
@@ -95,7 +95,7 @@ Ook de gegevens van anderen houdt het klein: alleen wat een melding of filter no
 
 - Geef een bot nooit je Vinted-wachtwoord en wees voorzichtig met extensies die je account "koppelen".
 - Kies liever tools die openbare items lezen dan tools die namens jou handelen.
-- Controleer minder vaak in plaats van vaker. Eén keer per minuut is genoeg voor bijna elke zoekopdracht.
+- Controleer niet vaker dan nodig. Om de paar seconden is ruim genoeg voor een drukke zoekopdracht, en rustige zoekopdrachten kunnen langer wachten.
 - Laat het thuis draaien als dat kan.
 - Publiceer geen advertenties van anderen. Meldingen zijn voor jou. Een link delen is prima, een openbare kopie van andermans foto's niet.
 - Vraagt Vinted je ermee te stoppen, stop dan.

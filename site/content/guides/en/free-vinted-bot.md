@@ -1,10 +1,10 @@
 ---
 title: "Free Vinted bot: get alerts for new listings without paying"
-description: "A free Vinted bot that sends new listings from your searches to Discord, Telegram or your phone. No subscription, no Vinted login. Setup and limits."
+description: "A free Vinted bot that sends new listings from your searches to Discord, Telegram or your phone. No subscription, no ads. Setup and limits."
 slug: free-vinted-bot
 key: free-bot
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - vinted bot free
   - free vinted bot
@@ -18,12 +18,12 @@ faq:
   - q: "Do free Vinted bots need my Vinted login?"
     a: "An alert bot doesn't. Reading search results works as a logged-out visitor. Only tools that buy, message or relist for you need your account, and those are the ones that put it at risk."
   - q: "What's the catch with a free Vinted bot?"
-    a: "With vinted-bot it's that you run it yourself: alerts only arrive while the machine it runs on is on and online. Paid services run on their servers. Neither can be instant, because Vinted shows new listings to its search a few minutes late."
+    a: "With vinted-bot it's that you run it yourself: alerts only arrive while the machine it runs on is on and online. Paid services run on their servers. Neither can be instant, because Vinted shows new listings in its search only 15 to 30 seconds after they're posted."
   - q: "Can a free Vinted bot buy items for me?"
     a: "Not this one. Buying automatically needs your logged-in account, which is where account restrictions come from. vinted-bot puts a Buy button in each alert instead, so the purchase is still yours."
 ---
 
-Yes, you can get a Vinted bot for free. vinted-bot is a free, open-source app that watches your Vinted searches and sends every new listing to Discord, Telegram or your phone, with the price you'd actually pay. It runs on your own computer instead of someone's server, which is why it costs nothing, and it never asks for your Vinted login.
+Yes, you can get a Vinted bot for free. vinted-bot is a free, open-source app that watches your Vinted searches and sends every new listing to Discord, Telegram or your phone, with the price you'd actually pay. It runs on your own computer instead of someone's server, which is why it costs nothing.
 
 Below: what people mean by "Vinted bot", which free options exist, how to set one up in about ten minutes, and the limits you should know before you rely on it.
 
@@ -89,7 +89,7 @@ Alerts come from the machine it runs on. A laptop that sleeps sends nothing whil
 
 ### It isn't instant, and nothing is
 
-Vinted adds new listings to its search a few minutes after they're uploaded. Every tool that reads the search, paid or free, sees them at that point. vinted-bot checks every minute by default. Checking faster finds nothing sooner and gets your connection slowed down. If you're racing autobuy bots for underpriced consoles, no alert tool will win that race. If you're hunting a specific size, brand or collectible, a minute is plenty. [Why you're never first on Vinted](/guides/why-youre-never-first-on-vinted/) covers this in detail.
+Vinted adds new listings to its search about 15 to 30 seconds after they're uploaded. Every tool that reads the search, paid or free, sees them at that point. Vinted also serves each search from a cache it refreshes every two minutes, so a tool that simply reloads a search can be up to two minutes behind. vinted-bot skips that cache and checks every 5 seconds by default, so an alert usually arrives 15 to 35 seconds after the upload. You can go down to every second, at your own risk: lots of requests from one address can get your connection slowed down. If you're racing autobuy bots for underpriced consoles, no alert tool will win that race. If you're hunting a specific size, brand or collectible, that's plenty. [Why you're never first on Vinted](/guides/why-youre-never-first-on-vinted/) covers this in detail.
 
 ### Your internet connection matters
 

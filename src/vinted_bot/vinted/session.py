@@ -1,7 +1,7 @@
 """Anonymous sessions.
 
 Vinted hands a session cookie to anyone who loads the site. That cookie is all the catalog
-API asks for, which is why this app never logs in and never touches an account: there is no
+API asks for, which is why this app reads Vinted as a logged-out visitor: there is no
 password to store, nothing to get locked out of, and nothing for Vinted to sanction beyond
 an address.
 

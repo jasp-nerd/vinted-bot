@@ -4,7 +4,7 @@ description: "Cómo crear una alerta en Vinted y activar notificaciones: búsque
 slug: crear-alerta-vinted
 key: get-notified
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - crear alerta vinted
   - vinted alertas
@@ -18,7 +18,7 @@ faq:
   - q: "¿Cómo activo las notificaciones de Vinted?"
     a: "En la app, entra en tu perfil, Ajustes, Notificaciones, y activa las notificaciones push. En el móvil, permite las notificaciones de Vinted en los ajustes del sistema y quita la app del ahorro de batería."
   - q: "¿Cómo recibo notificaciones de Vinted en España al momento?"
-    a: "Nada es inmediato, porque Vinted añade los anuncios a su búsqueda unos minutos después de subirlos. Para enterarte en pocos minutos, usa una herramienta que revise tu búsqueda cada minuto, como vinted-bot, que es gratis."
+    a: "Nada es inmediato, porque Vinted añade los anuncios a su búsqueda unos 15 a 30 segundos después de subirlos. Para enterarte en cuestión de segundos, usa una herramienta que revise tu búsqueda cada pocos segundos, como vinted-bot, que es gratis."
   - q: "¿Puedo recibir las alertas de Vinted en Telegram?"
     a: "Vinted no envía alertas a Telegram, pero vinted-bot sí: creas tu propio bot con BotFather, lo conectas con un código de un solo uso y recibes cada artículo nuevo con foto y precio total."
 ---
@@ -49,7 +49,7 @@ Pero solo cubre a quien ya conoces. No te ayuda a encontrar al próximo buen ven
 
 Una herramienta de alertas, a menudo llamada bot de Vinted, carga los resultados más recientes de tu búsqueda cada cierto tiempo y te envía lo que no había visto antes. Tú decides dónde llegan los mensajes: un chat de Telegram, un canal de Discord, una notificación en el móvil.
 
-Los servicios de pago lo hacen desde sus servidores por entre 5 y 30 euros al mes, aproximadamente (a octubre de 2026). vinted-bot lo hace gratis desde tu ordenador, sin suscripción y sin pedirte tu cuenta de Vinted. Se configura así:
+Los servicios de pago lo hacen desde sus servidores por entre 5 y 30 euros al mes, aproximadamente (a octubre de 2026). vinted-bot lo hace gratis desde tu ordenador, sin suscripción. Se configura así:
 
 1. Instálalo con el comando de una línea de la página principal. El panel se abre en el navegador.
 2. Pega el enlace de tu búsqueda de Vinted, o crea la búsqueda en el panel con las categorías, marcas y tallas de Vinted.
@@ -66,11 +66,10 @@ Cada alerta muestra las fotos, el precio total, talla, estado, marca, la valorac
 | | Búsqueda guardada (Vinted) | Seguir a un vendedor | Alertas gratis (vinted-bot) | Servicio de pago |
 |---|---|---|---|---|
 | Coste | Gratis | Gratis | Gratis | Entre 5 y 30 euros al mes |
-| Fiabilidad | A menudo tarde o nunca | En general buena | Revisa cada minuto y avisa si se para | Depende del servicio |
+| Fiabilidad | A menudo tarde o nunca | En general buena | Revisa cada 5 segundos y avisa si se para | Depende del servicio |
 | Filtro de precio con comisión | No | No aplica | Sí | Varía |
 | Palabras que excluir | No | No | Sí | Varía |
 | Necesita un ordenador encendido | No | No | Sí | No |
-| Necesita tu cuenta de Vinted | Va en tu cuenta | Sí | No | No para alertas |
 
 En resumen: sigue a los vendedores de confianza, deja la búsqueda guardada para curiosear y pon las búsquedas que de verdad te importan en una herramienta de alertas. Si no tienes nada que se quede encendido y no quieres instalar nada, un servicio de pago que no pida tu cuenta es una opción justa.
 
@@ -94,4 +93,4 @@ Si una alerta a las tres de la mañana no merece despertarte, las horas de silen
 
 ## Por qué ninguna alerta es instantánea
 
-Vinted añade lo que se sube a su búsqueda con unos minutos de retraso. Cualquier alerta, la de Vinted y la de cualquier herramienta, solo puede saltar después. Quien anuncia "cero retraso" mide desde que el anuncio entró en la búsqueda, no desde que se subió. Para coleccionistas, para quien busca una talla concreta o un artículo específico, unos minutos están bien. Para la electrónica barata por la que compiten los revendedores, a menudo no. Si quieres empezar sin gastar nada, mira la guía del [bot de Vinted gratis](/guides/bot-vinted-gratis/).
+Vinted añade lo que se sube a su búsqueda unos 15 a 30 segundos después de publicarse. Cualquier alerta, la de Vinted y la de cualquier herramienta, solo puede saltar después. Además, Vinted sirve cada búsqueda desde una caché que renueva cada dos minutos, así que una herramienta que simplemente recarga la búsqueda puede ir hasta dos minutos por detrás. vinted-bot se salta esa caché y revisa cada 5 segundos, así que sus alertas suelen llegar entre 15 y 35 segundos después de la subida. Quien anuncia "cero retraso" mide desde que el anuncio entró en la búsqueda, no desde que se subió. Para coleccionistas, para quien busca una talla concreta o un artículo específico, es más que suficiente. Para la electrónica barata por la que compiten los revendedores, a menudo no. Si quieres empezar sin gastar nada, mira la guía del [bot de Vinted gratis](/guides/bot-vinted-gratis/).

@@ -4,7 +4,7 @@ description: "Vinted reselling without a paid bot: margins after buyer protectio
 slug: vinted-reselling-find-deals-first
 key: reselling
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - vinted reselling
   - vinted reselling bot
@@ -16,14 +16,14 @@ faq:
   - q: "Is reselling on Vinted allowed?"
     a: "Selling things you bought is allowed, but Vinted is built for private sellers. If you buy to resell regularly as a business, Vinted expects you to use a business (Pro) account, and national rules on trading and tax apply."
   - q: "Do I need a bot to resell on Vinted?"
-    a: "No, but alerts help a lot, because the best-priced listings go fast. A free alert bot that checks your searches every minute and filters on total price covers most needs. Autobuy is the expensive, account-risking extra."
+    a: "No, but alerts help a lot, because the best-priced listings go fast. A free alert bot that checks your searches every few seconds and filters on total price covers most needs. Autobuy is the expensive, account-risking extra."
   - q: "Does Vinted report resellers to the tax office?"
     a: "Under the EU's DAC7 rules, platforms including Vinted report sellers with 30 or more sales or €2,000 or more in sales in a year to the tax authorities. The UK has similar reporting rules."
   - q: "What sells best for Vinted reselling?"
     a: "Branded clothing in common sizes, trainers, games and consoles, and collectibles like trading cards sell quickly. The competitive categories are also where alerts face autobuy, so smaller niches you know well often give better margins."
 ---
 
-You can resell on Vinted without paying for a bot. What you need is a short list of searches you know well, a clear idea of your margin after buyer protection and postage, and alerts that reach you within minutes of a listing appearing. A free alert tool covers that. Paid bots mostly add autobuy, which costs a lot and puts your Vinted account at risk.
+You can resell on Vinted without paying for a bot. What you need is a short list of searches you know well, a clear idea of your margin after buyer protection and postage, and alerts that reach you within seconds of a listing appearing. A free alert tool covers that. Paid bots mostly add autobuy, which costs a lot and puts your Vinted account at risk.
 
 This guide is about finding stock on Vinted. It isn't a get-rich plan, and it won't claim one: resale margins are thin and depend on your time.
 
@@ -87,7 +87,7 @@ The same search on another Vinted country site shows a different mix of sellers.
 
 ## Setting up free alerts
 
-vinted-bot is free and open source. It runs on your own computer, checks each search every minute and sends new listings to Discord, Telegram or your phone with the total price, the seller's rating and Buy and Message buttons. It never logs in to Vinted.
+vinted-bot is free and open source. It runs on your own computer, checks each search every 5 seconds and sends new listings to Discord, Telegram or your phone with the total price, the seller's rating and Buy and Message buttons.
 
 1. Install it with the one-line command from the homepage.
 2. Paste each search link, or build the searches in the dashboard.
@@ -98,7 +98,7 @@ vinted-bot is free and open source. It runs on your own computer, checks each se
 
 ## Speed: what alerts can and can't do
 
-Vinted adds new uploads to its search a few minutes after they're posted. Every tool, paid or free, only sees the listing then. vinted-bot checks every minute, so you usually hear within a few minutes of the upload. In a quiet niche that's plenty. On a hyped item that everyone watches, autobuy often gets there first.
+Vinted adds new uploads to its search about 15 to 30 seconds after they're posted. Every tool, paid or free, only sees the listing then. vinted-bot checks every 5 seconds and skips the two-minute cache Vinted puts on searches, so you usually hear 15 to 35 seconds after the upload. In a quiet niche that's plenty. On a hyped item that everyone watches, autobuy often gets there first.
 
 Some practical habits help more than a faster bot:
 
@@ -112,4 +112,4 @@ Some practical habits help more than a faster bot:
 
 Vinted is built for people selling their own things. If you buy to resell as a regular activity, Vinted expects you to sell through a business account, and in most countries a regular buying-to-resell activity counts as trading, with registration and tax obligations. Under the EU's DAC7 rules, Vinted reports sellers with 30 or more sales, or €2,000 or more, in a year to the tax authorities. The UK has its own equivalent. This isn't legal advice; check your country's rules.
 
-On bots specifically: tools that buy, message or relist for you need your login, and Vinted restricts accounts it suspects of automation. For a reseller, the account with its reviews is the business. An alert tool that never logs in keeps it out of the picture. More in [are Vinted bots allowed?](/guides/are-vinted-bots-allowed/).
+On bots specifically: tools that buy, message or relist for you need your login, and Vinted restricts accounts it suspects of automation. For a reseller, the account with its reviews is the business. An alert tool that only reads public listings keeps it out of the picture. More in [are Vinted bots allowed?](/guides/are-vinted-bots-allowed/).

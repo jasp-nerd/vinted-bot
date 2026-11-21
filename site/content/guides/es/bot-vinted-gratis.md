@@ -1,10 +1,10 @@
 ---
 title: "Bot de Vinted gratis: alertas de artículos nuevos sin pagar"
-description: "Bot de Vinted gratis y de código abierto: recibe los artículos nuevos de tus búsquedas en Telegram, Discord o el móvil. Sin suscripción ni login."
+description: "Bot de Vinted gratis y de código abierto: recibe los artículos nuevos de tus búsquedas en Telegram, Discord o el móvil. Sin suscripción ni publicidad."
 slug: bot-vinted-gratis
 key: free-bot
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - bot vinted gratis
   - bot vinted telegram
@@ -23,7 +23,7 @@ faq:
     a: "Este no. Comprar automáticamente necesita tu cuenta con la sesión iniciada, y de ahí vienen las restricciones de cuentas. vinted-bot pone un botón de compra en cada alerta, así la compra la haces tú."
 ---
 
-Sí, puedes tener un bot de Vinted gratis. vinted-bot es una aplicación gratuita y de código abierto que vigila tus búsquedas de Vinted y te envía cada artículo nuevo a Telegram, Discord o el móvil, con el precio que pagarías de verdad. Funciona en tu propio ordenador en lugar del servidor de otra persona, por eso no cuesta nada, y nunca te pide tu cuenta de Vinted.
+Sí, puedes tener un bot de Vinted gratis. vinted-bot es una aplicación gratuita y de código abierto que vigila tus búsquedas de Vinted y te envía cada artículo nuevo a Telegram, Discord o el móvil, con el precio que pagarías de verdad. Funciona en tu propio ordenador en lugar del servidor de otra persona, por eso no cuesta nada.
 
 A continuación: qué se suele entender por "bot de Vinted", qué opciones gratuitas hay, cómo montarlo en unos diez minutos y qué límites conviene conocer antes de fiarte de él.
 
@@ -89,7 +89,7 @@ Las alertas salen de la máquina donde funciona. Un portátil en suspensión no 
 
 ### No es instantáneo, y nada lo es
 
-Vinted añade los anuncios nuevos a su búsqueda unos minutos después de subirlos. Cualquier herramienta que lee la búsqueda, gratis o de pago, los ve en ese momento. vinted-bot revisa cada minuto. Revisar más a menudo no encuentra nada antes y hace que Vinted frene tu conexión. Si compites con bots de compra automática por consolas baratas, ningún bot de alertas ganará esa carrera. Si buscas una talla, una marca o un coleccionable concreto, un minuto basta.
+Vinted añade los anuncios nuevos a su búsqueda unos 15 a 30 segundos después de subirlos. Cualquier herramienta que lee la búsqueda, gratis o de pago, los ve en ese momento. Además, Vinted sirve cada búsqueda desde una caché que renueva cada dos minutos, así que una herramienta que simplemente recarga la búsqueda puede ir hasta dos minutos por detrás. vinted-bot se salta esa caché y revisa cada 5 segundos por defecto, así que una alerta suele llegar entre 15 y 35 segundos después de la subida. Puedes bajar hasta una revisión por segundo, bajo tu propia responsabilidad: muchas peticiones desde una misma dirección pueden hacer que Vinted frene tu conexión. Si compites con bots de compra automática por consolas baratas, ningún bot de alertas ganará esa carrera. Si buscas una talla, una marca o un coleccionable concreto, es más que suficiente.
 
 ### Tu conexión importa
 

@@ -4,7 +4,7 @@ description: "Vinted meldingen van je opgeslagen zoekopdracht komen niet of te l
 slug: vinted-meldingen-werken-niet
 key: notifications-not-working
 date: 2026-10-30
-updated: 2026-10-30
+updated: 2026-11-21
 keywords:
   - vinted meldingen werken niet
   - vinted melding zoekopdracht komt niet
@@ -18,9 +18,9 @@ faq:
   - q: "Waarom krijg ik geen meldingen meer van Vinted?"
     a: "Veelvoorkomende oorzaken zijn meldingen die uit staan in de app of op je telefoon, batterijbesparing, een focusmodus of Niet storen, en een verlopen login. Helpt dat allemaal niet, dan ligt het meestal aan Vinted zelf."
   - q: "Waarom komen Vinted meldingen te laat?"
-    a: "Twee vertragingen stapelen zich op. Vinted zet nieuwe items pas een paar minuten na het uploaden in de zoekresultaten, en de melding van een opgeslagen zoekopdracht komt daarna. Batterijbesparing en focusmodi kunnen haar nog verder ophouden."
+    a: "Twee vertragingen stapelen zich op. Vinted zet nieuwe items pas zo'n 15 tot 30 seconden na het uploaden in de zoekresultaten, en de melding van een opgeslagen zoekopdracht komt daarna. Batterijbesparing en focusmodi kunnen haar nog verder ophouden."
   - q: "Hoe krijg ik betrouwbare meldingen voor een Vinted-zoekopdracht?"
-    a: "Gebruik een aparte tool die de zoekopdracht zelf controleert. vinted-bot doet dat gratis: elke minuut, met berichten op Discord, Telegram of je telefoon, en het laat weten wanneer een zoekopdracht niet meer werkt."
+    a: "Gebruik een aparte tool die de zoekopdracht zelf controleert. vinted-bot doet dat gratis: elke 5 seconden, met berichten op Discord, Telegram of je telefoon, en het laat weten wanneer een zoekopdracht niet meer werkt."
 ---
 
 Komen de meldingen van je opgeslagen zoekopdracht op Vinted niet binnen, dan ligt het vaak niet aan je telefoon. Veel gebruikers hebben alles aan staan en krijgen die meldingen toch laat of helemaal niet, en Vinted legt niet uit hoe het ze bundelt. Loop eerst de instellingen hieronder na, want die lossen sommige gevallen echt op. Helpt dat niet, dan is een tool die de zoekopdracht zelf controleert de betrouwbare oplossing.
@@ -33,7 +33,7 @@ Dat is de theorie. De klacht dat opgeslagen zoekopdrachten nooit iets melden is 
 
 Twee dingen om vooraf te weten:
 
-- Vinted zet nieuwe items pas een paar minuten na het uploaden in de zoekresultaten. Alles wat op de zoekresultaten bouwt, ook de meldingen van Vinted zelf, kan pas daarna afgaan.
+- Vinted zet nieuwe items pas zo'n 15 tot 30 seconden na het uploaden in de zoekresultaten. Alles wat op de zoekresultaten bouwt, ook de meldingen van Vinted zelf, kan pas daarna afgaan.
 - In 2026 meldden verschillende gebruikers veranderingen aan opgeslagen zoekopdrachten: maximaal 20 merken per opgeslagen zoekopdracht (langere lijsten werden ingekort), de teller met nieuwe items verdween, sommige filters vielen zonder waarschuwing weg en onder "nieuwste eerst" stonden oudere items. Vindt je opgeslagen zoekopdracht "niets meer", open hem dan en kijk wat er echt nog in staat.
 
 ## Probeer dit eerst
@@ -68,11 +68,11 @@ Een zoekopdracht met duizenden resultaten verandert voortdurend. Hoe Vinted ook 
 
 Heb je alles hierboven gedaan en krijg je nog steeds niets, of komt de melding twintig minuten nadat het item verkocht is, dan zit je aan de grens van wat de functie kan. Hoe Vinted zijn meldingen inplant, kun je niet veranderen, en een instelling "meld deze zoekopdracht direct" bestaat niet.
 
-Wat je wel kunt veranderen: wie de zoekopdracht controleert. In plaats van te wachten tot Vinted een melding stuurt, kan een aparte tool de resultaten van je zoekopdracht elke minuut zelf laden en je een bericht sturen zodra er iets nieuws is.
+Wat je wel kunt veranderen: wie de zoekopdracht controleert. In plaats van te wachten tot Vinted een melding stuurt, kan een aparte tool de resultaten van je zoekopdracht om de paar seconden zelf laden en je een bericht sturen zodra er iets nieuws is.
 
 ## Het gratis alternatief: een tool die zelf controleert
 
-vinted-bot is een gratis open-source app die precies dat doet. Je plakt dezelfde Vinted-zoeklink, en de app controleert hem elke minuut vanaf je eigen computer. Elk nieuw item komt als bericht op Discord, Telegram, ntfy op je telefoon of een webhook, met de foto's, de totaalprijs inclusief kopersbescherming, maat, staat, de beoordeling van de verkoper en een knop naar het item.
+vinted-bot is een gratis open-source app die precies dat doet. Je plakt dezelfde Vinted-zoeklink, en de app controleert hem elke 5 seconden vanaf je eigen computer. Elk nieuw item komt als bericht op Discord, Telegram, ntfy op je telefoon of een webhook, met de foto's, de totaalprijs inclusief kopersbescherming, maat, staat, de beoordeling van de verkoper en een knop naar het item.
 
 Het lost ook een paar dingen op die opgeslagen zoekopdrachten niet kunnen:
 
@@ -81,13 +81,11 @@ Het lost ook een paar dingen op die opgeslagen zoekopdrachten niet kunnen:
 - Geen limiet van 20 merken. Een zoekopdracht kan ook meerdere Vinted-landen tegelijk volgen.
 - Elke zoekopdracht laat zien of hij werkt, stil is, vastzit of door Vinted wordt afgeremd. De meest gehoorde klacht over meldingstools, die van Vinted inbegrepen, is dat ze ophouden zonder iets te zeggen.
 
-Een Vinted-login is niet nodig. Het leest openbare zoekresultaten als niet-ingelogde bezoeker, er is geen account bij betrokken.
-
 {{install}}
 
 ### Wat het niet kan oplossen
 
-Het ziet een item niet eerder dan de zoekfunctie van Vinted. Nieuwe items verschijnen daar een paar minuten na het uploaden, en dat geldt voor elke tool. In de praktijk hoor je meestal binnen een paar minuten na plaatsing van een item. Veel beter dan een melding die nooit komt, maar geen garantie dat je de eerste bent.
+Het ziet een item niet eerder dan de zoekfunctie van Vinted. Nieuwe items verschijnen daar zo'n 15 tot 30 seconden na het uploaden, en dat geldt voor elke tool. vinted-bot controleert elke 5 seconden en slaat de cache van twee minuten over die Vinted op zoekopdrachten zet, dus in de praktijk hoor je meestal 15 tot 35 seconden na plaatsing van een item. Veel beter dan een melding die nooit komt, maar geen garantie dat je de eerste bent.
 
 Het draait ook op je eigen computer, dus de berichten komen alleen zolang die aan en wakker is. Een Raspberry Pi of een oude laptop aan de oplader lost dat op.
 
