@@ -6,13 +6,14 @@ import pytest
 from pydantic import SecretStr, ValidationError
 
 from vinted_bot import config
-from vinted_bot.config import MIN_POLL_INTERVAL_S, Settings
+from vinted_bot.config import Settings
+from vinted_bot.engine.validation import MIN_INTERVAL_S
 
 
 def test_defaults_are_conservative() -> None:
     settings = Settings(_env_file=None)  # type: ignore[call-arg]
 
-    assert settings.poll_default_interval_s >= MIN_POLL_INTERVAL_S
+    assert settings.poll_default_interval_s >= MIN_INTERVAL_S
     assert settings.first_run_mode == "silent", "a new search must not replay the catalog"
     assert settings.keep_raw_json is False, "storing seller payloads should be opt-in"
     assert settings.web_host == "127.0.0.1", "the web UI must not listen publicly by default"
@@ -33,7 +34,7 @@ def test_mock_mode_requires_a_scenario_directory() -> None:
 
 def test_poll_interval_below_floor_is_rejected() -> None:
     with pytest.raises(ValidationError):
-        Settings(_env_file=None, poll_default_interval_s=1)  # type: ignore[call-arg]
+        Settings(_env_file=None, poll_default_interval_s=0)  # type: ignore[call-arg]
 
 
 def test_unknown_keys_do_not_stop_the_app_starting(

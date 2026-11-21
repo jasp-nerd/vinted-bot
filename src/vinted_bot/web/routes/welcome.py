@@ -129,7 +129,7 @@ async def search(request: Request) -> Response:
         state["tld"] = tld if tld in urls.KNOWN_TLDS else "nl"
     tld = state.get("tld") or views.guess_tld(request.headers.get("accept-language"))
     state["tld"] = tld
-    interval = max(context.settings.poll_default_interval_s, 60)
+    interval = context.settings.poll_default_interval_s
     errors: dict[str, str] = {}
     if _submitted(form):
         values = forms.values_from_form(form)
@@ -154,7 +154,7 @@ async def search(request: Request) -> Response:
 async def _search_page(request: Request, state: dict[str, Any], errors: dict[str, str]) -> Response:
     context = core.ctx(request)
     tld = state.get("tld") or "nl"
-    interval = max(context.settings.poll_default_interval_s, 60)
+    interval = context.settings.poll_default_interval_s
     return await _page(
         request,
         "welcome-3.html",
@@ -330,7 +330,7 @@ async def _ready(request: Request, state: dict[str, Any]) -> Response:
     context = core.ctx(request)
     values = state.get("search") or {}
     tld = state.get("tld") or "nl"
-    interval = max(context.settings.poll_default_interval_s, 60)
+    interval = context.settings.poll_default_interval_s
     if not values:
         return RedirectResponse("/welcome/search", status_code=303)
     parsed, _ = forms.collect_errors(
@@ -398,7 +398,7 @@ async def _save(context: core.WebContext, state: dict[str, Any]) -> dict[str, st
     """
     repo = context.repo
     tld = state.get("tld") or "nl"
-    interval = max(context.settings.poll_default_interval_s, 60)
+    interval = context.settings.poll_default_interval_s
     parsed, errors = forms.collect_errors(
         _search_values(state, tld, interval), default_interval=interval
     )

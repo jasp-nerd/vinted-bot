@@ -71,6 +71,29 @@ async def test_a_frozen_search_is_spotted_when_its_neighbours_keep_moving(
     assert announcements, "the point is that you find out"
 
 
+async def test_a_search_checked_every_few_seconds_is_not_called_frozen_after_a_minute(
+    repo: Repo, db: Database, transport: ScriptedTransport, settings: Settings
+) -> None:
+    """Fifteen quiet checks is a quarter of an hour at one a minute but barely a minute at
+    one every five seconds, and calling that frozen replaced the session for nothing."""
+    fast = await repo.add_query(
+        name="fast",
+        url="https://www.vinted.fr/catalog?search_text=fast",
+        tld="fr",
+        params={"search_text": "fast"},
+        poll_interval_s=5,
+    )
+    healthy = await add_search(repo, "healthy")
+    now = int(time.time())
+    await set_state(db, fast, last_success_at=now, stale_cycles=15, newest_raw_ts=now - 75)
+    await set_state(db, healthy, last_success_at=now, stale_cycles=0, newest_raw_ts=now - 30)
+
+    watchdog, announcements = make_watchdog(repo, db, transport, settings)
+
+    assert await watchdog.check() == []
+    assert announcements == []
+
+
 async def test_a_genuinely_quiet_site_is_not_mistaken_for_a_frozen_one(
     repo: Repo, db: Database, transport: ScriptedTransport, settings: Settings
 ) -> None:

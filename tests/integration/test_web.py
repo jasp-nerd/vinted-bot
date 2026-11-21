@@ -513,7 +513,7 @@ async def test_a_bad_price_is_shown_beside_the_field(client: TestClient, repo: R
 
 
 async def test_every_wrong_field_is_reported_at_once(client: TestClient) -> None:
-    response = client.post("/searches", data=_form(max_total_price="x", regex="(", interval="5"))
+    response = client.post("/searches", data=_form(max_total_price="x", regex="(", interval="0"))
 
     assert all(
         f'id="err-{field}"' in response.text for field in ("max_total_price", "regex", "interval")
@@ -644,6 +644,14 @@ def test_the_bookmarklet_link_prefills_the_editor(client: TestClient) -> None:
 
     assert 'value="regenjas"' in page.text
     assert 'name="brand_ids" value="53"' in page.text
+
+
+def test_a_new_search_starts_at_five_seconds_and_offers_one(client: TestClient) -> None:
+    """The editor used to raise the default to a minute whatever was configured."""
+    page = client.get("/searches/new").text
+
+    assert 'name="interval" value="5" checked>5 s (recommended)' in page
+    assert 'name="interval" value="1">1 s (at your own risk)' in page
 
 
 def test_the_searches_page_offers_the_bookmarklet(client: TestClient) -> None:

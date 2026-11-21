@@ -126,10 +126,14 @@ If the check passes, your address is fine and the problem is the app: please ope
 with your logs. If it fails, your address is being challenged. Options, cheapest first:
 
 1. **Wait.** These are usually temporary. The app backs off on its own.
-2. **Slow down.** Raise `VINTED_BOT_POLL_DEFAULT_INTERVAL_S` to 120 or 300. Ten searches
-   at once from one address is a lot more traffic than one search.
+2. **Slow down.** Give your searches a longer interval in the dashboard (10 or 30 seconds),
+   or lower `VINTED_BOT_MAX_SEARCHES_PER_S` to 2 or 3. Twenty searches checked every second
+   from one address is a lot more traffic than one search.
 3. **Move it home.** Residential connections are challenged far less than datacenter ones. A
-   Raspberry Pi is enough.
+   Raspberry Pi is enough. vinted.com (the US site) goes further: in November 2026 it
+   refused every session from a rented server with a browser check that only a real
+   browser can pass, while the European sites answered the same server normally. To watch
+   vinted.com, run the app at home or use a residential proxy.
 4. **Turn on TLS impersonation.** Set `VINTED_BOT_HTTP_IMPERSONATE=true`. This makes
    requests look like a real browser at the connection level rather than like Python. It
    needs the `impersonate` extra installed, and it is not a magic fix — if your address is

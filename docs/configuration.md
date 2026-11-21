@@ -66,7 +66,7 @@ folder you start the app from. `vinted-bot migrate` prints the path it used.
 
 | Variable | Default | What it does |
 |---|---|---|
-| `POLL_DEFAULT_INTERVAL_S` | `60` | Seconds between checks for a newly added search. Per-search values override it. Anything under 10 is refused. |
+| `POLL_DEFAULT_INTERVAL_S` | `5` | Seconds between checks for a newly added search. Per-search values override it. The shortest is 1. |
 | `FRESHNESS_WINDOW_MIN` | `20` | How old a listing can be and still count as new. Two things use it. A listing the app can tell was already on Vinted longer ago than this is skipped (see below). And when a search has not completed a check for longer than this (or three of its intervals, if that is longer), because the app was off, the computer asleep or Vinted refusing, the first check back records what is there **without announcing it**, then carries on as normal. A search's own "ignore listings older than" setting overrides it. |
 | `FIRST_RUN_MODE` | `silent` | What a brand-new search does first time: `silent` notifies nothing, `newest` sends exactly one listing so you can confirm delivery works. |
 | `REQUEST_TIMEOUT_S` | `15` | How long to wait for Vinted before giving up on one request. |
@@ -79,16 +79,22 @@ It cannot date a listing newer than anything the app has seen, which is why a ga
 checking is caught up quietly rather than guessed at: anything uploaded while the app was
 not looking is recorded, not announced.
 
-The 10-second floor is not caution for its own sake: Vinted's own API lags minutes behind
-what people upload, sometimes longer, so checking faster finds nothing sooner and does get
-you blocked. Vinted's search no longer says when a listing went up, so notifications show
-when the app found it, labelled "found" rather than "listed", and nothing in the app
-measures the delay between the two.
+How fast that is, measured in November 2026: Vinted's search shows a new upload 15 to 30
+seconds after the seller posts it. It also answers each search from a cache it refreshes
+every two minutes, shared by everyone asking that search, so reloading a search shows
+listings up to two minutes late. The app adds trailing spaces to the search's words, a
+different number on each check: that changes nothing about the results but is enough for
+the cache to treat it as a new search, so every check sees listings as Vinted indexes them.
+With the default 5 seconds between checks, an alert goes out within a few seconds of a
+listing reaching Vinted's search. Checking every second shaves about two seconds off that.
+Vinted's search no longer says when a listing went up, so notifications show when the app
+found it, labelled "found" rather than "listed".
 
 ### Staying unblocked
 
 | Variable | Default | What it does |
 |---|---|---|
+| `MAX_SEARCHES_PER_S` | `8` | At most this many searches leave this computer per second, all searches together. Any more wait their turn for a fraction of a second, rather than all firing at once. Vinted answered 12 a second from one address without complaint and started refusing at 20. |
 | `SESSION_ROTATE_MINUTES` | `60` | Start a fresh anonymous session after this long. Blocks track session age more than request rate. |
 | `HTTP_IMPERSONATE` | `false` | Make requests present a real browser's TLS fingerprint. Needs the `impersonate` extra. Only worth turning on if you are being blocked while the same search loads fine in a browser. |
 | `PROXY_FILE` | unset | Path to a text file of proxy URLs, one per line (blank lines and `#` comments ignored). Used in turn; one that gets refused sits out for ten minutes. If all of them are sitting out, requests go direct rather than not at all. Rarely needed. |

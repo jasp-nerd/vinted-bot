@@ -169,12 +169,12 @@
         <div class="seg seg--wrap" role="radiogroup">
           {% set chosen = f.interval|string %}
           {% for v in presets %}
-          <label><input type="radio" name="interval" value="{{ v }}"{% if chosen == v|string %} checked{% endif %}>{% if v < 60 %}{{ v }} s{% else %}{{ v // 60 }} min{% endif %}{% if v == 60 %} (recommended){% endif %}</label>
+          <label><input type="radio" name="interval" value="{{ v }}"{% if chosen == v|string %} checked{% endif %}>{% if v < 60 %}{{ v }} s{% else %}{{ v // 60 }} min{% endif %}{% if v == recommended %} (recommended){% elif v == fastest %} (at your own risk){% endif %}</label>
           {% endfor %}
           {% if chosen|int not in presets %}<label><input type="radio" name="interval" value="{{ chosen }}" checked>{{ chosen }} s</label>{% endif %}
         </div>
         {{ ui.field_error(E, "interval") }}
-        <p class="help">Vinted shows new listings a few minutes late, so checking faster than every minute rarely helps and can make Vinted slow you down.</p>
+        <p class="help">Vinted takes about 15 to 30 seconds to show a new upload in its search, and the app reads it within a few seconds of that. One second gets you there a couple of seconds sooner, but with many searches Vinted may slow your connection down for a while.</p>
       </fieldset>
       <div class="set" style="padding:4px 0 0">
         <div class="set__text"><span class="t-h3">Quiet hours</span><span class="t-sm">No buzzing at night. Times are in your time zone, {{ timezone }}.</span></div>

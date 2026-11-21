@@ -71,7 +71,7 @@ async def test_poll_interval_floor_is_enforced_by_schema(tmp_path: Path) -> None
             await db.execute(
                 "INSERT INTO queries "
                 "(name, url, tld, params_json, poll_interval_s, created_at, updated_at) "
-                "VALUES ('fast', 'https://www.vinted.fr/catalog?y=1', 'fr', '{}', 2, 0, 0)"
+                "VALUES ('fast', 'https://www.vinted.fr/catalog?y=1', 'fr', '{}', 0, 0, 0)"
             )
 
 
@@ -226,3 +226,58 @@ async def test_the_upgrade_settles_rows_still_promising_another_seller_lookup(
 
         row = await db.fetch_one("SELECT detail FROM rejections WHERE item_id = 5")
     assert row is not None and row["detail"].startswith("gave up")
+
+
+async def test_the_upgrade_to_one_second_checks_keeps_every_search_setting(
+    tmp_path: Path,
+) -> None:
+    """The searches table is rebuilt to lower the floor; nothing on a search may be lost."""
+    old = tmp_path / "before-faster-checks"
+    old.mkdir()
+    for migration in discover()[:9]:
+        (old / migration.name).write_text(migration.path.read_text(encoding="utf-8"))
+    async with Database(tmp_path / "app.db") as db:
+        await apply_pending(db, old)
+        await db.execute(
+            "INSERT INTO queries (id, name, url, tld, params_json, poll_interval_s, regex, "
+            "max_age_min, quiet_start, quiet_end, quiet_mode, extra_tlds_json, created_at, "
+            "updated_at, resale_price, min_margin, muted_until) VALUES (1, 'nike', "
+            "'https://www.vinted.fr/catalog?search_text=nike', 'fr', '{\"search_text\": "
+            "\"nike\"}', 30, 'air.*max', 15, '23:00', '07:00', 'silent', '[\"be\"]', 5, 6, "
+            "80.0, 10.0, 99)"
+        )
+        await db.execute(
+            "INSERT INTO queries (id, name, url, tld, params_json, poll_interval_s, "
+            "created_at, updated_at) VALUES (2, 'left alone', "
+            "'https://www.vinted.fr/catalog?search_text=x', 'fr', '{}', 60, 0, 0)"
+        )
+        await db.execute("INSERT INTO query_state (query_id, floor_item_id) VALUES (1, 42)")
+        await db.execute(
+            "INSERT INTO destinations (id, kind, name, config_json, created_at) "
+            "VALUES (7, 'discord', 'd', '{}', 0)"
+        )
+        await db.execute("INSERT INTO query_destinations VALUES (1, 7)")
+
+        await apply_pending(db)
+
+        # The old default moves to the new one; a chosen interval stays.
+        assert await db.fetch_value("SELECT poll_interval_s FROM queries WHERE id = 2") == 5
+
+        row = await db.fetch_one("SELECT * FROM queries WHERE id = 1")
+        assert row is not None
+        assert (row["poll_interval_s"], row["regex"], row["quiet_mode"], row["muted_until"]) == (
+            30,
+            "air.*max",
+            "silent",
+            99,
+        )
+        assert (row["extra_tlds_json"], row["resale_price"], row["min_margin"]) == (
+            '["be"]',
+            80.0,
+            10.0,
+        )
+        assert await db.fetch_value("SELECT floor_item_id FROM query_state") == 42
+        assert await db.fetch_value("SELECT COUNT(*) FROM query_destinations") == 1
+
+        await db.execute("UPDATE queries SET poll_interval_s = 1 WHERE id = 1")
+        assert await db.fetch_value("SELECT poll_interval_s FROM queries") == 1

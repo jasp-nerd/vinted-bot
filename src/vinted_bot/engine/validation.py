@@ -23,7 +23,12 @@ from vinted_bot.vinted import urls
 # expects "Nike" and "nike" to be different listings.
 TITLE_REGEX_FLAGS = re.IGNORECASE
 
-MIN_INTERVAL_S = 10
+# Vinted's own search takes some fifteen seconds or more to show a new upload, so a
+# check every second is already as fast as it is worth going.
+MIN_INTERVAL_S = 1
+# The default for a new search: within a few seconds of Vinted showing a listing, at a
+# pace one address can keep up with many searches at once.
+RECOMMENDED_INTERVAL_S = 5
 MAX_INTERVAL_S = 86_400
 MAX_PRICE = Decimal(1_000_000)
 MAX_NAME_LENGTH = 120
@@ -91,11 +96,7 @@ def parse_interval(value: str | int | None, *, default: int) -> int:
             "interval", "The interval must be a whole number of seconds."
         ) from exc
     if seconds < MIN_INTERVAL_S:
-        raise InvalidInputError(
-            "interval",
-            f"Checking more often than every {MIN_INTERVAL_S} seconds finds nothing sooner "
-            "and gets you blocked.",
-        )
+        raise InvalidInputError("interval", f"The shortest interval is {MIN_INTERVAL_S} second.")
     if seconds > MAX_INTERVAL_S:
         raise InvalidInputError("interval", "Check at least once a day (86400 seconds).")
     return seconds

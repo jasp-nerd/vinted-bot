@@ -27,10 +27,13 @@ This is also why buying is not a feature here and will not become one.
 
 ## Being a reasonable guest
 
-The defaults are deliberately unhurried, and worth keeping that way:
+The defaults keep the load small even though checks are frequent:
 
-- One check a minute per search, with a floor of ten seconds. Vinted's own catalog lags behind
-  uploads anyway, so faster finds nothing sooner.
+- One check every 5 seconds per search by default, never more than one a second. Vinted's
+  search takes 15 to 30 seconds to show a new upload, so going faster than that gains little.
+- At most 8 searches a second leave the computer, all searches together; any more wait their
+  turn. In November 2026 Vinted answered 12 a second from one address without complaint and
+  started refusing at 20.
 - One request per check for each country site the search covers. No walking through pages,
   no fetching every listing's detail page.
 - A seller's public profile is read only for searches that filter on the seller (country,

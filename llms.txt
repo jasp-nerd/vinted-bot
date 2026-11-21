@@ -20,7 +20,7 @@ This file is a complete guide for an AI assistant helping someone install and us
 - Forgot the dashboard password: run `vinted-bot reset-password` on the computer running it (Docker: `docker compose exec vinted-bot vinted-bot reset-password`). It prints a new one.
 - Price limits include Vinted's buyer protection fee, so they match what the person actually pays.
 - The first check of a new search is silent on purpose, so there is no flood of old listings. Alerts start with listings that appear after that.
-- Vinted adds new uploads to its search a few minutes after they are posted, and every tool that reads the search sees them then; vinted-bot checks every minute after that. Nothing can be instant, and the app does not measure or show this delay.
+- Vinted adds new uploads to its search 15 to 30 seconds after they are posted, and no tool can see a listing before that. Vinted also serves each search from a cache it refreshes every two minutes; vinted-bot skips that cache and checks every 5 seconds by default (as often as every second), so alerts usually arrive 15 to 35 seconds after posting.
 - Vinted moved its search to a new address in September 2026. Versions before 2.0.0 find nothing since then. If someone installed earlier, update first (see Updating).
 
 ## Install

@@ -90,6 +90,51 @@ async def test_a_queued_notification_is_delivered_once(repo: Repo, settings: Set
     assert endpoint.calls == 1
 
 
+async def test_a_listing_found_while_another_is_sending_goes_out_straight_after(
+    repo: Repo, settings: Settings
+) -> None:
+    """The wake-up that arrived mid-send used to be cleared after it, so the new listing
+    sat in the outbox for the whole idle wait."""
+    query = await a_search(repo)
+    destination_id = await repo.add_destination(
+        kind="webhook", name="test", config={"url": "https://example.test/hook"}
+    )
+    await repo.record_new_items(query, [listing(1)], [destination_id])
+    work = asyncio.Event()
+    second_sent = asyncio.Event()
+    calls = 0
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            # The poller finds another listing while this one is on its way out.
+            await repo.record_new_items(query, [listing(2)], [destination_id])
+            work.set()
+        else:
+            second_sent.set()
+        return httpx.Response(200, json={"ok": True})
+
+    stop = asyncio.Event()
+    dispatcher = Dispatcher(
+        repo=repo,
+        settings=settings,
+        stop=stop,
+        work_available=work,
+        client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+    )
+    running = asyncio.create_task(dispatcher.run(idle_interval_s=30))
+    try:
+        async with asyncio.timeout(3):
+            await second_sent.wait()
+    finally:
+        stop.set()
+        work.set()
+        await running
+
+    assert await repo.outbox_depth() == 0
+
+
 async def test_the_same_listing_is_never_queued_twice_for_one_destination(
     repo: Repo, settings: Settings
 ) -> None:

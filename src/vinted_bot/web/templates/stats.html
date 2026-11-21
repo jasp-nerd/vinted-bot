@@ -29,7 +29,7 @@
 <div class="page-head">
   <div class="page-head__text">
     <h1 class="t-h1">Stats</h1>
-    <p>How your searches are doing. Everything here stays on this computer. There's no "minutes from listing to alert" here: Vinted's search no longer says when something was listed, and shows new listings a few minutes late. An alert goes out on the first check that sees a listing.</p>
+    <p>How your searches are doing. Everything here stays on this computer. There's no "minutes from listing to alert" here: Vinted's search no longer says when something was listed, and shows a new listing 15 to 30 seconds after it's posted. An alert goes out on the first check that sees it.</p>
   </div>
   <form class="page-head__actions" method="get" action="{{ url('stats') }}">
     <div class="seg" role="group" aria-label="Period">
@@ -74,7 +74,7 @@
       </div>
       <div class="heat__legend" aria-hidden="true"><span>Fewer</span><i style="--a:10%"></i><i style="--a:35%"></i><i style="--a:60%"></i><i style="--a:85%"></i><i style="--a:100%"></i><span>More</span></div>
     </div>
-    <p class="t-sm">Busiest: {{ busiest }}. Checking every minute then pays off most.</p>
+    <p class="t-sm">Busiest: {{ busiest }}. Checking often then pays off most.</p>
     {% else %}<p class="t-sm">Shows up once there are finds in this period.</p>{% endif %}
   </section>
 

@@ -222,12 +222,14 @@ class Dispatcher:
             log.info("outbox.recovered", count=recovered)
 
         while not self._stop.is_set():
+            # Cleared before the pass, not after: a listing queued while this pass is
+            # sending sets it again, and the wait below then ends at once.
+            self._work.clear()
             try:
                 await self.drain()
             except Exception as exc:  # keep the loop alive; one bad destination is not fatal
                 log.exception("dispatcher.cycle_failed", error=str(exc))
 
-            self._work.clear()
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(self._work.wait(), timeout=idle_interval_s)
 
