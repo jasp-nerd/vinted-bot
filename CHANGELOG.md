@@ -6,6 +6,8 @@ becomes the text of its GitHub release, so write it for the people running the a
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-11-22
+
 Alerts are much faster: a new listing usually reaches you 15 to 35 seconds after the seller
 posts it, where it could take up to three minutes before.
 
@@ -358,7 +360,8 @@ First version, never tagged as a release: polling with a stale-catalog watchdog,
 the total price including buyer protection, Discord, Telegram, ntfy, RSS and webhook
 delivery through a reliable outbox, and a web dashboard.
 
-[Unreleased]: https://github.com/jasp-nerd/vinted-bot/compare/v2.2.1...HEAD
+[Unreleased]: https://github.com/jasp-nerd/vinted-bot/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/jasp-nerd/vinted-bot/compare/v2.2.1...v2.3.0
 [2.2.1]: https://github.com/jasp-nerd/vinted-bot/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/jasp-nerd/vinted-bot/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/jasp-nerd/vinted-bot/compare/v2.0.0...v2.1.0
