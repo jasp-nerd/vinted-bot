@@ -4,23 +4,28 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
+import dataclasses
 import os
 import sqlite3
+import subprocess
 import sys
 import time
+import webbrowser
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
 import httpx
+import segno
 from pydantic import ValidationError
 
-from vinted_bot import __version__, app, config, log, managed
-from vinted_bot.config import Settings
+from vinted_bot import __version__, app, config, control, instance, log, managed, network, shortcuts
+from vinted_bot.config import Settings, in_container
 from vinted_bot.db import Database, apply_pending
 from vinted_bot.db import export as exporter
 from vinted_bot.db.repo import DuplicateSearchError, Repo
-from vinted_bot.engine import health, validation
+from vinted_bot.engine import health, self_update, validation
 from vinted_bot.vinted import urls
 from vinted_bot.vinted.client import VintedClient
 from vinted_bot.vinted.errors import BlockedError, VintedError
@@ -34,13 +39,56 @@ _log = log.get_logger(__name__)
 TROUBLESHOOTING = "https://github.com/jasp-nerd/vinted-bot/blob/main/docs/troubleshooting.md"
 
 
+class _Version(argparse.Action):
+    """`--version`, plus a line when a newer release is out and how to get it.
+
+    The line is what tells a script or an AI agent looking after the app that it is behind;
+    without a database to read (not set up yet), the version alone is printed.
+    """
+
+    def __call__(self, parser: argparse.ArgumentParser, *_: Any, **__: Any) -> None:
+        print(f"vinted-bot {__version__}")
+        with contextlib.suppress(ValidationError, OSError, sqlite3.Error):
+            settings = Settings()
+            if settings.db_path.exists():
+                facts = asyncio.run(_update_facts(settings))
+                if facts["update_available"]:
+                    print(f"Version {facts['latest_version']} is out. {facts['how_to_update']}")
+        parser.exit()
+
+
+async def _update_facts(settings: Settings) -> dict[str, Any]:
+    async with Database(settings.db_path) as db:
+        return await self_update.update_facts(Repo(db), _install(settings), settings)
+
+
+def _install(settings: Settings) -> self_update.Install:
+    """How this copy was installed, as the running service sees it: typed in a terminal,
+    VINTED_BOT_SUPERVISED isn't set, but the installer's service still restarts it."""
+    install = self_update.detect(settings)
+    if install.supervisor is None and (service := control.installed_service(settings)):
+        return dataclasses.replace(install, supervisor=service.value)
+    return install
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="vinted-bot",
         description="Watch Vinted searches and get notified when something matches.",
     )
-    parser.add_argument("--version", action="version", version=f"vinted-bot {__version__}")
-    sub = parser.add_subparsers(dest="command", required=True)
+    parser.add_argument(
+        "--version",
+        action=_Version,
+        nargs=0,
+        help="Print the version, and whether a newer one is out, then exit.",
+    )
+    # No command at all opens the dashboard, starting vinted-bot first if needed: the one
+    # thing someone typing `vinted-bot` after closing the browser tab wants.
+    parser.set_defaults(no_browser=False, gui=False)
+    sub = parser.add_subparsers(dest="command", metavar="command")
+    sub.default = "open"
+
+    _control_parsers(sub)
 
     run = sub.add_parser("run", help="Start watching. This is what the container runs.")
     run.add_argument(
@@ -151,6 +199,44 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     return parser
+
+
+def _control_parsers(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    """Opening, starting and stopping, and where to find the dashboard."""
+    opener = sub.add_parser(
+        "open",
+        help="Open the dashboard, starting vinted-bot first if it isn't running. What "
+        "`vinted-bot` on its own does, and what the app icon runs.",
+    )
+    opener.add_argument(
+        "--no-browser", action="store_true", help="Print the address instead of opening it."
+    )
+    opener.add_argument("--gui", action="store_true", help=argparse.SUPPRESS)
+    sub.add_parser("start", help="Start vinted-bot in the background if it isn't running.")
+    sub.add_parser(
+        "stop", help="Stop vinted-bot. It stays stopped, even at the next login, until started."
+    )
+    sub.add_parser("restart", help="Stop vinted-bot and start it again.")
+    logs = sub.add_parser("logs", help="Show the end of vinted-bot's log.")
+    logs.add_argument("-n", "--lines", type=int, default=40, help="How many lines (default 40).")
+    logs.add_argument("-f", "--follow", action="store_true", help="Keep showing new lines.")
+    shortcuts_ = sub.add_parser(
+        "shortcuts",
+        help="Make the vinted-bot icon in Applications, the Start menu or the apps menu "
+        "(the installers do this).",
+    )
+    shortcuts_.add_argument("--remove", action="store_true", help="Take the icon away again.")
+    address = sub.add_parser(
+        "address",
+        help="Show where to open the dashboard, with a QR code for your phone when other "
+        "devices on your network may connect.",
+    )
+    address.add_argument(
+        "--allow-network",
+        action="store_true",
+        help="Let other devices on your network open the dashboard (sets a password if "
+        "there is none, and prints it).",
+    )
 
 
 def _destination_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -420,7 +506,7 @@ async def _cmd_destination(settings: Settings, args: argparse.Namespace) -> int:
     try:
         config = _destination_config(args.kind, args.target)
         async with httpx.AsyncClient(timeout=settings.request_timeout_s) as http:
-            web_destinations.check(args.kind, config, settings, http)
+            web_destinations.check(args.kind, config, http)
     except validation.InvalidInputError as exc:
         print(exc.message, file=sys.stderr)
         return 2
@@ -508,8 +594,13 @@ async def _cmd_status(settings: Settings) -> int:
     async with Database(settings.db_path) as db:
         await apply_pending(db)
         snapshot = await health.snapshot(Repo(db))
+        facts = await self_update.update_facts(Repo(db), _install(settings), settings)
 
     print("Running." if snapshot.alive else "Not running (or the heartbeat is stale).")
+    version = f"Version {__version__}."
+    if facts["update_available"]:
+        version += f" Version {facts['latest_version']} is out. {facts['how_to_update']}"
+    print(version)
     if not snapshot.searches:
         print("No searches set up yet.")
         return 0
@@ -557,6 +648,189 @@ async def _cmd_backup(settings: Settings, target: str) -> int:
     return 0
 
 
+# --- Opening, starting and stopping ---------------------------------------------------
+
+_DOCKER = {
+    "open": "Inside a container: open http://<this computer's address>:8000 in a browser.",
+    "start": "In Docker, start it with: docker compose up -d",
+    "stop": "In Docker, stop it with: docker compose stop",
+    "restart": "In Docker, restart it with: docker compose restart",
+    "logs": "In Docker, see the log with: docker compose logs -f",
+}
+
+
+def _cmd_control(settings: Settings, args: argparse.Namespace) -> int:
+    command: str = args.command
+    if in_container() and command != "logs":
+        print(_DOCKER[command])
+        return 0 if command == "open" else 2
+    try:
+        match command:
+            case "open":
+                return _open(settings, browser=not args.no_browser, gui=args.gui)
+            case "start":
+                running = control.start(settings)
+                print(f"vinted-bot is running. Dashboard: {running.url}")
+            case "stop":
+                if control.stop(settings):
+                    print("vinted-bot has stopped. No alerts until you start it again.")
+                else:
+                    print("vinted-bot wasn't running.")
+                print("Start it again with: vinted-bot")
+            case "restart":
+                control.stop(settings)
+                running = control.start(settings)
+                print(f"vinted-bot is running again. Dashboard: {running.url}")
+            case _:
+                return _logs(settings, lines=args.lines, follow=args.follow)
+    except control.ControlError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    return 0
+
+
+def _open(settings: Settings, *, browser: bool, gui: bool) -> int:
+    """The dashboard, starting vinted-bot first if needed. `gui` is the app icon, which has
+    no terminal: problems show as a dialog instead."""
+    try:
+        was_running = instance.running(settings) is not None
+        if not was_running:
+            print("Starting vinted-bot…")
+            if gui:
+                control.notify("Starting vinted-bot…", "Your dashboard opens in a moment.")
+        running = control.start(settings)
+    except control.ControlError as exc:
+        if gui:
+            control.show_message(str(exc))
+        print(str(exc), file=sys.stderr)
+        return 1
+    if not settings.web_enabled:
+        print("vinted-bot is running. Its dashboard is switched off (VINTED_BOT_WEB_ENABLED).")
+        return 0
+    if browser and control.can_open_browser():
+        webbrowser.open(running.url)
+        print(f"Opened the dashboard: {running.url}")
+    else:
+        print(f"vinted-bot is running. Dashboard: {running.url}")
+        if os.environ.get("SSH_CONNECTION"):
+            print(
+                "On another computer, open it through SSH with:\n"
+                f"  ssh -L {running.port}:localhost:{running.port} <you>@<this computer>\n"
+                "or let devices on your network open it: vinted-bot address --allow-network"
+            )
+    if not was_running:
+        print(_keeps_running_hint(settings))
+    return 0
+
+
+def _keeps_running_hint(settings: Settings) -> str:
+    if control.installed_service(settings):
+        return "It keeps running in the background, and starts by itself when you log in."
+    return (
+        "It keeps running in the background until you stop it (vinted-bot stop) or restart "
+        "the computer."
+    )
+
+
+def _logs(settings: Settings, *, lines: int, follow: bool) -> int:
+    path = instance.log_file(settings)
+    if in_container():
+        print(_DOCKER["logs"])
+        return 0
+    if not path.exists() and control.installed_service(settings) is control.Service.SYSTEMD:
+        # The systemd service writes to the journal rather than to a file.
+        command = ["journalctl", "--user", "-u", control.SYSTEMD_UNIT, "-n", str(lines)]
+        return subprocess.call([*command, "-f"] if follow else command)
+    if not path.exists():
+        print(
+            "There is no log file yet. Started with `vinted-bot run`, vinted-bot writes to "
+            "the window it runs in."
+        )
+        return 0
+    with path.open(encoding="utf-8", errors="replace") as handle:
+        tail = handle.readlines()[-lines:]
+        sys.stdout.writelines(tail)
+        sys.stdout.flush()
+        while follow:
+            line = handle.readline()
+            if line:
+                sys.stdout.write(line)
+                sys.stdout.flush()
+            else:
+                time.sleep(0.5)
+    return 0
+
+
+async def _cmd_address(settings: Settings, *, allow_network: bool) -> int:
+    """Where to open the dashboard: this computer, and other devices when allowed."""
+    from vinted_bot.web import security  # noqa: PLC0415 - loads FastAPI, which most commands skip
+
+    local = f"http://localhost:{settings.web_port}"
+    if in_container():
+        print(
+            "In Docker, open it at http://<this computer's address>:<the published port>, "
+            "the address you use for anything else on this machine."
+        )
+        return 0
+    async with Database(settings.db_path) as db:
+        await apply_pending(db)
+        repo = Repo(db)
+        if allow_network:
+            if managed.web_host_from_env(settings):
+                print("VINTED_BOT_WEB_HOST is set, so it decides who can connect. Change it there.")
+                return 2
+            if not await security.password_required(settings, repo):
+                password = security.suggest_password()
+                await security.set_password(repo, password)
+                print(f"The dashboard now has a password:\n\n  {password}\n")
+                print("Write it down. Change it any time in Settings, Password.\n")
+            await managed.set_phone_access(repo, True)
+        host = await managed.web_host(settings, repo)
+    if allow_network and instance.running(settings):
+        print("Restarting vinted-bot so other devices can connect…")
+        try:
+            control.stop(settings)
+            control.start(settings)
+        except control.ControlError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+    print(f"On this computer:  {local}")
+    if host in {"127.0.0.1", "localhost", "::1"}:
+        print(
+            "\nOnly this computer can open it. To open it from your phone or another "
+            "computer on your Wi-Fi too, run:\n  vinted-bot address --allow-network"
+        )
+        return 0
+    addresses = [f"http://{ip}:{settings.web_port}" for ip in network.lan_addresses()]
+    name = network.local_name()
+    if name:
+        print(f"On your network:   http://{name}:{settings.web_port}")
+    for address in addresses:
+        print(f"                   {address}")
+    if addresses:
+        print("\nScan this with your phone's camera (on the same Wi-Fi):\n")
+        segno.make(addresses[0]).terminal(compact=True)
+    else:
+        print("\nThis computer isn't connected to a network a phone could reach.")
+    return 0
+
+
+def _cmd_shortcuts(settings: Settings, *, remove: bool) -> int:
+    if in_container():
+        print("Inside a container there is no desktop to put an icon on.")
+        return 2
+    try:
+        paths = shortcuts.remove(settings) if remove else shortcuts.make(settings)
+    except OSError as exc:
+        print(
+            f"Couldn't {'remove' if remove else 'make'} the vinted-bot icon: {exc}", file=sys.stderr
+        )
+        return 1
+    for path in paths:
+        print(f"{'Removed' if remove else 'Made'} {path}")
+    return 0
+
+
 async def _cmd_heartbeat(settings: Settings) -> int:
     async with Database(settings.db_path) as db:
         return 0 if await health.is_alive(Repo(db)) else 1
@@ -580,6 +854,12 @@ async def _run(args: argparse.Namespace) -> int:
         )
 
     match args.command:
+        case "open" | "start" | "stop" | "restart" | "logs":
+            return _cmd_control(settings, args)
+        case "address":
+            return await _cmd_address(settings, allow_network=args.allow_network)
+        case "shortcuts":
+            return _cmd_shortcuts(settings, remove=args.remove)
         case "run":
             return await app.run(settings, open_browser=args.open)
         case "migrate":
@@ -613,6 +893,11 @@ async def _run(args: argparse.Namespace) -> int:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    # The Windows icon runs this under pythonw, which has no console to write to.
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
     args = build_parser().parse_args(argv)
     try:
         return asyncio.run(_run(args))

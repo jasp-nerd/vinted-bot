@@ -61,7 +61,9 @@ def item_json(notification: PendingNotification) -> dict[str, Any]:
         "seller": item.seller_login,
         # Rounded: a rating worked out from stars arrived as 0.9800000000000001.
         "seller_rating": round(item.seller_rating, 2) if item.seller_rating is not None else None,
-        "links": {"message_seller": item.message_url, "buy": item.buy_url},
+        # `buy` is the listing: Vinted makes a checkout page only once the buyer presses
+        # Buy now there. Kept because version 1 promised the field.
+        "links": {"message_seller": item.message_url, "buy": absolute(item.url, item.tld)},
         # --- added in version 2 ---
         "kind": notification.kind,
         "search_id": notification.query_id,

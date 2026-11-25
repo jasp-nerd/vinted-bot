@@ -49,6 +49,9 @@ dependencies = [
     # Email, and the long tail of services (Slack, Pushover, Gotify, Matrix, Signal, Home
     # Assistant...) through one URL each. A core dependency so email works out of the box.
     "apprise>=2.1",
+    # The QR code `vinted-bot address` prints, for opening the dashboard on a phone from
+    # a Raspberry Pi or server with no screen. Pure Python, no dependencies.
+    "segno>=1.6",
 ]
 
 [project.optional-dependencies]

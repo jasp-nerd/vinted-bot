@@ -101,17 +101,15 @@ async def test_a_price_drop_strikes_through_the_old_price() -> None:
     assert caption.startswith("<b>Price drop</b>") and "<s>£25.00</s>" in caption
 
 
-async def test_buy_is_green_and_open_is_blue() -> None:
+async def test_open_is_green_with_message_beside_it() -> None:
     recorder = Recorder()
 
     await sender(recorder).send([notification(1)])
 
-    rows = recorder.payload()["reply_markup"]["inline_keyboard"]
-    assert [(b["text"], b.get("style")) for row in rows[:2] for b in row] == [
-        ("Buy", "success"),
+    first_row = recorder.payload()["reply_markup"]["inline_keyboard"][0]
+    assert [(b["text"], b.get("style")) for b in first_row] == [
+        ("Open on Vinted", "success"),
         ("Message seller", None),
-        ("Open on Vinted", "primary"),
-        ("eBay sold", None),
     ]
 
 
@@ -121,7 +119,7 @@ async def test_a_public_dashboard_adds_a_button() -> None:
     await sender(recorder, dashboard_url="https://bot.example.net").send([notification(1)])
 
     second_row = recorder.payload()["reply_markup"]["inline_keyboard"][1]
-    assert second_row[1]["url"] == "https://bot.example.net/searches/1"
+    assert second_row[0]["url"] == "https://bot.example.net/searches/1"
 
 
 async def test_every_button_is_an_https_link() -> None:
@@ -140,18 +138,19 @@ async def test_without_a_reachable_dashboard_ebay_sold_prices_take_its_place() -
     await sender(recorder, dashboard_url="http://127.0.0.1:8000").send([notification(1)])
 
     second_row = recorder.payload()["reply_markup"]["inline_keyboard"][1]
-    assert second_row[1]["url"] == (
+    assert second_row[0]["url"] == (
         "https://www.ebay.co.uk/sch/i.html?_nkw=Item+1&LH_Sold=1&LH_Complete=1"
     )
 
 
-async def test_the_photo_search_has_a_row_with_the_price_check_when_there_is_a_dashboard() -> None:
+async def test_the_photo_search_gets_its_own_row_when_the_dashboard_has_a_place() -> None:
     recorder = Recorder()
 
     await sender(recorder, dashboard_url="https://bot.example.net").send([notification(1)])
 
-    third_row = recorder.payload()["reply_markup"]["inline_keyboard"][2]
-    assert [b["text"] for b in third_row] == ["eBay sold", "Photo search"]
+    rows = recorder.payload()["reply_markup"]["inline_keyboard"]
+    assert [b["text"] for b in rows[1]] == ["Dashboard", "eBay sold"]
+    assert [b["text"] for b in rows[2]] == ["Photo search"]
 
 
 async def test_the_photo_search_sends_lens_the_listing_photo() -> None:
@@ -159,8 +158,8 @@ async def test_the_photo_search_sends_lens_the_listing_photo() -> None:
 
     await sender(recorder).send([bare(1)])
 
-    third_row = recorder.payload()["reply_markup"]["inline_keyboard"][2]
-    assert third_row[0]["url"] == (
+    second_row = recorder.payload()["reply_markup"]["inline_keyboard"][1]
+    assert second_row[1]["url"] == (
         "https://lens.google.com/uploadbyurl?url=https%3A%2F%2Fimages.vinted.net%2F1.jpeg"
     )
 

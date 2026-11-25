@@ -79,11 +79,7 @@ class Item(BaseModel):
 
     @property
     def message_url(self) -> str:
-        return urls.message_seller_url(self.tld, self.item_id)
-
-    @property
-    def buy_url(self) -> str:
-        return urls.buy_url(self.tld, self.item_id)
+        return urls.message_seller_url(self.tld, self.item_id, self.seller_id)
 
     @property
     def seller_url(self) -> str | None:

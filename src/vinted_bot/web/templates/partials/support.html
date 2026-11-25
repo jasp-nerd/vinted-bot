@@ -24,7 +24,7 @@
 {% macro card(look) -%}
 {% set looks = [
   ("", "Did it find you something good?", "I'm Jasper, a student, and I build vinted-bot in my spare time. It's free and stays free. A coffee keeps me going, and a star on GitHub helps other people find it."),
-  ("sun", "Glad it's finding things", "vinted-bot is free, with no ads, no account and no tracking. If it helped, a coffee keeps it going, and a star on GitHub helps other people find it."),
+  ("sun", "Glad it's finding things", "vinted-bot is free, with no ads and no account. If it helped, a coffee keeps it going, and a star on GitHub helps other people find it."),
   ("lilac", "Found while it's still there", "Good listings go fast, and this tells you about them while you can still buy them. I'm a student keeping it free, so a coffee helps, and so does a star."),
 ] %}
 {% set tint, heading, pitch = looks[look % looks|length] %}
@@ -65,7 +65,7 @@
     {{ ui.mags("wave", "support__mags") }}
     <div>
       <h2 class="support__title" id="support-block-title">Help keep it free</h2>
-      <p>I'm a student and build vinted-bot in my free time. It has no ads and no tracking, and it stays free. If it got you a good find, you can buy me a coffee.</p>
+      <p>I'm a student and build vinted-bot in my free time. It has no ads, and it stays free. If it got you a good find, you can buy me a coffee.</p>
     </div>
   </div>
   <ul class="tiers">

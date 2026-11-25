@@ -39,7 +39,7 @@ def in_container() -> bool:
 
 # Settings the dashboard has its own controls for. Unset, the dashboard decides; set, the
 # environment wins and the dashboard says so (see managed.py).
-DASHBOARD_MANAGED = frozenset({"telegram_bot_token", "web_auth_token", "web_host"})
+DASHBOARD_MANAGED = frozenset({"telegram_bot_token", "web_auth_token", "web_host", "telemetry"})
 
 # Where 1.x kept the database, relative to wherever the app was started.
 LEGACY_DB_PATH = Path("./data/app.db")
@@ -90,7 +90,6 @@ INSTALLER_KEYS = frozenset(
     {
         "VINTED_BOT_ALLOW_ROOT",
         "VINTED_BOT_AUTOSTART",
-        "VINTED_BOT_KEEP_AWAKE",
         "VINTED_BOT_NO_BROWSER",
         "VINTED_BOT_PACKAGE",
         "VINTED_BOT_DATA_DIR",
@@ -230,6 +229,13 @@ class Settings(BaseSettings):
         "systemd unit and the Windows launcher) to say that something starts the app again "
         "when it exits. With it, an update from the dashboard restarts the app into the new "
         "version by itself; without it, the dashboard says how to restart.",
+    )
+
+    # --- Usage statistics ----------------------------------------------------------
+    telemetry: bool = Field(
+        default=True,
+        description="Send usage statistics and error reports (docs/telemetry.md). Unset, "
+        "the switch in the dashboard's settings decides; set, it wins over the switch.",
     )
 
     # --- Development ---------------------------------------------------------------

@@ -21,7 +21,6 @@ from typing import Any, ClassVar
 
 import httpx
 
-from vinted_bot.config import Settings
 from vinted_bot.db.repo import Destination, PendingNotification
 from vinted_bot.deliver import apprise, discord, ntfy, telegram, webhook
 from vinted_bot.deliver.base import SenderConfigError
@@ -170,14 +169,16 @@ def preview_payload(
 async def send_test(
     destination: Destination,
     *,
-    settings: Settings,
+    dashboard_url: str | None,
     telegram_token: str | None,
     tld: str = DEFAULT_SAMPLE_TLD,
     client: httpx.AsyncClient | None = None,
 ) -> TestResult:
     """Send one sample listing through a destination and say plainly how it went.
 
-    `telegram_token` is the bot's current token (managed.telegram_token). `tld` picks the
+    `dashboard_url` is where real alerts link the dashboard (managed.dashboard_url), so
+    the sample looks like them. `telegram_token` is the bot's current token
+    (managed.telegram_token). `tld` picks the
     site the sample pretends to be from, which sets its language and currency. `client`
     lets a caller that already holds a connection pool reuse it.
     """
@@ -192,7 +193,12 @@ async def send_test(
         if client is None:
             client = await stack.enter_async_context(httpx.AsyncClient(timeout=20.0))
         try:
-            sender = build_sender(destination, settings, client, telegram_token=telegram_token)
+            sender = build_sender(
+                destination,
+                client,
+                telegram_token=telegram_token,
+                dashboard_url=dashboard_url,
+            )
         except SenderConfigError as exc:
             return TestResult(
                 ok=False, message="This destination is not set up correctly.", detail=str(exc)

@@ -73,8 +73,8 @@ def message(listing: ListingView, *, links_written_out: bool = False) -> tuple[s
         f"{listing.flag} {listing.site} · {escape_markdown(listing.search_name)}".strip(),
     ]
     links = [(labels.open, listing.url)]
-    if listing.can_buy:
-        links[:0] = [(labels.buy, listing.buy_url), (labels.message, listing.message_url)]
+    if listing.can_message:
+        links.append((labels.message, listing.message_url))
     if links_written_out:
         lines.extend(f"{label}: <{url}>" for label, url in links)
     else:

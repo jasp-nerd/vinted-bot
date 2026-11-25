@@ -7,7 +7,8 @@ from typing import Any
 import pytest
 
 from vinted_bot.config import Settings
-from vinted_bot.web.security import client_allowed, host_allowed, is_local_address
+from vinted_bot.network import is_local_address
+from vinted_bot.web.security import client_allowed, host_allowed
 
 TOLD = frozenset({"localhost", "finds.example.org"})
 

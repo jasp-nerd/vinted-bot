@@ -54,6 +54,8 @@ L'outil vérifie chaque minute. Le premier passage est silencieux exprès : vous
 
 Les installateurs ne demandent ni droits administrateur ni Docker, et ouvrent le tableau de bord sur http://localhost:8000 à la fin. Relancez la même commande pour mettre à jour.
 
+Fermer le navigateur ne l'arrête pas. Pour rouvrir le tableau de bord plus tard, cliquez sur l'icône **vinted-bot** (Applications sur Mac, menu Démarrer ou bureau sur Windows, menu des applications sur Linux) ou tapez `vinted-bot` dans un terminal.
+
 ### Windows
 
 Ouvrez **PowerShell** (menu Démarrer, tapez `PowerShell`, appuyez sur Entrée), collez ceci et appuyez sur Entrée :
@@ -197,7 +199,7 @@ Ou ouvrez-le directement : **[Ouvrir dans Claude](https://claude.ai/new?q=Aide-m
 
 ## Mettre à jour
 
-- **Installateur :** cliquez sur **Update now** quand le tableau de bord annonce une nouvelle version, ou relancez la commande d'installation. Dans Settings, Updates, il peut aussi installer les nouvelles versions tout seul, la nuit.
+- **Installateur :** il installe les nouvelles versions tout seul, la nuit (désactivable dans Settings, Updates). Sinon, cliquez sur **Update now** quand le tableau de bord ou une alerte d'état annonce une nouvelle version, ou relancez la commande d'installation.
 - **Docker :** `docker compose pull && docker compose up -d`
 - **NAS :** récupérez la nouvelle image avec la mise à jour de conteneur du NAS (Unraid : Docker, Check for Updates).
 
@@ -205,13 +207,7 @@ Vos recherches sont conservées, et les changements de base de données s'appliq
 
 ## Arrêter et désinstaller
 
-Avec l'installateur, la façon de l'arrêter dépend de votre réponse à « démarrer à l'ouverture de session » :
-
-| | Démarre à l'ouverture de session | Ne démarre pas tout seul |
-|---|---|---|
-| Windows (PowerShell) | `Get-Process vinted-bot \| Stop-Process` (il redémarre à la prochaine connexion) | pareil |
-| macOS | `launchctl bootout gui/$(id -u)/io.github.jasp-nerd.vinted-bot` (il redémarre à la prochaine connexion) | `pkill -f 'vinted-bot run'` |
-| Linux | `systemctl --user stop vinted-bot` (il redémarre à la prochaine connexion) | `pkill -f 'vinted-bot run'` |
+Pour l'arrêter, utilisez **Stop vinted-bot** dans Settings, General, ou tapez `vinted-bot stop`. Il reste arrêté, même après un redémarrage, jusqu'à ce que vous le rouvriez avec l'icône vinted-bot ou en tapant `vinted-bot`.
 
 Relancer la commande d'installation le redémarre. Pour l'enlever, lancez le désinstallateur de votre système. Il arrête vinted-bot, le supprime avec son lancement automatique, et garde vos recherches au cas où vous reviendriez : elles restent dans `%LOCALAPPDATA%\vinted-bot` sous Windows, `~/Library/Application Support/vinted-bot` sous macOS et `~/.local/share/vinted-bot` sous Linux, jusqu'à ce que vous supprimiez ce dossier.
 

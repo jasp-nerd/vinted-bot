@@ -173,7 +173,15 @@ def test_action_links_follow_the_country_site() -> None:
     item = parse_item(catalog_entry(), "co.uk")
 
     assert item.message_url.startswith("https://www.vinted.co.uk/")
-    assert item.buy_url.startswith("https://www.vinted.co.uk/")
+
+
+def test_message_opens_a_new_conversation_with_the_seller() -> None:
+    item = parse_item(catalog_entry(), "nl")
+
+    assert item.seller_id is not None
+    assert item.message_url == (
+        f"https://www.vinted.nl/inbox/want_it?receiver_id={item.seller_id}&item_id={item.item_id}"
+    )
 
 
 # --- Recorded svc-catalogue responses (October 2026) ----------------------------------

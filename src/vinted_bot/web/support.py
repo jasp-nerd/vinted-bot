@@ -71,7 +71,7 @@ async def note_setup(repo: Repo, now: int | None = None) -> None:
 
 def tracked(url: str, place: str) -> str:
     """Tag a link with where it was clicked, so Ko-fi and GitHub's traffic stats show
-    what works. The tag is the same for everyone; nothing is sent from the app."""
+    what works. The tag is the same for everyone."""
     return f"{url}?{urlencode({'utm_source': 'vinted-bot', 'utm_medium': place})}"
 
 

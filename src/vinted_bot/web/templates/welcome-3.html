@@ -70,6 +70,7 @@
   <label class="switch"><input type="checkbox" name="countries" value="{{ local[0] }}"{% if local[0] in f.countries %} checked{% endif %} aria-labelledby="local-l"></label>
 </div>
 {% endif %}
+<p class="t-sm ob__skip">No search in mind yet? <button class="btn btn--link" type="submit" name="skip_search" value="1" formnovalidate>Skip this step</button> and add one later from Searches.</p>
 </div>
 <p class="livecount" aria-live="polite" data-livecount>{% if previews %}Paste a link or type some words to see what matches right now.{% endif %}</p>
 {# On a phone the panel with the photos sits below the Continue button; these show them above it. #}

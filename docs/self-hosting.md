@@ -20,8 +20,10 @@ Vinted refuses.
 
 The installer needs no admin rights and no Docker. It installs
 [uv](https://docs.astral.sh/uv/) (a small tool that downloads Python and vinted-bot into
-your user folder), asks whether to start vinted-bot when you log in, starts it, and opens
-the dashboard at http://localhost:8000.
+your user folder), sets vinted-bot to start by itself when you log in, starts it, and opens
+the dashboard at http://localhost:8000. It asks nothing: the choices about this computer
+are switches in the dashboard (Settings, General), where each is explained, and the last
+screen of setup shows them too.
 
 **Windows 10 or 11.** Open PowerShell (Start menu, type `PowerShell`, press Enter), paste
 this and press Enter:
@@ -45,25 +47,44 @@ Prefer to read a script before running it? Download [install.sh](../install.sh) 
 
 Where things end up:
 
-| | Your searches and log | Starts at login through |
-|---|---|---|
-| Windows | `%LOCALAPPDATA%\vinted-bot` | a shortcut in your Startup folder |
-| macOS | `~/Library/Application Support/vinted-bot` | a LaunchAgent (macOS shows a "Background Items Added" notice once) |
-| Linux | `~/.local/share/vinted-bot` | a systemd user service |
+| | Your searches and log | Starts at login through | The vinted-bot icon |
+|---|---|---|---|
+| Windows | `%LOCALAPPDATA%\vinted-bot` | a shortcut in your Startup folder | the Start menu and your desktop |
+| macOS | `~/Library/Application Support/vinted-bot` | a LaunchAgent (macOS shows a "Background Items Added" notice once) | Applications and Launchpad (or ⌘ Space, type vinted) |
+| Linux | `~/.local/share/vinted-bot` | a systemd user service | your apps menu |
 
-**Keep it awake.** Alerts stop while the computer sleeps. On a Mac the installer offers to
-keep it awake while it's plugged in, for as long as vinted-bot runs; a closed MacBook lid
-still sends it to sleep. On Windows, set Settings, System, Power, "Make my device sleep" to
-Never while plugged in.
+**Getting back to the dashboard.** Closing the browser doesn't stop vinted-bot; it keeps
+running in the background. To open the dashboard again, click the vinted-bot icon, or
+type `vinted-bot` in a terminal. Either opens it in your browser, and starts vinted-bot
+first if it isn't running. Over SSH, or on a machine without a screen, `vinted-bot`
+prints the address instead. You can also give the dashboard its own window: Settings,
+General, "Use it like an app".
 
-**Stop it** for now:
+**Keep it awake.** Alerts stop while the computer sleeps. On a Mac, vinted-bot keeps it
+awake while it's plugged in, for as long as vinted-bot runs (Settings, General, "Keep this
+Mac awake while it's plugged in"); a closed MacBook lid still sends it to sleep. On
+Windows, set Windows Settings, System, Power, "Make my device sleep" to Never while
+plugged in.
 
-- Windows: in PowerShell, `Get-Process vinted-bot | Stop-Process`
-- macOS: `launchctl bootout gui/$(id -u)/io.github.jasp-nerd.vinted-bot`
-- Linux: `systemctl --user stop vinted-bot`
+**Starting at login** is on after installing, so alerts keep coming after a restart.
+Switch it off in Settings, General, "Start by itself when you log in"; vinted-bot then
+runs until you stop it or restart, and the icon starts it again.
 
-If you said no to starting at login, stopping is `pkill -f 'vinted-bot run'` on macOS
-and Linux, and running the install command again starts it again.
+**Stop it** (on holiday, say): Settings, General, **Stop vinted-bot**, or type
+`vinted-bot stop`. It stays stopped, even after a restart, until you open it again with
+the icon or `vinted-bot`.
+
+| To | Type |
+|---|---|
+| Open the dashboard (and start it if needed) | `vinted-bot` |
+| Stop it, and keep it stopped | `vinted-bot stop` |
+| Start it without opening the browser | `vinted-bot start` |
+| Restart it | `vinted-bot restart` |
+| See what it's doing | `vinted-bot logs` (add `-f` to keep watching) |
+| See where to open it from a phone | `vinted-bot address` |
+
+A terminal you opened before installing doesn't know the `vinted-bot` command yet; open a
+new one.
 
 **Remove it.** Your searches stay in the folder above until you delete it.
 
@@ -93,8 +114,22 @@ login, and it also offers the one command that makes it start at boot with nobod
 sudo loginctl enable-linger $USER
 ```
 
-The dashboard only listens on the Pi itself. From your own computer, open a tunnel and then
-visit http://localhost:8000 there:
+The dashboard only listens on the Pi itself at first. Installing over SSH, the installer
+asks whether your phone and other devices on your network may open it; say yes and it sets
+a password, prints the address (such as `http://raspberrypi.local:8000`) and a QR code to
+scan with your phone. To do that later, or to see the address and QR code again:
+
+```bash
+vinted-bot address --allow-network   # let the network in, with a password
+vinted-bot address                   # where to open it, any time
+```
+
+Give the Pi a fixed address in your router (often called "DHCP reservation") so the
+address doesn't change after the router restarts. `raspberrypi.local` works from iPhones,
+Macs and most computers; some Android phones need the number instead.
+
+Prefer to keep it on the Pi only? Open a tunnel from your own computer, then visit
+http://localhost:8000 there:
 
 ```bash
 ssh -L 8000:localhost:8000 pi@raspberrypi.local
@@ -200,7 +235,30 @@ ssh -L 8000:localhost:8000 you@your-server
 
 Then open http://localhost:8000 on your own machine. Anything else needs a password (set
 in Settings, or `VINTED_BOT_WEB_AUTH_TOKEN`) *and* a reverse proxy with TLS in front,
-because the dashboard shows your webhook links.
+because the dashboard shows your webhook links. Tailscale, below, does both for you.
+
+## From anywhere, with Tailscale
+
+The dashboard opens on your home network. To open it on your phone anywhere, without
+putting it on the internet, use [Tailscale](https://tailscale.com) (free for personal use):
+a private network between your own devices.
+
+1. Install Tailscale on the computer or Pi running vinted-bot and on your phone, and sign
+   in to the same account on both.
+2. On the machine running vinted-bot, give the dashboard a private https address:
+
+   ```bash
+   tailscale serve --bg 8000
+   ```
+
+   It prints an address like `https://raspberrypi.your-tailnet.ts.net`.
+3. Tell vinted-bot that address, so the Dashboard button in your alerts and the Telegram
+   `/dashboard` command use it: set `VINTED_BOT_WEB_PUBLIC_URL` to it (in the `.env` file
+   or the container's environment) and restart (`vinted-bot restart`).
+
+Only devices signed in to your Tailscale account can open that address. Don't use
+`tailscale funnel`: that puts the dashboard on the public internet. On a VPS, Tailscale
+replaces the SSH tunnel above.
 
 **Platforms that run the image for you** (Render, Railway, Coolify) have templates in
 [deploy/](../deploy/README.md). All are paid for an always-on app with storage, and they send
@@ -248,8 +306,11 @@ thirty days anyway.
 
 ## Updating
 
-The dashboard tells you when a new version is out (it asks GitHub once a day; Settings,
-Updates turns that off). What it offers depends on how vinted-bot was installed:
+vinted-bot asks GitHub once a day whether a new version is out (Settings, Updates turns
+that off). When one is, the dashboard shows a banner, and destinations that get status
+alerts get one message saying so and how to install it. `vinted-bot --version`,
+`vinted-bot status` and `/api/health` say it too. What updating looks like depends on how
+vinted-bot was installed:
 
 | Installed with | What updating looks like |
 |---|---|
@@ -265,7 +326,9 @@ Running the install command again always works too: it stops vinted-bot, updates
 and starts it again.
 
 **Updating by itself.** Where the button restarts the app, Settings, Updates also offers
-"Install updates by itself". It is off unless you turn it on. When it is on, a new release
+"Install updates by itself". It starts out on for a new install from the installers;
+copies set up before that became the default keep it off unless you turn it on. When it is
+on, a new release
 is installed between 4 and 5 at night (by the time zone in Settings), never while an alert is
 on its way out, and destinations that get status alerts are told afterwards. If an update
 fails, it tries again the next night. With Docker, the optional nightly updater in the

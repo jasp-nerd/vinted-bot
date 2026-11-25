@@ -18,7 +18,7 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
-from vinted_bot import managed
+from vinted_bot import managed, network
 from vinted_bot.engine.validation import InvalidInputError
 from vinted_bot.log import get_logger
 from vinted_bot.web import core, security
@@ -131,7 +131,7 @@ async def phone_access(request: Request) -> Response:
         )
     form = await request.form()
     allow = form.get("allow") == "1"
-    if allow and not context.settings.web_public_url and not core.lan_addresses():
+    if allow and not context.settings.web_public_url and not network.lan_addresses():
         return _refused("phone", _NO_PRIVATE_NETWORK)
     response = JSONResponse({"ok": True})
     if allow and not access.password:

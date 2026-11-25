@@ -841,12 +841,15 @@ details.faq .prose { font-size: 14px; color: var(--c-text-2); padding: 14px 16px
 .snav a[aria-current="true"] .i { color: var(--c-primary); }
 .snav__aside { margin-top: 18px; padding: 14px; border-radius: var(--r-card); background: var(--c-amber-tint); font-size: 13px; color: var(--c-ink); display: grid; gap: 8px; }
 .ssec { scroll-margin-top: calc(var(--topbar-h) + 64px); }
+.settings__support { margin-top: 28px; }
+/* Settings, General: "Show deal badges" off. */
+[data-deal-badges="off"] .badge--deal { display: none; }
 .ssec + .ssec { margin-top: 28px; }
 .ssec > .t-h2 { margin-bottom: 4px; }
 .ssec > p { margin-bottom: 12px; font-size: 14px; }
 .ssec .card { padding: 4px 20px; }
 .ssec .card--pad { padding: 20px; }
-@media (max-width: 900px) { .settings { grid-template-columns: minmax(0, 1fr); gap: 16px; } .snav { position: static; display: flex; overflow-x: auto; gap: 6px; scrollbar-width: none; } .snav a { flex: none; height: 36px; border-radius: var(--r-pill); box-shadow: var(--ring); } .snav__aside { display: none; } }
+@media (max-width: 900px) { .settings { grid-template-columns: minmax(0, 1fr); gap: 16px; } .snav { position: static; display: flex; flex-wrap: wrap; gap: 6px; } .snav a { flex: none; height: 36px; border-radius: var(--r-pill); box-shadow: var(--ring); } .snav__aside { display: none; } }
 .diag { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 0 20px; align-items: center; padding: 20px 20px 20px 24px; }
 .diag__rows { display: grid; gap: 0; }
 .diag__mags { width: 140px; align-self: end; margin-bottom: -20px; }
@@ -1092,7 +1095,7 @@ select.chip { width: auto; max-width: 220px; }
 .quick__acts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
 @media (max-width: 640px) {
   .quick__media { height: 45vh; max-height: 45vh; }
-  .quick__buy { position: sticky; bottom: 0; z-index: 2; margin-inline: -24px; padding: 10px 24px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--c-surface); border-top: 1px solid var(--c-border-faint); }
+  .quick__main { position: sticky; bottom: 0; z-index: 2; margin-inline: -24px; padding: 10px 24px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--c-surface); border-top: 1px solid var(--c-border-faint); }
 }
 
 /* Dialog buttons stay visible when the body scrolls. */

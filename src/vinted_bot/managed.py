@@ -16,9 +16,11 @@ wrong at the next deploy, and the person who wrote that file would have no way t
 
 from __future__ import annotations
 
+import asyncio
 import re
 
-from vinted_bot.config import Settings
+from vinted_bot import network
+from vinted_bot.config import Settings, in_container
 from vinted_bot.db.repo import Repo
 
 _TELEGRAM_TOKEN_KEY = "telegram_bot_token"
@@ -90,3 +92,20 @@ async def web_host(settings: Settings, repo: Repo) -> str:
     if web_host_from_env(settings):
         return settings.web_host
     return EVERY_INTERFACE if await phone_access(repo) else LOOPBACK
+
+
+async def dashboard_url(settings: Settings, repo: Repo) -> str | None:
+    """Where alerts and the Telegram bot may link the dashboard.
+
+    The public address when one is set; with the dashboard's "Allow my phone and other
+    devices" switch on, this computer's address on the home network, which a phone on the
+    same Wi-Fi can open; otherwise the configured one, which alerts leave out when only
+    this computer could open it (render.reachable_dashboard).
+    """
+    if not settings.web_enabled or settings.web_public_url or web_host_from_env(settings):
+        return settings.dashboard_url
+    if in_container() or not await phone_access(repo):
+        return settings.dashboard_url
+    # Off the event loop: with no route out it falls back to a name lookup that can stall.
+    addresses = await asyncio.to_thread(network.lan_addresses)
+    return f"http://{addresses[0]}:{settings.web_port}" if addresses else settings.dashboard_url

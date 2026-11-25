@@ -15,6 +15,7 @@ from collections.abc import Callable
 from http import HTTPStatus
 from typing import Any, Final, Literal, TypeVar
 
+from vinted_bot import telemetry
 from vinted_bot.log import get_logger
 from vinted_bot.vinted import headers as hdr
 from vinted_bot.vinted import urls
@@ -286,12 +287,15 @@ class VintedClient:
         else:
             headers = hdr.page_headers(tld, session.identity)
 
+        started = time.monotonic()
         try:
             response = await transport.get(
                 url, headers=headers, cookies=session.cookie_header, params=params
             )
         except TransportError as exc:
             raise NetworkError(str(exc)) from exc
+        if style == "catalogue":
+            telemetry.sample("vinted_search_ms", (time.monotonic() - started) * 1000)
 
         try:
             if not (gone_ok and response.status_code in _GONE_STATUSES):

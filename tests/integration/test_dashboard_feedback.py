@@ -824,3 +824,63 @@ def test_the_unknown_address_page_says_compose_up_and_has_no_loop(
         True,
         False,
     )
+
+
+def test_the_last_step_says_how_to_get_back_here(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("vinted_bot.control.how_to_open", lambda _: "open the vinted-bot icon")
+    _through_test(client)
+    client.post("/welcome/test", data={"next": "ready"})
+
+    page = client.get("/welcome/ready").text
+
+    assert "Getting back here later" in page
+    assert "To come back to this page, open the vinted-bot icon." in page
+
+
+def test_setup_can_finish_without_a_search(client: TestClient, repo: Repo) -> None:
+    """No link to hand yet: skip the search, still choose where alerts go."""
+    page = client.post(
+        "/welcome/search",
+        data={"state": json.dumps({"tld": "fr"}), "submitted": "1", "skip_search": "1"},
+    )
+    assert page.url.path == "/welcome/alerts"
+    client.post(
+        "/welcome/alerts",
+        data={
+            "state": _state_of(page.text),
+            "submitted": "1",
+            "kind": "ntfy",
+            "ntfy_topic": "mags-skip",
+        },
+    )
+    client.post("/welcome/test", data={"next": "ready"})
+
+    ready = client.get("/welcome/ready").text
+    assert "None yet" in ready
+    assert "Add my first search" in ready
+
+    done = client.post("/welcome/finish", data={"state": _state_of(ready)})
+
+    assert done.url.path == "/searches/new"
+    assert asyncio.run(repo.list_queries()) == []
+    assert [d.kind for d in asyncio.run(repo.list_destinations())] == ["ntfy"]
+
+
+def test_going_back_to_skip_the_search_removes_the_one_already_saved(
+    client: TestClient, repo: Repo
+) -> None:
+    _through_test(client)
+    client.post("/welcome/test", data={"next": "ready"})
+    assert len(asyncio.run(repo.list_queries())) == 1
+    ready = client.get("/welcome/ready").text
+
+    skipped = client.post(
+        "/welcome/search",
+        data={"state": _state_of(ready), "submitted": "1", "skip_search": "1"},
+    )
+    client.post("/welcome/test", data={"next": "ready", "state": _state_of(skipped.text)})
+    client.post("/welcome/finish", data={"state": _state_of(client.get("/welcome/ready").text)})
+
+    assert asyncio.run(repo.list_queries()) == []

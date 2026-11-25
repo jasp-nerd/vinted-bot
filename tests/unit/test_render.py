@@ -75,6 +75,13 @@ def test_the_badge_states_the_percentage_and_its_basis() -> None:
     assert listing.badge == f"Steal {MINUS}44% vs typical"
 
 
+def test_with_deal_badges_switched_off_the_alert_makes_no_deal_claim() -> None:
+    listing = view(pending(typical_price=Decimal("20.00"), show_deal=False), dashboard_url=None)
+
+    assert listing.badge is None
+    assert listing.typical is not None, "the usual price is still worth knowing"
+
+
 def test_a_deal_turns_the_accent_green_whatever_the_search_colour() -> None:
     listing = view(pending(query_color="#ff0000", typical_price=Decimal("30")), dashboard_url=None)
 
@@ -102,7 +109,7 @@ def test_labels_follow_the_site(tld: str, locale: str) -> None:
 
 
 def test_an_unlisted_site_gets_english() -> None:
-    assert labels_for("se").buy == "Buy"
+    assert labels_for("se").open == "Open on Vinted"
 
 
 @pytest.mark.parametrize(
@@ -210,8 +217,8 @@ def test_a_watch_alert_has_no_search_page_to_link() -> None:
     assert listing.search_url is None
 
 
-def test_a_sold_listing_offers_nothing_to_buy() -> None:
-    assert view(pending(kind="sold"), dashboard_url=None).can_buy is False
+def test_a_sold_listing_offers_nobody_to_message() -> None:
+    assert view(pending(kind="sold"), dashboard_url=None).can_message is False
 
 
 def test_markdown_escaping_leaves_ordinary_punctuation_alone() -> None:
@@ -315,6 +322,15 @@ def test_a_test_alert_opens_a_real_search_rather_than_an_invented_listing() -> N
     """Its "Open on Vinted" led to a listing that does not exist."""
     listing = view(sample_notification(tld="fr"), dashboard_url=None)
 
-    assert {listing.url, listing.buy_url, listing.message_url} == {
+    assert {listing.url, listing.message_url} == {
         "https://www.vinted.fr/catalog?search_text=levi%27s%20501"
     }
+
+
+def test_hiding_deal_badges_keeps_bargains_loud_on_ntfy() -> None:
+    from vinted_bot.deliver.ntfy import STEAL_PRIORITY, _priority  # noqa: PLC0415
+
+    listing = view(pending(typical_price=Decimal("20.00"), show_deal=False), dashboard_url=None)
+
+    assert listing.badge is None
+    assert _priority(listing, 3) == STEAL_PRIORITY

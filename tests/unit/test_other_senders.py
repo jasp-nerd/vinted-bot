@@ -79,15 +79,14 @@ async def test_ntfy_shows_the_photo_and_opens_the_listing() -> None:
     )
 
 
-async def test_ntfy_offers_three_buttons_at_most() -> None:
+async def test_ntfy_offers_open_and_message() -> None:
     recorder = Recorder()
 
     await ntfy(recorder).send([notification(1)])
 
     assert [a["label"] for a in recorder.payload()["actions"]] == [
-        "Buy",
-        "Message seller",
         "Open on Vinted",
+        "Message seller",
     ]
 
 

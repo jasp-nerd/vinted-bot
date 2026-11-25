@@ -16,6 +16,8 @@ from zoneinfo import ZoneInfo
 
 import structlog
 
+from vinted_bot.telemetry.recorder import log_processor
+
 # These libraries are chatty at INFO and none of it is about your searches. aiosqlite logs
 # every statement at DEBUG, which buried everything else when someone turned DEBUG on to
 # attach logs to an issue.
@@ -53,6 +55,8 @@ def configure(level: str = "INFO", fmt: str = "console", timezone: str = "UTC") 
         processors=[
             structlog.contextvars.merge_contextvars,
             structlog.stdlib.add_log_level,
+            # Counts warnings and reports errors when usage statistics are on.
+            log_processor,
             local_timestamps(ZoneInfo(timezone)),
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,

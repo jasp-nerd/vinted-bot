@@ -15,6 +15,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from vinted_bot import telemetry
 from vinted_bot.log import get_logger
 
 log = get_logger(__name__)
@@ -80,6 +81,7 @@ class ProxyRotation:
             return
         self._benched_until[proxy] = time.time() + seconds
         log.info("proxies.benched", proxy=_redact(proxy), seconds=seconds, reason=reason)
+        telemetry.count("proxies_benched")
 
     def available(self, now: float | None = None) -> int:
         moment = now if now is not None else time.time()

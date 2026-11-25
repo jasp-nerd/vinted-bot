@@ -77,6 +77,10 @@ The same command works on any Linux and on a Raspberry Pi with 64-bit Raspberry 
 curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.sh | sh
 ```
 
+Closing the browser doesn't stop it. To open the dashboard again later, click the
+**vinted-bot** icon (Applications on a Mac, the Start menu or desktop on Windows, your apps
+menu on Linux) or type `vinted-bot` in a terminal.
+
 Prefer to read a script before running it? Download [install.sh](https://github.com/jasp-nerd/vinted-bot/blob/main/install.sh) or [install.ps1](https://github.com/jasp-nerd/vinted-bot/blob/main/install.ps1) first; each explains its steps at the top.
 
 ### Docker
@@ -193,7 +197,7 @@ Or open it directly: **[Open in Claude](https://claude.ai/new?q=Please%20help%20
 
 ## Updating
 
-- **Installer:** click **Update now** when the dashboard says a new version is out, or run the install command again. Settings, Updates can also install new versions by itself at night.
+- **Installer:** it installs new versions by itself at night (switch that off in Settings, Updates). Or click **Update now** when the dashboard or a status alert says a new version is out, or run the install command again.
 - **Docker:** `docker compose pull && docker compose up -d`
 - **NAS:** pull the new image with the NAS's own container update (Unraid: Docker, Check for Updates).
 
@@ -201,15 +205,9 @@ Your searches are kept, and database changes apply by themselves at startup. Wha
 
 ## Stopping and uninstalling
 
-With the installer, how to stop it depends on whether you said yes to starting at login:
-
-| | Started at login | Not started at login |
-|---|---|---|
-| Windows (PowerShell) | `Get-Process vinted-bot \| Stop-Process` (it starts again when you sign in) | the same |
-| macOS | `launchctl bootout gui/$(id -u)/io.github.jasp-nerd.vinted-bot` (it starts again when you log in) | `pkill -f 'vinted-bot run'` |
-| Linux | `systemctl --user stop vinted-bot` (it starts again when you log in) | `pkill -f 'vinted-bot run'` |
-
-Running the install command again starts it again. To remove it, run the uninstaller for your system. It stops vinted-bot, removes it and its start-at-login entry, and keeps your searches in case you come back: they stay in `%LOCALAPPDATA%\vinted-bot` on Windows, `~/Library/Application Support/vinted-bot` on macOS and `~/.local/share/vinted-bot` on Linux, until you delete that folder.
+To stop it, use **Stop vinted-bot** in Settings, General, or type `vinted-bot stop`. It
+stays stopped, even after a restart, until you open it again with the vinted-bot icon or
+by typing `vinted-bot`. To remove it, run the uninstaller for your system. It stops vinted-bot, removes it and its start-at-login entry, and keeps your searches in case you come back: they stay in `%LOCALAPPDATA%\vinted-bot` on Windows, `~/Library/Application Support/vinted-bot` on macOS and `~/.local/share/vinted-bot` on Linux, until you delete that folder.
 
 ```powershell
 powershell -ExecutionPolicy ByPass -c '$env:VINTED_BOT_UNINSTALL=1; irm https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.ps1 | iex'

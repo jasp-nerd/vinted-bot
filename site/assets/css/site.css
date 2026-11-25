@@ -431,8 +431,6 @@ code, kbd, pre { font-family: var(--font-mono); }
 .tg__kb { width: min(100%, 310px); display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 .tg__key { display: grid; place-items: center; height: 38px; border-radius: 10px; background: rgba(60, 90, 50, .38); color: #fff; font-size: 14px; font-weight: 500; }
 .tg__key--success { background: #2e8247; }
-.tg__key--primary { background: #2a6fb8; }
-.tg__key--wide { grid-column: 1 / -1; }
 @media (prefers-color-scheme: dark) {
   .tg { background: #0e1621; color: #f5f5f5; }
   .tg__bubble { background: #182533; }
@@ -441,7 +439,6 @@ code, kbd, pre { font-family: var(--font-mono); }
   .tg__time { color: #8197ad; }
   .tg__key { background: rgba(255, 255, 255, .12); }
   .tg__key--success { background: #2e8247; }
-  .tg__key--primary { background: #2a6fb8; }
 }
 
 /* ───────── Health ───────── */

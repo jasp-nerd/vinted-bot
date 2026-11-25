@@ -7,7 +7,9 @@ Advanced with where each value came from, so nothing that shapes the app is hidd
 
 from __future__ import annotations
 
+import asyncio
 import time
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo, available_timezones
@@ -15,9 +17,12 @@ from zoneinfo import ZoneInfo, available_timezones
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
-from vinted_bot.config import DASHBOARD_MANAGED, Settings
-from vinted_bot.engine import health, self_update
+from vinted_bot import control, instance
+from vinted_bot.config import DASHBOARD_MANAGED, Settings, in_container
+from vinted_bot.db.repo import Repo
+from vinted_bot.engine import awake, health, self_update
 from vinted_bot.engine.validation import InvalidInputError
+from vinted_bot.telemetry import service as telemetry
 from vinted_bot.web import core, security, views
 from vinted_bot.web.routes.searches import bookmarklet
 
@@ -120,6 +125,13 @@ async def settings_page(request: Request) -> Response:
             "update_last": last_update,
             "update_last_when": _when(last_update, tz),
             "environment": environment_settings(context.settings),
+            "can_stop": not in_container(),
+            "machine": await core.machine_switches(context),
+            "how_to_start": control.how_to_start(context.settings),
+            "telemetry": {
+                "on": await telemetry.switched_on(context.settings, repo),
+                "from_env": telemetry.from_environment(context.settings),
+            },
         },
         snapshot=snapshot,
     )
@@ -171,6 +183,32 @@ def _when(outcome: self_update.Outcome | None, tz: ZoneInfo) -> str | None:
     return f"{views.day_month(moment)}, {moment:%H:%M}"
 
 
+# On-off preferences that need nothing but the database.
+_SWITCHES: dict[str, Callable[[Repo, bool], Awaitable[None]]] = {
+    "update_check": Repo.set_update_check,
+    "deal_badges": Repo.set_deal_badges,
+    "telemetry": telemetry.set_switch,
+}
+
+
+async def _set_machine(context: core.WebContext, key: str, *, on: bool) -> None:
+    """Starting at login, or keeping the Mac awake: the installers' old questions."""
+    if key == "keep_awake":
+        await awake.set_wanted(context.repo, on)
+        return
+    try:
+        await asyncio.to_thread(control.set_starts_at_login, context.settings, on)
+    except control.ControlError as exc:
+        raise InvalidInputError(key, str(exc)) from exc
+
+
+def _with_scheme(url: str) -> str:
+    """A pasted address without http(s):// in front gets https://."""
+    if url and not url.startswith(("http://", "https://")):
+        return f"https://{url}"
+    return url
+
+
 async def _set_auto_update(context: core.WebContext, enabled: bool) -> None:
     if enabled and not context.updater.install.can_update_automatically:
         raise InvalidInputError(
@@ -198,20 +236,32 @@ async def save_setting(request: Request) -> Response:
                     await repo.set_timezone(value)
             case "theme":
                 await repo.set_theme(value)
-            case "update_check":
-                await repo.set_update_check(value == "1")
+            case "update_check" | "deal_badges" | "telemetry":
+                await _SWITCHES[key](repo, value == "1")
+            case "start_at_login" | "keep_awake":
+                await _set_machine(context, key, on=value == "1")
             case "auto_update":
                 await _set_auto_update(context, value == "1")
             case "healthcheck_url":
-                url = value.strip()
-                if url and not url.startswith(("http://", "https://")):
-                    url = f"https://{url}"
-                await repo.set_healthcheck_url(url or None)
+                await repo.set_healthcheck_url(_with_scheme(value.strip()) or None)
             case _:
                 return JSONResponse({"ok": False, "error": "Unknown setting."}, status_code=400)
     except InvalidInputError as exc:
         return JSONResponse({"ok": False, "field": key, "error": exc.message}, status_code=400)
     return JSONResponse({"ok": True})
+
+
+@router.post("/settings/stop")
+async def stop_app(request: Request) -> Response:
+    """Settings, Stop vinted-bot: the app notices within a second and shuts down cleanly,
+    and stays stopped, even at the next login, until it is opened again (instance.py)."""
+    settings = core.ctx(request).settings
+    if in_container():
+        return core.redirect("/settings#general", "In Docker, stop it with: docker compose stop")
+    instance.mark_stopped(settings)
+    return await core.render(
+        request, "stopped.html", {"how_to_start": control.how_to_start(settings)}
+    )
 
 
 @router.post("/settings/blocked/{seller_id}/unblock")

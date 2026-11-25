@@ -31,6 +31,7 @@ from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
+from vinted_bot import telemetry
 from vinted_bot.config import Settings
 from vinted_bot.db.repo import Query, QueryState, Repo
 from vinted_bot.log import get_logger
@@ -244,6 +245,7 @@ class Watchdog:
         if self._settings.watchdog_action == "rotate":
             await self._sessions.rotate(search.tld)
             log.info("watchdog.session_rotated", tld=search.tld)
+            telemetry.count("sessions_rotated")
 
         if self._announce is not None:
             action = (

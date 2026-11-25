@@ -703,8 +703,11 @@ async function mark(card, value) {
       (seller ? `<dt>Seller rating</dt><dd>${esc(seller.textContent.trim())}</dd>` : `<dt>Seller rating</dt><dd class="t-muted">Vinted didn't share it for this listing</dd>`));
     const id = itemId(card); const t = card.dataset.tld;
     $("[data-qv=url]", qv).href = a.href;
-    $("[data-qv=buy]", qv).href = `https://www.vinted.${t}/transaction/buy/new?source_screen=item&transaction%5Bitem_id%5D=${id}`;
-    $("[data-qv=message]", qv).href = `https://www.vinted.${t}/items/${id}/want_it/new`;
+    // Without the seller's id there's nobody to address: Open on Vinted is the way in.
+    const sellerId = card.dataset.seller;
+    const msg = $("[data-qv=message]", qv);
+    msg.hidden = !sellerId;
+    if (sellerId) msg.href = `https://www.vinted.${t}/inbox/want_it?receiver_id=${sellerId}&item_id=${id}`;
     $("[data-toggle-save]", qv).setAttribute("aria-pressed", $(".item__save", card).getAttribute("aria-pressed"));
     openDialog("quickview", from);
   }
@@ -852,7 +855,7 @@ async function mark(card, value) {
       toast(text, { img: it.photo, ms: 6000, action: "Show", onAction: () => { const c = $(`.item[data-item-id="${it.id}"]`, feed); if (c) quickview(c); } });
       if (soundOn) chirp();
       if (document.hidden && "Notification" in window && Notification.permission === "granted") {
-        try { new Notification(it.deal_pct ? `${it.deal_pct}% under typical: ${it.title}` : it.title, { body: `${it.total} incl. fees · ${it.search}`, icon: it.photo || undefined, tag: "vs-" + it.id }); } catch (e) { /* some browsers only allow this from a service worker */ }
+        try { new Notification(it.deal_pct && document.documentElement.dataset.dealBadges !== "off" ? `${it.deal_pct}% under typical: ${it.title}` : it.title, { body: `${it.total} incl. fees · ${it.search}`, icon: it.photo || undefined, tag: "vs-" + it.id }); } catch (e) { /* some browsers only allow this from a service worker */ }
       }
     });
   }
@@ -1070,6 +1073,23 @@ async function mark(card, value) {
     });
   }
 
+  /* ── Settings: one section at a time, picked in the side menu ── */
+  // Without this script every section shows on one long page, which still works.
+  const settingsPage = $(".settings[data-tabs]");
+  if (settingsPage) {
+    const tabs = $$(".snav a", settingsPage);
+    const sections = $$(".ssec[id]", settingsPage);
+    const showSection = (id, moved) => {
+      const current = sections.find((s) => s.id === id) || sections[0];
+      sections.forEach((s) => { s.hidden = s !== current; });
+      tabs.forEach((a) => a.setAttribute("aria-current", a.hash === `#${current.id}` ? "true" : "false"));
+      if (moved) window.scrollTo({ top: 0 });
+    };
+    // The browser jumped to the section's anchor; start from the top of the page instead.
+    showSection(location.hash.slice(1), Boolean(location.hash));
+    addEventListener("hashchange", () => showSection(location.hash.slice(1), true));
+  }
+
   /* ── Settings that save as you change them ────────── */
   $$("[data-setting]").forEach((el) => {
     const key = el.dataset.setting;
@@ -1080,7 +1100,10 @@ async function mark(card, value) {
       const r = await post("/settings", { key, value: value() });
       const help = $(`[data-setting-help="${key}"]`);
       if (r.ok) { el.removeAttribute("aria-invalid"); toast("Saved", { ok: true }); if (help) { help.className = "help"; help.textContent = value() ? "Saved." : "Off."; } }
-      else { el.setAttribute("aria-invalid", "true"); if (help) { help.className = "help help--error"; help.innerHTML = icon("circle-alert") + `<span>${esc(r.error)}</span>`; } else toast(r.error, { bad: true }); }
+      else {
+        // A switch that couldn't be changed goes back, so it never shows a state that isn't so.
+        if (el.type === "checkbox") el.checked = !el.checked;
+        el.setAttribute("aria-invalid", "true"); if (help) { help.className = "help help--error"; help.innerHTML = icon("circle-alert") + `<span>${esc(r.error)}</span>`; } else toast(r.error, { bad: true }); }
     };
     el.addEventListener("change", save);
   });
@@ -1161,4 +1184,34 @@ async function mark(card, value) {
   $$("form").forEach((f) => f.addEventListener("submit", () => {
     $$("[data-tokens]:not([data-tokens=brand]) input:not([type=hidden])", f).forEach((i) => i.dispatchEvent(new Event("blur")));
   }));
+
+  /* ── Opened from the Dock or taskbar while vinted-bot is stopped: say so (sw.js) ── */
+  if ("serviceWorker" in navigator && window.isSecureContext) {
+    navigator.serviceWorker.register("/sw.js").catch(() => { /* not essential */ });
+  }
+
+  /* ── Which outside links get used (usage statistics, docs/telemetry.md) ── */
+  // Only a name from this list and where the link sat go to vinted-bot; never the address.
+  function outLink(href) {
+    let u; try { u = new URL(href); } catch (e) { return null; }
+    const host = u.hostname, path = u.pathname;
+    if (host === "ko-fi.com") return "kofi";
+    if (host === "github.com" && path.startsWith("/sponsors/")) return "sponsors";
+    if (host === "github.com" && path.startsWith("/jasp-nerd/vinted-bot")) {
+      if (path.includes("/issues")) return "issue";
+      if (path.includes("/releases")) return "release_notes";
+      if (path.includes("/docs/") || path.includes("/blob/")) return "docs";
+      return "star";
+    }
+    if (host === "vinted-bot.jaspnerd.dev") return "website";
+    if (/(^|\.)vinted\.[a-z.]+$/.test(host)) return "vinted";
+    return null;
+  }
+  document.addEventListener("click", (e) => {
+    const a = e.target instanceof Element ? e.target.closest("a[href^='http']") : null;
+    const name = a && outLink(a.href);
+    if (!name) return;
+    const place = new URL(a.href).searchParams.get("utm_medium") || location.pathname.split("/")[1] || "finds";
+    try { navigator.sendBeacon("/api/out", `${name}:${place}`); } catch (err) { /* not sent; fine */ }
+  }, true);
 })();

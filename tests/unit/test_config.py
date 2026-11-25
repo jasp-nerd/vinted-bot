@@ -65,7 +65,7 @@ def test_the_installers_own_variables_are_not_called_unknown(
 ) -> None:
     """install.sh's VINTED_BOT_AUTOSTART and friends warned at every start."""
     monkeypatch.chdir(tmp_path)
-    for name in ("VINTED_BOT_AUTOSTART", "VINTED_BOT_KEEP_AWAKE", "VINTED_BOT_NO_BROWSER"):
+    for name in ("VINTED_BOT_AUTOSTART", "VINTED_BOT_NO_BROWSER"):
         monkeypatch.setenv(name, "1")
 
     assert Settings.unknown_keys() == []

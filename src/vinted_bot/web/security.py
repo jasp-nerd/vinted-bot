@@ -67,6 +67,7 @@ from vinted_bot import managed
 from vinted_bot.config import Settings, in_container
 from vinted_bot.db.repo import Repo
 from vinted_bot.engine.validation import InvalidInputError
+from vinted_bot.network import is_local_address
 
 LOOPBACK_NAMES = frozenset({"localhost", "127.0.0.1", "::1", "[::1]"})
 LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
@@ -100,39 +101,6 @@ _SCRYPT = {"n": 2**14, "r": 8, "p": 1}
 
 
 # --- Devices --------------------------------------------------------------------------
-
-# This computer, private networks, self-assigned addresses and Tailscale (CGNAT), in both
-# IP versions. Spelled out rather than ipaddress's is_private, which also counts
-# documentation and benchmarking ranges and leaves 100.64.0.0/10 out.
-_LOCAL_NETWORKS = tuple(
-    ipaddress.ip_network(network)
-    for network in (
-        "127.0.0.0/8",
-        "10.0.0.0/8",
-        "172.16.0.0/12",
-        "192.168.0.0/16",
-        "169.254.0.0/16",
-        "100.64.0.0/10",
-        "::1/128",
-        "fc00::/7",
-        "fe80::/10",
-    )
-)
-
-
-def is_local_address(address: str) -> bool:
-    """Whether a client address is this computer or a private network (see above).
-
-    Anything that is not an IP address at all counts as not local, so an odd transport
-    fails closed.
-    """
-    try:
-        ip = ipaddress.ip_address(address.split("%", 1)[0].strip("[]"))
-    except ValueError:
-        return False
-    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
-        ip = ip.ipv4_mapped
-    return any(ip in network for network in _LOCAL_NETWORKS)
 
 
 def public_allowed(settings: Settings) -> bool:

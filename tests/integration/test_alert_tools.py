@@ -302,7 +302,7 @@ async def test_the_test_button_sends_a_sample_listing(settings: Settings) -> Non
 
     result = await send_test(
         destination("webhook", {"url": "https://example.test/hook"}),
-        settings=settings,
+        dashboard_url=settings.dashboard_url,
         telegram_token=None,
         client=endpoint.client(),
     )
@@ -318,7 +318,7 @@ async def test_a_test_pings_the_mention_the_preview_shows(settings: Settings) ->
 
     await send_test(
         destination("discord", {"url": "https://discord.test/hook", "mention": "<@&42>"}),
-        settings=settings,
+        dashboard_url=settings.dashboard_url,
         telegram_token=None,
         client=endpoint.client(),
     )
@@ -331,7 +331,7 @@ async def test_a_test_against_a_deleted_webhook_says_so(settings: Settings) -> N
 
     result = await send_test(
         destination("discord", {"url": "https://discord.test/hook"}),
-        settings=settings,
+        dashboard_url=settings.dashboard_url,
         telegram_token=None,
         client=endpoint.client(),
     )
@@ -345,7 +345,10 @@ async def test_a_test_of_a_misconfigured_destination_explains_without_sending(
     endpoint = Endpoint()
 
     result = await send_test(
-        destination("ntfy", {}), settings=settings, telegram_token=None, client=endpoint.client()
+        destination("ntfy", {}),
+        dashboard_url=None,
+        telegram_token=None,
+        client=endpoint.client(),
     )
 
     assert (result.ok, endpoint.requests) == (False, [])
@@ -355,7 +358,7 @@ async def test_a_test_of_an_unpaired_telegram_chat_asks_for_pairing_first(
     settings: Settings,
 ) -> None:
     result = await send_test(
-        destination("telegram", {"pairing_code": "abc"}), settings=settings, telegram_token=None
+        destination("telegram", {"pairing_code": "abc"}), dashboard_url=None, telegram_token=None
     )
 
     assert "pairing link" in result.message
@@ -366,13 +369,13 @@ async def test_a_test_send_follows_the_site_language(settings: Settings) -> None
 
     await send_test(
         destination("discord", {"url": "https://discord.test/hook"}),
-        settings=settings,
+        dashboard_url=settings.dashboard_url,
         telegram_token=None,
         tld="nl",
         client=endpoint.client(),
     )
 
-    assert "Kopen" in endpoint.requests[0].content.decode()
+    assert "Open op Vinted" in endpoint.requests[0].content.decode()
 
 
 # --- Preview ---------------------------------------------------------------------------

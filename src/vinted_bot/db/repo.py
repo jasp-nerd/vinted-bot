@@ -236,6 +236,9 @@ class PendingNotification:
     margin: Decimal | None = None
     # The seller's country (ISO code), when a seller lookup has told us.
     seller_country: str | None = None
+    # Whether the alert may say how far under the typical price it is; off when the
+    # dashboard's "Show deal badges" switch is.
+    show_deal: bool = True
 
     @property
     def deal_pct(self) -> int | None:
@@ -351,6 +354,8 @@ class AppSettings:
     latest_version: str | None
     # Install a newer release by itself, in the small hours; off unless someone asks.
     auto_update: bool
+    # The "24% under typical" badge on finds and in alerts.
+    deal_badges: bool = True
 
 
 THEMES = ("system", "light", "dark")
@@ -2347,7 +2352,7 @@ class Repo:
         rows = await self._db.fetch_all(
             "SELECT key, value FROM app_state WHERE key IN "
             "('timezone', 'healthcheck_url', 'update_check', 'onboarded', 'theme', "
-            "'latest_version', 'auto_update')"
+            "'latest_version', 'auto_update', 'deal_badges')"
         )
         values = {row["key"]: row["value"] for row in rows}
         return AppSettings(
@@ -2358,6 +2363,7 @@ class Repo:
             theme=values.get("theme") or "system",
             latest_version=values.get("latest_version") or None,
             auto_update=values.get("auto_update") == "1",
+            deal_badges=values.get("deal_badges") != "0",
         )
 
     async def set_timezone(self, name: str) -> None:
@@ -2374,6 +2380,9 @@ class Repo:
 
     async def set_update_check(self, enabled: bool) -> None:
         await self.set_state_value("update_check", "1" if enabled else "0")
+
+    async def set_deal_badges(self, enabled: bool) -> None:
+        await self.set_state_value("deal_badges", "1" if enabled else "0")
 
     async def set_auto_update(self, enabled: bool) -> None:
         await self.set_state_value("auto_update", "1" if enabled else "0")

@@ -34,7 +34,6 @@ class Labels:
     # "found" when all we know is when we saw it.
     listed: str
     found: str
-    buy: str
     message: str
     open: str
     dashboard: str
@@ -74,7 +73,6 @@ _CATALOGUE: dict[str, Labels] = {
         seller="Seller",
         listed="listed",
         found="found",
-        buy="Buy",
         message="Message seller",
         open="Open on Vinted",
         dashboard="Dashboard",
@@ -109,7 +107,6 @@ _CATALOGUE: dict[str, Labels] = {
         seller="Vendeur",
         listed="publié",
         found="trouvé",
-        buy="Acheter",
         message="Contacter",
         open="Voir sur Vinted",
         dashboard="Tableau de bord",
@@ -144,7 +141,6 @@ _CATALOGUE: dict[str, Labels] = {
         seller="Verkäufer",
         listed="eingestellt",
         found="gefunden",
-        buy="Kaufen",
         message="Nachricht",
         open="Auf Vinted öffnen",
         dashboard="Dashboard",
@@ -179,7 +175,6 @@ _CATALOGUE: dict[str, Labels] = {
         seller="Verkoper",
         listed="geplaatst",
         found="gevonden",
-        buy="Kopen",
         message="Bericht sturen",
         open="Open op Vinted",
         dashboard="Dashboard",
@@ -214,7 +209,6 @@ _CATALOGUE: dict[str, Labels] = {
         seller="Vendedor",
         listed="publicado",
         found="encontrado",
-        buy="Comprar",
         message="Mensaje",
         open="Ver en Vinted",
         dashboard="Panel",
@@ -249,7 +243,6 @@ _CATALOGUE: dict[str, Labels] = {
         seller="Venditore",
         listed="pubblicato",
         found="trovato",
-        buy="Acquista",
         message="Messaggio",
         open="Apri su Vinted",
         dashboard="Dashboard",
@@ -284,7 +277,6 @@ _CATALOGUE: dict[str, Labels] = {
         seller="Sprzedający",
         listed="dodano",
         found="znaleziono",
-        buy="Kup",
         message="Napisz",
         open="Otwórz w Vinted",
         dashboard="Panel",
@@ -319,7 +311,6 @@ _CATALOGUE: dict[str, Labels] = {
         seller="Pardavėjas",
         listed="įkelta",
         found="rasta",
-        buy="Pirkti",
         message="Rašyti",
         open="Atidaryti Vinted",
         dashboard="Skydelis",
@@ -354,7 +345,6 @@ _CATALOGUE: dict[str, Labels] = {
         seller="Prodejce",
         listed="přidáno",
         found="nalezeno",
-        buy="Koupit",
         message="Napsat",
         open="Otevřít na Vinted",
         dashboard="Přehled",

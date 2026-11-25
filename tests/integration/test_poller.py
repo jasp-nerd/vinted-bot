@@ -20,6 +20,7 @@ from vinted_bot.config import Settings
 from vinted_bot.db.repo import Repo
 from vinted_bot.engine import poller as poller_module
 from vinted_bot.engine.poller import Poller
+from vinted_bot.telemetry import recorder
 from vinted_bot.vinted.client import VintedClient
 from vinted_bot.vinted.proxies import ProxyRotation
 from vinted_bot.vinted.session import SessionManager
@@ -427,3 +428,27 @@ async def test_server_errors_are_transient(
 
     assert delay > 0
     assert (await repo.get_state(poller.query.id)).last_status == "network"
+
+
+async def test_checks_and_blocks_are_counted_for_the_usage_statistics(
+    transport: ScriptedTransport,
+    repo: Repo,
+    settings: Settings,
+    db: Any,
+    make_item: Callable[..., dict[str, Any]],
+) -> None:
+    recorder.activate()
+    poller, _ = await make_poller(transport, repo, settings, db=db)
+    transport.queue_status(403, "Forbidden")
+    await poller.tick()
+    now = int(time.time())
+    transport.queue_catalog([make_item(1, photo_ts=now), make_item(2, photo_ts=now)])
+    await poller.tick()
+
+    counters, timings = recorder.take_totals()
+
+    assert counters["checks_blocked"] == 1
+    assert counters["checks_ok"] == 1
+    assert counters["items_seen"] == 2
+    assert timings["block_minutes"]["count"] == 1
+    assert timings["vinted_search_ms"]["count"] == 2

@@ -34,8 +34,8 @@ Pick exactly one. The installers need no admin rights and no Docker. They instal
 
     powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.ps1 | iex"
 
-3. Answer the question about starting at sign-in (Y is recommended).
-4. The browser opens http://localhost:8000. The app runs in the background with no window.
+3. It asks nothing: it starts vinted-bot at every sign-in (a switch in the dashboard's Settings, General).
+4. The browser opens http://localhost:8000. The app runs in the background with no window. To open the dashboard again later: the vinted-bot icon in the Start menu or on the desktop, or type `vinted-bot` in PowerShell.
 
 Keep the PC awake: Settings, System, Power, set "Make my device sleep" to Never while plugged in.
 
@@ -46,8 +46,8 @@ Keep the PC awake: Settings, System, Power, set "Make my device sleep" to Never 
 
     curl -LsSf https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.sh | sh
 
-3. It asks whether to keep the Mac awake while plugged in, and whether to start at login. Yes to both is recommended for reliable alerts. macOS may then show a "Background Items Added" notice; that is expected.
-4. The browser opens http://localhost:8000.
+3. It asks nothing: vinted-bot starts at every login and keeps the Mac awake while plugged in (both are switches in the dashboard's Settings, General). macOS may then show a "Background Items Added" notice; that is expected.
+4. The browser opens http://localhost:8000. To open the dashboard again later: vinted-bot in Applications or Launchpad (or Cmd+Space, type vinted), or type `vinted-bot` in Terminal.
 
 ### Linux, or a Raspberry Pi (64-bit Raspberry Pi OS)
 
@@ -57,7 +57,7 @@ To make it start at boot with nobody logged in (useful on a Pi), the installer m
 
     sudo loginctl enable-linger $USER
 
-A Pi without a screen: open the dashboard from another computer by running this on that computer, then visiting http://localhost:8000 there (replace pi and raspberrypi.local with their user and Pi name):
+A Pi without a screen: installing over SSH, the installer asks whether phones and other devices on the network may open the dashboard; yes sets a password and prints the address and a QR code. Later, `vinted-bot address --allow-network` does the same, and `vinted-bot address` shows the address again. To keep it on the Pi only, open a tunnel from another computer and visit http://localhost:8000 there (replace pi and raspberrypi.local with their user and Pi name):
 
     ssh -L 8000:localhost:8000 pi@raspberrypi.local
 
@@ -122,17 +122,16 @@ A Telegram bot cannot message someone first; that is a Telegram rule, which is w
 - Docker: `docker compose pull && docker compose up -d`
 - NAS: pull the new image with the NAS's own container update (Unraid: Docker, Check for Updates).
 
-The dashboard says when a new version is out. Check the version with `vinted-bot --version`.
+To see whether it is behind, run `vinted-bot --version`: when a newer version is out it prints a second line with that version and how to install it. `vinted-bot status` says the same, and `http://localhost:8000/api/health` has `version`, `latest_version`, `update_available` and `how_to_update`. If you look after vinted-bot for someone, check this now and then and update when it says so. Installs from the installers install updates by themselves at night unless that was switched off in Settings, Updates.
 
 ## Stopping and removing
 
-Stop:
-- Windows (PowerShell): `Get-Process vinted-bot | Stop-Process`
-- macOS, if they said yes to starting at login: `launchctl bootout gui/$(id -u)/io.github.jasp-nerd.vinted-bot` (it starts again at the next login). Otherwise: `pkill -f 'vinted-bot run'`
-- Linux, if they said yes to starting at login: `systemctl --user stop vinted-bot` (it starts again at the next login). Otherwise: `pkill -f 'vinted-bot run'`
-- Docker: `docker compose down`
-
-Running the install command again starts it again (Docker: `docker compose up -d`).
+Day to day (installed with the installers, uv or pipx):
+- Open the dashboard, starting it first if needed: `vinted-bot` (or the vinted-bot icon). Over SSH it prints the address.
+- Stop: `vinted-bot stop`, or Settings, Stop vinted-bot. It stays stopped, even after a restart, until opened again.
+- Start without the browser: `vinted-bot start`. Restart: `vinted-bot restart`. Log: `vinted-bot logs` (`-f` to follow).
+- Only one copy runs at a time; `vinted-bot run` while one runs says so and exits.
+- Docker: `docker compose stop` / `docker compose up -d` instead.
 
 Remove (searches are kept in the data folder until it is deleted):
 - Windows: `powershell -ExecutionPolicy ByPass -c '$env:VINTED_BOT_UNINSTALL=1; irm https://raw.githubusercontent.com/jasp-nerd/vinted-bot/main/install.ps1 | iex'`
@@ -146,14 +145,14 @@ To keep a copy of the searches first: `vinted-bot backup vinted-bot-backup.db` (
 Go in this order.
 
 1. Old version: run `vinted-bot --version`. Anything below 2.0.0 stopped working in September 2026. Update.
-2. Is it running? Open http://localhost:8000. If the page doesn't load, start it again by running the install command again (Docker: `docker compose up -d`) and look at the log (step 6).
+2. Is it running? Run `vinted-bot`: it opens the dashboard, starting it first if needed, and says why if it can't. (Docker: `docker compose up -d`.) Then look at the log (step 6).
 3. Search health: the dashboard shows each search's state, or run `vinted-bot status`. States: ok (working, just nothing new matched), stale (Vinted stopped updating that search; it repairs itself, restart if it lasts over an hour), failing (see the error shown).
 4. Vinted reachable from this machine: run `vinted-bot check --url "PASTE A VINTED SEARCH URL"`. Listings printed = connection fine. "Blocked" = Vinted refuses this internet connection. Confirm with (use their country's site):
        macOS/Linux:  curl -s -c - -L "https://www.vinted.fr/" | grep access_token_web
        Windows:      curl.exe -s -c - -L "https://www.vinted.fr/" | Select-String access_token_web
    A line printed = fine. Nothing printed = this connection is refused by Vinted (common on cloud servers and some VPNs). Fixes: wait (often temporary), check less often, turn off a VPN, or run it at home.
 5. "ok" but nothing arrives: the price limit includes buyer protection; excluded words may catch more than intended; the search may simply have nothing new (compare on the Vinted website). Promoted (bumped) listings are skipped on purpose.
-6. Logs: Windows %LOCALAPPDATA%\vinted-bot\vinted-bot.log; macOS ~/Library/Application Support/vinted-bot/vinted-bot.log; Linux `journalctl --user -u vinted-bot`; Docker `docker compose logs --tail 200 vinted-bot`.
+6. Logs: `vinted-bot logs -n 200` (Windows %LOCALAPPDATA%\vinted-bot\vinted-bot.log; macOS ~/Library/Application Support/vinted-bot/vinted-bot.log; Linux with the systemd service `journalctl --user -u vinted-bot`; Docker `docker compose logs --tail 200 vinted-bot`).
 7. Alerts stopped but searches are fine: the destination may have been switched off because Discord or Telegram said it no longer exists (deleted webhook, blocked bot). Remove it and add it again in the dashboard.
 8. "Port 8000 is taken" during install: another program (often an older Docker copy) uses it. Stop that, or install with VINTED_BOT_WEB_PORT=8001 (macOS/Linux: put it before `sh` in the install command; Windows: run `$env:VINTED_BOT_WEB_PORT = 8001` first) and use http://localhost:8001.
 9. "command not found" right after installing: open a new terminal window.
