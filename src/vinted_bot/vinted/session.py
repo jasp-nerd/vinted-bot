@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from http import HTTPStatus
 from typing import Final
 
+from vinted_bot import telemetry
 from vinted_bot.db import Database
 from vinted_bot.log import get_logger
 from vinted_bot.vinted import headers as hdr
@@ -232,6 +233,7 @@ class SessionManager:
         await self._save(session)
         self._cache[tld] = session
         log.info("session.created", tld=tld, cookies=len(cookies), via_proxy=proxy is not None)
+        telemetry.count("sessions_created")
         return session
 
     async def note_request(self, session: Session) -> None:

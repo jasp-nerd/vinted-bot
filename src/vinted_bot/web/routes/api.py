@@ -18,15 +18,16 @@ from xml.sax.saxutils import escape as xml_escape
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 
+from vinted_bot import __version__, control
 from vinted_bot.db import export as exporter
 from vinted_bot.db.repo import FeedItem, Query
-from vinted_bot.engine import health
+from vinted_bot.engine import health, self_update
 from vinted_bot.vinted import urls
 from vinted_bot.vinted.client import PER_PAGE
 from vinted_bot.vinted.errors import VintedError
 from vinted_bot.vinted.models import Item
 from vinted_bot.vinted.taxonomy import FACET_CODES, Taxonomy
-from vinted_bot.web import core, forms, security, views
+from vinted_bot.web import core, forms, security, usage, views
 from vinted_bot.web.preview import TooSoonError, judge
 
 router = APIRouter()
@@ -35,16 +36,32 @@ router = APIRouter()
 _MIN_BRAND_QUERY = 2
 
 
+@router.post("/api/out")
+async def out_link(request: Request) -> Response:
+    """The page's script says which outside link was opened (usage statistics)."""
+    body = await request.body()
+    usage.record_out_link(body[:64].decode("utf-8", errors="replace"))
+    return Response(status_code=204)
+
+
 @router.get("/healthz")
 async def healthz(request: Request) -> JSONResponse:
     alive = await health.is_alive(core.ctx(request).repo)
-    return JSONResponse({"alive": alive}, status_code=200 if alive else 503)
+    # "app" lets `vinted-bot open` tell this apart from another program on the port.
+    return JSONResponse(
+        {"alive": alive, "app": "vinted-bot", "version": __version__},
+        status_code=200 if alive else 503,
+    )
 
 
 @router.get("/api/health")
 async def api_health(request: Request) -> JSONResponse:
-    snapshot = await health.snapshot(core.ctx(request).repo)
-    return JSONResponse(snapshot.as_dict())
+    context = core.ctx(request)
+    snapshot = await health.snapshot(context.repo)
+    versions = await self_update.update_facts(
+        context.repo, context.updater.install, context.settings
+    )
+    return JSONResponse({**snapshot.as_dict(), **versions})
 
 
 # --- The builder's filter data ---------------------------------------------------------
@@ -283,8 +300,9 @@ async def export(
 async def manifest() -> JSONResponse:
     icon = core.static
     body: dict[str, Any] = {
+        "id": "/",
         "name": "vinted-bot",
-        "short_name": "Finds",
+        "short_name": "vinted-bot",
         "description": "New Vinted listings for your searches, as they appear.",
         "start_url": "/",
         "scope": "/",
@@ -301,8 +319,34 @@ async def manifest() -> JSONResponse:
                 "purpose": "maskable",
             },
         ],
+        # Right-click on the Dock or taskbar icon, or a long press on a phone.
+        "shortcuts": [
+            {"name": "Finds", "url": "/"},
+            {"name": "Searches", "url": "/searches"},
+            {"name": "Alerts", "url": "/alerts"},
+        ],
     }
     return JSONResponse(body, media_type="application/manifest+json")
+
+
+@router.get("/sw.js")
+async def service_worker() -> Response:
+    """Served from the root, not /static/, so it may look after every page."""
+    return Response(
+        (core.STATIC_DIR / "js" / "sw.js").read_bytes(),
+        media_type="text/javascript",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
+@router.get("/offline")
+async def offline(request: Request) -> Response:
+    """What the service worker keeps for when vinted-bot isn't running."""
+    settings = core.ctx(request).settings
+    page = core.TEMPLATES.get_template("offline.html").render(
+        how_to_start=control.how_to_start(settings)
+    )
+    return Response(page, media_type="text/html", headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/favicon.ico")

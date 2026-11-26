@@ -7,7 +7,7 @@
 {% set where = {"ntfy": "your phone", "telegram": "your Telegram chat", "discord": "your Discord channel", "apprise": "your inbox", "webhook": "your app"}.get(kind, dest_name) %}
 <p class="t-lead">We sent a test to {{ where }}. {% if kind == "ntfy" %}It should buzz within a few seconds.{% else %}It should be there within a few seconds.{% endif %}</p>
 <div class="card summary-card">
-  <div class="summary-row"><span class="choice__icon" style="background:var(--c-success-tint);color:var(--c-success-ink)">{{ ui.icon("check") }}</span><span><b>{{ "ntfy" if kind == "ntfy" else kind_name }} accepted it</b><small>Your search and this place are saved, so nothing is lost if you stop here</small></span><span></span></div>
+  <div class="summary-row"><span class="choice__icon" style="background:var(--c-success-tint);color:var(--c-success-ink)">{{ ui.icon("check") }}</span><span><b>{{ "ntfy" if kind == "ntfy" else kind_name }} accepted it</b><small>{{ "This place is saved" if search_skipped else "Your search and this place are saved" }}, so nothing is lost if you stop here</small></span><span></span></div>
   <div class="summary-row"><span class="choice__icon" style="background:var(--c-success-tint);color:var(--c-success-ink)">{{ ui.icon("check") }}</span><span><b>A sample pair of jeans, with photo and price</b><small>Real alerts look like this, with your own finds</small></span><span></span></div>
 </div>
 <details class="faq">

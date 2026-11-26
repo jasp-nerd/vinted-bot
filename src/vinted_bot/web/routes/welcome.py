@@ -24,6 +24,7 @@ from fastapi import APIRouter, Request
 from fastapi.datastructures import FormData
 from fastapi.responses import RedirectResponse, Response
 
+from vinted_bot import control, telemetry
 from vinted_bot.db.repo import DuplicateSearchError, Query, Repo
 from vinted_bot.engine.validation import InvalidInputError
 from vinted_bot.vinted import urls
@@ -110,6 +111,14 @@ async def country(request: Request) -> Response:
     )
 
 
+# What the search step remembers when someone chose to add a search later.
+_SKIPPED = "skip"
+
+
+def _search_skipped(state: dict[str, Any]) -> bool:
+    return (state.get("search") or {}).get("mode") == _SKIPPED
+
+
 def _search_values(state: dict[str, Any], tld: str, interval: int) -> dict[str, Any]:
     values = forms.default_values(tld=tld, interval=interval, color=views.SLOT_COLORS[0])
     saved = state.get("search")
@@ -131,6 +140,11 @@ async def search(request: Request) -> Response:
     state["tld"] = tld
     interval = context.settings.poll_default_interval_s
     errors: dict[str, str] = {}
+    if form is not None and form.get("skip_search"):
+        # No link to hand yet: set up where alerts go now, add a search later.
+        state["search"] = {"mode": _SKIPPED}
+        await _keep(context, state)
+        return RedirectResponse("/welcome/alerts", status_code=303)
     if _submitted(form):
         values = forms.values_from_form(form)
         values["tld"] = tld
@@ -162,7 +176,9 @@ async def _search_page(request: Request, state: dict[str, Any], errors: dict[str
         state,
         status_code=400 if errors else 200,
         f=_search_values(state, tld, interval),
-        mode=(state.get("search") or {}).get("mode", "paste"),
+        mode="paste"
+        if _search_skipped(state)
+        else (state.get("search") or {}).get("mode", "paste"),
         errors=errors,
         currency=views.symbol(views.currency_for(tld)),
         previews=context.previews is not None,
@@ -223,7 +239,7 @@ async def where(request: Request) -> Response:
     assert context.http is not None
     try:
         name, config = destinations.build(kind, fields)
-        destinations.check(kind, config, context.settings, context.http)
+        destinations.check(kind, config, context.http)
     except InvalidInputError as exc:
         state["dest"] = {"kind": kind, "form": fields}
         return await _alerts_page(request, state, {exc.field: exc.message})
@@ -281,6 +297,9 @@ async def _test(request: Request, state: dict[str, Any]) -> Response:
     else:
         result = await alerts.test_unsaved(context, dest["kind"], dest["name"], dest["config"], tld)
     state["test"] = result
+    telemetry.event(
+        "destination_tested", channel=dest["kind"], ok=bool(result.get("ok")), during_setup=True
+    )
     # Kept now, not on the last screen: from here on the person may simply walk away.
     await _save(context, state)
     await _keep(context, state)
@@ -305,6 +324,7 @@ async def test_result(request: Request) -> Response:
         kind=dest["kind"],
         kind_name=views.KIND_NAMES.get(dest["kind"], dest["kind"]),
         dest_name=dest.get("name", ""),
+        search_skipped=_search_skipped(state),
     )
 
 
@@ -333,11 +353,14 @@ async def _ready(request: Request, state: dict[str, Any]) -> Response:
     interval = context.settings.poll_default_interval_s
     if not values:
         return RedirectResponse("/welcome/search", status_code=303)
-    parsed, _ = forms.collect_errors(
-        _search_values(state, tld, interval), default_interval=interval
-    )
-    if parsed is None:
-        return RedirectResponse("/welcome/search", status_code=303)
+    summary = None
+    if not _search_skipped(state):
+        parsed, _ = forms.collect_errors(
+            _search_values(state, tld, interval), default_interval=interval
+        )
+        if parsed is None:
+            return RedirectResponse("/welcome/search", status_code=303)
+        summary = views.search_summary(_preview_query(parsed))
     dest = state.get("dest") or {}
     access = await security.access(context.settings, context.repo)
     return await _page(
@@ -347,13 +370,15 @@ async def _ready(request: Request, state: dict[str, Any]) -> Response:
         state,
         country=views.COUNTRY_NAMES.get(tld, tld),
         tld=tld,
-        summary=views.search_summary(_preview_query(parsed)),
+        summary=summary,
         dest_kind=dest.get("kind", "skip"),
         dest_name=dest.get("name") or views.KIND_NAMES.get(dest.get("kind", ""), ""),
         access=access,
         phone=core.phone_addresses(context.settings, access),
         suggested_password=security.suggest_password(),
         self_hosting=core.SELF_HOSTING_URL,
+        how_to_open=control.how_to_open(context.settings),
+        machine=await core.machine_switches(context),
     )
 
 
@@ -381,6 +406,10 @@ async def finish(request: Request) -> Response:
         state["search"] = {**(state.get("search") or {}), "mode": "paste"}
         return await _search_page(request, state, errors)
     await context.repo.delete_state_value(_SETUP_KEY)
+    if _search_skipped(state):
+        return core.redirect(
+            "/searches/new", "All set. Add your first search whenever you're ready."
+        )
     return core.redirect("/", "All set. Your search is running.")
 
 
@@ -397,6 +426,8 @@ async def _save(context: core.WebContext, state: dict[str, Any]) -> dict[str, st
     update what an earlier call stored. Returns the search's field errors, if any.
     """
     repo = context.repo
+    if _search_skipped(state):
+        return await _save_without_search(context, state)
     tld = state.get("tld") or "nl"
     interval = context.settings.poll_default_interval_s
     parsed, errors = forms.collect_errors(
@@ -422,9 +453,34 @@ async def _save(context: core.WebContext, state: dict[str, Any]) -> dict[str, st
         await repo.route(query_id, destination_id)
     await data.remember_brand_names(repo, str((state.get("search") or {}).get("labels") or ""))
     await repo.set_onboarded(True)
+    telemetry.milestone(
+        "setup_finished", skipped=False, channel=(state.get("dest") or {}).get("kind")
+    )
     if not isinstance(stored, dict):
         await support.note_setup(repo)
     state["saved"] = {"query_id": query_id, "destination_id": destination_id, "kept": kept}
+    return {}
+
+
+async def _save_without_search(context: core.WebContext, state: dict[str, Any]) -> dict[str, str]:
+    """Setup finished without a search: keep the place for alerts, and nothing else."""
+    repo = context.repo
+    stored = state.get("saved")
+    saved: dict[str, Any] = stored if isinstance(stored, dict) else {}
+    destination_id = await _save_destination(repo, state, _int(saved.get("destination_id")))
+    # A search an earlier pass through setup stored (the test step saves it), and the
+    # person went back to skip: it goes, or it would keep sending alerts nobody expects.
+    # One that existed before setup was never setup's to remove.
+    if (query_id := _int(saved.get("query_id"))) and not saved.get("kept"):
+        await repo.delete_query(query_id)
+    await repo.set_onboarded(True)
+    telemetry.milestone(
+        "setup_finished",
+        skipped=False,
+        search_skipped=True,
+        channel=(state.get("dest") or {}).get("kind"),
+    )
+    state["saved"] = {"query_id": None, "destination_id": destination_id, "kept": False}
     return {}
 
 
@@ -522,6 +578,7 @@ async def _same_destination(repo: Repo, kind: str, config: dict[str, Any]) -> in
 async def skip(request: Request) -> Response:
     context = core.ctx(request)
     await context.repo.set_onboarded(True)
+    telemetry.milestone("setup_finished", skipped=True)
     await context.repo.delete_state_value(_SETUP_KEY)
     return RedirectResponse(core.url("searches"), status_code=303)
 

@@ -70,8 +70,9 @@ def _priority(listing: ListingView, default: int) -> int:
     """
     if listing.silent:
         return SILENT_PRIORITY
-    if listing.deal is not None:
-        return STEAL_PRIORITY if listing.deal.tier == "steal" else DEAL_PRIORITY
+    # By the price, not the badge: hiding deal badges (Settings) must not make bargains quieter.
+    if listing.tier in {"steal", "deal"}:
+        return STEAL_PRIORITY if listing.tier == "steal" else DEAL_PRIORITY
     return default
 
 
@@ -97,11 +98,9 @@ def push(
         f"{listing.flag} {listing.site} · {listing.search_name}".strip(),
     ]
 
-    actions = []
-    if listing.can_buy:
-        actions.append({"action": "view", "label": labels.buy, "url": listing.buy_url})
+    actions = [{"action": "view", "label": labels.open, "url": listing.url}]
+    if listing.can_message:
         actions.append({"action": "view", "label": labels.message, "url": listing.message_url})
-    actions.append({"action": "view", "label": labels.open, "url": listing.url})
 
     tags = ["shopping_bags"]
     if listing.deal is not None:

@@ -1,10 +1,12 @@
 #!/bin/sh
 # Checks that the start-at-login entry install.sh writes starts the app again after the
-# exit an update ends with (code 75), and tells the app it will (VINTED_BOT_SUPERVISED).
+# exit an update ends with (code 75), and tells the app it will (VINTED_BOT_SUPERVISED);
+# and that it leaves the app stopped after a clean exit (code 0), which is what stopping
+# it from Settings or with `vinted-bot stop` ends with.
 #
 # Uses install.sh's own write_plist / write_unit, under a different name so a real
 # install on the same machine is never touched, with a stand-in for the app: it exits 75
-# the first time and stays up the second. Run by .github/workflows/installers.yml; safe to
+# the first time and 0 the second, and any third start is a failure. Run by .github/workflows/installers.yml; safe to
 # run by hand on macOS or on Linux with a systemd user session.
 
 set -eu
@@ -24,7 +26,9 @@ echo "\${VINTED_BOT_SUPERVISED:-unset}" >>"$work/starts"
 if [ "\$(wc -l <"$work/starts")" -eq 1 ]; then
     exit 75
 fi
-exec sleep 600
+# Past launchd's ThrottleInterval, so a restart would come at once rather than 30 s later.
+sleep 35
+exit 0
 EOF
 chmod +x "$work/app"
 
@@ -42,7 +46,7 @@ trap cleanup EXIT
 
 if [ "$(uname -s)" = Darwin ]; then
     LABEL="io.github.jasp-nerd.$name"
-    write_plist "$work/app" "$work" no >"$work/$name.plist"
+    write_plist "$work/app" "$work" >"$work/$name.plist"
     plutil -lint "$work/$name.plist"
     launchctl bootstrap "gui/$(id -u)" "$work/$name.plist"
     supervisor=launchd
@@ -72,3 +76,11 @@ if [ "$(sort -u "$work/starts")" != "$supervisor" ]; then
     exit 1
 fi
 echo "Started again after exit code 75, with VINTED_BOT_SUPERVISED=$supervisor."
+
+# The second start exits 0 after 35 seconds; nothing may start it again.
+sleep 50
+if [ "$(wc -l <"$work/starts")" -ne 2 ]; then
+    echo "It was started again after a clean exit (code 0), so Stop would not stick."
+    exit 1
+fi
+echo "Left stopped after a clean exit."

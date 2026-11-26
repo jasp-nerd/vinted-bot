@@ -211,38 +211,31 @@ def caption(listing: ListingView, *, limit: int = MAX_CAPTION_CHARS) -> str:
 
 
 def keyboard(listing: ListingView, *, actions: bool = True) -> dict[str, Any]:
-    """Buy and message, then open and the dashboard, then the price checks, then the
-    actions the bot answers. Telegram colours the first of the top two rows (Bot API 9.4
-    `style`).
+    """Open and message, then the dashboard and eBay's sold prices, then the actions the
+    bot answers. Telegram colours the first button (Bot API 9.4 `style`). The photo
+    search joins eBay's row, or gets its own when the dashboard takes a place there.
 
-    Without a dashboard a phone can open, eBay's sold prices take its place, and the
-    photo search shares its row; with one, both price checks share the third row.
+    There is no Buy button: Vinted makes a checkout page only when the buyer presses Buy
+    now on the listing, so a link could only open the listing anyway.
     """
     labels = listing.labels
-    rows: list[list[dict[str, Any]]] = []
-    if listing.can_buy:
-        rows.append(
-            [
-                {"text": labels.buy, "url": listing.buy_url, "style": "success"},
-                {"text": labels.message, "url": listing.message_url},
-            ]
-        )
-    price_check = {"text": labels.price_check, "url": listing.price_check_url}
-    second: list[dict[str, Any]] = [{"text": labels.open, "url": listing.url, "style": "primary"}]
-    tools: list[dict[str, Any]] = []
+    first: list[dict[str, Any]] = [{"text": labels.open, "url": listing.url, "style": "success"}]
+    if listing.can_message:
+        first.append({"text": labels.message, "url": listing.message_url})
+    second: list[dict[str, Any]] = []
     if listing.dashboard_url:
         second.append(
             {"text": labels.dashboard, "url": listing.search_url or listing.dashboard_url}
         )
-        tools.append(price_check)
-    else:
-        second.append(price_check)
+    second.append({"text": labels.price_check, "url": listing.price_check_url})
+    rows = [first, second]
     if listing.photo_search_url:
-        tools.append({"text": labels.photo_search, "url": listing.photo_search_url})
-    rows.append(second)
-    if tools:
-        rows.append(tools)
-    if actions and listing.can_buy:
+        photo = {"text": labels.photo_search, "url": listing.photo_search_url}
+        if listing.dashboard_url:
+            rows.append([photo])
+        else:
+            second.append(photo)
+    if actions and listing.available:
         rows.append(_actions(listing))
     return {"inline_keyboard": rows}
 

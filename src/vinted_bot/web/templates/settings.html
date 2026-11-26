@@ -9,9 +9,9 @@
     <p>Changes save as you make them.</p>
   </div>
 </div>
-<div class="settings">
+<div class="settings" data-tabs>
   <nav class="snav" aria-label="Settings sections">
-    {% for id, label, ic in [("general", "General", "settings"), ("vinted", "Connection to Vinted", "activity"), ("phone", "Open on your phone", "smartphone"), ("access", "Password", "lock"), ("updates", "Updates", "download"), ("data", "Your data", "server"), ("blocked", "Blocked sellers", "ban"), ("advanced", "Advanced", "sliders-horizontal"), ("support", "Help keep it free", "heart"), ("about", "About and legal", "info")] %}
+    {% for id, label, ic in [("general", "General", "settings"), ("vinted", "Connection to Vinted", "activity"), ("phone", "Open on your phone", "smartphone"), ("access", "Password", "lock"), ("updates", "Updates", "download"), ("data", "Your data", "server"), ("blocked", "Blocked sellers", "ban"), ("advanced", "Advanced", "sliders-horizontal"), ("about", "About and legal", "info")] %}
     <a href="#{{ id }}"{% if loop.first %} aria-current="true"{% endif %}>{{ ui.icon(ic) }}{{ label }}</a>
     {% endfor %}
   </nav>
@@ -25,7 +25,18 @@
         <div class="set"><div class="set__text"><span class="t-h3" id="theme-l">Appearance</span><span class="t-sm">Match device follows your computer's light or dark setting.</span></div>
           <div class="seg" role="radiogroup" aria-labelledby="theme-l">{% for v, l, ic in [("light", "Light", "sun"), ("dark", "Dark", "moon"), ("system", "Match device", "")] %}<label><input type="radio" name="theme" value="{{ v }}"{% if prefs.theme == v %} checked{% endif %} data-setting="theme">{% if ic %}{{ ui.icon(ic, "i-sm") }}{% endif %}{{ l }}</label>{% endfor %}</div></div>
         <div class="set"><div class="set__text"><span class="t-h3">Sound for new finds</span><span class="t-sm">A short chime while a vinted-bot tab is open on this device.</span></div><label class="switch"><input type="checkbox" data-sound-switch aria-label="Sound for new finds"></label></div>
+        <div class="set"><div class="set__text"><span class="t-h3">Show deal badges</span><span class="t-sm">"24% under typical" on finds and in your alerts, when a listing is well under what the search usually sees. Choosing which alerts to send by price still works with this off.</span></div><label class="switch"><input type="checkbox" data-setting="deal_badges"{% if prefs.deal_badges %} checked{% endif %} aria-label="Show deal badges"></label></div>
         <div class="set"><div class="set__text"><span class="t-h3">Pop-ups for new finds</span><span class="t-sm" data-notify-state>When this tab is in the background. Your browser asks once.</span></div><button class="btn btn--secondary btn--sm" type="button" data-notify-allow>Allow</button></div>
+        {% if machine.login is not none %}
+        <div class="set"><div class="set__text"><span class="t-h3">Start by itself when you {{ machine.login_word }}</span><span class="t-sm">So alerts keep coming after this computer restarts. Off: open vinted-bot yourself after a restart.</span></div><label class="switch"><input type="checkbox" data-setting="start_at_login"{% if machine.login %} checked{% endif %} aria-label="Start by itself when you {{ machine.login_word }}"></label></div>
+        {% endif %}
+        {% if machine.keep_awake is not none %}
+        <div class="set"><div class="set__text"><span class="t-h3">Keep this Mac awake while it's plugged in</span><span class="t-sm">Alerts stop while a Mac sleeps. Only while it's on power and vinted-bot runs; closing a MacBook's lid still puts it to sleep.</span></div><label class="switch"><input type="checkbox" data-setting="keep_awake"{% if machine.keep_awake %} checked{% endif %} aria-label="Keep this Mac awake while it's plugged in"></label></div>
+        {% endif %}
+        <div class="set"><div class="set__text"><span class="t-h3">Use it like an app</span><span class="t-sm">Give this page its own window and icon. In Chrome or Edge: the install button at the end of the address bar. In Safari on a Mac: File, Add to Dock. On a phone: Share (or ⋮), Add to Home Screen.</span></div></div>
+        {% if can_stop %}
+        <div class="set"><div class="set__text"><span class="t-h3">Stop vinted-bot</span><span class="t-sm">No checks and no alerts, even after this computer restarts. {{ how_to_start }}</span></div><button class="btn btn--secondary btn--sm" type="button" data-confirm="stop-app" data-action="/settings/stop">{{ ui.icon("power", "i-sm") }}Stop</button></div>
+        {% endif %}
       </div>
     </section>
 
@@ -163,6 +174,7 @@
         {% if not access.container %}
         <div class="set"><div class="set__text"><span class="t-h3">Run it day and night</span><span class="t-sm">Searches only run while this computer is on and awake. A Raspberry Pi or home server keeps it going without your laptop.</span></div><a class="btn btn--ghost btn--sm" href="{{ self_hosting }}" target="_blank" rel="noopener">See the guide</a></div>
         {% endif %}
+        <div class="set"><div class="set__text"><span class="t-h3">Share usage statistics</span><span class="t-sm">Counts and error reports that help find and fix problems. <a href="https://github.com/jasp-nerd/vinted-bot/blob/main/docs/telemetry.md" target="_blank" rel="noopener">What's sent</a>{% if telemetry.from_env %} · Set by VINTED_BOT_TELEMETRY{% endif %}</span></div>{% if not telemetry.from_env %}<label class="switch"><input type="checkbox" data-setting="telemetry"{% if telemetry.on %} checked{% endif %} aria-label="Share usage statistics"></label>{% endif %}</div>
         <details class="set set--stack envlist" data-collapse-sm>
           <summary class="set__text"><span class="t-h3">{{ ui.icon("chevron-right", "i-sm") }}Settings from the environment</span><span class="t-sm">Everything else that shapes vinted-bot, for people who run it on a server. Nobody needs to change these. {% if access.container %}They're set in the container's environment (the app's settings in a NAS app store, or <span class="code">environment:</span> in docker-compose.yml) and take effect when the container is recreated, with <span class="code">docker compose up -d</span> for example; a plain restart keeps the old values.{% else %}They're set as environment variables or in a .env file in the folder vinted-bot starts from, and take effect at the next start.{% endif %}</span></summary>
           <dl class="envlist__rows">
@@ -174,7 +186,6 @@
       </div>
     </section>
 
-    <div class="ssec" id="support">{{ support.block("settings") }}</div>
 
     <section class="ssec" id="about" aria-labelledby="h-about">
       <h2 class="t-h2" id="h-about">About and legal</h2>
@@ -189,10 +200,19 @@
         <div class="set"><div class="set__text"><span class="t-h3">Get in touch</span><span class="t-sm">Something broken, or missing? I read every report.</span></div><div class="btn-row"><a class="btn btn--secondary btn--sm" href="{{ links.issue }}" target="_blank" rel="noopener">{{ ui.icon("flag", "i-sm") }}Report a problem</a><a class="btn btn--ghost btn--sm" href="{{ links.sponsors }}" target="_blank" rel="noopener">{{ ui.icon("heart", "i-sm") }}Sponsor on GitHub</a></div></div>
       </div>
     </section>
+
+    <div class="settings__support">{{ support.block("settings") }}</div>
   </div>
 </div>
 {% endblock %}
 {% block modals %}
+<dialog class="modal" id="stop-app" aria-labelledby="sa-title">
+  <form method="post" data-confirm-form>
+    <div class="modal__head"><h2 class="t-h2" id="sa-title">Stop vinted-bot?</h2><button class="btn btn--icon" type="button" data-close aria-label="Close">{{ ui.icon("x") }}</button></div>
+    <div class="modal__body"><p>It stops checking your searches and sending alerts, even after this computer restarts. Your searches and finds are kept. {{ how_to_start }}</p></div>
+    <div class="modal__foot"><button class="btn btn--secondary" type="button" data-close>Keep it running</button><button class="btn btn--danger" type="submit">Stop</button></div>
+  </form>
+</dialog>
 {% if not access.container and not access.host_from_env %}{{ ph.dialogs(access, suggested_password) }}{% endif %}
 <dialog class="modal" id="pw-set" aria-labelledby="ps-title">
   <form data-post action="/settings/password" data-done="Password set. Each browser asks for it once." novalidate>

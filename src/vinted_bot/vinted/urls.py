@@ -331,18 +331,10 @@ def member_url(tld: str, user_id: int) -> str:
     return f"https://www.vinted.{tld}/member/{user_id}"
 
 
-def message_seller_url(tld: str, item_id: int) -> str:
-    """Deep link to the 'ask the seller' screen for a listing."""
-    return f"https://www.vinted.{tld}/items/{item_id}/want_it/new"
-
-
-def buy_url(tld: str, item_id: int) -> str:
-    """Deep link that opens checkout for a listing.
-
-    This only opens the page in the user's own browser, where they log in and decide.
-    Nothing here buys anything on their behalf.
+def message_seller_url(tld: str, item_id: int, seller_id: int | None) -> str:
+    """A new message to the seller about this listing, as Vinted's own Message button
+    opens it. Without the seller's id there is no such link, and the listing is next best.
     """
-    return (
-        f"https://www.vinted.{tld}/transaction/buy/new"
-        f"?source_screen=item&transaction%5Bitem_id%5D={item_id}"
-    )
+    if seller_id is None:
+        return item_url(tld, item_id)
+    return f"https://www.vinted.{tld}/inbox/want_it?receiver_id={seller_id}&item_id={item_id}"

@@ -3,19 +3,31 @@
 {% block action %}/welcome/finish{% endblock %}
 {% block question %}
 <h1 class="t-display" tabindex="-1" data-autofocus>You're all set</h1>
-<p class="t-lead">Your search is saved and running. Its first check skips everything already on Vinted, so you only hear about new listings.</p>
+<p class="t-lead">{% if summary %}Your search is saved and running. Its first check skips everything already on Vinted, so you only hear about new listings.{% else %}Everything's ready for your first search. Add it whenever you have a link or know what you're after; alerts start from then.{% endif %}</p>
 <div class="card summary-card">
   <div class="summary-row"><span class="choice__icon choice__icon--code">{{ tld|upper if tld|length == 2 else tld }}</span><span><small>Vinted</small><b>vinted.{{ tld }} ({{ country }})</b></span><button class="btn btn--ghost btn--sm" type="submit" form="ob-form" formaction="/welcome/country" name="back" value="1">Change</button></div>
-  <div class="summary-row"><span class="choice__icon">{{ ui.icon("search") }}</span><span><small>Search</small><b>{{ summary }}</b></span><button class="btn btn--ghost btn--sm" type="submit" form="ob-form" formaction="/welcome/search" name="back" value="1">Change</button></div>
+  <div class="summary-row"><span class="choice__icon">{{ ui.icon("search") }}</span><span><small>Search</small><b>{{ summary or "None yet: you'll add it next" }}</b></span><button class="btn btn--ghost btn--sm" type="submit" form="ob-form" formaction="/welcome/search" name="back" value="1">{{ "Change" if summary else "Add one now" }}</button></div>
   <div class="summary-row"><span class="choice__icon">{{ ui.dest_icon(dest_kind) }}</span><span><small>Alerts go to</small><b>{% if dest_kind == "skip" %}Only this page, for now{% else %}{{ dest_name }}{% endif %}</b></span><button class="btn btn--ghost btn--sm" type="submit" form="ob-form" formaction="/welcome/alerts" name="back" value="1">Change</button></div>
 </div>
 {% if access.container %}
 <div class="notice notice--teal">{{ ui.icon("server") }}<div><p><strong>It keeps running on its own</strong></p><p>vinted-bot runs in a container here, so it checks your searches for as long as the machine it's on stays up. You can close this browser tab.</p></div></div>
 {% else %}
-<div class="notice notice--sun">{{ ui.icon("laptop") }}<div><p><strong>Keep your computer on and awake</strong></p><p>Searches only run while this computer is on. If it sleeps or you close the lid, you won't get alerts until it wakes up again. You can close this browser tab; that's fine.</p><p class="t-sm">Want it running day and night without your laptop? <a href="{{ self_hosting }}" target="_blank" rel="noopener" style="color:inherit">See the guide</a>.</p></div></div>
+<div class="notice notice--teal">{{ ui.icon("external-link") }}<div><p><strong>Getting back here later</strong></p><p>Closing this tab doesn't stop anything: vinted-bot keeps running in the background. To come back to this page, {{ how_to_open }}.</p></div></div>
+<div class="notice notice--sun">{{ ui.icon("laptop") }}<div><p><strong>Keep your computer on and awake</strong></p><p>Searches only run while this computer is on. If it sleeps or you close the lid, you won't get alerts until it wakes up again.</p><p class="t-sm">Want it running day and night without your laptop? <a href="{{ self_hosting }}" target="_blank" rel="noopener" style="color:inherit">See the guide</a>.</p></div></div>
+{% if machine.login is not none or machine.keep_awake is not none %}
+<div class="card">
+  {% if machine.login is not none %}
+        <div class="set"><div class="set__text"><span class="t-h3">Start by itself when you {{ machine.login_word }}</span><span class="t-sm">So alerts keep coming after this computer restarts. Off: open vinted-bot yourself after a restart.</span></div><label class="switch"><input type="checkbox" data-setting="start_at_login"{% if machine.login %} checked{% endif %} aria-label="Start by itself when you {{ machine.login_word }}"></label></div>
+        {% endif %}
+        {% if machine.keep_awake is not none %}
+        <div class="set"><div class="set__text"><span class="t-h3">Keep this Mac awake while it's plugged in</span><span class="t-sm">Alerts stop while a Mac sleeps. Only while it's on power and vinted-bot runs; closing a MacBook's lid still puts it to sleep.</span></div><label class="switch"><input type="checkbox" data-setting="keep_awake"{% if machine.keep_awake %} checked{% endif %} aria-label="Keep this Mac awake while it's plugged in"></label></div>
+        {% endif %}
+  <p class="t-sm" style="padding:0 0 12px">These are already set the recommended way. Change them any time in Settings, General.</p>
+</div>
+{% endif %}
 {% endif %}
 {% endblock %}
-{% block cta %}Open my finds{% endblock %}
+{% block cta %}{{ "Open my finds" if summary else "Add my first search" }}{% endblock %}
 {% block hint %}Everything here is in Settings too{% endblock %}
 {% block field_class %}field-panel--teal{% endblock %}
 {% block field %}

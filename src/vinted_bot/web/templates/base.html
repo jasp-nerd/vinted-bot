@@ -1,6 +1,6 @@
 {% import "partials/macros.html" as ui %}
 <!doctype html>
-<html lang="en"{% if app and app.theme in ("light", "dark") %} data-theme="{{ app.theme }}"{% endif %}>
+<html lang="en"{% if app and app.theme in ("light", "dark") %} data-theme="{{ app.theme }}"{% endif %}{% if app and not app.deal_badges %} data-deal-badges="off"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">

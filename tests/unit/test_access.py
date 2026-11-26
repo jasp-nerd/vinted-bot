@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from vinted_bot.web import core
+from vinted_bot import network
 from vinted_bot.web.security import Access
 
 
@@ -41,7 +41,7 @@ def test_every_interface_is_not_loopback() -> None:
 
 
 def test_addresses_a_phone_cannot_use_are_left_out() -> None:
-    offered = core._usable(["127.0.0.1", "169.254.10.2", "0.0.0.0", "192.168.1.20"])
+    offered = network._usable(["127.0.0.1", "169.254.10.2", "0.0.0.0", "192.168.1.20"])
 
     assert offered == ["192.168.1.20"]
 
@@ -49,8 +49,8 @@ def test_addresses_a_phone_cannot_use_are_left_out() -> None:
 def test_a_public_address_is_never_offered() -> None:
     """Universities and offices often give every computer a public address. Offering it
     put the dashboard on the internet; a Tailscale address next to it is fine."""
-    assert core._usable(["130.37.84.245", "100.101.1.2"]) == ["100.101.1.2"]
+    assert network._usable(["130.37.84.245", "100.101.1.2"]) == ["100.101.1.2"]
 
 
 def test_the_same_address_is_offered_once() -> None:
-    assert core._usable(["192.168.1.20", "192.168.1.20"]) == ["192.168.1.20"]
+    assert network._usable(["192.168.1.20", "192.168.1.20"]) == ["192.168.1.20"]

@@ -33,7 +33,7 @@ PASSWORD = "plum-tree-42"
 @pytest.fixture(autouse=True)
 def home_network(monkeypatch: pytest.MonkeyPatch) -> None:
     """This computer is on a home network, whatever network the test runs on."""
-    monkeypatch.setattr("vinted_bot.web.core.lan_addresses", lambda: ["192.168.1.20"])
+    monkeypatch.setattr("vinted_bot.network.lan_addresses", lambda: ["192.168.1.20"])
 
 
 @pytest.fixture
@@ -363,7 +363,7 @@ def test_in_docker_the_switch_explains_the_port_mapping(
 def test_settings_show_where_the_phone_can_open_it(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("vinted_bot.web.core.lan_addresses", lambda: ["192.168.1.20"])
+    monkeypatch.setattr("vinted_bot.network.lan_addresses", lambda: ["192.168.1.20"])
     _phone(client, True, new_password=PASSWORD)
 
     assert 'data-qr="http://192.168.1.20:8000"' in client.get("/settings").text
@@ -373,7 +373,7 @@ def test_phone_access_is_refused_on_a_network_with_only_a_public_address(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A university network gave a tester's laptop 130.37.84.245, and the switch offered it."""
-    monkeypatch.setattr("vinted_bot.web.core.lan_addresses", lambda: [])
+    monkeypatch.setattr("vinted_bot.network.lan_addresses", lambda: [])
 
     answer = _phone(client, True, new_password=PASSWORD)
 
@@ -383,7 +383,7 @@ def test_phone_access_is_refused_on_a_network_with_only_a_public_address(
 async def test_a_refused_switch_stays_off(
     client: TestClient, repo: Repo, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("vinted_bot.web.core.lan_addresses", lambda: [])
+    monkeypatch.setattr("vinted_bot.network.lan_addresses", lambda: [])
 
     _phone(client, True, new_password=PASSWORD)
 
@@ -394,7 +394,7 @@ def test_turning_phone_access_off_works_without_a_private_address(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _phone(client, True, new_password=PASSWORD)
-    monkeypatch.setattr("vinted_bot.web.core.lan_addresses", lambda: [])
+    monkeypatch.setattr("vinted_bot.network.lan_addresses", lambda: [])
 
     assert _phone(client, False).status_code == 200
 

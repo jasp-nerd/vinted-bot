@@ -22,7 +22,7 @@ from typing import Any
 
 import httpx
 
-from vinted_bot import managed
+from vinted_bot import managed, telemetry
 from vinted_bot.config import Settings
 from vinted_bot.db.repo import Destination, PendingNotification, Repo, StatusNotice
 from vinted_bot.deals import DEAL_PCT, STEAL_PCT, TIERS, Tier, deal_percent, tier_for
@@ -156,10 +156,10 @@ def deliver_silently(notification: PendingNotification, routing: Routing) -> boo
 
 def build_sender(
     destination: Destination,
-    settings: Settings,
     client: httpx.AsyncClient,
     *,
     telegram_token: str | None,
+    dashboard_url: str | None,
 ) -> Sender:
     """The sender for a destination, or SenderConfigError saying what is missing.
 
@@ -169,7 +169,7 @@ def build_sender(
     config: dict[str, Any] = destination.config
     match destination.kind:
         case "discord":
-            return DiscordSender(config, dashboard_url=settings.dashboard_url, client=client)
+            return DiscordSender(config, dashboard_url=dashboard_url, client=client)
         case "telegram":
             if telegram_token is None:
                 raise SenderConfigError(
@@ -179,7 +179,7 @@ def build_sender(
             return TelegramSender(
                 config,
                 bot_token=telegram_token,
-                dashboard_url=settings.dashboard_url,
+                dashboard_url=dashboard_url,
                 client=client,
             )
         case "webhook":
@@ -187,7 +187,7 @@ def build_sender(
         case "ntfy":
             return NtfySender(config, client=client)
         case "apprise":
-            return AppriseSender(config, dashboard_url=settings.dashboard_url)
+            return AppriseSender(config, dashboard_url=dashboard_url)
         case unknown:
             raise SenderConfigError(f"unknown destination type {unknown!r}")
 
@@ -240,6 +240,7 @@ class Dispatcher:
         expired = await self._repo.expire_stale_notifications(self._settings.outbox_expiry_minutes)
         if expired:
             log.info("outbox.expired", count=expired, reason="older than the delivery window")
+            telemetry.count("alerts_expired", expired)
         await self._send_status_notices()
 
         destination_ids = await self._repo.destinations_with_work()
@@ -309,10 +310,12 @@ class Dispatcher:
         await self._repo.mark_sent(result.delivered)
         if result.delivered:
             await self._repo.reset_destination_failures(destination_id)
+            _count_delivered(sender.kind, batch, set(result.delivered))
 
         handled = set(result.delivered)
 
         if result.pause_until is not None:
+            telemetry.count(f"paused_{sender.kind}")
             reason = result.error or "the server asked for a break"
             await self._repo.pause_destination(
                 destination_id, until=result.pause_until, reason=reason
@@ -327,6 +330,7 @@ class Dispatcher:
             return len(result.delivered)
 
         if result.permanent_error:
+            telemetry.count(f"disabled_{sender.kind}")
             await self._repo.deactivate_destination(destination_id, result.permanent_error)
             await self._drop_sender(destination_id)
             log.warning(
@@ -348,10 +352,13 @@ class Dispatcher:
             await self._repo.mark_retry(keep, delay_s=delay, error=result.error or "send failed")
             await self._repo.mark_failed(give_up, result.error or "gave up after repeated failures")
             handled.update(retry_ids)
+            telemetry.count(f"retried_{sender.kind}", len(keep))
+            telemetry.count(f"failed_{sender.kind}", len(give_up))
 
         # Anything the sender neither delivered nor asked to retry was rejected outright.
         abandoned = [n.outbox_id for n in batch if n.outbox_id not in handled]
         await self._repo.mark_failed(abandoned, result.error or "the destination rejected it")
+        telemetry.count(f"rejected_{sender.kind}", len(abandoned))
 
         return len(result.delivered)
 
@@ -426,14 +433,21 @@ class Dispatcher:
         token = None
         if destination.kind == "telegram":
             token = await managed.telegram_token(self._settings, self._repo)
-        signature = json.dumps([destination.config, token], sort_keys=True)
+        # And on the dashboard's address, which the phone access switch changes.
+        dashboard = await managed.dashboard_url(self._settings, self._repo)
+        signature = json.dumps([destination.config, token, dashboard], sort_keys=True)
         cached = self._senders.get(destination.id)
         if cached is not None and self._signatures.get(destination.id) == signature:
             return cached
         if cached is not None:
             await self._drop_sender(destination.id)
 
-        sender = build_sender(destination, self._settings, self._client, telegram_token=token)
+        sender = build_sender(
+            destination,
+            self._client,
+            telegram_token=token,
+            dashboard_url=dashboard,
+        )
         self._senders[destination.id] = sender
         self._signatures[destination.id] = signature
         return sender
@@ -442,13 +456,17 @@ class Dispatcher:
         self, batch: list[PendingNotification], config: dict[str, Any], routing: Routing
     ) -> list[PendingNotification]:
         """Set aside what this destination asked not to get, with the reason recorded,
-        and mark what it wants to hear about quietly."""
+        and mark what it wants to hear about quietly, and without a deal badge when the
+        dashboard's switch says so (choosing by bargain level still uses the price)."""
+        prefs = await self._repo.app_settings(default_timezone=self._settings.timezone)
         wanted = []
         for notification in batch:
             reason = skip_reason(notification, config)
             if reason is None:
                 if deliver_silently(notification, routing):
                     notification = dataclasses.replace(notification, silent=True)  # noqa: PLW2901
+                if not prefs.deal_badges:
+                    notification = dataclasses.replace(notification, show_deal=False)  # noqa: PLW2901
                 wanted.append(notification)
             else:
                 # The destination's own choice, not a delivery error: cancelled, so it
@@ -468,3 +486,19 @@ class Dispatcher:
             await self._drop_sender(destination_id)
         if self._owns_client:
             await self._client.aclose()
+
+
+def _count_delivered(kind: str, batch: list[PendingNotification], delivered: set[int]) -> None:
+    """Usage statistics: how many alerts each channel delivered, and how late."""
+    now = time.time()
+    sent = [n for n in batch if n.outbox_id in delivered]
+    telemetry.count(f"sent_{kind}", len(sent))
+    for notification in sent:
+        if notification.kind != "listing":
+            continue
+        if notification.detected_at:
+            telemetry.sample("found_to_sent_s", now - notification.detected_at)
+        if notification.item.photo_ts:
+            telemetry.sample("posted_to_sent_s", now - notification.item.photo_ts)
+    if sent:
+        telemetry.milestone("first_alert", channel=kind)

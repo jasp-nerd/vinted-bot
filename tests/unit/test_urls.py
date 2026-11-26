@@ -91,8 +91,13 @@ def test_missing_scheme_is_tolerated() -> None:
 
 def test_deep_links_stay_on_the_search_country_site() -> None:
     assert urls.item_url("de", 42) == "https://www.vinted.de/items/42"
-    assert urls.message_seller_url("de", 42).endswith("/items/42/want_it/new")
-    assert "transaction%5Bitem_id%5D=42" in urls.buy_url("de", 42)
+    assert urls.message_seller_url("de", 42, 7) == (
+        "https://www.vinted.de/inbox/want_it?receiver_id=7&item_id=42"
+    )
+
+
+def test_without_the_seller_message_opens_the_listing() -> None:
+    assert urls.message_seller_url("de", 42, None) == "https://www.vinted.de/items/42"
 
 
 @pytest.mark.parametrize("tld", ["hr", "si", "ee", "lv", "bg"])

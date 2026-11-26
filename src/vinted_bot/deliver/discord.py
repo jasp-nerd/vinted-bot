@@ -220,14 +220,12 @@ def _button(label: str, url: str) -> dict[str, Any]:
 
 
 def _buttons(listing: ListingView) -> dict[str, Any]:
-    """Buy, message, open, and the dashboard, or eBay's sold prices when the dashboard
+    """Open, message, and the dashboard, or eBay's sold prices when the dashboard
     cannot be opened from a phone."""
     labels = listing.labels
-    buttons = []
-    if listing.can_buy:
-        buttons.append(_button(labels.buy, listing.buy_url))
+    buttons = [_button(labels.open, listing.url)]
+    if listing.can_message:
         buttons.append(_button(labels.message, listing.message_url))
-    buttons.append(_button(labels.open, listing.url))
     if listing.dashboard_url:
         buttons.append(_button(labels.dashboard, listing.search_url or listing.dashboard_url))
     else:
@@ -325,8 +323,7 @@ def _row_text(listing: ListingView, *, link_title: bool) -> str:
         _when(listing),
         escape(listing.search_name),
     ]
-    if link_title and listing.can_buy:
-        third.append(f"[{listing.labels.buy}]({_link(listing.buy_url)})")
+    if link_title and listing.can_message:
         third.append(f"[{listing.labels.message}]({_link(listing.message_url)})")
     lines = [
         first_line(listing, link_title=link_title),
@@ -563,11 +560,8 @@ def _embed_row(listing: ListingView) -> dict[str, Any]:
             if p
         )
     )
-    if listing.can_buy:
-        lines.append(
-            f"[{listing.labels.buy}]({_link(listing.buy_url)}) · "
-            f"[{listing.labels.message}]({_link(listing.message_url)})"
-        )
+    if listing.can_message:
+        lines.append(f"[{listing.labels.message}]({_link(listing.message_url)})")
     if listing.summary:
         lines.append(f"**{' · '.join(listing.summary)}**")
     title = f"{listing.price} · {listing.title}" if listing.price else listing.title

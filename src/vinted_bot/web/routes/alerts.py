@@ -15,7 +15,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
-from vinted_bot import managed
+from vinted_bot import managed, telemetry
 from vinted_bot.botctl.telegram_bot import create_pairing
 from vinted_bot.db.repo import Destination
 from vinted_bot.deliver import send_test
@@ -197,7 +197,7 @@ async def add_destination(request: Request) -> Response:
     kind = str(form.get("kind") or "")
     try:
         name, config = destinations.build(kind, form)
-        destinations.check(kind, config, context.settings, context.http)
+        destinations.check(kind, config, context.http)
     except InvalidInputError as exc:
         return JSONResponse({"ok": False, "field": exc.field, "error": exc.message}, 400)
     destination_id = await context.repo.add_destination(kind=kind, name=name, config=config)
@@ -221,7 +221,7 @@ async def set_options(request: Request, destination_id: int) -> Response:
     form = await request.form()
     try:
         config = destinations.options(destination.kind, form, destination.config)
-        destinations.check(destination.kind, config, context.settings, context.http)
+        destinations.check(destination.kind, config, context.http)
     except InvalidInputError as exc:
         return JSONResponse({"ok": False, "field": exc.field, "error": exc.message}, 400)
     await context.repo.update_destination_config(destination_id, config)
@@ -255,7 +255,7 @@ async def test_destination(request: Request, destination_id: int) -> JSONRespons
     destination = await _destination(request, destination_id)
     result = await send_test(
         destination,
-        settings=context.settings,
+        dashboard_url=await managed.dashboard_url(context.settings, context.repo),
         telegram_token=await managed.telegram_token(context.settings, context.repo),
         tld=await _sample_tld(context),
         client=context.http,
@@ -263,6 +263,9 @@ async def test_destination(request: Request, destination_id: int) -> JSONRespons
     if result.ok and destination.failure_count:
         await context.repo.reset_destination_failures(destination_id)
     await data.record_test(context.repo, destination_id, ok=result.ok, message=result.message)
+    telemetry.event(
+        "destination_tested", channel=destination.kind, ok=result.ok, during_setup=False
+    )
     return JSONResponse({"ok": result.ok, "message": result.message, "detail": result.detail})
 
 
@@ -351,7 +354,7 @@ async def test_unsaved(
     destination = Destination(id=0, kind=kind, name=name, config=config)
     result = await send_test(
         destination,
-        settings=context.settings,
+        dashboard_url=await managed.dashboard_url(context.settings, context.repo),
         telegram_token=await managed.telegram_token(context.settings, context.repo),
         tld=tld,
         client=context.http,

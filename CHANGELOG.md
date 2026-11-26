@@ -6,6 +6,73 @@ becomes the text of its GitHub release, so write it for the people running the a
 
 ## [Unreleased]
 
+### Added
+
+- **A vinted-bot icon to open it again.** The installers (and installs that update
+  themselves) put one in Applications and Launchpad on a Mac, the Start menu and the
+  desktop on Windows, and the apps menu on Linux. It opens the dashboard, starting
+  vinted-bot first if it isn't running. Typing `vinted-bot` does the same.
+- **Stop vinted-bot**, in Settings, General, or `vinted-bot stop`. It stays stopped, even
+  after a restart, until you open it again.
+- New commands: `vinted-bot start`, `restart`, `logs` and `address`. `address` shows
+  where to open the dashboard with a QR code for your phone, and `--allow-network` lets
+  your phone in (with a password).
+- **Installing on a Raspberry Pi over SSH** offers to let your phone open the dashboard,
+  and prints its address and a QR code, instead of an SSH tunnel.
+- **Telegram `/dashboard`** replies with the link to your dashboard, or how to open it
+  on your phone.
+- The dashboard can be installed as an app with its own window and icon (Settings,
+  General, "Use it like an app"), and says how to start vinted-bot when it isn't running.
+- Setup's last screen says how to get back to the dashboard later.
+- **Setup can skip the search step** ("No search in mind yet? Skip this step"), for
+  setting up alerts first and adding a search later.
+- **Settings, General: "Show deal badges"** turns off the "24% under typical" badge on
+  finds and in alerts. Choosing which alerts to send by price still works.
+- **New installs from the installers update themselves**, between 4 and 5 at night, like
+  most apps that run in the background. Switch it off in Settings, Updates. Existing
+  installs keep what they had.
+- **A status alert when a new version is out**, once per release, saying how to install
+  it. Until now only the dashboard said so.
+- `vinted-bot --version`, `vinted-bot status` and `/api/health` say when a newer version is
+  out and how to get it, for scripts and AI assistants that look after the app.
+- Usage statistics and error reports, to help find and fix problems sooner. What's
+  in them, and how to turn them off, is in [docs/telemetry.md](docs/telemetry.md).
+
+### Fixed
+
+- The Windows installer said "It installed, but didn't start" although vinted-bot was
+  running: it checked too quickly for Windows, which tries IPv6 first.
+- Installs that updated themselves now stay stopped when stopped; their start-at-login
+  entry from an older installer is brought up to date.
+- **Message seller** in alerts and on the dashboard opened a page Vinted had removed. It
+  now starts a new message to the seller about that listing.
+- **Buy** opened "Page not found", so it is gone. Vinted only creates a checkout page
+  when you press Buy now on the listing, so no link can open checkout directly. Alerts and
+  the dashboard now offer Open on Vinted, where Buy now is one tap, and Message seller.
+  The webhook's `links.buy` stays, pointing at the listing.
+- **Windows:** a user folder with letters like "ü" in its name no longer breaks
+  installing, updating or making the icons.
+- **Windows:** vinted-bot no longer opens a PowerShell window at sign-in on Windows 11,
+  where closing it stopped vinted-bot. Copies that update themselves get the new Startup
+  shortcut too.
+- **Windows:** when the icon can't start vinted-bot, it says why in a message instead of
+  doing nothing, and writes the details to `vinted-bot-icon.log` next to the database.
+- **Windows:** the log file is written as UTF-8, so listing titles in Polish, Czech or
+  Lithuanian, and emoji, read correctly in `vinted-bot logs`.
+
+### Changed
+
+- **The installers ask nothing on a Mac or Windows PC.** Starting at login, and on a Mac
+  staying awake while plugged in, are on by default and are switches in Settings, General,
+  and on setup's last screen, where each is explained. On a Pi installed over SSH, the one
+  remaining question explains how to answer it.
+- **Only one copy runs at a time.** Starting a second one says where the first is
+  instead of checking the same searches twice.
+- Alerts' **Dashboard** button now appears when your phone may open the dashboard
+  (Settings, Open on your phone), pointing at this computer's address on your Wi-Fi.
+- **Settings shows one section at a time.** Pick it in the menu on the left; the request
+  for support sits under each section instead of in a section of its own.
+
 ## [2.3.0] - 2026-11-22
 
 Alerts are much faster: a new listing usually reaches you 15 to 35 seconds after the seller

@@ -7,14 +7,18 @@ among a dozen healthy ones.
 
 from __future__ import annotations
 
+import importlib.util
+import io
 import logging
 import sys
 from collections.abc import Callable, MutableMapping
 from datetime import datetime
-from typing import Any
+from typing import Any, TextIO
 from zoneinfo import ZoneInfo
 
 import structlog
+
+from vinted_bot.telemetry.recorder import log_processor
 
 # These libraries are chatty at INFO and none of it is about your searches. aiosqlite logs
 # every statement at DEBUG, which buried everything else when someone turned DEBUG on to
@@ -41,10 +45,39 @@ def local_timestamps(tz: ZoneInfo) -> Stamper:
     return stamp
 
 
+def colors_for(stream: TextIO | None) -> bool:
+    """Whether log lines to this stream can be coloured.
+
+    structlog colours on Windows only through colorama, which isn't installed, and refuses
+    to start rather than print plain text. That bit the Windows icon: it runs pythonw,
+    whose missing stderr becomes the NUL device, and NUL says it is a terminal.
+    """
+    if stream is None or not stream.isatty():
+        return False
+    return sys.platform != "win32" or importlib.util.find_spec("colorama") is not None
+
+
+def _utf8_when_redirected(stream: TextIO | None) -> None:
+    """Write UTF-8 when the log goes to a file on Windows, as the installed app's does.
+
+    Until Python 3.15, Windows writes redirected output in the ANSI code page (cp1252 and
+    the like), while `vinted-bot logs` reads the file as UTF-8: Polish or Czech listing
+    titles and emoji came out garbled.
+    """
+    if (
+        sys.platform == "win32"
+        and isinstance(stream, io.TextIOWrapper)
+        and not stream.isatty()
+        and stream.encoding.lower().replace("-", "") != "utf8"
+    ):
+        stream.reconfigure(encoding="utf-8", errors="backslashreplace")
+
+
 def configure(level: str = "INFO", fmt: str = "console", timezone: str = "UTC") -> None:
     """Set up structlog and the standard library logger it bridges to."""
+    _utf8_when_redirected(sys.stderr)
     renderer: structlog.typing.Processor = (
-        structlog.dev.ConsoleRenderer(colors=sys.stderr.isatty())
+        structlog.dev.ConsoleRenderer(colors=colors_for(sys.stderr))
         if fmt == "console"
         else structlog.processors.JSONRenderer()
     )
@@ -53,6 +86,8 @@ def configure(level: str = "INFO", fmt: str = "console", timezone: str = "UTC") 
         processors=[
             structlog.contextvars.merge_contextvars,
             structlog.stdlib.add_log_level,
+            # Counts warnings and reports errors when usage statistics are on.
+            log_processor,
             local_timestamps(ZoneInfo(timezone)),
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,

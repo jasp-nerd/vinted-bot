@@ -17,7 +17,6 @@ from urllib.parse import quote
 
 import httpx
 
-from vinted_bot.config import Settings
 from vinted_bot.db.repo import Destination
 from vinted_bot.deals import TIERS
 from vinted_bot.deliver.base import SenderConfigError
@@ -315,16 +314,16 @@ def _tier_list(form: Any, key: str) -> list[str]:
     return [tier for tier in TIERS if tier in {str(value) for value in raw}]
 
 
-def check(kind: str, config: dict[str, Any], settings: Settings, http: httpx.AsyncClient) -> None:
+def check(kind: str, config: dict[str, Any], http: httpx.AsyncClient) -> None:
     """Ask the real sender whether it can work with this config. Raises InvalidInputError."""
     if kind == "telegram":
         return
     try:
         build_sender(
             Destination(id=0, kind=kind, name=kind, config=config),
-            settings,
             http,
             telegram_token=None,
+            dashboard_url=None,
         )
     except SenderConfigError as exc:
         raise InvalidInputError("config", f"That won't work: {exc}.") from exc

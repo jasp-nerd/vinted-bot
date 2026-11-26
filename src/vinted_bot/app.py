@@ -18,20 +18,25 @@ import contextlib
 import random
 import signal
 import sqlite3
+import subprocess
+import sys
 import webbrowser
+from collections.abc import Awaitable, Callable
 
 import httpx
 
+from vinted_bot import control, instance, shortcuts, telemetry
 from vinted_bot.config import MAX_BACKOFF_S, Settings
 from vinted_bot.db import Database, apply_pending
 from vinted_bot.db.repo import Query, Repo
 from vinted_bot.deliver.dispatcher import Dispatcher
-from vinted_bot.engine import rates, self_update, updates, wakeups
+from vinted_bot.engine import awake, rates, self_update, updates, wakeups
 from vinted_bot.engine.health import Heartbeat
 from vinted_bot.engine.poller import Poller
 from vinted_bot.engine.watchdog import Watchdog
 from vinted_bot.engine.watcher import Watcher
 from vinted_bot.log import get_logger
+from vinted_bot.telemetry.service import Telemetry, asyncio_errors
 from vinted_bot.vinted.client import VintedClient
 from vinted_bot.vinted.proxies import ProxyRotation
 from vinted_bot.vinted.session import SessionManager
@@ -39,6 +44,9 @@ from vinted_bot.vinted.taxonomy import Taxonomy
 from vinted_bot.vinted.transport import Transport, TransportPool, build_transport
 
 log = get_logger(__name__)
+
+# How often to look whether someone asked vinted-bot to stop (Settings, `vinted-bot stop`).
+STOP_CHECK_INTERVAL_S = 1.0
 
 # How often to notice searches added, paused or edited elsewhere.
 SUPERVISE_INTERVAL_S = 15.0
@@ -101,19 +109,14 @@ class Application:
             repo = Repo(db)
 
             proxies = ProxyRotation.from_file(settings.proxy_file)
-            mock_dir = settings.mock_scenario_dir if settings.fetch_mode == "mock" else None
-
-            def build(proxy: str | None) -> Transport:
-                return build_transport(
-                    impersonate=settings.http_impersonate,
-                    timeout=settings.request_timeout_s,
-                    proxy=proxy,
-                    mock_dir=mock_dir,
-                )
-
-            pool = TransportPool(build)
-            # For the health check ping and the daily update check, never for Vinted.
+            pool = _transport_pool(settings)
+            # For the health check ping, the daily update check and usage statistics,
+            # never for Vinted.
             http = httpx.AsyncClient(timeout=10.0)
+            updater = self_update.Updater(settings, repo, self._stop, self._install)
+            usage = Telemetry(
+                settings, repo, self._stop, http, updater.install, proxies=len(proxies.proxies)
+            )
             try:
                 sessions = SessionManager(
                     db,
@@ -141,7 +144,6 @@ class Application:
                     announce=dispatcher.notify_status,
                 )
                 heartbeat = Heartbeat(repo, self._stop, http=http)
-                updater = self_update.Updater(settings, repo, self._stop, self._install)
                 watcher = Watcher(
                     repo=repo,
                     stop=self._stop,
@@ -150,15 +152,7 @@ class Application:
                     seller_items=client.seller_items,
                 )
 
-                self._install_signal_handlers()
-                log.info(
-                    "app.starting",
-                    db=str(settings.db_path),
-                    fetch_mode=settings.fetch_mode,
-                    web=settings.web_enabled,
-                    install=updater.install.kind.value,
-                    supervisor=settings.supervised,
-                )
+                await self._starting(repo, updater)
 
                 try:
                     async with asyncio.TaskGroup() as tg:
@@ -166,15 +160,9 @@ class Application:
                         tg.create_task(watchdog.run(), name="watchdog")
                         tg.create_task(heartbeat.run(), name="heartbeat")
                         tg.create_task(watcher.run(), name="watcher")
-                        tg.create_task(wakeups.watch(self._stop, self._woke), name="wakeups")
-                        tg.create_task(self._housekeeping(repo, http), name="housekeeping")
-                        if settings.fetch_mode == "live":
-                            tg.create_task(
-                                rates.keep_fresh(repo, http, self._stop, self._rates_wanted),
-                                name="rates",
-                            )
-                        tg.create_task(updater.run_automatically(), name="auto-update")
-                        tg.create_task(self._report_update(repo, dispatcher), name="update-report")
+                        self._start_chores(
+                            tg, repo, http, updater=updater, dispatcher=dispatcher, usage=usage
+                        )
                         tg.create_task(
                             self._supervise(tg, repo, client, sessions), name="supervisor"
                         )
@@ -197,6 +185,8 @@ class Application:
                 # A shutdown halfway through an upgrade would leave it half installed.
                 await updater.settle()
             finally:
+                # Outside the task group, so a crash that ended it is still reported.
+                await usage.shutdown()
                 await http.aclose()
                 await pool.aclose()
 
@@ -205,6 +195,42 @@ class Application:
             return self_update.RESTART_EXIT_CODE
         log.info("app.stopped")
         return 0
+
+    def _start_chores(
+        self,
+        tg: asyncio.TaskGroup,
+        repo: Repo,
+        http: httpx.AsyncClient,
+        *,
+        updater: self_update.Updater,
+        dispatcher: Dispatcher,
+        usage: Telemetry,
+    ) -> None:
+        """The background jobs that are not about searches or alerts."""
+        tg.create_task(usage.run(), name="telemetry")
+        tg.create_task(wakeups.watch(self._stop, self._woke), name="wakeups")
+        tg.create_task(
+            self._housekeeping(repo, http, updater.install, dispatcher.notify_status),
+            name="housekeeping",
+        )
+        if self._settings.fetch_mode == "live":
+            tg.create_task(
+                rates.keep_fresh(repo, http, self._stop, self._rates_wanted), name="rates"
+            )
+        tg.create_task(updater.run_automatically(), name="auto-update")
+        tg.create_task(self._report_update(repo, dispatcher), name="update-report")
+        tg.create_task(self._watch_for_stop(), name="stop-request")
+        tg.create_task(awake.keep(repo, self._settings, self._stop), name="keep-awake")
+
+    async def _watch_for_stop(self) -> None:
+        """Shut down cleanly when someone stops vinted-bot on purpose (instance.py)."""
+        while not self._stop.is_set():
+            if instance.is_stopped(self._settings):
+                log.info("app.stop_requested")
+                self._stop.set()
+                return
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(self._stop.wait(), timeout=STOP_CHECK_INTERVAL_S)
 
     # --- Supervision ---------------------------------------------------------------
 
@@ -280,6 +306,7 @@ class Application:
             )
             self._poller_signatures[query_id] = query
             self._rates_wanted.set()
+            telemetry.milestone("first_search")
             log.info(
                 "poller.started",
                 query_id=query_id,
@@ -318,7 +345,13 @@ class Application:
 
     # --- Background chores ---------------------------------------------------------
 
-    async def _housekeeping(self, repo: Repo, http: httpx.AsyncClient) -> None:
+    async def _housekeeping(
+        self,
+        repo: Repo,
+        http: httpx.AsyncClient,
+        install: self_update.Install,
+        notify: Callable[[str], Awaitable[None]],
+    ) -> None:
         while not self._stop.is_set():
             try:
                 pruned = await repo.prune_items(self._settings.item_retention_days)
@@ -328,6 +361,7 @@ class Application:
                 # Offline mode is offline: no call to GitHub either.
                 if self._settings.fetch_mode == "live":
                     await updates.check_for_update(repo, http)
+                    await self_update.announce_new_version(repo, install, self._settings, notify)
             except sqlite3.OperationalError as exc:
                 # A locked database; the next pass an hour from now will catch up.
                 log.warning("housekeeping.db_unavailable", error=str(exc))
@@ -405,8 +439,25 @@ class Application:
 
     # --- Signals -------------------------------------------------------------------
 
+    async def _starting(self, repo: Repo, updater: self_update.Updater) -> None:
+        settings = self._settings
+        await self_update.default_for_new_install(repo, updater.install, settings)
+        if settings.supervised:
+            await _upgrade_service(settings, repo)
+        self._install_signal_handlers()
+        log.info(
+            "app.starting",
+            db=str(settings.db_path),
+            fetch_mode=settings.fetch_mode,
+            web=settings.web_enabled,
+            install=updater.install.kind.value,
+            supervisor=settings.supervised,
+        )
+
     def _install_signal_handlers(self) -> None:
         loop = asyncio.get_running_loop()
+        # And errors in tasks nobody awaited, for the error reports.
+        loop.set_exception_handler(asyncio_errors)
         for sig in (signal.SIGTERM, signal.SIGINT):
             with contextlib.suppress(NotImplementedError):
                 loop.add_signal_handler(sig, self._on_signal, sig)
@@ -416,5 +467,73 @@ class Application:
         self._stop.set()
 
 
+async def _upgrade_service(settings: Settings, repo: Repo) -> None:
+    """Bring a start-at-login entry from an older installer up to date (control.py), and
+    keep its choice about keeping the Mac awake, which now lives in Settings."""
+    try:
+        kept_awake = await asyncio.to_thread(control.upgrade_service, settings)
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        log.warning("app.service_upgrade_failed", error=str(exc))
+        return
+    if kept_awake is not None:
+        log.info("app.service_upgraded")
+        if await repo.get_state_value(awake.KEY) is None:
+            await awake.set_wanted(repo, kept_awake)
+
+
+def _make_icon(settings: Settings) -> None:
+    """Under the installers' service, make sure there is an icon to open vinted-bot with:
+    copies that updated themselves from before icons existed get theirs this way."""
+    if not settings.supervised or settings.fetch_mode != "live":
+        return
+    if self_update.detect(settings).kind is self_update.InstallKind.SOURCE:
+        return
+    try:
+        if shortcuts.ensure(settings):
+            log.info("app.icon_made")
+    except (OSError, subprocess.SubprocessError) as exc:
+        log.warning("app.icon_failed", error=str(exc))
+
+
+def _transport_pool(settings: Settings) -> TransportPool:
+    """Where Vinted requests go: one transport per proxy, or one without."""
+    mock_dir = settings.mock_scenario_dir if settings.fetch_mode == "mock" else None
+
+    def build(proxy: str | None) -> Transport:
+        return build_transport(
+            impersonate=settings.http_impersonate,
+            timeout=settings.request_timeout_s,
+            proxy=proxy,
+            mock_dir=mock_dir,
+        )
+
+    return TransportPool(build)
+
+
 async def run(settings: Settings, *, open_browser: bool = False) -> int:
-    return await Application(settings, open_browser=open_browser).run()
+    """`vinted-bot run`: one copy per database, and stopped stays stopped.
+
+    A background service starting it at login while someone had stopped it exits at once
+    with 0, which none of the services restart from. Started by hand, it runs anyway: that
+    is someone asking for it.
+    """
+    if settings.supervised and instance.is_stopped(settings):
+        log.info("app.stopped_on_purpose", hint="open vinted-bot to start it again")
+        control.leave_stopped(settings)
+        return 0
+    try:
+        with instance.Instance(settings):
+            # Only the copy that actually runs clears a stop: a second `run` refused below
+            # must not cancel one that is on its way.
+            instance.clear_stopped(settings)
+            _make_icon(settings)
+            return await Application(settings, open_browser=open_browser).run()
+    except instance.AlreadyRunningError as exc:
+        url = exc.running.url if exc.running else f"http://localhost:{settings.web_port}"
+        log.warning("app.already_running", url=url)
+        print(
+            f"vinted-bot is already running, at {url}. To open it, type: vinted-bot",
+            file=sys.stderr,
+        )
+        # A service that finds a copy started by hand has nothing to retry.
+        return 0 if settings.supervised else 1

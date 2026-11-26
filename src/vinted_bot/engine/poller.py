@@ -23,6 +23,7 @@ from datetime import datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
+from vinted_bot import telemetry
 from vinted_bot.config import MAX_BACKOFF_S, Settings
 from vinted_bot.db.repo import Query, QueryState, RejectedListing, Repo
 from vinted_bot.engine import dedup, filters, quiet, rates, wakeups
@@ -147,6 +148,8 @@ class Poller:
         # than one currency; see engine/rates.py.
         self._rates: dict[str, Decimal] = {}
         self._log = log.bind(query_id=query.id, query=query.name, tld=query.tld)
+        # When Vinted started refusing this search, for how long blocks last.
+        self._blocked_since: float | None = None
 
     async def run(self) -> None:
         """Check on a schedule until the stop event is set."""
@@ -160,8 +163,12 @@ class Poller:
         try:
             await self._check()
         except AuthExpiredError as exc:
+            telemetry.count("checks_auth_expired")
             return await self._auth_expired(exc)
         except BlockedError as exc:
+            telemetry.count("checks_blocked")
+            if self._blocked_since is None:
+                self._blocked_since = time.monotonic()
             # Vinted is refusing this client. A fresh cookie will not change that, so back
             # off hard and come back with a different session. The session is only
             # dropped here: minting the replacement is the next check's first step, so a
@@ -176,6 +183,7 @@ class Poller:
             )
             return delay
         except RateLimitedError as exc:
+            telemetry.count("checks_rate_limited")
             self._consecutive_errors += 1
             await self._repo.record_failure(self.query.id, "http_429", str(exc))
             delay = exc.retry_after or self._backoff()
@@ -184,11 +192,13 @@ class Poller:
         except MalformedResponseError as exc:
             # Not a retry problem: either the response shape changed or something was
             # served in its place. Keep going at normal pace and make it visible.
+            telemetry.count("checks_malformed")
             self._consecutive_errors += 1
             await self._repo.record_failure(self.query.id, "malformed", str(exc))
             self._log.error("poll.malformed_response", site=self._site, error=str(exc))
             return self._interval()
         except NetworkError as exc:
+            telemetry.count("checks_network_error")
             self._consecutive_errors += 1
             await self._repo.record_failure(self.query.id, "network", str(exc))
             delay = self._backoff(cap=_NETWORK_BACKOFF_CAP_S)
@@ -200,6 +210,10 @@ class Poller:
         self._consecutive_errors = 0
         self._consecutive_auth_failures = 0
         self.successes += 1
+        telemetry.count("checks_ok")
+        if self._blocked_since is not None:
+            telemetry.sample("block_minutes", (time.monotonic() - self._blocked_since) / 60)
+            self._blocked_since = None
         return self._interval()
 
     async def _auth_expired(self, exc: AuthExpiredError) -> float:
@@ -288,6 +302,10 @@ class Poller:
 
         if announced and self._work_available is not None:
             self._work_available.set()
+        telemetry.count("items_seen", len(items))
+        telemetry.count("items_new", len(selection.new))
+        if not quiet:
+            telemetry.count("alerts_queued", announced)
 
         await self._repo.record_success(
             self.query.id,

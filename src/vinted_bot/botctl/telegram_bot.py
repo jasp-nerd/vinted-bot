@@ -42,14 +42,16 @@ from aiogram.types import (
     TelegramObject,
 )
 
-from vinted_bot import managed
-from vinted_bot.config import Settings
+from vinted_bot import managed, telemetry
+from vinted_bot.config import Settings, in_container
 from vinted_bot.db.repo import DuplicateSearchError, Repo
 from vinted_bot.deliver.labels import labels_for
+from vinted_bot.deliver.render import reachable_dashboard
 from vinted_bot.deliver.telegram import ACTION_PREFIX, BLOCK, HIDE, MUTE
 from vinted_bot.engine import health
 from vinted_bot.engine.validation import InvalidInputError
 from vinted_bot.log import get_logger
+from vinted_bot.network import is_local_address
 from vinted_bot.vinted import urls
 
 log = get_logger(__name__)
@@ -130,6 +132,7 @@ HELP_TEXT = (
     "/remove 3: delete search 3 (asks first)\n"
     "/add <Vinted search link>: watch it, with alerts in this chat\n"
     "/status: is everything still running\n"
+    "/dashboard: the link to your dashboard\n"
     "/start <code>: connect this chat to vinted-bot\n"
     "\n"
     "Or just paste a Vinted link: a search to watch it, a listing to follow its price and "
@@ -430,6 +433,19 @@ async def _only_paired_chats(
     return None
 
 
+async def _count_use(
+    handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
+    event: TelegramObject,
+    data: dict[str, Any],
+) -> Any:
+    """Usage statistics: which command or button was used, by its handler's name only."""
+    matched = data.get("handler")
+    name = getattr(getattr(matched, "callback", None), "__name__", "")
+    if name.startswith("_handle_"):
+        telemetry.event("bot_command", command=name.removeprefix("_handle_"))
+    return await handler(event, data)
+
+
 async def _handle_start(message: Message, command: CommandObject, repo: Repo) -> None:
     code = (command.args or "").strip()
     if not code:
@@ -468,6 +484,39 @@ async def _handle_help(message: Message) -> None:
 
 async def _handle_status(message: Message, repo: Repo) -> None:
     await message.answer(await _status_text(repo), parse_mode="HTML")
+
+
+async def _handle_dashboard(message: Message, repo: Repo, settings: Settings | None) -> None:
+    await message.answer(await dashboard_text(repo, settings), parse_mode="HTML")
+
+
+async def dashboard_text(repo: Repo, settings: Settings | None) -> str:
+    """Where to open the dashboard from the phone this is read on, or how to make that
+    possible: a link only this computer can open is a link that does nothing here."""
+    if settings is None or not settings.web_enabled:
+        return "The dashboard is switched off on this copy of vinted-bot."
+    url = reachable_dashboard(await managed.dashboard_url(settings, repo))
+    if url is None and (in_container() or managed.web_host_from_env(settings)):
+        # The phone switch doesn't apply here: the port mapping or the environment decide.
+        return (
+            "Open your dashboard at the address of the machine vinted-bot runs on, port "
+            f"{settings.web_port}.\n\nTo get a link here and in your alerts, set "
+            "<code>VINTED_BOT_WEB_PUBLIC_URL</code> to that address."
+        )
+    if url is None:
+        return (
+            "Your dashboard only opens on the computer vinted-bot runs on, at "
+            f"http://localhost:{settings.web_port}.\n\nTo open it on this phone too, turn on "
+            "<b>Settings, Open on your phone</b> in the dashboard, or run "
+            "<code>vinted-bot address --allow-network</code> on that computer."
+        )
+    host = urlparse(url).hostname or ""
+    note = (
+        "\n\nThis link works while your phone is on the same Wi-Fi as vinted-bot."
+        if is_local_address(host) and not host.startswith("100.")
+        else ""
+    )
+    return f'Your dashboard: <a href="{html.escape(url)}">{html.escape(url)}</a>{note}'
 
 
 async def _handle_list(message: Message, repo: Repo) -> None:
@@ -539,17 +588,22 @@ async def _handle_anything_else(message: Message) -> None:
     await message.answer(f"I did not catch that. This is what I understand:\n{HELP_TEXT}")
 
 
-def build_dispatcher(repo: Repo, *, default_interval_s: int = 60) -> Dispatcher:
+def build_dispatcher(
+    repo: Repo, *, default_interval_s: int = 60, settings: Settings | None = None
+) -> Dispatcher:
     # Keyword arguments become workflow data, which aiogram hands to any handler that
     # names them as parameters.
-    dispatcher = Dispatcher(repo=repo, default_interval_s=default_interval_s)
+    dispatcher = Dispatcher(repo=repo, default_interval_s=default_interval_s, settings=settings)
     dispatcher.message.outer_middleware.register(_only_paired_chats)
     dispatcher.callback_query.outer_middleware.register(_only_paired_chats)
+    dispatcher.message.middleware.register(_count_use)
+    dispatcher.callback_query.middleware.register(_count_use)
 
     message = dispatcher.message
     message.register(_handle_start, Command("start"))
     message.register(_handle_help, Command("help"))
     message.register(_handle_status, Command("status"))
+    message.register(_handle_dashboard, Command("dashboard"))
     message.register(_handle_list, Command("list"))
     message.register(_handle_pause, Command("pause"))
     message.register(_handle_resume, Command("resume"))
@@ -563,7 +617,12 @@ def build_dispatcher(repo: Repo, *, default_interval_s: int = 60) -> Dispatcher:
 
 
 async def run_bot(
-    token: str, *, repo: Repo, stop: asyncio.Event, default_interval_s: int = 60
+    token: str,
+    *,
+    repo: Repo,
+    stop: asyncio.Event,
+    default_interval_s: int = 60,
+    settings: Settings | None = None,
 ) -> None:
     """Poll Telegram for commands until `stop` is set, or polling itself gives up.
 
@@ -572,7 +631,7 @@ async def run_bot(
     Telegram refuses, and that error is raised here rather than at shutdown.
     """
     bot = Bot(token=token)
-    dispatcher = build_dispatcher(repo, default_interval_s=default_interval_s)
+    dispatcher = build_dispatcher(repo, default_interval_s=default_interval_s, settings=settings)
 
     polling = asyncio.create_task(dispatcher.start_polling(bot, handle_signals=False))
     stopping = asyncio.create_task(stop.wait())
@@ -620,6 +679,7 @@ async def keep_running(
                 repo=repo,
                 stop=bot_stop,
                 default_interval_s=settings.poll_default_interval_s,
+                settings=settings,
             )
         except Exception as exc:
             # The message never holds the token: aiogram puts the method name in it.

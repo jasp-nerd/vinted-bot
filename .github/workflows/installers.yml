@@ -26,6 +26,10 @@ on:
 permissions:
   contents: read
 
+# The installed app sees CI too and stays quiet, but a test install is never an install.
+env:
+  VINTED_BOT_TELEMETRY: "false"
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -38,8 +42,6 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
-    env:
-      VINTED_BOT_KEEP_AWAKE: "no"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -77,6 +79,23 @@ jobs:
           curl -sS --max-time 5 http://localhost:8000/healthz | grep '"alive"'
           "$HOME/.local/bin/vinted-bot" --version
 
+      # What someone does after closing the browser tab: open it, stop it, open it again.
+      - name: Check open, stop and start from the command line
+        run: |
+          vb="$HOME/.local/bin/vinted-bot"
+          "$vb" open --no-browser | tee open.txt
+          grep -q "http://localhost:8000" open.txt
+          if [ "$RUNNER_OS" = macOS ]; then
+            test -x "$HOME/Applications/vinted-bot.app/Contents/MacOS/vinted-bot"
+          else
+            test -f "$HOME/.local/share/applications/vinted-bot.desktop"
+          fi
+          "$vb" run && { echo "a second copy started"; exit 1; } || true
+          "$vb" stop
+          if curl -s --max-time 2 http://localhost:8000/healthz; then echo "still running"; exit 1; fi
+          "$vb" open --no-browser
+          curl -sS --max-time 5 http://localhost:8000/healthz | grep '"app":"vinted-bot"'
+
       - name: Run it again, as an update would
         run: |
           export VINTED_BOT_PACKAGE="vinted-bot @ file://$GITHUB_WORKSPACE"
@@ -88,7 +107,26 @@ jobs:
           sh install.sh --uninstall
           sleep 3
           if [ -e "$HOME/.local/bin/vinted-bot" ]; then echo "still installed"; exit 1; fi
+          if [ -e "$HOME/Applications/vinted-bot.app" ]; then echo "icon left behind"; exit 1; fi
+          if [ -e "$HOME/.local/share/applications/vinted-bot.desktop" ]; then echo "menu entry left behind"; exit 1; fi
           if curl -s --max-time 2 http://localhost:8000/healthz; then echo "still running"; exit 1; fi
+
+      # The default install: started at login by launchd or systemd. A stop has to stick
+      # there too, past launchd's 30-second restart delay, and the icon's command has to
+      # start it again through the service.
+      - name: Install with start at login, stop it, open it again
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then export XDG_RUNTIME_DIR="/run/user/$(id -u)"; fi
+          export VINTED_BOT_PACKAGE="vinted-bot @ file://$GITHUB_WORKSPACE"
+          sh install.sh --no-browser
+          vb="$HOME/.local/bin/vinted-bot"
+          curl -sS --max-time 5 http://localhost:8000/healthz | grep '"app":"vinted-bot"'
+          "$vb" stop
+          sleep 40
+          if curl -s --max-time 2 http://localhost:8000/healthz; then echo "started again after a stop"; exit 1; fi
+          "$vb" open --no-browser
+          curl -sS --max-time 5 http://localhost:8000/healthz | grep '"app":"vinted-bot"'
+          sh install.sh --uninstall
 
   windows:
     runs-on: windows-latest
@@ -109,14 +147,35 @@ jobs:
         shell: powershell
         run: |
           $env:VINTED_BOT_PACKAGE = 'vinted-bot @ file:///' + ($env:GITHUB_WORKSPACE -replace '\\', '/')
-          powershell -NoProfile -NonInteractive -ExecutionPolicy ByPass -File install.ps1 -NoAutostart -NoBrowser
+          # The installer never exits with an error (that would close an `irm | iex` window),
+          # so its message is what says whether it worked.
+          $out = powershell -NoProfile -NonInteractive -ExecutionPolicy ByPass -File install.ps1 -NoAutostart -NoBrowser *>&1 | Out-String
+          Write-Host $out
+          if ($out -match "Sorry, that didn't work") { throw 'the installer reported a failure' }
 
       - name: Check it runs
         shell: powershell
         run: |
-          $response = Invoke-WebRequest -UseBasicParsing -Uri http://localhost:8000/healthz -TimeoutSec 5
+          $response = Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:8000/healthz -TimeoutSec 5
           if ($response.Content -notmatch '"alive"') { throw "unexpected answer: $($response.Content)" }
           & "$env:USERPROFILE\.local\bin\vinted-bot.exe" --version
+
+      # What someone does after closing the browser tab: open it, stop it, open it again.
+      - name: Check open, stop and start from the command line
+        shell: powershell
+        run: |
+          $vb = "$env:USERPROFILE\.local\bin\vinted-bot.exe"
+          $env:VINTED_BOT_DB_PATH = "$env:LOCALAPPDATA\vinted-bot\app.db"
+          $programs = [Environment]::GetFolderPath('Programs')
+          if (-not (Test-Path (Join-Path $programs 'vinted-bot.lnk'))) { throw 'no Start menu icon' }
+          & $vb open --no-browser
+          if ($LASTEXITCODE -ne 0) { throw 'open failed' }
+          & $vb stop
+          Start-Sleep -Seconds 2
+          try { Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:8000/healthz -TimeoutSec 3 | Out-Null; throw 'still running' } catch { if ($_.Exception.Message -eq 'still running') { throw } }
+          & $vb open --no-browser
+          $response = Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:8000/healthz -TimeoutSec 5
+          if ($response.Content -notmatch '"app":"vinted-bot"') { throw "unexpected answer: $($response.Content)" }
 
       - name: Install through irm | iex, as an update would
         shell: powershell
@@ -124,8 +183,10 @@ jobs:
           $env:VINTED_BOT_PACKAGE = 'vinted-bot @ file:///' + ($env:GITHUB_WORKSPACE -replace '\\', '/')
           $env:VINTED_BOT_AUTOSTART = 'no'
           $env:VINTED_BOT_NO_BROWSER = '1'
-          Get-Content -Raw install.ps1 | Invoke-Expression
-          $response = Invoke-WebRequest -UseBasicParsing -Uri http://localhost:8000/healthz -TimeoutSec 5
+          $out = Get-Content -Raw install.ps1 | Invoke-Expression *>&1 | Out-String
+          Write-Host $out
+          if ($out -match "Sorry, that didn't work") { throw 'the installer reported a failure' }
+          $response = Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:8000/healthz -TimeoutSec 5
           if ($response.Content -notmatch '"alive"') { throw "unexpected answer: $($response.Content)" }
 
       - name: Uninstall
@@ -134,7 +195,69 @@ jobs:
           powershell -NoProfile -NonInteractive -ExecutionPolicy ByPass -File install.ps1 -Uninstall
           Start-Sleep -Seconds 3
           if (Test-Path "$env:USERPROFILE\.local\bin\vinted-bot.exe") { throw 'still installed' }
+          if (Test-Path (Join-Path ([Environment]::GetFolderPath('Programs')) 'vinted-bot.lnk')) { throw 'Start menu icon left behind' }
           if (Get-Process vinted-bot -ErrorAction SilentlyContinue) { throw 'still running' }
+          if (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) 'vinted-bot.lnk')) { throw 'desktop icon left behind' }
+
+      # What CI's plain ASCII folders hid from the first Windows testers: a user folder with an
+      # umlaut (PowerShell 5.1 reads programs' output in the console's code page, so uv's and
+      # the icon maker's answers came back garbled), and the icons, which run pythonw, with no
+      # console at all. So: install with an umlaut in every folder vinted-bot uses, then start
+      # it the way people do, through the Startup shortcut and the Start menu icon.
+      - name: Install into folders with umlauts and start it through its icons
+        shell: powershell
+        run: |
+          $odd = 'C:\T' + [char]0xEB + 'st ' + [char]0xDC    # C:\T(e-umlaut)st (U-umlaut)
+          $env:UV_TOOL_DIR = "$odd\tools"
+          $env:UV_TOOL_BIN_DIR = "$odd\bin"
+          $env:VINTED_BOT_DATA_DIR = "$odd\data"
+          $env:VINTED_BOT_DB_PATH = "$odd\data\app.db"
+          # A desktop moved into OneDrive, as on many PCs.
+          New-Item -ItemType Directory -Force -Path "$odd\OneDrive - Universit$([char]0xE4)t\Desktop" | Out-Null
+          Set-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders' -Name Desktop -Value "$odd\OneDrive - Universit$([char]0xE4)t\Desktop"
+          $env:VINTED_BOT_PACKAGE = 'vinted-bot @ file:///' + ($env:GITHUB_WORKSPACE -replace '\\', '/')
+          $out = powershell -NoProfile -NonInteractive -ExecutionPolicy ByPass -File install.ps1 -Autostart -NoBrowser *>&1 | Out-String
+          Write-Host $out
+          if ($out -match "Sorry, that didn't work") { throw 'the installer reported a failure' }
+
+          $vb = "$odd\bin\vinted-bot.exe"
+          $made = (& $vb shortcuts) | Out-String
+          if ($LASTEXITCODE -ne 0) { throw "making the icons failed: $made" }
+          $desktop = Join-Path ([Environment]::GetFolderPath('Desktop')) 'vinted-bot.lnk'
+          if (-not (Test-Path -LiteralPath $desktop)) { throw "no desktop icon at $desktop" }
+
+          function Wait-Healthy {
+            for ($i = 0; $i -lt 60; $i++) {
+              try {
+                $r = Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:8000/healthz -TimeoutSec 2
+                if ($r.Content -match '"alive"') { return }
+              } catch { if ($_.Exception.Response -and [int]$_.Exception.Response.StatusCode -eq 503) { return } }
+              Start-Sleep -Seconds 1
+            }
+            Get-Content -LiteralPath "$odd\data\vinted-bot-icon.log" -ErrorAction SilentlyContinue
+            throw 'it did not start'
+          }
+
+          # Signing in: the Startup shortcut. A stop by hand doesn't count as stopped on purpose
+          # here, so clear the note it leaves.
+          & $vb stop
+          Remove-Item -LiteralPath "$odd\data\vinted-bot.stopped" -ErrorAction SilentlyContinue
+          Start-Process -FilePath (Join-Path ([Environment]::GetFolderPath('Startup')) 'vinted-bot.lnk')
+          Wait-Healthy
+
+          # The Start menu icon, after Stop.
+          & $vb stop
+          Start-Sleep -Seconds 2
+          Start-Process -FilePath (Join-Path ([Environment]::GetFolderPath('Programs')) 'vinted-bot.lnk')
+          Wait-Healthy
+          $icon = Get-Content -Raw -LiteralPath "$odd\data\vinted-bot-icon.log" -ErrorAction SilentlyContinue
+          if ($icon -match 'Traceback') { throw "the icon ran into an error: $icon" }
+
+          powershell -NoProfile -NonInteractive -ExecutionPolicy ByPass -File install.ps1 -Uninstall
+          Start-Sleep -Seconds 3
+          if (Test-Path -LiteralPath $vb) { throw 'still installed' }
+          if (Test-Path -LiteralPath $desktop) { throw 'desktop icon left behind' }
+          if (Test-Path (Join-Path ([Environment]::GetFolderPath('Startup')) 'vinted-bot.lnk')) { throw 'Startup shortcut left behind' }
 
       # The app runs hidden on Windows, so its own log is the only record of why it stopped.
       - name: Show the app's log

@@ -147,10 +147,27 @@ in [Running it somewhere: Updating](self-hosting.md#updating).
 | `LOG_FORMAT` | `console` | `json` when something else is collecting the logs. |
 | `FETCH_MODE` | `live` | `mock` replays recorded responses from disk instead of calling Vinted. |
 | `MOCK_SCENARIO_DIR` | unset | Required when `FETCH_MODE=mock`. |
+| `TELEMETRY` | `true` | Usage statistics and error reports, as [telemetry.md](telemetry.md) describes. `false` turns them off. Set either way, it wins over the switch under Advanced in the dashboard's Settings. |
 
 ## Commands
 
 ```
+vinted-bot                          open the dashboard, starting vinted-bot first if it
+                                       isn't running (same as `vinted-bot open`; prints the
+                                       address instead over SSH or without a screen)
+vinted-bot open [--no-browser]      the same, spelled out
+vinted-bot start                    start it in the background, through the installers'
+                                       start-at-login entry when there is one
+vinted-bot stop                     stop it; it stays stopped, even at the next login,
+                                       until it is opened or started again
+vinted-bot restart                  stop, then start
+vinted-bot logs [-n N] [-f]         the end of the log the installers' copy writes
+vinted-bot address [--allow-network]
+                                       where to open the dashboard, with a QR code for a
+                                       phone; --allow-network lets devices on your network
+                                       in (setting a password if there is none)
+vinted-bot shortcuts [--remove]     make (or remove) the vinted-bot icon in Applications,
+                                       the Start menu or the apps menu
 vinted-bot run [--open]             start watching (what the container runs);
                                        --open also opens the dashboard in your browser
 vinted-bot check --url <url>        fetch one search once and print the result
@@ -172,6 +189,10 @@ vinted-bot status                   how each search is doing
 vinted-bot migrate                  create or update the database, then exit
 vinted-bot heartbeat                exit 0 if the app is alive (the health check)
 ```
+
+Only one copy runs per database: `vinted-bot run` while another runs says where that one
+is and exits. In Docker, start, stop and restart the container instead (`docker compose
+up -d`, `stop`, `restart`); the commands above say so.
 
 `export` writes one row per listing a search matched and still keeps, newest first,
 leaving out sellers you blocked. The CSV starts with a UTF-8 byte order mark so Excel shows
@@ -252,7 +273,8 @@ Where to get each kind of target:
 | `webhook` | Any URL you control: n8n, Home Assistant, a script. Payload below. |
 
 `--status` also sends status notices there: the watchdog's warnings, a whole site failing
-and recovering, and "updated itself". The first destination you create gets them on by
+and recovering, "a new version is out" (once per release, with how to install it) and
+"updated itself". The first destination you create gets them on by
 default, from the dashboard, setup, Telegram pairing or the command line. A notice that
 can't be delivered (no network, the service down) is tried again, in order, for up to a
 day.
@@ -326,8 +348,8 @@ listing a test sends. A status notice, for destinations that asked for them, is
       "seller": "someone",
       "seller_rating": 0.93,
       "links": {
-        "message_seller": "https://www.vinted.fr/items/9683334896/want_it/new",
-        "buy": "https://www.vinted.fr/transaction/buy/new?..."
+        "message_seller": "https://www.vinted.fr/inbox/want_it?receiver_id=12345678&item_id=9683334896",
+        "buy": "https://www.vinted.fr/items/9683334896"
       },
       "kind": "listing",
       "search_id": 3,
@@ -353,7 +375,9 @@ listing a test sends. A status notice, for destinations that asked for them, is
 }
 ```
 
-Version 2 keeps every version 1 field with the same name and meaning, and adds the rest:
+Version 2 keeps every version 1 field with the same name and meaning, and adds the rest.
+`links.buy` is the listing itself: Vinted only makes a checkout page once the buyer
+presses Buy now there, so no link can open checkout directly.
 
 | Field | Meaning |
 |---|---|

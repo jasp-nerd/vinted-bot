@@ -64,7 +64,7 @@ destination's real sender for the dashboard's test button, or returns what would
 without sending it.
 
 **`botctl/`** is the Telegram bot: pairing a chat through a one-time link, then `/list`,
-`/pause`, `/resume`, `/add`, `/remove` and `/status` from that chat. Only paired chats get an
+`/pause`, `/resume`, `/add`, `/remove`, `/status` and `/dashboard` from that chat. Only paired chats get an
 answer.
 
 **`web/`** is the dashboard: FastAPI with server-rendered templates, a little JavaScript for
@@ -77,6 +77,19 @@ repository as everything else, so a search added there is picked up by the super
 transaction with foreign keys checked before it commits, so a failed upgrade leaves the
 database at the last version that fully applied. `export.py` writes found listings as CSV or
 JSON for both `vinted-bot export` and the dashboard's download button.
+
+**Getting back to it.** `instance.py` keeps one running copy per database: `run` holds
+an operating-system lock next to the database and writes where it listens, so a second copy
+refuses to start and the commands can find the first. A note in the same folder means
+"stopped on purpose": the running app notices it within a second and exits cleanly, and the
+installers' services start it again after a crash or an update (exit 75) but never after a
+clean exit, so Stop sticks across restarts. `control.py` opens, starts and stops it through
+whichever service the installer set up (launchd, systemd, the Windows launcher), or in the
+background without one. `shortcuts.py` makes the icon that runs `vinted-bot open`
+(an app in ~/Applications, Start menu and desktop shortcuts, an apps-menu entry); the app
+makes it itself the first time it runs under a service, so copies that updated themselves
+get one too. `network.py` works out the addresses a phone can use, for the dashboard,
+alerts' Dashboard button, Telegram's `/dashboard` and `vinted-bot address`.
 
 Process settings (where the database lives, intervals, ports, logging) come from the
 environment through `config.py`. Everything a person owns lives in the database:
@@ -179,6 +192,25 @@ price drops, or the listing is reserved, sold or removed. A seller watch reads a
 wardrobe about every quarter of an hour and announces new uploads. Both share one small
 budget of a few requests a minute across all watches, so they never become a second source
 of blocks. Their alerts go through the same outbox as everything else.
+
+## Usage statistics
+
+`telemetry/` records what [telemetry.md](telemetry.md) lists and sends it to PostHog
+through `ingest.jaspnerd.dev`. Code anywhere calls `telemetry.count`, `sample`, `event` or
+`milestone`; these do nothing until `service.Telemetry` switches recording on, so they cost
+nothing in tests and for people who turned it off. Errors arrive two ways: the log
+processor reports anything logged with `log.exception` or at error level, and the event
+loop's handler reports exceptions nothing awaited.
+
+Rules for adding to it:
+
+- **Names and values come from the code, never from the user.** A route's template, a
+  channel's kind, a filter's name: yes. A search term, a URL, an id, free text: no. Add
+  counts rather than contents.
+- **Error text goes through `scrub.scrub`.** Add a pattern there before reporting a new
+  kind of message that could quote something private.
+- **Never change how the install id is made.** It keeps an install's history together.
+- **Update telemetry.md in the same change** when something new is sent.
 
 ## Testing
 

@@ -310,7 +310,7 @@ folder's owner (`id` on the host prints yours) and start the container normally,
 
 | Installed with | Log |
 |---|---|
-| Installer, Windows | `%LOCALAPPDATA%\vinted-bot\vinted-bot.log` |
+| Installer, Windows | `%LOCALAPPDATA%\vinted-bot\vinted-bot.log` (and `vinted-bot-icon.log` next to it, when the icon couldn't start it) |
 | Installer, macOS | `~/Library/Application Support/vinted-bot/vinted-bot.log` |
 | Installer, Linux | `journalctl --user -u vinted-bot` (or `~/.local/share/vinted-bot/vinted-bot.log` if it isn't started at login) |
 | Docker | `docker compose logs --tail 200 vinted-bot` |

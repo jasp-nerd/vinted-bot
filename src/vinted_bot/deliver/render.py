@@ -131,7 +131,6 @@ class ListingView:
     search_name: str
     search_url: str | None
     dashboard_url: str | None
-    buy_url: str
     message_url: str
     favourites: int
     accent: int
@@ -201,9 +200,15 @@ class ListingView:
         return f"{tier} {MINUS}{self.deal.pct}% {self.labels.vs_typical}"
 
     @property
-    def can_buy(self) -> bool:
-        """A sold, reserved or removed listing has nothing left to buy or ask about."""
+    def available(self) -> bool:
+        """Still for sale: not sold, reserved or removed."""
         return self.kind not in {"sold", "reserved", "removed"}
+
+    @property
+    def can_message(self) -> bool:
+        """Something left to ask about, and a seller to ask: without the seller's id the
+        link could only open the listing, which Open already does."""
+        return self.available and self.seller_id is not None
 
     @property
     def facts(self) -> list[tuple[str, str]]:
@@ -340,7 +345,7 @@ def view(notification: PendingNotification, *, dashboard_url: str | None) -> Lis
     total = item.total_price if item.total_price is not None else item.price
     asking = item.price if item.total_price is not None and item.price != total else None
     pct = deal_percent(total, notification.typical_price)
-    deal = deal_for(pct)
+    deal = deal_for(pct) if notification.show_deal else None
     dashboard = reachable_dashboard(dashboard_url)
 
     accent = parse_colour(notification.query_color) or BRAND_COLOUR
@@ -390,8 +395,7 @@ def view(notification: PendingNotification, *, dashboard_url: str | None) -> Lis
         ),
         dashboard_url=dashboard,
         # A link that is no listing page (the test alert's sample, which opens a real
-        # search instead) has no buy or message page behind it either.
-        buy_url=item.buy_url if "/items/" in item.url else absolute(item.url, item.tld),
+        # search instead) has no message page behind it either.
         message_url=item.message_url if "/items/" in item.url else absolute(item.url, item.tld),
         favourites=item.favourite_count,
         accent=accent,

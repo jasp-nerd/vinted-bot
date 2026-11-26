@@ -1,0 +1,12 @@
+{% extends "bare.html" %}
+{% block title %}Stopped{% endblock %}
+{% block content %}
+<section class="field-panel empty" aria-labelledby="stopped-title" style="margin-top:12px">
+  <div class="empty__text">
+    <h1 class="t-h1" id="stopped-title">vinted-bot has stopped</h1>
+    <p class="t-lead">No checks and no alerts for now. Your searches and finds are kept.</p>
+    <p>{{ how_to_start }}</p>
+  </div>
+  {{ ui.mags("sleep", "empty__art") }}
+</section>
+{% endblock %}

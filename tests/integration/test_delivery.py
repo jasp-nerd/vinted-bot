@@ -16,7 +16,8 @@ from vinted_bot.botctl.telegram_bot import claim_pairing, create_pairing
 from vinted_bot.config import Settings
 from vinted_bot.db import Database
 from vinted_bot.db.repo import STATUS_NOTICES_KEEP, Query, Repo
-from vinted_bot.deliver.dispatcher import MAX_ATTEMPTS, Dispatcher
+from vinted_bot.deliver.dispatcher import MAX_ATTEMPTS, Dispatcher, Routing
+from vinted_bot.telemetry import recorder
 from vinted_bot.vinted.models import Item
 
 
@@ -588,3 +589,38 @@ async def test_a_long_outage_keeps_only_the_newest_status_notices(repo: Repo) ->
     waiting = await repo.due_status_notices()
 
     assert [len(waiting), waiting[-1].message] == [STATUS_NOTICES_KEEP, "notice 14"]
+
+
+async def test_deliveries_are_counted_and_the_first_alert_noted(
+    repo: Repo, settings: Settings
+) -> None:
+    recorder.activate()
+    query = await a_search(repo)
+    destination_id = await repo.add_destination(
+        kind="webhook", name="test", config={"url": "https://example.test/hook"}
+    )
+    await repo.record_new_items(query, [listing(1), listing(2)], [destination_id])
+
+    await make_dispatcher(repo, settings, FakeEndpoint()).drain()
+
+    counters, timings = recorder.take_totals()
+    assert counters["sent_webhook"] == 2
+    assert timings["found_to_sent_s"]["count"] == 2
+    assert recorder.take_milestones() == {"first_alert": {"channel": "webhook"}}
+
+
+async def test_deal_badges_switched_off_leave_alerts_without_one(
+    repo: Repo, settings: Settings
+) -> None:
+    query = await a_search(repo)
+    destination_id = await repo.add_destination(
+        kind="webhook", name="test", config={"url": "https://example.test/hook"}
+    )
+    await repo.record_new_items(query, [listing(1)], [destination_id])
+    await repo.set_deal_badges(False)
+    dispatcher = make_dispatcher(repo, settings, FakeEndpoint())
+
+    claimed = await repo.claim_batch(destination_id, 10)
+    kept = await dispatcher._drop_unwanted(claimed, {}, Routing.from_config({}))
+
+    assert [n.show_deal for n in kept] == [False]

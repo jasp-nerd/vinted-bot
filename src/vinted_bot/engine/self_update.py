@@ -619,3 +619,78 @@ async def finish_pending(repo: Repo, announce: Callable[[str], Awaitable[None]])
             f"vinted-bot updated itself to version {__version__}. "
             f"What's new: {release_notes_url(__version__)}"
         )
+
+
+# --- Telling people a new version is out -----------------------------------------------
+
+_ANNOUNCED_KEY = "update_announced"
+_AUTO_UPDATE_KEY = "auto_update"
+
+
+async def default_for_new_install(repo: Repo, install: Install, settings: Settings) -> None:
+    """Install updates by itself, unless switched off, on a new install that can.
+
+    Like Syncthing and Ollama: a copy from the installers runs unattended, and most people
+    never open the dashboard to click Update now. Only for a database that has never been
+    set up, so nobody who had it off, or never chose, finds it switched on by an update.
+    """
+    if not install.can_update_automatically:
+        return
+    if await repo.get_state_value(_AUTO_UPDATE_KEY) is not None:
+        return
+    prefs = await repo.app_settings(default_timezone=settings.timezone)
+    if prefs.onboarded or await repo.list_queries():
+        return
+    await repo.set_auto_update(True)
+    log.info("update.auto_on_for_new_install")
+
+
+def how_to_update(install: Install, *, auto_update: bool) -> str:
+    """One sentence on how this copy gets a new version, for alerts, the CLI and agents."""
+    if auto_update and install.can_update_automatically:
+        return "It installs itself tonight between 4 and 5."
+    if install.can_upgrade:
+        return "Open the dashboard and click Update now."
+    return f"To update, run: {install.manual_command}"
+
+
+async def update_facts(repo: Repo, install: Install, settings: Settings) -> dict[str, Any]:
+    """This version, the newest one out, and how to get it: for `vinted-bot --version`,
+    `vinted-bot status` and /api/health, so a script or an AI agent looking after the app
+    can tell it is behind."""
+    prefs = await repo.app_settings(default_timezone=settings.timezone)
+    # With both switches off nothing asks GitHub, so a stored answer may be stale.
+    latest = prefs.latest_version if prefs.update_check or prefs.auto_update else None
+    available = is_newer(latest)
+    return {
+        "version": __version__,
+        "latest_version": latest,
+        "update_available": available,
+        "how_to_update": how_to_update(install, auto_update=prefs.auto_update)
+        if available
+        else None,
+    }
+
+
+async def announce_new_version(
+    repo: Repo, install: Install, settings: Settings, notify: Callable[[str], Awaitable[None]]
+) -> None:
+    """A status alert, once per release, when a newer version than this one is out.
+
+    Most people only ever see their alerts, so a banner in the dashboard alone left them
+    on old versions for months.
+    """
+    prefs = await repo.app_settings(default_timezone=settings.timezone)
+    # With both switches off nothing asks GitHub, so a stored answer may be stale.
+    if not (prefs.update_check or prefs.auto_update):
+        return
+    latest = prefs.latest_version
+    if latest is None or not is_newer(latest):
+        return
+    if await repo.get_state_value(_ANNOUNCED_KEY) == latest:
+        return
+    await repo.set_state_value(_ANNOUNCED_KEY, latest)
+    await notify(
+        f"vinted-bot {latest} is out. {how_to_update(install, auto_update=prefs.auto_update)} "
+        f"What's new: {release_notes_url(latest)}"
+    )

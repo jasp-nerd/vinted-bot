@@ -8,11 +8,9 @@ the app factory fills it once and nothing registers itself into it.
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import hashlib
-import ipaddress
 import json
-import socket
+import sys
 import time
 from dataclasses import dataclass, field
 from functools import cache
@@ -26,10 +24,10 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from vinted_bot import __version__
-from vinted_bot.config import Settings
+from vinted_bot import __version__, control, network
+from vinted_bot.config import Settings, in_container
 from vinted_bot.db.repo import Repo
-from vinted_bot.engine import health, updates, wakeups
+from vinted_bot.engine import awake, health, updates
 from vinted_bot.engine.self_update import InstallKind, Phase, Updater
 from vinted_bot.vinted.client import VintedClient
 from vinted_bot.vinted.taxonomy import Taxonomy
@@ -188,6 +186,7 @@ async def shell(context: WebContext, snapshot: health.Snapshot | None = None) ->
         "blocked": blocked,
         "new_version": update,
         "theme": prefs.theme,
+        "deal_badges": prefs.deal_badges,
         "auth": access.password,
         "exposed": context.settings.web_enabled and access.exposed_without_password,
         "new_count": 0,
@@ -260,44 +259,6 @@ def redirect(target: str, flash: str | None = None) -> RedirectResponse:
     return response
 
 
-# Where the probes below pretend to send: "the internet" (the default route) for the home
-# network, and Tailscale's own resolver for its network when it runs.
-_PROBES = (wakeups.INTERNET, "100.100.100.100")
-
-
-def lan_addresses() -> list[str]:
-    """This computer's private IPv4 addresses a phone can open the dashboard at.
-
-    Asking the OS which interface it would send through (wakeups.local_address, which
-    sends nothing) gives the address that matters: once towards the internet, for the
-    home network, and once towards Tailscale's resolver, which only routes somewhere of
-    its own while Tailscale runs. Only when neither helps, as on a computer with no route
-    out, are the addresses its own name resolves to tried: that list also holds virtual
-    machines' and containers' networks, which a phone can't reach.
-
-    Only private addresses (security.is_local_address) are offered. Some networks
-    (universities, offices) give every computer a public one, and offering that would
-    send people to an address the dashboard refuses anyway, as it should: it would be
-    on the internet.
-    """
-    found = [address for target in _PROBES if (address := wakeups.local_address(target))]
-    if not _usable(found):
-        with contextlib.suppress(OSError):
-            for *_, sockaddr in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
-                found.append(str(sockaddr[0]))
-    return _usable(found)
-
-
-def _usable(addresses: list[str]) -> list[str]:
-    usable: list[str] = []
-    for address in addresses:
-        ip = ipaddress.ip_address(address)
-        unusable = ip.is_loopback or ip.is_link_local or ip.is_unspecified
-        if not unusable and security.is_local_address(address) and address not in usable:
-            usable.append(address)
-    return usable
-
-
 def phone_addresses(settings: Settings, access: security.Access) -> list[str]:
     """The addresses a phone on the same network can open the dashboard at.
 
@@ -309,4 +270,20 @@ def phone_addresses(settings: Settings, access: security.Access) -> list[str]:
         return [settings.web_public_url.rstrip("/")]
     if access.loopback or access.container:
         return []
-    return [f"http://{address}:{settings.web_port}" for address in lan_addresses()]
+    return [f"http://{address}:{settings.web_port}" for address in network.lan_addresses()]
+
+
+async def machine_switches(context: WebContext) -> dict[str, Any]:
+    """The two choices about this computer that the installers used to ask in the
+    terminal: starting at login, and keeping a Mac awake. None hides a switch where it
+    doesn't apply (no installer service, not a Mac, a container)."""
+    settings = context.settings
+    login = await asyncio.to_thread(control.starts_at_login, settings)
+    keep_awake = None
+    if awake.available() and not in_container():
+        keep_awake = await awake.wanted(context.repo, settings)
+    return {
+        "login": login,
+        "login_word": "sign in" if sys.platform == "win32" else "log in",
+        "keep_awake": keep_awake,
+    }

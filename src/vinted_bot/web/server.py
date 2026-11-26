@@ -41,14 +41,14 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from vinted_bot import managed
+from vinted_bot import managed, telemetry
 from vinted_bot.config import Settings
 from vinted_bot.db.repo import Repo
 from vinted_bot.engine.self_update import Updater
 from vinted_bot.log import get_logger
 from vinted_bot.vinted.client import VintedClient
 from vinted_bot.vinted.taxonomy import Taxonomy
-from vinted_bot.web import core, security
+from vinted_bot.web import core, security, usage
 from vinted_bot.web.preview import PreviewService
 from vinted_bot.web.routes import (
     access,
@@ -71,7 +71,14 @@ SESSION_COOKIE = core.SESSION_COOKIE
 # Reachable without signing in: the sign-in page itself, the container health check,
 # the files the sign-in page needs, and the RSS feed (which checks its own key).
 _PUBLIC_PREFIXES = ("/static/", "/rss/")
-_PUBLIC_PATHS = {"/login", "/healthz", "/manifest.webmanifest", "/favicon.ico"}
+_PUBLIC_PATHS = {
+    "/login",
+    "/healthz",
+    "/manifest.webmanifest",
+    "/favicon.ico",
+    "/sw.js",
+    "/offline",
+}
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
 
@@ -161,6 +168,7 @@ def create_app(
                 return RedirectResponse(f"/login?next={quote(target, safe='/')}", status_code=303)
             return JSONResponse({"error": "Sign in first."}, status_code=401)
         response = await call_next(request)
+        usage.record(request, response)
         if path.startswith("/static/") and "v" in request.query_params:
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
@@ -224,6 +232,7 @@ def create_app(
         # Starlette logs the traceback and re-raises after this; the handler only makes
         # sure the person sees a page that says what to do instead of plain text.
         log.error("web.unhandled", path=request.url.path, error=type(exc).__name__)
+        telemetry.capture_exception(exc, where="web.unhandled", handled=False)
         return await _problem(
             request,
             500,

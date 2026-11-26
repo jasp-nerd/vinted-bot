@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +10,7 @@ import pytest
 from vinted_bot.config import Settings
 from vinted_bot.db import Database, apply_pending
 from vinted_bot.db.repo import Repo
+from vinted_bot.telemetry import recorder
 from vinted_bot.vinted.transport import Response
 
 # What uvicorn reports for a browser on this computer. Starlette's test client says
@@ -85,6 +86,13 @@ class ScriptedTransport:
 
     async def aclose(self) -> None:
         self.closed = True
+
+
+@pytest.fixture(autouse=True)
+def _no_usage_statistics_left_over() -> Iterator[None]:
+    """A test that switches recording on must not leave it on for the next one."""
+    yield
+    recorder.deactivate()
 
 
 @pytest.fixture

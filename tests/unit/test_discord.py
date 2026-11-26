@@ -230,15 +230,14 @@ async def test_a_sold_listing_has_no_buy_button() -> None:
     assert [b["label"] for b in buttons(recorder.payload())] == ["Open on Vinted", "eBay sold"]
 
 
-async def test_the_buttons_go_buy_message_open_dashboard() -> None:
+async def test_the_buttons_go_open_message_dashboard() -> None:
     recorder = Recorder()
 
     await sender(recorder, dashboard_url="https://bot.example.net").send([notification(1)])
 
     assert [b["label"] for b in buttons(recorder.payload())] == [
-        "Buy",
-        "Message seller",
         "Open on Vinted",
+        "Message seller",
         "Dashboard",
     ]
 
@@ -268,7 +267,7 @@ async def test_labels_follow_the_listing_site() -> None:
 
     await sender(recorder).send([notification(1, tld="de", currency="EUR")])
 
-    assert buttons(recorder.payload())[0]["label"] == "Kaufen"
+    assert buttons(recorder.payload())[0]["label"] == "Auf Vinted öffnen"
 
 
 async def test_the_relative_time_falls_back_to_detection() -> None:
@@ -527,9 +526,8 @@ async def test_the_embed_fallback_keeps_its_buttons() -> None:
 
     row = recorder.payload()["components"][0]
     assert [b["label"] for b in row["components"]] == [
-        "Buy",
-        "Message seller",
         "Open on Vinted",
+        "Message seller",
         "eBay sold",
     ]
 
