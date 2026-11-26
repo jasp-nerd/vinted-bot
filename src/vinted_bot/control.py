@@ -403,27 +403,14 @@ def set_starts_at_login(settings: Settings, on: bool, *, home: Path | None = Non
                 link.unlink(missing_ok=True)
                 return
             folder = instance.folder(settings)
-            env = {
-                **os.environ,
-                "VB_LINK": str(link),
-                "VB_LAUNCHER": str(folder / WINDOWS_LAUNCHER),
-                "VB_DIR": str(folder),
-            }
             link.parent.mkdir(parents=True, exist_ok=True)
-            command = [
-                "powershell.exe",
-                "-NoProfile",
-                "-NonInteractive",
-                "-EncodedCommand",
-                shortcuts.encode_powershell(_WINDOWS_STARTUP_MAKE),
-            ]
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                check=False,
-                env=env,
-                creationflags=0x08000000,
+            result = shortcuts.run_powershell(
+                _WINDOWS_STARTUP_MAKE,
+                {
+                    "VB_LINK": str(link),
+                    "VB_LAUNCHER": str(folder / WINDOWS_LAUNCHER),
+                    "VB_DIR": str(folder),
+                },
             )
             if result.returncode != 0:
                 raise ControlError("Windows didn't accept the change.")

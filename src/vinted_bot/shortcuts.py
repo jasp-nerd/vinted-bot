@@ -137,8 +137,20 @@ foreach ($folder in @('Programs', 'Desktop')) {
 """
 
 
-def _powershell(script: str, env: dict[str, str] | None = None) -> list[Path]:
-    result = subprocess.run(
+# Windows PowerShell 5.1 writes its output in the console's code page (cp850 on a German
+# Windows), which Python would read as the ANSI one (cp1252): a "ü" in a user's folder name
+# then can't be read back at all. So the output is UTF-8 on both ends. It can't fail the
+# script: without a console there is nothing to set, and it's skipped.
+_UTF8_OUTPUT = (
+    "try { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false } catch {}\n"
+)
+
+
+def run_powershell(
+    script: str, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
+    """Run a script in a hidden PowerShell and read what it says, whatever the language."""
+    return subprocess.run(
         [
             "powershell.exe",
             "-NoProfile",
@@ -146,14 +158,19 @@ def _powershell(script: str, env: dict[str, str] | None = None) -> list[Path]:
             "-ExecutionPolicy",
             "ByPass",
             "-EncodedCommand",
-            encode_powershell(script),
+            encode_powershell(_UTF8_OUTPUT + script),
         ],
         capture_output=True,
-        text=True,
+        encoding="utf-8-sig",
+        errors="replace",
         check=False,
         env={**os.environ, **(env or {})},
         creationflags=0x08000000,  # no window
     )
+
+
+def _powershell(script: str, env: dict[str, str] | None = None) -> list[Path]:
+    result = run_powershell(script, env)
     if result.returncode != 0:
         raise OSError(result.stderr.strip() or "PowerShell could not make the shortcuts")
     return [Path(line) for line in result.stdout.splitlines() if line.strip()]

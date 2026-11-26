@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import base64
 import plistlib
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -171,6 +173,30 @@ def test_the_mac_icon_is_an_app_that_opens_the_dashboard(
     shortcuts.remove(settings, platform="darwin", home=home)
     assert not app.exists()
     assert not shortcuts.made(settings)
+
+
+def test_the_windows_icons_are_read_back_on_a_german_windows(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Windows PowerShell 5.1 answers in the console's code page unless told otherwise, and
+    # Python reads it as the ANSI one: cp850 and cp1252 on a German Windows, where a "ü"
+    # (0x81 in cp850) is no character at all.
+    places = [
+        r"C:\Users\Jürgen\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\vinted-bot.lnk",
+        r"C:\Users\Jürgen\Desktop\vinted-bot.lnk",
+    ]
+
+    def powershell(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        script = base64.b64decode(command[-1]).decode("utf-16-le")
+        utf8 = "OutputEncoding = New-Object System.Text.UTF8Encoding" in script
+        out = "".join(f"{place}\r\n" for place in places).encode("utf-8" if utf8 else "cp850")
+        encoding = str(kwargs.get("encoding") or "cp1252")
+        return subprocess.CompletedProcess(command, 0, out.decode(encoding), "")
+
+    monkeypatch.setattr(shortcuts, "executable", lambda: Path(r"C:\vb\vinted-bot.exe"))
+    monkeypatch.setattr(subprocess, "run", powershell)
+
+    assert shortcuts.make(settings, platform="win32") == [Path(place) for place in places]
 
 
 def test_the_linux_icon_is_a_menu_entry(
