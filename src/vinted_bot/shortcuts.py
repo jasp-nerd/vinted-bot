@@ -176,12 +176,17 @@ def _powershell(script: str, env: dict[str, str] | None = None) -> list[Path]:
     return [Path(line) for line in result.stdout.splitlines() if line.strip()]
 
 
-def _make_windows(settings: Settings, exe: Path) -> list[Path]:
-    # pythonw runs the same code without a console window; the plain exe is the fallback.
+def windows_command(command: str) -> tuple[Path, str]:
+    """What a Windows shortcut runs for `vinted-bot <command>`: pythonw, which runs the same
+    code without a console window, or the plain exe if there is no pythonw."""
     pythonw = Path(sys.executable).with_name("pythonw.exe")
-    target, arguments = (
-        (pythonw, "-m vinted_bot open --gui") if pythonw.exists() else (exe, "open --gui")
-    )
+    if pythonw.exists():
+        return pythonw, f"-m vinted_bot {command}"
+    return executable(), command
+
+
+def _make_windows(settings: Settings) -> list[Path]:
+    target, arguments = windows_command("open --gui")
     folder = instance.folder(settings)
     icon = folder / "vinted-bot.ico"
     folder.mkdir(parents=True, exist_ok=True)
@@ -257,7 +262,7 @@ def make(
     if platform == "darwin":
         made = _make_mac(home, exe, db)
     elif platform == "win32":
-        made = _make_windows(settings, exe)
+        made = _make_windows(settings)
     else:
         made = _make_linux(home, exe, db)
     _write_marker(settings)

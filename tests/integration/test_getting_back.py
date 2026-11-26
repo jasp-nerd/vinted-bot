@@ -4,6 +4,7 @@ that lead back to the dashboard from a phone."""
 from __future__ import annotations
 
 import asyncio
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -105,6 +106,50 @@ def test_another_program_on_the_port_is_named(
 
     assert cli._open(settings, browser=False, gui=False) == 1
     assert "Another program is using port" in capsys.readouterr().err
+
+
+def _without_a_console(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """pythonw, as the Windows icon and Startup shortcut run it, started in the data folder."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("sys.stdout", None)
+    monkeypatch.setattr("sys.stderr", None)
+    monkeypatch.setenv("VINTED_BOT_DB_PATH", str(tmp_path / "app.db"))
+    shown: list[str] = []
+    monkeypatch.setattr(control, "show_message", shown.append)
+    return shown
+
+
+def _windowless_log(tmp_path: Path) -> str:
+    sys.stderr.close()
+    return (tmp_path / cli.WINDOWLESS_LOG).read_text(encoding="utf-8")
+
+
+def test_the_icon_says_what_is_wrong_with_a_setting(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    shown = _without_a_console(tmp_path, monkeypatch)
+    monkeypatch.setenv("VINTED_BOT_WEB_PORT", "not a port")
+
+    assert cli.main(["open", "--gui"]) == 2
+
+    assert len(shown) == 1
+    assert shown[0] in _windowless_log(tmp_path)
+
+
+def test_the_icon_writes_down_a_crash_and_says_where(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    shown = _without_a_console(tmp_path, monkeypatch)
+
+    async def crash(_: object) -> int:
+        raise RuntimeError("something nobody planned for")
+
+    monkeypatch.setattr(cli, "_run", crash)
+
+    assert cli.main(["open", "--gui"]) == 1
+
+    assert "RuntimeError: something nobody planned for" in _windowless_log(tmp_path)
+    assert str(tmp_path / cli.WINDOWLESS_LOG) in shown[0]
 
 
 def test_vinted_bot_alone_means_open() -> None:

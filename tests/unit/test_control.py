@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from vinted_bot import control, instance, shortcuts
+from vinted_bot import cli, control, instance, shortcuts
 from vinted_bot.config import Settings
 
 
@@ -377,3 +377,84 @@ def test_when_launchd_refuses_it_starts_on_its_own(
     control.start(settings)
 
     assert started == [settings.web_port]
+
+
+# --- Windows: starting at sign-in without a window -------------------------------------
+
+
+def _windows_install(settings: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A Windows install: the launcher next to the database, and the tool's own pythonw."""
+    monkeypatch.setattr("sys.platform", "win32")
+    monkeypatch.setenv("APPDATA", str(tmp_path / "Roaming"))
+    where = instance.folder(settings)
+    where.mkdir(parents=True)
+    (where / control.WINDOWS_LAUNCHER).write_text("")
+    scripts = tmp_path / "tool" / "Scripts"
+    scripts.mkdir(parents=True)
+    (scripts / "pythonw.exe").write_text("")
+    monkeypatch.setattr("sys.executable", str(scripts / "python.exe"))
+    return scripts / "pythonw.exe"
+
+
+def test_the_windows_startup_shortcut_runs_pythonw_rather_than_powershell(
+    settings: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Windows 11 opens PowerShell in Windows Terminal, which ignores -WindowStyle Hidden.
+    pythonw = _windows_install(settings, tmp_path, monkeypatch)
+    made: list[dict[str, str]] = []
+
+    def run_powershell(
+        script: str, env: dict[str, str] | None = None
+    ) -> subprocess.CompletedProcess[str]:
+        made.append(env or {})
+        return subprocess.CompletedProcess([], 0, "", "")
+
+    monkeypatch.setattr(shortcuts, "run_powershell", run_powershell)
+
+    control.set_starts_at_login(settings, True)
+
+    assert made[0]["VB_TARGET"] == str(pythonw)
+    module, *command = made[0]["VB_ARGS"].split()[1:]
+    assert module == "vinted_bot"
+    args = cli.build_parser().parse_args(command)
+    assert (args.command, args.login) == ("start", True)
+
+
+def test_at_sign_in_a_copy_stopped_on_purpose_stays_stopped(
+    settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    started: list[control.Service | None] = []
+
+    def start_service(_: Settings, service: control.Service | None) -> bool:
+        started.append(service)
+        return True
+
+    monkeypatch.setattr(control, "_start_service", start_service)
+
+    instance.mark_stopped(settings)
+    control.start_at_login(settings)
+    assert started == []
+
+    instance.clear_stopped(settings)
+    control.start_at_login(settings)
+    assert len(started) == 1
+
+
+def test_an_old_windows_startup_shortcut_is_remade_once(
+    settings: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _windows_install(settings, tmp_path, monkeypatch)
+    link = control._windows_startup_link()
+    link.parent.mkdir(parents=True)
+    remade: list[bool] = []
+    monkeypatch.setattr(control, "set_starts_at_login", lambda _, on, **__: remade.append(on))
+
+    # Shortcuts keep their arguments as UTF-16.
+    old = r"-NoProfile -WindowStyle Hidden -File C:\vb\start-vinted-bot.ps1"
+    link.write_bytes(b"L\0\0\0" + old.encode("utf-16-le"))
+    control.upgrade_service(settings)
+    assert remade == [True]
+
+    link.write_bytes(b"L\0\0\0" + "-m vinted_bot start --login".encode("utf-16-le"))
+    control.upgrade_service(settings)
+    assert remade == [True]

@@ -222,6 +222,19 @@ def start(settings: Settings) -> instance.Running:
     return wait_until_running(settings)
 
 
+def start_at_login(settings: Settings) -> None:
+    """What the Windows Startup shortcut runs, under pythonw: the hidden launcher, unless
+    vinted-bot was stopped on purpose or is already running. Doesn't wait for it.
+
+    Not the launcher directly: Windows 11 opens PowerShell in Windows Terminal, which
+    ignores -WindowStyle Hidden, so a window would show at every sign-in, and closing it
+    would stop vinted-bot. Started from here it gets no window at all (_HIDDEN).
+    """
+    if instance.is_stopped(settings) or instance.running(settings) or _updating(settings):
+        return
+    _start_service(settings, installed_service(settings))
+
+
 def _start_service(settings: Settings, service: Service | None) -> bool:
     match service:
         case Service.LAUNCHD:
@@ -336,17 +349,21 @@ def stop(settings: Settings, timeout: float = STOP_TIMEOUT_S) -> bool:
 
 # --- Starting at login -------------------------------------------------------------------
 
+# The same shortcut install.ps1 makes: pythonw, so no window shows at sign-in (see
+# start_at_login).
 _WINDOWS_STARTUP_MAKE = r"""
 $shell = New-Object -ComObject WScript.Shell
 $link = $shell.CreateShortcut($env:VB_LINK)
-$link.TargetPath = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
-$arguments = '-NoProfile -ExecutionPolicy ByPass -WindowStyle Hidden -File '
-$link.Arguments = $arguments + '"' + $env:VB_LAUNCHER + '"'
+$link.TargetPath = $env:VB_TARGET
+$link.Arguments = $env:VB_ARGS
 $link.WorkingDirectory = $env:VB_DIR
-$link.WindowStyle = 7
 $link.Description = 'vinted-bot: alerts for new Vinted listings'
 $link.Save()
 """
+
+# Older installers pointed the shortcut at the launcher script through PowerShell. The
+# arguments are kept in the .lnk as UTF-16.
+_OLD_WINDOWS_STARTUP = WINDOWS_LAUNCHER.encode("utf-16-le")
 
 
 def _windows_startup_link(environ: Mapping[str, str] | None = None) -> Path:
@@ -402,14 +419,15 @@ def set_starts_at_login(settings: Settings, on: bool, *, home: Path | None = Non
             if not on:
                 link.unlink(missing_ok=True)
                 return
-            folder = instance.folder(settings)
+            target, arguments = shortcuts.windows_command("start --login")
             link.parent.mkdir(parents=True, exist_ok=True)
             result = shortcuts.run_powershell(
                 _WINDOWS_STARTUP_MAKE,
                 {
                     "VB_LINK": str(link),
-                    "VB_LAUNCHER": str(folder / WINDOWS_LAUNCHER),
-                    "VB_DIR": str(folder),
+                    "VB_TARGET": str(target),
+                    "VB_ARGS": arguments,
+                    "VB_DIR": str(instance.folder(settings)),
                 },
             )
             if result.returncode != 0:
@@ -427,7 +445,9 @@ def upgrade_service(settings: Settings, *, home: Path | None = None) -> bool | N
     Before Stop existed the entries started vinted-bot again after any exit. A copy that
     updated itself still has that entry until the installer runs again; this fixes it in
     place. It also takes keeping the Mac awake out of the LaunchAgent, where it was fixed
-    at install time, into the app, where Settings can switch it. Returns whether the old
+    at install time, into the app, where Settings can switch it. On Windows, the old
+    Startup shortcut ran PowerShell, which shows a window on Windows 11: it is remade to
+    run pythonw. Returns whether the old
     LaunchAgent kept the Mac awake (None when there was nothing to bring over).
     """
     home = home or Path.home()
@@ -442,6 +462,11 @@ def upgrade_service(settings: Settings, *, home: Path | None = None) -> bool | N
                     text.replace("Restart=always", "Restart=on-failure"), encoding="utf-8"
                 )
                 _run(["systemctl", "--user", "daemon-reload"])
+            return None
+        case Service.WINDOWS:
+            link = _windows_startup_link()
+            if link.is_file() and _OLD_WINDOWS_STARTUP in link.read_bytes():
+                set_starts_at_login(settings, True, home=home)
             return None
         case _:
             return None

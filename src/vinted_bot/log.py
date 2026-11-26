@@ -8,6 +8,7 @@ among a dozen healthy ones.
 from __future__ import annotations
 
 import importlib.util
+import io
 import logging
 import sys
 from collections.abc import Callable, MutableMapping
@@ -56,8 +57,25 @@ def colors_for(stream: TextIO | None) -> bool:
     return sys.platform != "win32" or importlib.util.find_spec("colorama") is not None
 
 
+def _utf8_when_redirected(stream: TextIO | None) -> None:
+    """Write UTF-8 when the log goes to a file on Windows, as the installed app's does.
+
+    Until Python 3.15, Windows writes redirected output in the ANSI code page (cp1252 and
+    the like), while `vinted-bot logs` reads the file as UTF-8: Polish or Czech listing
+    titles and emoji came out garbled.
+    """
+    if (
+        sys.platform == "win32"
+        and isinstance(stream, io.TextIOWrapper)
+        and not stream.isatty()
+        and stream.encoding.lower().replace("-", "") != "utf8"
+    ):
+        stream.reconfigure(encoding="utf-8", errors="backslashreplace")
+
+
 def configure(level: str = "INFO", fmt: str = "console", timezone: str = "UTC") -> None:
     """Set up structlog and the standard library logger it bridges to."""
+    _utf8_when_redirected(sys.stderr)
     renderer: structlog.typing.Processor = (
         structlog.dev.ConsoleRenderer(colors=colors_for(sys.stderr))
         if fmt == "console"

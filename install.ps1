@@ -85,6 +85,19 @@ function Invoke-VbQuiet([string]$Exe, [string[]]$Arguments) {
     & $Exe @Arguments 2>&1 | Out-Null
 }
 
+# What a program prints, read as the UTF-8 it is. Windows PowerShell 5.1 would read it in
+# the console's code page, and a user folder with an umlaut in its name came back as a path
+# that doesn't exist.
+function Get-VbOutput([string]$Exe, [string[]]$Arguments) {
+    $before = [Console]::OutputEncoding
+    try {
+        [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false
+        return ((& $Exe @Arguments) | Out-String).Trim()
+    } finally {
+        [Console]::OutputEncoding = $before
+    }
+}
+
 # A value placed inside single quotes in a generated PowerShell file.
 function ConvertTo-VbLiteral([string]$Text) { return "'" + ($Text -replace "'", "''") + "'" }
 
@@ -180,8 +193,8 @@ function Write-VbLauncher($S, [string]$Exe, [string]$Uv) {
     $portQ = ConvertTo-VbLiteral $S.Port
     $content = @"
 # Starts vinted-bot in the background, and again after an update. Written by
-# install.ps1; run by the shortcut in your Startup folder when you sign in. Running the
-# installer again rewrites this file.
+# install.ps1; started hidden by vinted-bot itself (the Startup shortcut, the icon,
+# vinted-bot start). Running the installer again rewrites this file.
 `$exe = $exeQ
 `$uv = $uvQ
 `$log = $logQ
@@ -212,23 +225,24 @@ while (`$true) {
     [IO.File]::WriteAllText($S.Launcher, $content, (New-Object System.Text.UTF8Encoding $true))
 }
 
-function Get-VbLauncherCommandLine($S) {
-    return '-NoProfile -ExecutionPolicy ByPass -WindowStyle Hidden -File "' + $S.Launcher + '"'
-}
-
-function Start-VbApp($S) {
-    Start-Process -FilePath 'powershell.exe' -ArgumentList (Get-VbLauncherCommandLine $S) -WindowStyle Hidden
+# Through pythonw, for the same reason as the Startup shortcut below.
+function Start-VbApp($S, [string]$Pythonw) {
+    $env:VINTED_BOT_DB_PATH = $S.DbPath
+    Start-Process -FilePath $Pythonw -ArgumentList '-m vinted_bot start --login' -WorkingDirectory $S.DataDir
 }
 
 # A shortcut in the Startup folder needs no admin rights, unlike a scheduled task that runs
-# at sign-in, and it is easy to find and remove by hand.
-function New-VbStartupShortcut($S) {
+# at sign-in, and it is easy to find and remove by hand. It runs pythonw, which has no
+# window, rather than the launcher itself: Windows 11 opens PowerShell in Windows Terminal,
+# which ignores -WindowStyle Hidden, so a window would show at every sign-in and closing it
+# would stop vinted-bot. `start --login` starts the launcher hidden, unless it was stopped.
+# The app writes the same shortcut when it is switched on in Settings (control.py).
+function New-VbStartupShortcut($S, [string]$Pythonw) {
     $shell = New-Object -ComObject WScript.Shell
     $link = $shell.CreateShortcut($S.Shortcut)
-    $link.TargetPath = (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe')
-    $link.Arguments = Get-VbLauncherCommandLine $S
+    $link.TargetPath = $Pythonw
+    $link.Arguments = '-m vinted_bot start --login'
     $link.WorkingDirectory = $S.DataDir
-    $link.WindowStyle = 7
     $link.Description = 'vinted-bot: alerts for new Vinted listings'
     $link.Save()
 }
@@ -260,7 +274,7 @@ function Uninstall-VbApp($S) {
     $uv = Find-VbUv
     if ($uv) {
         # The Start menu and desktop icons go first, while the program that made them is there.
-        $exe = Join-Path (((& $uv tool dir --bin) | Out-String).Trim()) 'vinted-bot.exe'
+        $exe = Join-Path (Get-VbOutput $uv @('tool', 'dir', '--bin')) 'vinted-bot.exe'
         if (Test-Path -LiteralPath $exe) {
             $env:VINTED_BOT_DB_PATH = $S.DbPath
             & $exe shortcuts --remove *> $null
@@ -280,8 +294,9 @@ function Uninstall-VbApp($S) {
 function Install-VbApp($S, [string]$AutostartSetting, [bool]$OpenBrowser) {
     New-Item -ItemType Directory -Force -Path $S.DataDir | Out-Null
     $uv = Get-VbUv
-    $bin = ((& $uv tool dir --bin) | Out-String).Trim()
-    $exe = Join-Path $bin 'vinted-bot.exe'
+    $exe = Join-Path (Get-VbOutput $uv @('tool', 'dir', '--bin')) 'vinted-bot.exe'
+    # The tool's own Python, whose pythonw runs without a window.
+    $pythonw = Join-Path (Get-VbOutput $uv @('tool', 'dir')) 'vinted-bot\Scripts\pythonw.exe'
 
     $already = Test-Path -LiteralPath $exe
     if ($already) {
@@ -304,7 +319,7 @@ function Install-VbApp($S, [string]$AutostartSetting, [bool]$OpenBrowser) {
     # So `vinted-bot status` typed in any new window reads the same database as the copy
     # running in the background.
     [Environment]::SetEnvironmentVariable('VINTED_BOT_DB_PATH', $S.DbPath, 'User')
-    $version = ((& $exe --version) | Out-String).Trim()
+    $version = Get-VbOutput $exe @('--version')
 
     if (Test-VbPortInUse $S.Port) {
         Write-Host ''
@@ -320,12 +335,12 @@ function Install-VbApp($S, [string]$AutostartSetting, [bool]$OpenBrowser) {
     # Installing (or updating) is asking for it to run, even if it was stopped before.
     Remove-Item -LiteralPath (Join-Path $S.DataDir 'vinted-bot.stopped') -Force -ErrorAction SilentlyContinue
     if ($autostarted) {
-        New-VbStartupShortcut $S
+        New-VbStartupShortcut $S $pythonw
         Write-Host 'It starts by itself whenever you sign in (switch that off in Settings, General).'
     } else {
         Remove-Item -LiteralPath $S.Shortcut -Force -ErrorAction SilentlyContinue
     }
-    Start-VbApp $S
+    Start-VbApp $S $pythonw
 
     Write-Host ''
     if (-not (Wait-VbDashboard $S)) {

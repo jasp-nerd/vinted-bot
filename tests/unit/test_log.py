@@ -54,3 +54,22 @@ def test_a_terminal_elsewhere_gets_colours(monkeypatch: pytest.MonkeyPatch) -> N
 
     assert log.colors_for(_Terminal())
     assert not log.colors_for(io.StringIO())
+
+
+def test_the_windows_log_file_is_utf8_whatever_the_code_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # What Python on a Western European Windows hands a log redirected to a file.
+    written = io.BytesIO()
+    log_file = io.TextIOWrapper(written, encoding="cp1252", errors="backslashreplace")
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr(sys, "stderr", log_file)
+    before = structlog.get_config()
+    try:
+        log.configure()
+        log.get_logger(__name__).info("alert.sent", title="Buty Łódź café 👟")
+        log_file.flush()
+    finally:
+        structlog.configure(**before)
+
+    assert "Buty Łódź café 👟" in written.getvalue().decode("utf-8")

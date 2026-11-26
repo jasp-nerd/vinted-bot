@@ -50,6 +50,15 @@ becomes the text of its GitHub release, so write it for the people running the a
   when you press Buy now on the listing, so no link can open checkout directly. Alerts and
   the dashboard now offer Open on Vinted, where Buy now is one tap, and Message seller.
   The webhook's `links.buy` stays, pointing at the listing.
+- **Windows:** a user folder with letters like "ü" in its name no longer breaks
+  installing, updating or making the icons.
+- **Windows:** vinted-bot no longer opens a PowerShell window at sign-in on Windows 11,
+  where closing it stopped vinted-bot. Copies that update themselves get the new Startup
+  shortcut too.
+- **Windows:** when the icon can't start vinted-bot, it says why in a message instead of
+  doing nothing, and writes the details to `vinted-bot-icon.log` next to the database.
+- **Windows:** the log file is written as UTF-8, so listing titles in Polish, Czech or
+  Lithuanian, and emoji, read correctly in `vinted-bot logs`.
 
 ### Changed
 

@@ -11,10 +11,11 @@ import sqlite3
 import subprocess
 import sys
 import time
+import traceback
 import webbrowser
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 import httpx
 import segno
@@ -84,7 +85,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     # No command at all opens the dashboard, starting vinted-bot first if needed: the one
     # thing someone typing `vinted-bot` after closing the browser tab wants.
-    parser.set_defaults(no_browser=False, gui=False)
+    parser.set_defaults(no_browser=False, gui=False, windowless=False)
     sub = parser.add_subparsers(dest="command", metavar="command")
     sub.default = "open"
 
@@ -212,7 +213,11 @@ def _control_parsers(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -
         "--no-browser", action="store_true", help="Print the address instead of opening it."
     )
     opener.add_argument("--gui", action="store_true", help=argparse.SUPPRESS)
-    sub.add_parser("start", help="Start vinted-bot in the background if it isn't running.")
+    starter = sub.add_parser(
+        "start", help="Start vinted-bot in the background if it isn't running."
+    )
+    # What the Windows Startup shortcut runs: see control.start_at_login.
+    starter.add_argument("--login", action="store_true", help=argparse.SUPPRESS)
     sub.add_parser(
         "stop", help="Stop vinted-bot. It stays stopped, even at the next login, until started."
     )
@@ -668,6 +673,8 @@ def _cmd_control(settings: Settings, args: argparse.Namespace) -> int:
         match command:
             case "open":
                 return _open(settings, browser=not args.no_browser, gui=args.gui)
+            case "start" if args.login:
+                control.start_at_login(settings)
             case "start":
                 running = control.start(settings)
                 print(f"vinted-bot is running. Dashboard: {running.url}")
@@ -685,6 +692,8 @@ def _cmd_control(settings: Settings, args: argparse.Namespace) -> int:
                 return _logs(settings, lines=args.lines, follow=args.follow)
     except control.ControlError as exc:
         print(str(exc), file=sys.stderr)
+        if args.windowless:
+            control.show_message(str(exc))
         return 1
     return 0
 
@@ -841,6 +850,8 @@ async def _run(args: argparse.Namespace) -> int:
         settings = Settings()
     except ValidationError as exc:
         print(config.explain(exc), file=sys.stderr)
+        if args.windowless:
+            control.show_message(config.explain(exc))
         return 2
     log.configure(level=settings.log_level, fmt=settings.log_format, timezone=settings.timezone)
     for warning in settings.warnings:
@@ -892,13 +903,27 @@ async def _run(args: argparse.Namespace) -> int:
             raise AssertionError(f"unhandled command {unknown!r}")
 
 
+# The Windows icon and Startup shortcut run vinted-bot under pythonw, which has no console.
+# What it would print goes to this file instead, in the folder those shortcuts start in
+# (the data folder), so a failure there leaves something to read.
+WINDOWLESS_LOG = "vinted-bot-icon.log"
+
+
+def _windowless_output() -> TextIO:
+    try:
+        return open(WINDOWLESS_LOG, "w", encoding="utf-8")
+    except OSError:
+        return open(os.devnull, "w", encoding="utf-8")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
-    # The Windows icon runs this under pythonw, which has no console to write to.
-    if sys.stdout is None:
-        sys.stdout = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
-    if sys.stderr is None:
-        sys.stderr = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
+    windowless = sys.stdout is None or sys.stderr is None
+    if windowless:
+        output = _windowless_output()
+        sys.stdout = sys.stdout or output
+        sys.stderr = sys.stderr or output
     args = build_parser().parse_args(argv)
+    args.windowless = windowless
     try:
         return asyncio.run(_run(args))
     except KeyboardInterrupt:
@@ -910,6 +935,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         devnull = os.open(os.devnull, os.O_WRONLY)
         os.dup2(devnull, sys.stdout.fileno())
         return 0
+    except Exception:
+        if not windowless:
+            raise
+        # Nobody would ever see the traceback: write it down and say where.
+        traceback.print_exc()
+        sys.stderr.flush()
+        control.show_message(
+            "vinted-bot ran into a problem and couldn't start. What went wrong is in "
+            f"{Path(WINDOWLESS_LOG).resolve()}"
+        )
+        return 1
 
 
 if __name__ == "__main__":

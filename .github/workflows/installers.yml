@@ -197,6 +197,67 @@ jobs:
           if (Test-Path "$env:USERPROFILE\.local\bin\vinted-bot.exe") { throw 'still installed' }
           if (Test-Path (Join-Path ([Environment]::GetFolderPath('Programs')) 'vinted-bot.lnk')) { throw 'Start menu icon left behind' }
           if (Get-Process vinted-bot -ErrorAction SilentlyContinue) { throw 'still running' }
+          if (Test-Path (Join-Path ([Environment]::GetFolderPath('Desktop')) 'vinted-bot.lnk')) { throw 'desktop icon left behind' }
+
+      # What CI's plain ASCII folders hid from the first Windows testers: a user folder with an
+      # umlaut (PowerShell 5.1 reads programs' output in the console's code page, so uv's and
+      # the icon maker's answers came back garbled), and the icons, which run pythonw, with no
+      # console at all. So: install with an umlaut in every folder vinted-bot uses, then start
+      # it the way people do, through the Startup shortcut and the Start menu icon.
+      - name: Install into folders with umlauts and start it through its icons
+        shell: powershell
+        run: |
+          $odd = 'C:\T' + [char]0xEB + 'st ' + [char]0xDC    # C:\T(e-umlaut)st (U-umlaut)
+          $env:UV_TOOL_DIR = "$odd\tools"
+          $env:UV_TOOL_BIN_DIR = "$odd\bin"
+          $env:VINTED_BOT_DATA_DIR = "$odd\data"
+          $env:VINTED_BOT_DB_PATH = "$odd\data\app.db"
+          # A desktop moved into OneDrive, as on many PCs.
+          New-Item -ItemType Directory -Force -Path "$odd\OneDrive - Universit$([char]0xE4)t\Desktop" | Out-Null
+          Set-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders' -Name Desktop -Value "$odd\OneDrive - Universit$([char]0xE4)t\Desktop"
+          $env:VINTED_BOT_PACKAGE = 'vinted-bot @ file:///' + ($env:GITHUB_WORKSPACE -replace '\\', '/')
+          $out = powershell -NoProfile -NonInteractive -ExecutionPolicy ByPass -File install.ps1 -Autostart -NoBrowser *>&1 | Out-String
+          Write-Host $out
+          if ($out -match "Sorry, that didn't work") { throw 'the installer reported a failure' }
+
+          $vb = "$odd\bin\vinted-bot.exe"
+          $made = (& $vb shortcuts) | Out-String
+          if ($LASTEXITCODE -ne 0) { throw "making the icons failed: $made" }
+          $desktop = Join-Path ([Environment]::GetFolderPath('Desktop')) 'vinted-bot.lnk'
+          if (-not (Test-Path -LiteralPath $desktop)) { throw "no desktop icon at $desktop" }
+
+          function Wait-Healthy {
+            for ($i = 0; $i -lt 60; $i++) {
+              try {
+                $r = Invoke-WebRequest -UseBasicParsing -Uri http://127.0.0.1:8000/healthz -TimeoutSec 2
+                if ($r.Content -match '"alive"') { return }
+              } catch { if ($_.Exception.Response -and [int]$_.Exception.Response.StatusCode -eq 503) { return } }
+              Start-Sleep -Seconds 1
+            }
+            Get-Content -LiteralPath "$odd\data\vinted-bot-icon.log" -ErrorAction SilentlyContinue
+            throw 'it did not start'
+          }
+
+          # Signing in: the Startup shortcut. A stop by hand doesn't count as stopped on purpose
+          # here, so clear the note it leaves.
+          & $vb stop
+          Remove-Item -LiteralPath "$odd\data\vinted-bot.stopped" -ErrorAction SilentlyContinue
+          Start-Process -FilePath (Join-Path ([Environment]::GetFolderPath('Startup')) 'vinted-bot.lnk')
+          Wait-Healthy
+
+          # The Start menu icon, after Stop.
+          & $vb stop
+          Start-Sleep -Seconds 2
+          Start-Process -FilePath (Join-Path ([Environment]::GetFolderPath('Programs')) 'vinted-bot.lnk')
+          Wait-Healthy
+          $icon = Get-Content -Raw -LiteralPath "$odd\data\vinted-bot-icon.log" -ErrorAction SilentlyContinue
+          if ($icon -match 'Traceback') { throw "the icon ran into an error: $icon" }
+
+          powershell -NoProfile -NonInteractive -ExecutionPolicy ByPass -File install.ps1 -Uninstall
+          Start-Sleep -Seconds 3
+          if (Test-Path -LiteralPath $vb) { throw 'still installed' }
+          if (Test-Path -LiteralPath $desktop) { throw 'desktop icon left behind' }
+          if (Test-Path (Join-Path ([Environment]::GetFolderPath('Startup')) 'vinted-bot.lnk')) { throw 'Startup shortcut left behind' }
 
       # The app runs hidden on Windows, so its own log is the only record of why it stopped.
       - name: Show the app's log
