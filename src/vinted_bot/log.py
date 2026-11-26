@@ -7,11 +7,12 @@ among a dozen healthy ones.
 
 from __future__ import annotations
 
+import importlib.util
 import logging
 import sys
 from collections.abc import Callable, MutableMapping
 from datetime import datetime
-from typing import Any
+from typing import Any, TextIO
 from zoneinfo import ZoneInfo
 
 import structlog
@@ -43,10 +44,22 @@ def local_timestamps(tz: ZoneInfo) -> Stamper:
     return stamp
 
 
+def colors_for(stream: TextIO | None) -> bool:
+    """Whether log lines to this stream can be coloured.
+
+    structlog colours on Windows only through colorama, which isn't installed, and refuses
+    to start rather than print plain text. That bit the Windows icon: it runs pythonw,
+    whose missing stderr becomes the NUL device, and NUL says it is a terminal.
+    """
+    if stream is None or not stream.isatty():
+        return False
+    return sys.platform != "win32" or importlib.util.find_spec("colorama") is not None
+
+
 def configure(level: str = "INFO", fmt: str = "console", timezone: str = "UTC") -> None:
     """Set up structlog and the standard library logger it bridges to."""
     renderer: structlog.typing.Processor = (
-        structlog.dev.ConsoleRenderer(colors=sys.stderr.isatty())
+        structlog.dev.ConsoleRenderer(colors=colors_for(sys.stderr))
         if fmt == "console"
         else structlog.processors.JSONRenderer()
     )
