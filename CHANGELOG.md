@@ -6,6 +6,13 @@ becomes the text of its GitHub release, so write it for the people running the a
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-11-26
+
+vinted-bot is easier to get back to and to keep up to date: an icon opens the dashboard,
+Stop in Settings keeps it stopped, and installs from the installers update themselves at
+night. Message seller works again, and Buy, which Vinted no longer allows a link to, is
+gone. Windows got a round of fixes thanks to its first testers.
+
 ### Added
 
 - **A vinted-bot icon to open it again.** The installers (and installs that update
@@ -427,7 +434,8 @@ First version, never tagged as a release: polling with a stale-catalog watchdog,
 the total price including buyer protection, Discord, Telegram, ntfy, RSS and webhook
 delivery through a reliable outbox, and a web dashboard.
 
-[Unreleased]: https://github.com/jasp-nerd/vinted-bot/compare/v2.3.0...HEAD
+[Unreleased]: https://github.com/jasp-nerd/vinted-bot/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/jasp-nerd/vinted-bot/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/jasp-nerd/vinted-bot/compare/v2.2.1...v2.3.0
 [2.2.1]: https://github.com/jasp-nerd/vinted-bot/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/jasp-nerd/vinted-bot/compare/v2.1.0...v2.2.0
